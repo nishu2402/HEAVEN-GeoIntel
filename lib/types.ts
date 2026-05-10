@@ -250,6 +250,23 @@ export interface AbstractEmailData {
   isSmtpValid: boolean;
 }
 
+export interface XposedOrNotBreach {
+  breach: string;
+  xposedData: string[];         // ["Passwords", "Email Addresses", "Usernames", ...]
+  xposedDate: string;           // "2013-10-04"
+  xposedRecords: number;
+  domain: string;
+  passwordRisk: string;         // "ClearText" | "EasyToCrack" | "StrongHash" | "Unknown"
+  verified: boolean;
+}
+
+export interface XposedOrNotData {
+  breachCount: number;
+  breaches: XposedOrNotBreach[];
+  xposedDataTypes: string[];    // All unique data types across all breaches
+  yearwiseDetails: Record<string, number>;
+}
+
 export interface EmailLookupResponse {
   email: string;
   analysis: EmailAnalysis;
@@ -257,5 +274,6 @@ export interface EmailLookupResponse {
   emailrep: SourceResult<EmailRepData>;
   hunter: SourceResult<HunterData>;
   abstract: SourceResult<AbstractEmailData>;
+  xon: SourceResult<XposedOrNotData>;   // XposedOrNot — free breach DB
   cachedAt?: number;
 }
