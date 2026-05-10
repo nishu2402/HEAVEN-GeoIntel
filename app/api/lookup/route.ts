@@ -163,6 +163,27 @@ function buildAggregated(
   const isRisky = ipqs.ok && ipqs.data ? ipqs.data.risky : null;
   const recentAbuse = ipqs.ok && ipqs.data ? ipqs.data.recent_abuse : null;
 
+  // Caller identity
+  const twilioCallerName = twilio.ok ? (twilio.data?.caller_name?.caller_name ?? null) : null;
+  const ipqsName = ipqs.ok && ipqs.data?.name ? ipqs.data.name : null;
+  const callerName = pickFirst<string>([twilioCallerName, ipqsName]);
+  const callerType = twilio.ok ? (twilio.data?.caller_name?.caller_type ?? null) : null;
+
+  // SIM intelligence
+  const prepaid = ipqs.ok && ipqs.data ? (ipqs.data.prepaid ?? null) : null;
+  const active = ipqs.ok && ipqs.data ? (ipqs.data.active ?? null) : null;
+  const activeStatus = ipqs.ok && ipqs.data?.active_status ? ipqs.data.active_status : null;
+  const userActivity = ipqs.ok && ipqs.data?.user_activity ? ipqs.data.user_activity : null;
+  const city = ipqs.ok && ipqs.data?.city ? ipqs.data.city : null;
+  const mobileCountryCode = twilio.ok
+    ? (twilio.data?.line_type_intelligence?.mobile_country_code ?? null)
+    : null;
+  const mobileNetworkCode = twilio.ok
+    ? (twilio.data?.line_type_intelligence?.mobile_network_code ?? null)
+    : null;
+  const rawEmails = ipqs.ok ? ipqs.data?.associated_email_addresses?.emails : undefined;
+  const associatedEmails = rawEmails && rawEmails.length > 0 ? rawEmails : null;
+
   return {
     carrier,
     lineType: lineType ?? analysis.typeDescription,
@@ -189,6 +210,16 @@ function buildAggregated(
     formatInternational: analysis.formatInternational,
     formatNational: analysis.formatNational,
     formatRfc3966: analysis.formatRfc3966,
+    callerName,
+    callerType,
+    prepaid,
+    active,
+    activeStatus,
+    userActivity,
+    mobileCountryCode,
+    mobileNetworkCode,
+    associatedEmails,
+    city,
   };
 }
 
