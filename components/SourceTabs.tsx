@@ -17,6 +17,13 @@ const SOURCE_LABELS: Record<SourceKey, string> = {
   twilio: "Twilio",
 };
 
+const SOURCE_ENV_HINT: Record<SourceKey, string> = {
+  numverify: "NUMVERIFY_API_KEY",
+  ipqs: "IPQS_API_KEY",
+  abstract: "ABSTRACT_API_KEY",
+  twilio: "TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN",
+};
+
 function StatusDot({ ok, error }: { ok: boolean; error?: string }) {
   if (error === "NOT_CONFIGURED") return <span className="w-2 h-2 rounded-full bg-[#444] inline-block" />;
   return (
@@ -58,7 +65,7 @@ export default function SourceTabs({ sources }: Props) {
               {src.error === "NOT_CONFIGURED" ? (
                 <div className="text-center py-6">
                   <div className="text-[#555] text-xs uppercase tracking-widest mb-1">NOT CONFIGURED</div>
-                  <div className="text-[#333] text-xs">Set {key.toUpperCase()}_API_KEY in .env.local</div>
+                  <div className="text-[#333] text-xs font-mono">Set {SOURCE_ENV_HINT[key]} in .env.local</div>
                 </div>
               ) : !src.ok ? (
                 <div className="text-[#ff3e3e] text-xs font-mono">

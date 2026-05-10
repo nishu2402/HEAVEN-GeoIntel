@@ -1,5 +1,6 @@
 const WINDOW_MS = 60_000; // 1 minute
 const MAX_REQUESTS = 10;
+const CLEANUP_INTERVAL_MS = 5 * 60_000; // clean stale buckets every 5 min
 
 interface Bucket {
   count: number;
@@ -7,6 +8,16 @@ interface Bucket {
 }
 
 const buckets = new Map<string, Bucket>();
+
+// Purge IP entries whose window has long since expired to prevent unbounded growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, bucket] of buckets.entries()) {
+    if (now - bucket.windowStart > WINDOW_MS * 2) {
+      buckets.delete(ip);
+    }
+  }
+}, CLEANUP_INTERVAL_MS);
 
 export function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
