@@ -4,10 +4,12 @@ import { useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Shield, Terminal } from "lucide-react";
-import type { LookupResponse } from "@/lib/types";
+import type { LookupResponse, EmailLookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
 import PhoneInput from "@/components/PhoneInput";
+import EmailInput from "@/components/EmailInput";
 import ResultsDashboard from "@/components/ResultsDashboard";
+import EmailResultsDashboard from "@/components/EmailResultsDashboard";
 import LoadingSkeletons from "@/components/LoadingSkeletons";
 import BootSequence from "@/components/BootSequence";
 import { saveToHistory } from "@/components/HistorySidebar";
@@ -15,7 +17,9 @@ import { saveToHistory } from "@/components/HistorySidebar";
 const MatrixRain = dynamic(() => import("@/components/MatrixRain"), { ssr: false });
 const HistorySidebar = dynamic(() => import("@/components/HistorySidebar"), { ssr: false });
 
-type Status = "boot" | "idle" | "loading" | "done" | "error";
+type PhoneStatus = "boot" | "idle" | "loading" | "done" | "error";
+type EmailStatus = "idle" | "loading" | "done" | "error";
+type Mode = "phone" | "email";
 
 interface ApiErrorResponse {
   error?: string;
@@ -24,18 +28,27 @@ interface ApiErrorResponse {
 function PageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState<Status>("boot");
-  const [result, setResult] = useState<LookupResponse | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [mode, setMode] = useState<Mode>("phone");
+
+  // Phone state
+  const [phoneStatus, setPhoneStatus] = useState<PhoneStatus>("boot");
+  const [phoneResult, setPhoneResult] = useState<LookupResponse | null>(null);
+  const [phoneErrorMsg, setPhoneErrorMsg] = useState<string>("");
   const [currentE164, setCurrentE164] = useState<string>("");
 
+  // Email state
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
+  const [emailResult, setEmailResult] = useState<EmailLookupResponse | null>(null);
+  const [emailErrorMsg, setEmailErrorMsg] = useState<string>("");
+
+  const isBooting = phoneStatus === "boot";
+
   const runLookup = useCallback(async (number: string) => {
-    setStatus("loading");
-    setResult(null);
-    setErrorMsg("");
+    setPhoneStatus("loading");
+    setPhoneResult(null);
+    setPhoneErrorMsg("");
     setCurrentE164(number);
 
-    // Update URL for shareability
     const params = new URLSearchParams();
     params.set("q", number);
     router.replace(`?${params.toString()}`, { scroll: false });
@@ -50,15 +63,14 @@ function PageContent() {
       const json = (await res.json()) as LookupResponse | ApiErrorResponse;
 
       if (!res.ok) {
-        const errJson = json as ApiErrorResponse;
-        setErrorMsg(errJson.error ?? `HTTP ${res.status}`);
-        setStatus("error");
+        setPhoneErrorMsg((json as ApiErrorResponse).error ?? `HTTP ${res.status}`);
+        setPhoneStatus("error");
         return;
       }
 
       const data = json as LookupResponse;
-      setResult(data);
-      setStatus("done");
+      setPhoneResult(data);
+      setPhoneStatus("done");
 
       saveToHistory({
         e164: data.input.e164,
@@ -68,23 +80,48 @@ function PageContent() {
         flagEmoji: countryToFlagEmoji(data.input.country),
       });
     } catch {
-      setErrorMsg("Network error — is the dev server running?");
-      setStatus("error");
+      setPhoneErrorMsg("Network error — is the dev server running?");
+      setPhoneStatus("error");
     }
   }, [router]);
+
+  const runEmailLookup = useCallback(async (email: string) => {
+    setEmailStatus("loading");
+    setEmailResult(null);
+    setEmailErrorMsg("");
+
+    try {
+      const res = await fetch("/api/email-lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const json = (await res.json()) as EmailLookupResponse | ApiErrorResponse;
+
+      if (!res.ok) {
+        setEmailErrorMsg((json as ApiErrorResponse).error ?? `HTTP ${res.status}`);
+        setEmailStatus("error");
+        return;
+      }
+
+      setEmailResult(json as EmailLookupResponse);
+      setEmailStatus("done");
+    } catch {
+      setEmailErrorMsg("Network error — is the dev server running?");
+      setEmailStatus("error");
+    }
+  }, []);
 
   const handleHistorySelect = useCallback(
     (e164: string) => runLookup(e164),
     [runLookup]
   );
 
-  // Auto-run from ?q= query param
   const handleBootDone = useCallback(() => {
-    setStatus("idle");
+    setPhoneStatus("idle");
     const q = searchParams.get("q");
-    if (q) {
-      void runLookup(q);
-    }
+    if (q) void runLookup(q);
   }, [searchParams, runLookup]);
 
   return (
@@ -102,7 +139,7 @@ function PageContent() {
               <span className="text-[#00d9ff]">GeoIntel</span>
             </span>
             <span className="text-[10px] text-[#00ff41]/30 uppercase tracking-widest hidden sm:block">
-              {"//"} phone intelligence platform
+              {"//"} osint intelligence platform
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -120,53 +157,76 @@ function PageContent() {
         <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
 
           {/* Boot sequence */}
-          {status === "boot" && (
+          {isBooting && (
             <div className="mb-8 terminal-card p-6">
               <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40 mb-4">
-                [ SYSTEM INIT ] — HEAVEN-GeoIntel Phone Intelligence Platform
+                [ SYSTEM INIT ] — HEAVEN-GeoIntel OSINT Intelligence Platform
               </div>
               <BootSequence onDone={handleBootDone} />
             </div>
           )}
 
-          {/* Input */}
-          {status !== "boot" && (
+          {/* Input card */}
+          {!isBooting && (
             <div className="terminal-card p-6 mb-4 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">
                   [ TARGET ACQUISITION ]
                 </div>
-                <div className="text-[10px] text-[#00ff41]/25 font-mono">
-                  Works offline · no API keys required
+                {/* Mode tabs */}
+                <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                  {(["phone", "email"] as Mode[]).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setMode(m)}
+                      className={`px-3 py-1.5 border tracking-widest uppercase transition-all ${
+                        mode === m
+                          ? "border-[#00ff41] text-[#00ff41] bg-[#00ff41]/10 shadow-[0_0_10px_rgba(0,255,65,0.15)]"
+                          : "border-[#00ff41]/20 text-[#00ff41]/35 hover:border-[#00ff41]/50 hover:text-[#00ff41]/60"
+                      }`}
+                    >
+                      {m === "phone" ? "[ PHONE ]" : "[ EMAIL ]"}
+                    </button>
+                  ))}
+                  <span className="text-[#00ff41]/20 ml-1 hidden sm:block">
+                    · offline-first
+                  </span>
                 </div>
               </div>
-              <PhoneInput onLookup={runLookup} loading={status === "loading"} />
+
+              {mode === "phone" && (
+                <PhoneInput onLookup={runLookup} loading={phoneStatus === "loading"} />
+              )}
+              {mode === "email" && (
+                <EmailInput onLookup={runEmailLookup} loading={emailStatus === "loading"} />
+              )}
             </div>
           )}
 
-          {/* History */}
-          {status !== "boot" && (
+          {/* History — phone mode only */}
+          {!isBooting && mode === "phone" && (
             <div className="mb-4">
               <HistorySidebar onSelect={handleHistorySelect} currentE164={currentE164} />
             </div>
           )}
 
           {/* Loading */}
-          {status === "loading" && <LoadingSkeletons />}
+          {((mode === "phone" && phoneStatus === "loading") ||
+            (mode === "email" && emailStatus === "loading")) && <LoadingSkeletons />}
 
-          {/* Error */}
-          {status === "error" && (
+          {/* Phone error */}
+          {mode === "phone" && phoneStatus === "error" && (
             <div className="mt-6 terminal-card p-5 border border-[#ff3e3e]/30">
               <div className="text-[10px] uppercase tracking-widest text-[#ff3e3e]/60 mb-2">
                 [ LOOKUP FAILED ]
               </div>
               <div className="text-[#ff3e3e] font-mono text-sm">
                 <span className="text-[#ff3e3e]/60">[ERROR] </span>
-                {errorMsg}
+                {phoneErrorMsg}
               </div>
               <button
                 onClick={() => {
-                  setStatus("idle");
+                  setPhoneStatus("idle");
                   router.replace("/", { scroll: false });
                 }}
                 className="mt-3 text-[10px] uppercase tracking-widest text-[#00ff41]/50 hover:text-[#00ff41] transition-colors font-mono"
@@ -176,8 +236,34 @@ function PageContent() {
             </div>
           )}
 
-          {/* Results */}
-          {status === "done" && result && <ResultsDashboard data={result} />}
+          {/* Email error */}
+          {mode === "email" && emailStatus === "error" && (
+            <div className="mt-6 terminal-card p-5 border border-[#ff3e3e]/30">
+              <div className="text-[10px] uppercase tracking-widest text-[#ff3e3e]/60 mb-2">
+                [ LOOKUP FAILED ]
+              </div>
+              <div className="text-[#ff3e3e] font-mono text-sm">
+                <span className="text-[#ff3e3e]/60">[ERROR] </span>
+                {emailErrorMsg}
+              </div>
+              <button
+                onClick={() => setEmailStatus("idle")}
+                className="mt-3 text-[10px] uppercase tracking-widest text-[#00ff41]/50 hover:text-[#00ff41] transition-colors font-mono"
+              >
+                ← RETRY
+              </button>
+            </div>
+          )}
+
+          {/* Phone results */}
+          {mode === "phone" && phoneStatus === "done" && phoneResult && (
+            <ResultsDashboard data={phoneResult} />
+          )}
+
+          {/* Email results */}
+          {mode === "email" && emailStatus === "done" && emailResult && (
+            <EmailResultsDashboard data={emailResult} />
+          )}
         </main>
 
         {/* Footer */}
