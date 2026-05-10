@@ -40,16 +40,18 @@ export default function NumberBreakdown({ analysis }: Props) {
     },
   ];
 
+  // Only show flags when definitively confirmed — never show both MOBILE and FIXED LINE
   const typeFlags = [
-    { label: "MOBILE", active: analysis.isMobile, color: "#00ff41" },
-    { label: "FIXED LINE", active: analysis.isFixedLine, color: "#00d9ff" },
-    { label: "VOIP", active: analysis.isVoip, color: "#ffaa00" },
-    { label: "TOLL-FREE", active: analysis.isTollFree, color: "#00d9ff" },
-    { label: "PREMIUM", active: analysis.isPremiumRate, color: "#ff3e3e" },
-    { label: "SHARED COST", active: analysis.isSharedCost, color: "#ffaa00" },
-    { label: "PAGER", active: analysis.isPager, color: "#888" },
-    { label: "PERSONAL", active: analysis.isPersonalNumber, color: "#888" },
-  ].filter((f) => f.active);
+    analysis.isMobile && !analysis.isAmbiguousType ? { label: "MOBILE", color: "#00ff41" } : null,
+    analysis.isFixedLine && !analysis.isAmbiguousType ? { label: "FIXED LINE", color: "#00d9ff" } : null,
+    analysis.isAmbiguousType ? { label: "MOBILE OR LANDLINE — UNRESOLVED", color: "#888" } : null,
+    analysis.isVoip ? { label: "VOIP", color: "#ffaa00" } : null,
+    analysis.isTollFree ? { label: "TOLL-FREE", color: "#00d9ff" } : null,
+    analysis.isPremiumRate ? { label: "PREMIUM RATE", color: "#ff3e3e" } : null,
+    analysis.isSharedCost ? { label: "SHARED COST", color: "#ffaa00" } : null,
+    analysis.isPager ? { label: "PAGER", color: "#888" } : null,
+    analysis.isPersonalNumber ? { label: "PERSONAL NUMBER", color: "#888" } : null,
+  ].filter((f): f is { label: string; color: string } => f !== null);
 
   return (
     <motion.div
@@ -125,13 +127,13 @@ export default function NumberBreakdown({ analysis }: Props) {
         </div>
       )}
 
-      {/* Carrier prefix */}
+      {/* Central office / carrier prefix */}
       {analysis.carrierPrefix && (
         <div className="text-[10px] text-[#00ff41]/40 font-mono">
-          CARRIER PREFIX BLOCK:{" "}
-          <span className="text-[#00d9ff]">{analysis.carrierPrefix}XXXXXXX</span>
+          CENTRAL OFFICE CODE:{" "}
+          <span className="text-[#00d9ff]">{analysis.carrierPrefix}</span>
           <span className="ml-2 text-[#00ff41]/25">
-            (first {analysis.carrierPrefix.length} digits identify the operator block)
+            (NXX — identifies the switching exchange / carrier block)
           </span>
         </div>
       )}

@@ -15,8 +15,9 @@ export interface PhoneAnalysis {
 
   type: string | null;
   typeDescription: string;
-  isMobile: boolean;
-  isFixedLine: boolean;
+  isMobile: boolean;        // true ONLY for type === MOBILE (not FIXED_LINE_OR_MOBILE)
+  isFixedLine: boolean;     // true ONLY for type === FIXED_LINE (not FIXED_LINE_OR_MOBILE)
+  isAmbiguousType: boolean; // true when libphonenumber cannot distinguish mobile vs landline
   isVoip: boolean;
   isTollFree: boolean;
   isPremiumRate: boolean;
@@ -103,6 +104,26 @@ const COUNTRY_TZ: Record<string, string> = {
   LY: "Africa/Tripoli", SN: "Africa/Dakar", CI: "Africa/Abidjan",
   CM: "Africa/Douala", AO: "Africa/Luanda", MZ: "Africa/Maputo",
   ZW: "Africa/Harare", ZM: "Africa/Lusaka", MG: "Indian/Antananarivo",
+  // UK dependencies — share +44 calling code, same timezone as London
+  GG: "Europe/London", JE: "Europe/London", IM: "Europe/London",
+  // Additional territories
+  GI: "Europe/Gibraltar", MT: "Europe/Malta",
+  MC: "Europe/Monaco", SM: "Europe/San_Marino", VA: "Europe/Vatican",
+  AD: "Europe/Andorra", LI: "Europe/Vaduz",
+  IS: "Atlantic/Reykjavik",
+  // Pacific / Americas
+  HI: "Pacific/Honolulu", PR: "America/Puerto_Rico",
+  CU: "America/Havana", DO: "America/Santo_Domingo",
+  PA: "America/Panama", CR: "America/Costa_Rica",
+  GT: "America/Guatemala", BZ: "America/Belize",
+  HN: "America/Tegucigalpa", SV: "America/El_Salvador",
+  NI: "America/Managua", JM: "America/Jamaica",
+  TT: "America/Port_of_Spain", BB: "America/Barbados",
+  // Asia additions
+  BN: "Asia/Brunei", MV: "Indian/Maldives", BT: "Asia/Thimphu",
+  KP: "Asia/Pyongyang",
+  // Middle East additions
+  EH: "Africa/El_Aaiun", DJ: "Africa/Djibouti",
 };
 
 // IANA timezone → human-readable UTC offset string
@@ -191,6 +212,32 @@ const TZ_UTC: Record<string, string> = {
   "Africa/Nairobi": "UTC+3",
   "Africa/Accra": "UTC+0",
   "Africa/Casablanca": "UTC+1",
+  "Europe/Gibraltar": "UTC+1 / UTC+2 (CEST)",
+  "Europe/Malta": "UTC+1 / UTC+2 (CEST)",
+  "Europe/Monaco": "UTC+1 / UTC+2 (CEST)",
+  "Europe/Andorra": "UTC+1 / UTC+2 (CEST)",
+  "Europe/Vatican": "UTC+1 / UTC+2 (CEST)",
+  "Europe/San_Marino": "UTC+1 / UTC+2 (CEST)",
+  "Europe/Vaduz": "UTC+1 / UTC+2 (CEST)",
+  "Atlantic/Reykjavik": "UTC+0",
+  "America/Puerto_Rico": "UTC-4",
+  "America/Havana": "UTC-5 / UTC-4 (CDT)",
+  "America/Santo_Domingo": "UTC-4",
+  "America/Panama": "UTC-5",
+  "America/Costa_Rica": "UTC-6",
+  "America/Guatemala": "UTC-6",
+  "America/Belize": "UTC-6",
+  "America/Tegucigalpa": "UTC-6",
+  "America/El_Salvador": "UTC-6",
+  "America/Managua": "UTC-6",
+  "America/Jamaica": "UTC-5",
+  "America/Port_of_Spain": "UTC-4",
+  "America/Barbados": "UTC-4",
+  "Asia/Brunei": "UTC+8",
+  "Indian/Maldives": "UTC+5",
+  "Asia/Thimphu": "UTC+6",
+  "Asia/Pyongyang": "UTC+9",
+  "Africa/Djibouti": "UTC+3",
 };
 
 export function countryToFlagEmoji(code: string): string {
@@ -280,10 +327,15 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
   } else if (country === "AU") {
     areaCode = nationalDigits.slice(0, 1);
     subscriberNumber = nationalDigits.slice(1);
-  } else if (nationalDigits.length >= 8) {
-    areaCode = nationalDigits.slice(0, 2);
-    subscriberNumber = nationalDigits.slice(2);
+  } else if (country === "IT" || country === "ES" || country === "PL" || country === "NL") {
+    // These countries have 2-3 digit area codes, extract first 2 digits
+    if (nationalDigits.length >= 9) {
+      areaCode = nationalDigits.slice(0, 2);
+      subscriberNumber = nationalDigits.slice(2);
+    }
   }
+  // For all other countries: do NOT guess an area code
+  // Showing wrong data is worse than showing no data
 
   const expectedLengths: number[] = country ? (COUNTRY_NUMBER_LENGTHS[country] ?? []) : [];
 
@@ -301,8 +353,9 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
 
     type,
     typeDescription: TYPE_LABELS[typeStr] ?? "Unknown",
-    isMobile: typeStr === "MOBILE" || typeStr === "FIXED_LINE_OR_MOBILE",
-    isFixedLine: typeStr === "FIXED_LINE" || typeStr === "FIXED_LINE_OR_MOBILE",
+    isMobile: typeStr === "MOBILE",
+    isFixedLine: typeStr === "FIXED_LINE",
+    isAmbiguousType: typeStr === "FIXED_LINE_OR_MOBILE",
     isVoip: typeStr === "VOIP",
     isTollFree: typeStr === "TOLL_FREE",
     isPremiumRate: typeStr === "PREMIUM_RATE",
@@ -326,7 +379,9 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
     timezones,
     utcOffsets,
 
-    carrierPrefix: extractCarrierPrefix(nationalDigits),
+    // Extract carrier prefix from subscriber portion (not full national digits)
+    // For US/CA: NXX (central office code, digits 4-6) — NOT the area code (digits 1-3)
+    carrierPrefix: extractCarrierPrefix(subscriberNumber),
     numberPlanArea: country ? getCountryDisplayName(country) : null,
   };
 }
