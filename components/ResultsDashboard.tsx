@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion";
 import {
-  Wifi, WifiOff, Phone, MapPin, Clock, Shield,
+  Wifi, Phone, MapPin, Clock, Shield,
   Copy, Download, Hash, Globe, User, CreditCard,
-  Activity, Radio,
+  Activity, Radio, AlertTriangle,
 } from "lucide-react";
 import type { LookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
@@ -30,12 +30,11 @@ function copyToClipboard(text: string) {
 
 function downloadJson(data: LookupResponse) {
   const e164 = data.input.e164.replace("+", "");
-  const ts = Date.now();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${e164}_${ts}.json`;
+  a.download = `${e164}_${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -44,6 +43,134 @@ export default function ResultsDashboard({ data }: Props) {
   const { input, aggregated, sources, analysis, countryIntel } = data;
   const flag = countryToFlagEmoji(input.country);
 
+  // Build only the cards that have real, meaningful data
+  type CardDef = {
+    label: string;
+    value: string;
+    icon?: React.ReactNode;
+    variant?: "default" | "warn" | "danger" | "cyan" | "neutral";
+    index: number;
+  };
+
+  const cards: CardDef[] = [];
+  let idx = 0;
+
+  // --- Always-available offline data ---
+  // Country
+  cards.push({ label: "Country", value: aggregated.countryName, icon: <Globe className="w-3 h-3" />, variant: "default", index: idx++ });
+
+  // Calling code
+  cards.push({ label: "Calling Code", value: input.countryCallingCode, icon: <Phone className="w-3 h-3" />, variant: "cyan", index: idx++ });
+
+  // Number type — show what we actually know
+  if (aggregated.isAmbiguousType) {
+    cards.push({ label: "Number Type", value: "Mobile or Landline", icon: <Wifi className="w-3 h-3" />, variant: "neutral", index: idx++ });
+  } else if (aggregated.typeDescription && aggregated.typeDescription !== "Unknown") {
+    const typeVariant =
+      aggregated.isVoip ? "warn" :
+      analysis.isPremiumRate ? "danger" :
+      analysis.isTollFree ? "cyan" :
+      "default";
+    cards.push({ label: "Number Type", value: aggregated.typeDescription, icon: <Wifi className="w-3 h-3" />, variant: typeVariant, index: idx++ });
+  }
+
+  // Timezone
+  const tzDisplay = aggregated.utcOffsets?.[0] ?? aggregated.timezone?.[0]?.split("/").pop() ?? null;
+  if (tzDisplay) {
+    cards.push({ label: "Timezone", value: tzDisplay, icon: <Clock className="w-3 h-3" />, variant: "default", index: idx++ });
+  }
+
+  // IANA timezone name
+  if (aggregated.timezone?.[0]) {
+    cards.push({ label: "IANA Timezone", value: aggregated.timezone[0], icon: <Clock className="w-3 h-3" />, variant: "neutral", index: idx++ });
+  }
+
+  // Area code (only for countries where it's meaningful)
+  if (aggregated.areaCode) {
+    cards.push({ label: "Area Code", value: aggregated.areaCode, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
+  }
+
+  // Number length vs expected
+  if (aggregated.numberLength) {
+    const expectedStr = analysis.expectedLengths.length > 0 ? ` / ${analysis.expectedLengths.join(" or ")} expected` : "";
+    cards.push({ label: "Digit Count", value: `${aggregated.numberLength} digits${expectedStr}`, icon: <Hash className="w-3 h-3" />, variant: "neutral", index: idx++ });
+  }
+
+  // --- Confirmed type flags (only show when definitively true) ---
+  if (aggregated.isMobile === true) {
+    cards.push({ label: "Confirmed Mobile", value: "YES", variant: "default", index: idx++ });
+  }
+  if (aggregated.isFixedLine === true) {
+    cards.push({ label: "Confirmed Landline", value: "YES", variant: "cyan", index: idx++ });
+  }
+  if (aggregated.isVoip === true) {
+    cards.push({ label: "VOIP / Internet", value: "CONFIRMED VOIP", icon: <AlertTriangle className="w-3 h-3" />, variant: "warn", index: idx++ });
+  }
+  if (analysis.isTollFree) {
+    cards.push({ label: "Toll-Free", value: "YES — FREE TO CALL", variant: "cyan", index: idx++ });
+  }
+  if (analysis.isPremiumRate) {
+    cards.push({ label: "Premium Rate", value: "YES — CHARGES APPLY", icon: <AlertTriangle className="w-3 h-3" />, variant: "danger", index: idx++ });
+  }
+  if (analysis.isSharedCost) {
+    cards.push({ label: "Shared Cost", value: "YES", variant: "warn", index: idx++ });
+  }
+  if (analysis.isPersonalNumber) {
+    cards.push({ label: "Personal Number", value: "YES", variant: "neutral", index: idx++ });
+  }
+
+  // --- API-enriched data (only show if we actually have it) ---
+  if (aggregated.callerName) {
+    cards.push({ label: "Owner / CNAM", value: aggregated.callerName, icon: <User className="w-3 h-3" />, variant: "cyan", index: idx++ });
+  }
+  if (aggregated.callerType) {
+    cards.push({ label: "Caller Type", value: aggregated.callerType.charAt(0).toUpperCase() + aggregated.callerType.slice(1), icon: <User className="w-3 h-3" />, variant: "neutral", index: idx++ });
+  }
+  if (aggregated.carrier) {
+    cards.push({ label: "Network Carrier", value: aggregated.carrier, icon: <Phone className="w-3 h-3" />, variant: "cyan", index: idx++ });
+  }
+  if (aggregated.prepaid !== null) {
+    cards.push({ label: "Prepaid SIM", value: aggregated.prepaid ? "YES — PREPAID" : "NO — CONTRACT", icon: <CreditCard className="w-3 h-3" />, variant: aggregated.prepaid ? "warn" : "default", index: idx++ });
+  }
+  if (aggregated.active !== null) {
+    cards.push({ label: "Line Active", value: aggregated.active ? "ACTIVE" : "INACTIVE", icon: <Activity className="w-3 h-3" />, variant: aggregated.active ? "default" : "danger", index: idx++ });
+  }
+  if (aggregated.activeStatus) {
+    cards.push({ label: "Active Status", value: aggregated.activeStatus, variant: "neutral", index: idx++ });
+  }
+  if (aggregated.userActivity) {
+    cards.push({ label: "User Activity", value: aggregated.userActivity, variant: "neutral", index: idx++ });
+  }
+  if (aggregated.region) {
+    cards.push({ label: "Region", value: aggregated.region, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
+  }
+  if (aggregated.city) {
+    cards.push({ label: "City", value: aggregated.city, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
+  }
+  if (aggregated.mobileCountryCode && aggregated.mobileNetworkCode) {
+    cards.push({ label: "MCC / MNC", value: `${aggregated.mobileCountryCode} / ${aggregated.mobileNetworkCode}`, icon: <Radio className="w-3 h-3" />, variant: "cyan", index: idx++ });
+  }
+  if (aggregated.recentAbuse === true) {
+    cards.push({ label: "Recent Abuse", value: "DETECTED", icon: <Shield className="w-3 h-3" />, variant: "danger", index: idx++ });
+  }
+  if (aggregated.isRisky === true) {
+    cards.push({ label: "Risk Flag", value: "HIGH RISK", icon: <Shield className="w-3 h-3" />, variant: "danger", index: idx++ });
+  }
+
+  // How many API sources returned useful data
+  const activeSources = [sources.numverify, sources.ipqs, sources.abstract, sources.twilio].filter(
+    (s) => s.ok
+  ).length;
+  const configuredSources = [sources.numverify, sources.ipqs, sources.abstract, sources.twilio].filter(
+    (s) => !s.ok && s.error !== "NOT_CONFIGURED"
+  ).length + activeSources;
+
+  const hasSimData = !!(
+    aggregated.callerName || aggregated.prepaid !== null || aggregated.active !== null ||
+    aggregated.mobileCountryCode || aggregated.userActivity || aggregated.city ||
+    aggregated.carrier || aggregated.associatedEmails
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -51,25 +178,22 @@ export default function ResultsDashboard({ data }: Props) {
       transition={{ duration: 0.35 }}
       className="space-y-4 mt-6"
     >
-      {/* ── Header card ── */}
+      {/* ── Result header ── */}
       <div className="terminal-card p-5 space-y-3">
         <div className="flex items-start justify-between flex-wrap gap-3">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">LOOKUP RESULT</div>
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-4xl">{flag}</span>
               <div>
-                <div className="text-2xl font-bold glow-green tracking-wider font-mono">
-                  {input.e164}
-                </div>
+                <div className="text-2xl font-bold glow-green tracking-wider font-mono">{input.e164}</div>
                 <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
                   {input.national} · {aggregated.countryName} ({input.countryCallingCode})
                 </div>
-                {/* Caller name — shown in header if available */}
                 {aggregated.callerName && (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <User className="w-3 h-3 text-[#00d9ff]/70" />
-                    <span className="text-sm font-bold text-[#00d9ff] font-mono">
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <User className="w-3.5 h-3.5 text-[#00d9ff]" />
+                    <span className="text-base font-bold text-[#00d9ff] font-mono">
                       {aggregated.callerName}
                     </span>
                     {aggregated.callerType && (
@@ -84,17 +208,20 @@ export default function ResultsDashboard({ data }: Props) {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={cn(
-                "text-xs px-3 py-1 border font-mono font-bold tracking-widest",
-                input.isValid ? "badge-valid" : "badge-invalid"
-              )}
-            >
+            <span className={cn(
+              "text-xs px-3 py-1 border font-mono font-bold tracking-widest",
+              input.isValid ? "badge-valid" : "badge-invalid"
+            )}>
               {input.isValid ? "✓ VALID" : "✗ INVALID"}
             </span>
-            {aggregated.typeDescription && (
+            {aggregated.typeDescription && aggregated.typeDescription !== "Unknown" && (
               <span className="text-xs px-3 py-1 border badge-info font-mono">
                 {aggregated.typeDescription.toUpperCase()}
+              </span>
+            )}
+            {aggregated.isAmbiguousType && (
+              <span className="text-xs px-2 py-1 border font-mono text-[#888] border-[#888]/30" title="libphonenumber cannot determine if this is mobile or landline from the number structure alone">
+                TYPE AMBIGUOUS
               </span>
             )}
             {aggregated.prepaid && (
@@ -104,7 +231,7 @@ export default function ResultsDashboard({ data }: Props) {
             )}
             {aggregated.active === false && (
               <span className="text-xs px-2 py-1 border font-mono text-[#ff3e3e] border-[#ff3e3e]/40">
-                INACTIVE
+                INACTIVE LINE
               </span>
             )}
             {data.cachedAt && (
@@ -135,150 +262,57 @@ export default function ResultsDashboard({ data }: Props) {
           </button>
           <ShareButton e164={input.e164} />
         </div>
+
+        {/* Data source status */}
+        <div className="flex items-center gap-3 pt-1 border-t border-[#00ff41]/10">
+          <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/25 font-mono">DATA SOURCES</div>
+          <div className="flex gap-2">
+            {[
+              { label: "libphonenumber", ok: true, always: true },
+              { label: "NumVerify", ok: sources.numverify.ok, configured: sources.numverify.error !== "NOT_CONFIGURED" },
+              { label: "IPQS", ok: sources.ipqs.ok, configured: sources.ipqs.error !== "NOT_CONFIGURED" },
+              { label: "Abstract", ok: sources.abstract.ok, configured: sources.abstract.error !== "NOT_CONFIGURED" },
+              { label: "Twilio", ok: sources.twilio.ok, configured: sources.twilio.error !== "NOT_CONFIGURED" },
+            ].map((s) => (
+              <span
+                key={s.label}
+                className={`text-[9px] font-mono px-1.5 py-0.5 border ${
+                  s.ok
+                    ? "text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5"
+                    : "configured" in s && s.configured
+                    ? "text-[#ff3e3e]/60 border-[#ff3e3e]/20"
+                    : "text-[#00ff41]/20 border-[#00ff41]/10"
+                }`}
+              >
+                {s.ok ? "✓" : ("always" in s && s.always) ? "✓" : "·"} {s.label}
+              </span>
+            ))}
+          </div>
+          {activeSources === 0 && configuredSources === 0 && (
+            <span className="text-[9px] text-[#ffaa00]/50 font-mono ml-auto">
+              + carrier/fraud data: add keys to .env.local
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* ── Core metric cards (row 1 — identity + line) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        <MetricCard
-          label="Owner / CNAM"
-          value={aggregated.callerName}
-          icon={<User className="w-3 h-3" />}
-          variant="cyan"
-          index={0}
-        />
-        <MetricCard
-          label="Carrier"
-          value={aggregated.carrier}
-          icon={<Phone className="w-3 h-3" />}
-          variant="cyan"
-          index={1}
-        />
-        <MetricCard
-          label="Line Type"
-          value={aggregated.typeDescription}
-          icon={<Wifi className="w-3 h-3" />}
-          variant={aggregated.isVoip ? "warn" : "default"}
-          index={2}
-        />
-        <MetricCard
-          label="Prepaid SIM"
-          value={
-            aggregated.prepaid === null ? null : aggregated.prepaid ? "YES — PREPAID" : "NO — CONTRACT"
-          }
-          icon={<CreditCard className="w-3 h-3" />}
-          variant={aggregated.prepaid ? "warn" : "default"}
-          index={3}
-        />
-        <MetricCard
-          label="Line Active"
-          value={
-            aggregated.active === null
-              ? null
-              : aggregated.active
-              ? "ACTIVE"
-              : "INACTIVE"
-          }
-          icon={<Activity className="w-3 h-3" />}
-          variant={aggregated.active === false ? "danger" : "default"}
-          index={4}
-        />
-        <MetricCard
-          label="Country"
-          value={aggregated.countryName}
-          icon={<Globe className="w-3 h-3" />}
-          index={5}
-        />
-        <MetricCard
-          label="Region / Area"
-          value={aggregated.region ?? aggregated.city ?? aggregated.areaCode ?? null}
-          icon={<MapPin className="w-3 h-3" />}
-          variant="cyan"
-          index={6}
-        />
-        <MetricCard
-          label="Timezone"
-          value={
-            aggregated.utcOffsets?.[0] ??
-            (aggregated.timezone?.[0]
-              ? aggregated.timezone[0].length > 20
-                ? aggregated.timezone[0].split("/").pop() ?? null
-                : aggregated.timezone[0]
-              : null)
-          }
-          icon={<Clock className="w-3 h-3" />}
-          index={7}
-        />
-        <MetricCard
-          label="VOIP"
-          value={aggregated.isVoip === null ? null : aggregated.isVoip ? "YES — VOIP" : "NO"}
-          icon={<WifiOff className="w-3 h-3" />}
-          variant={aggregated.isVoip ? "warn" : "default"}
-          index={8}
-        />
-        <MetricCard
-          label="MCC / MNC"
-          value={
-            aggregated.mobileCountryCode && aggregated.mobileNetworkCode
-              ? `${aggregated.mobileCountryCode} / ${aggregated.mobileNetworkCode}`
-              : aggregated.mobileCountryCode ?? null
-          }
-          icon={<Radio className="w-3 h-3" />}
-          variant="cyan"
-          index={9}
-        />
-        <MetricCard
-          label="Recent Abuse"
-          value={
-            aggregated.recentAbuse === null
-              ? null
-              : aggregated.recentAbuse
-              ? "DETECTED"
-              : "NONE"
-          }
-          icon={<Shield className="w-3 h-3" />}
-          variant={aggregated.recentAbuse ? "danger" : "default"}
-          index={10}
-        />
-        <MetricCard
-          label="Risk Flag"
-          value={
-            aggregated.isRisky === null
-              ? null
-              : aggregated.isRisky
-              ? "HIGH RISK"
-              : "LOW RISK"
-          }
-          variant={aggregated.isRisky ? "danger" : "default"}
-          index={11}
-        />
-        <MetricCard
-          label="Number Length"
-          value={aggregated.numberLength ? `${aggregated.numberLength} digits` : null}
-          icon={<Hash className="w-3 h-3" />}
-          variant="neutral"
-          index={12}
-        />
-        <MetricCard
-          label="Mobile"
-          value={aggregated.isMobile ? "YES" : "NO"}
-          variant={aggregated.isMobile ? "default" : "neutral"}
-          index={13}
-        />
-        <MetricCard
-          label="Toll-Free"
-          value={aggregated.isTollFree ? "YES" : "NO"}
-          variant={aggregated.isTollFree ? "cyan" : "neutral"}
-          index={14}
-        />
-        <MetricCard
-          label="Premium Rate"
-          value={aggregated.isPremiumRate ? "YES — CAUTION" : "NO"}
-          variant={aggregated.isPremiumRate ? "danger" : "neutral"}
-          index={15}
-        />
-      </div>
+      {/* ── Metric cards — only populated fields ── */}
+      {cards.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {cards.map((c) => (
+            <MetricCard
+              key={c.label}
+              label={c.label}
+              value={c.value}
+              icon={c.icon}
+              variant={c.variant}
+              index={c.index}
+            />
+          ))}
+        </div>
+      )}
 
-      {/* ── Fraud score ── */}
+      {/* ── Fraud score (only if we have it) ── */}
       {aggregated.fraudScore !== null && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -290,7 +324,7 @@ export default function ResultsDashboard({ data }: Props) {
         </motion.div>
       )}
 
-      {/* ── Number breakdown + Format panel ── */}
+      {/* ── Number breakdown + Format cross-reference ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <NumberBreakdown analysis={analysis} />
         <FormatPanel data={data} />
@@ -298,7 +332,7 @@ export default function ResultsDashboard({ data }: Props) {
 
       {/* ── SIM intelligence + QR code ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SimIntelPanel aggregated={aggregated} />
+        {hasSimData && <SimIntelPanel aggregated={aggregated} />}
         <QrCodePanel e164={input.e164} />
       </div>
 
@@ -306,16 +340,12 @@ export default function ResultsDashboard({ data }: Props) {
       {countryIntel && <CountryPanel intel={countryIntel} />}
 
       {/* ── OSINT pivots ── */}
-      <OsintPivots
-        e164={input.e164}
-        national={input.national}
-        country={input.country}
-      />
+      <OsintPivots e164={input.e164} national={input.national} country={input.country} />
 
       {/* ── Raw source data ── */}
       <div className="space-y-2">
         <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">
-          [ RAW SOURCE DATA ] — Optional API enrichment
+          [ RAW SOURCE DATA ] — API responses
         </div>
         <SourceTabs sources={sources} />
       </div>

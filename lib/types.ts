@@ -109,8 +109,9 @@ export interface AggregatedResult {
   isValid: boolean;
   fraudScore: number | null;
   isVoip: boolean | null;
-  isMobile: boolean | null;
+  isMobile: boolean | null;      // null = not confirmed, true = confirmed mobile, false = confirmed NOT mobile
   isFixedLine: boolean | null;
+  isAmbiguousType: boolean;      // true when carrier cannot distinguish mobile vs landline from number structure
   isTollFree: boolean | null;
   isPremiumRate: boolean | null;
   isDisposable: boolean | null;

@@ -155,10 +155,13 @@ function buildAggregated(
 
   const fraudScore = ipqs.ok && ipqs.data ? ipqs.data.fraud_score : null;
 
-  const isVoip = pickFirst<boolean>([
-    ipqs.ok && ipqs.data ? ipqs.data.VOIP : null,
-    analysis.isVoip ? true : null,
-  ]);
+  // VOIP: only claim true if explicitly confirmed — never claim false without data
+  const isVoipConfirmed: boolean | null =
+    ipqs.ok && ipqs.data
+      ? ipqs.data.VOIP
+      : analysis.isVoip
+      ? true
+      : null;
 
   const isRisky = ipqs.ok && ipqs.data ? ipqs.data.risky : null;
   const recentAbuse = ipqs.ok && ipqs.data ? ipqs.data.recent_abuse : null;
@@ -195,11 +198,12 @@ function buildAggregated(
     utcOffsets,
     isValid: analysis.isValid,
     fraudScore,
-    isVoip: isVoip ?? analysis.isVoip,
-    isMobile: analysis.isMobile,
-    isFixedLine: analysis.isFixedLine,
-    isTollFree: analysis.isTollFree,
-    isPremiumRate: analysis.isPremiumRate,
+    isVoip: isVoipConfirmed,
+    isMobile: analysis.isMobile ? true : null,
+    isFixedLine: analysis.isFixedLine ? true : null,
+    isAmbiguousType: analysis.isAmbiguousType,
+    isTollFree: analysis.isTollFree ? true : null,
+    isPremiumRate: analysis.isPremiumRate ? true : null,
     isDisposable: null,
     isRisky,
     recentAbuse,
