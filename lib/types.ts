@@ -123,6 +123,17 @@ export interface AggregatedResult {
   formatInternational: string;
   formatNational: string;
   formatRfc3966: string;
+  // SIM & caller identity
+  callerName: string | null;
+  callerType: string | null;
+  prepaid: boolean | null;
+  active: boolean | null;
+  activeStatus: string | null;
+  userActivity: string | null;
+  mobileCountryCode: string | null;
+  mobileNetworkCode: string | null;
+  associatedEmails: string[] | null;
+  city: string | null;
 }
 
 export interface LookupResponse {

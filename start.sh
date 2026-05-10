@@ -58,6 +58,23 @@ else
   echo "[+] .env.local already exists"
 fi
 
+# Auto-install global 'geointel' command if not already installed
+if ! command -v geointel &>/dev/null && [ ! -f "/usr/local/bin/geointel" ]; then
+  PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  SHELL_RC=""
+  if [ -f "$HOME/.zshrc" ]; then SHELL_RC="$HOME/.zshrc"; elif [ -f "$HOME/.bashrc" ]; then SHELL_RC="$HOME/.bashrc"; fi
+  MARKER="# HEAVEN-GeoIntel global command"
+
+  if [ -w "/usr/local/bin" ]; then
+    printf '#!/bin/bash\ncd "%s" && bash start.sh "$@"\n' "$PROJECT_DIR" > /usr/local/bin/geointel
+    chmod +x /usr/local/bin/geointel
+    echo "[✓] Global command installed: type 'geointel' anywhere to start"
+  elif [ -n "$SHELL_RC" ] && ! grep -q "$MARKER" "$SHELL_RC" 2>/dev/null; then
+    printf '\n%s\ngeointel() { cd "%s" && bash start.sh "$@"; }\n' "$MARKER" "$PROJECT_DIR" >> "$SHELL_RC"
+    echo "[✓] Added 'geointel' to $SHELL_RC — run: source $SHELL_RC"
+  fi
+fi
+
 # Port detection — find first available port starting at 3000
 PORT=3000
 while lsof -i TCP:"$PORT" &>/dev/null 2>&1; do

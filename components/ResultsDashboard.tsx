@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import {
   Wifi, WifiOff, Phone, MapPin, Clock, Shield,
-  Copy, Download, Hash, Globe,
+  Copy, Download, Hash, Globe, User, CreditCard,
+  Activity, Radio,
 } from "lucide-react";
 import type { LookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
@@ -15,6 +16,8 @@ import NumberBreakdown from "./NumberBreakdown";
 import CountryPanel from "./CountryPanel";
 import FormatPanel from "./FormatPanel";
 import ShareButton from "./ShareButton";
+import SimIntelPanel from "./SimIntelPanel";
+import QrCodePanel from "./QrCodePanel";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -48,7 +51,7 @@ export default function ResultsDashboard({ data }: Props) {
       transition={{ duration: 0.35 }}
       className="space-y-4 mt-6"
     >
-      {/* Header card */}
+      {/* ── Header card ── */}
       <div className="terminal-card p-5 space-y-3">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div className="space-y-1">
@@ -62,6 +65,20 @@ export default function ResultsDashboard({ data }: Props) {
                 <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
                   {input.national} · {aggregated.countryName} ({input.countryCallingCode})
                 </div>
+                {/* Caller name — shown in header if available */}
+                {aggregated.callerName && (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <User className="w-3 h-3 text-[#00d9ff]/70" />
+                    <span className="text-sm font-bold text-[#00d9ff] font-mono">
+                      {aggregated.callerName}
+                    </span>
+                    {aggregated.callerType && (
+                      <span className="text-[10px] text-[#00d9ff]/50 uppercase tracking-widest">
+                        [{aggregated.callerType}]
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -80,6 +97,16 @@ export default function ResultsDashboard({ data }: Props) {
                 {aggregated.typeDescription.toUpperCase()}
               </span>
             )}
+            {aggregated.prepaid && (
+              <span className="text-xs px-2 py-1 border font-mono text-[#ffaa00] border-[#ffaa00]/40 bg-[#ffaa00]/5">
+                PREPAID
+              </span>
+            )}
+            {aggregated.active === false && (
+              <span className="text-xs px-2 py-1 border font-mono text-[#ff3e3e] border-[#ff3e3e]/40">
+                INACTIVE
+              </span>
+            )}
             {data.cachedAt && (
               <span className="text-[10px] border badge-neutral px-2 py-1 font-mono">CACHED</span>
             )}
@@ -95,6 +122,12 @@ export default function ResultsDashboard({ data }: Props) {
             <Copy className="w-3 h-3" /> COPY E.164
           </button>
           <button
+            onClick={() => copyToClipboard(aggregated.formatInternational)}
+            className="flex items-center gap-1.5 text-xs border border-[#00ff41]/30 px-3 py-1.5 text-[#00ff41]/70 hover:text-[#00ff41] hover:border-[#00ff41]/60 transition-colors font-mono"
+          >
+            <Copy className="w-3 h-3" /> COPY INTL
+          </button>
+          <button
             onClick={() => downloadJson(data)}
             className="flex items-center gap-1.5 text-xs border border-[#00d9ff]/30 px-3 py-1.5 text-[#00d9ff]/70 hover:text-[#00d9ff] hover:border-[#00d9ff]/60 transition-colors font-mono"
           >
@@ -104,34 +137,63 @@ export default function ResultsDashboard({ data }: Props) {
         </div>
       </div>
 
-      {/* Core metric cards */}
+      {/* ── Core metric cards (row 1 — identity + line) ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <MetricCard
+          label="Owner / CNAM"
+          value={aggregated.callerName}
+          icon={<User className="w-3 h-3" />}
+          variant="cyan"
+          index={0}
+        />
         <MetricCard
           label="Carrier"
           value={aggregated.carrier}
           icon={<Phone className="w-3 h-3" />}
           variant="cyan"
-          index={0}
+          index={1}
         />
         <MetricCard
           label="Line Type"
           value={aggregated.typeDescription}
           icon={<Wifi className="w-3 h-3" />}
           variant={aggregated.isVoip ? "warn" : "default"}
-          index={1}
+          index={2}
+        />
+        <MetricCard
+          label="Prepaid SIM"
+          value={
+            aggregated.prepaid === null ? null : aggregated.prepaid ? "YES — PREPAID" : "NO — CONTRACT"
+          }
+          icon={<CreditCard className="w-3 h-3" />}
+          variant={aggregated.prepaid ? "warn" : "default"}
+          index={3}
+        />
+        <MetricCard
+          label="Line Active"
+          value={
+            aggregated.active === null
+              ? null
+              : aggregated.active
+              ? "ACTIVE"
+              : "INACTIVE"
+          }
+          icon={<Activity className="w-3 h-3" />}
+          variant={aggregated.active === false ? "danger" : "default"}
+          index={4}
         />
         <MetricCard
           label="Country"
           value={aggregated.countryName}
           icon={<Globe className="w-3 h-3" />}
-          index={2}
+          index={5}
         />
         <MetricCard
           label="Region / Area"
-          value={aggregated.region ?? aggregated.areaCode ?? null}
+          value={aggregated.region ?? aggregated.city ?? aggregated.areaCode ?? null}
           icon={<MapPin className="w-3 h-3" />}
           variant="cyan"
-          index={3}
+          index={6}
         />
         <MetricCard
           label="Timezone"
@@ -144,14 +206,25 @@ export default function ResultsDashboard({ data }: Props) {
               : null)
           }
           icon={<Clock className="w-3 h-3" />}
-          index={4}
+          index={7}
         />
         <MetricCard
           label="VOIP"
           value={aggregated.isVoip === null ? null : aggregated.isVoip ? "YES — VOIP" : "NO"}
           icon={<WifiOff className="w-3 h-3" />}
           variant={aggregated.isVoip ? "warn" : "default"}
-          index={5}
+          index={8}
+        />
+        <MetricCard
+          label="MCC / MNC"
+          value={
+            aggregated.mobileCountryCode && aggregated.mobileNetworkCode
+              ? `${aggregated.mobileCountryCode} / ${aggregated.mobileNetworkCode}`
+              : aggregated.mobileCountryCode ?? null
+          }
+          icon={<Radio className="w-3 h-3" />}
+          variant="cyan"
+          index={9}
         />
         <MetricCard
           label="Recent Abuse"
@@ -164,7 +237,7 @@ export default function ResultsDashboard({ data }: Props) {
           }
           icon={<Shield className="w-3 h-3" />}
           variant={aggregated.recentAbuse ? "danger" : "default"}
-          index={6}
+          index={10}
         />
         <MetricCard
           label="Risk Flag"
@@ -176,40 +249,36 @@ export default function ResultsDashboard({ data }: Props) {
               : "LOW RISK"
           }
           variant={aggregated.isRisky ? "danger" : "default"}
-          index={7}
+          index={11}
         />
         <MetricCard
           label="Number Length"
-          value={
-            aggregated.numberLength
-              ? `${aggregated.numberLength} digits`
-              : null
-          }
+          value={aggregated.numberLength ? `${aggregated.numberLength} digits` : null}
           icon={<Hash className="w-3 h-3" />}
           variant="neutral"
-          index={8}
+          index={12}
         />
         <MetricCard
           label="Mobile"
           value={aggregated.isMobile ? "YES" : "NO"}
           variant={aggregated.isMobile ? "default" : "neutral"}
-          index={9}
+          index={13}
         />
         <MetricCard
           label="Toll-Free"
           value={aggregated.isTollFree ? "YES" : "NO"}
           variant={aggregated.isTollFree ? "cyan" : "neutral"}
-          index={10}
+          index={14}
         />
         <MetricCard
           label="Premium Rate"
           value={aggregated.isPremiumRate ? "YES — CAUTION" : "NO"}
           variant={aggregated.isPremiumRate ? "danger" : "neutral"}
-          index={11}
+          index={15}
         />
       </div>
 
-      {/* Fraud score bar (if data available) */}
+      {/* ── Fraud score ── */}
       {aggregated.fraudScore !== null && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -221,19 +290,29 @@ export default function ResultsDashboard({ data }: Props) {
         </motion.div>
       )}
 
-      {/* Two-column deep analysis */}
+      {/* ── Number breakdown + Format panel ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <NumberBreakdown analysis={analysis} />
         <FormatPanel data={data} />
       </div>
 
-      {/* Country intelligence */}
+      {/* ── SIM intelligence + QR code ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SimIntelPanel aggregated={aggregated} />
+        <QrCodePanel e164={input.e164} />
+      </div>
+
+      {/* ── Country intelligence ── */}
       {countryIntel && <CountryPanel intel={countryIntel} />}
 
-      {/* OSINT Pivots */}
-      <OsintPivots e164={input.e164} national={input.national} />
+      {/* ── OSINT pivots ── */}
+      <OsintPivots
+        e164={input.e164}
+        national={input.national}
+        country={input.country}
+      />
 
-      {/* Source tabs */}
+      {/* ── Raw source data ── */}
       <div className="space-y-2">
         <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">
           [ RAW SOURCE DATA ] — Optional API enrichment
