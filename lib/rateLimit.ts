@@ -12,11 +12,11 @@ const buckets = new Map<string, Bucket>();
 // Purge IP entries whose window has long since expired to prevent unbounded growth
 setInterval(() => {
   const now = Date.now();
-  for (const [ip, bucket] of buckets.entries()) {
+  Array.from(buckets.entries()).forEach(([ip, bucket]) => {
     if (now - bucket.windowStart > WINDOW_MS * 2) {
       buckets.delete(ip);
     }
-  }
+  });
 }, CLEANUP_INTERVAL_MS);
 
 export function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
