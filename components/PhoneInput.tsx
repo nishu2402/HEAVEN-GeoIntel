@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { AsYouType, getCountries, getCountryCallingCode, isValidPhoneNumber } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 import { CheckCircle2, XCircle, Search, ChevronDown } from "lucide-react";
@@ -34,6 +34,7 @@ export default function PhoneInput({ onLookup, loading }: Props) {
   const [raw, setRaw] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [search, setSearch] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fullNumber = raw.startsWith("+") ? raw : `+${getCountryCallingCode(country)}${raw.replace(/\D/g, "")}`;
 
@@ -42,10 +43,30 @@ export default function PhoneInput({ onLookup, loading }: Props) {
     validation = isValidPhoneNumber(fullNumber) ? "valid" : "invalid";
   }
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showDropdown) return;
+    function handleOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [showDropdown]);
+
   const handleInput = useCallback((val: string) => {
     const formatter = new AsYouType(country);
     setRaw(formatter.input(val));
   }, [country]);
+
+  const handleCountryChange = (code: CountryCode) => {
+    setCountry(code);
+    setRaw(""); // reset input — previous format belongs to old country
+    setShowDropdown(false);
+    setSearch("");
+  };
 
   const filteredCountries = ALL_COUNTRIES.filter(
     (c) =>
@@ -66,7 +87,7 @@ export default function PhoneInput({ onLookup, loading }: Props) {
     <div className="w-full space-y-3">
       <div className="flex gap-2 relative">
         {/* Country selector */}
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setShowDropdown((p) => !p)}
@@ -83,20 +104,22 @@ export default function PhoneInput({ onLookup, loading }: Props) {
                   autoFocus
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search country..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { setShowDropdown(false); setSearch(""); }
+                    if (e.key === "Enter" && filteredCountries.length === 1) {
+                      handleCountryChange(filteredCountries[0].code);
+                    }
+                  }}
+                  placeholder="Search country or code..."
                   className="w-full terminal-input text-xs px-2 py-1.5 rounded-none"
                 />
               </div>
               <div className="max-h-56 overflow-y-auto">
-                {filteredCountries.slice(0, 80).map((c) => (
+                {filteredCountries.map((c) => (
                   <button
                     key={c.code}
                     type="button"
-                    onClick={() => {
-                      setCountry(c.code);
-                      setShowDropdown(false);
-                      setSearch("");
-                    }}
+                    onClick={() => handleCountryChange(c.code)}
                     className={cn(
                       "w-full text-left px-3 py-1.5 text-xs flex justify-between hover:bg-[#00ff41]/10 transition-colors",
                       c.code === country && "bg-[#00ff41]/15 text-[#00ff41]"
@@ -121,13 +144,14 @@ export default function PhoneInput({ onLookup, loading }: Props) {
             value={raw}
             onChange={(e) => handleInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            placeholder="Enter phone number with country code (e.g. +447911123456)"
+            placeholder={`Enter number for ${selectedCountry?.name ?? "selected country"}`}
             className="w-full h-12 pl-4 pr-10 terminal-input text-sm rounded-none font-mono"
             spellCheck={false}
+            autoComplete="tel"
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             {validation === "valid" && <CheckCircle2 className="w-4 h-4 text-[#00ff41]" />}
-            {validation === "invalid" && <XCircle className="w-4 h-4 text-[#ff3e3e]" />}
+            {validation === "invalid" && raw && <XCircle className="w-4 h-4 text-[#ff3e3e]" />}
           </div>
         </div>
 
@@ -152,17 +176,17 @@ export default function PhoneInput({ onLookup, loading }: Props) {
       <div className="text-xs font-mono">
         {validation === "valid" && (
           <span className="text-[#00ff41]">
-            ✓ Valid number detected: <span className="glow-green">{fullNumber}</span>
+            ✓ Valid — will look up: <span className="glow-green">{fullNumber}</span>
           </span>
         )}
         {validation === "invalid" && raw && (
           <span className="text-[#ff3e3e]">
-            ✗ Could not parse as valid phone number — include country code (e.g. +1, +44)
+            ✗ Not a valid {selectedCountry?.name} number — include country code (e.g. {selectedCountry?.callingCode}) or switch country
           </span>
         )}
         {validation === "empty" && (
           <span className="text-[#00ff41]/30">
-            _ Use {selectedCountry?.callingCode} prefix or select country from dropdown
+            _ Enter number · country code {selectedCountry?.callingCode} will be prepended automatically
           </span>
         )}
       </div>

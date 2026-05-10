@@ -51,8 +51,8 @@ export interface IpqsData {
   formatted: string;
   local_format: string;
   dialing_code: number;
-  active_status: string;
-  user_activity: string;
+  active_status?: string;
+  user_activity?: string;
   associated_email_addresses?: { status: string; emails: string[] };
   name: string;
   message: string;

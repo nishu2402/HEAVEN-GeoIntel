@@ -229,11 +229,16 @@ function buildAggregated(
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const ip = getIp(req);
-  const { allowed } = checkRateLimit(ip);
+  const { allowed, remaining } = checkRateLimit(ip);
+  const rlHeaders = {
+    "X-RateLimit-Limit": "10",
+    "X-RateLimit-Remaining": String(remaining),
+    "X-RateLimit-Window": "60s",
+  };
   if (!allowed) {
     return NextResponse.json(
       { error: "Rate limit exceeded. Max 10 requests per minute." },
-      { status: 429 }
+      { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } }
     );
   }
 
@@ -255,7 +260,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const e164 = parsed.format("E.164");
 
   const cached = getCached(e164);
-  if (cached) return NextResponse.json(cached);
+  if (cached) return NextResponse.json(cached, { headers: rlHeaders });
 
   // Deep analysis — offline, zero APIs
   const analysis = analyzePhoneNumber(e164);
@@ -316,5 +321,5 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const response: LookupResponse = { input, analysis, countryIntel, sources, aggregated };
   setCached(e164, response);
 
-  return NextResponse.json(response);
+  return NextResponse.json(response, { headers: rlHeaders });
 }
