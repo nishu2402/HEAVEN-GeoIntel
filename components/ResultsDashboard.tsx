@@ -20,6 +20,8 @@ import SimIntelPanel from "./SimIntelPanel";
 import QrCodePanel from "./QrCodePanel";
 import PentesterPanel from "./PentesterPanel";
 import DorkGenerator from "./DorkGenerator";
+import NumberPermutations from "./NumberPermutations";
+import ReportExport from "./ReportExport";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -60,6 +62,12 @@ export default function ResultsDashboard({ data }: Props) {
   // --- Always-available offline data ---
   // Country
   cards.push({ label: "Country", value: aggregated.countryName, icon: <Globe className="w-3 h-3" />, variant: "default", index: idx++ });
+
+  // US/CA area code intelligence (offline — no API needed)
+  if (analysis.npaInfo) {
+    cards.push({ label: "State / Province", value: `${analysis.npaInfo.state} (${analysis.npaInfo.stateAbbr})`, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
+    cards.push({ label: "Region / Metro", value: analysis.npaInfo.region, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
+  }
 
   // Calling code
   cards.push({ label: "Calling Code", value: input.countryCallingCode, icon: <Phone className="w-3 h-3" />, variant: "cyan", index: idx++ });
@@ -263,6 +271,7 @@ export default function ResultsDashboard({ data }: Props) {
             <Download className="w-3 h-3" /> EXPORT JSON
           </button>
           <ShareButton e164={input.e164} />
+          <ReportExport data={data} />
         </div>
 
         {/* Data source status */}
@@ -344,8 +353,11 @@ export default function ResultsDashboard({ data }: Props) {
       {/* ── Country intelligence ── */}
       {countryIntel && <CountryPanel intel={countryIntel} />}
 
-      {/* ── Dork generator ── */}
-      <DorkGenerator e164={input.e164} national={input.national} />
+      {/* ── Number permutations + Dork generator ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <NumberPermutations data={data} />
+        <DorkGenerator e164={input.e164} national={input.national} />
+      </div>
 
       {/* ── OSINT pivots ── */}
       <OsintPivots e164={input.e164} national={input.national} country={input.country} />

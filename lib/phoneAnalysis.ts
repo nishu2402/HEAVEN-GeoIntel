@@ -1,5 +1,7 @@
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
+import { getNpaInfo } from "./usNpaDatabase";
+import type { NpaInfo } from "./usNpaDatabase";
 
 export interface PhoneAnalysis {
   e164: string;
@@ -43,6 +45,7 @@ export interface PhoneAnalysis {
 
   carrierPrefix: string | null;
   numberPlanArea: string | null;
+  npaInfo: NpaInfo | null; // US/CA area code intelligence (offline)
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -383,5 +386,7 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
     // For US/CA: NXX (central office code, digits 4-6) — NOT the area code (digits 1-3)
     carrierPrefix: extractCarrierPrefix(subscriberNumber),
     numberPlanArea: country ? getCountryDisplayName(country) : null,
+    // US/CA: offline area code intelligence from the NPA database (works with zero APIs)
+    npaInfo: (country === "US" || country === "CA") ? getNpaInfo(nationalDigits) : null,
   };
 }
