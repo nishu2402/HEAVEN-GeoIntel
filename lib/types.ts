@@ -158,3 +158,104 @@ export interface HistoryEntry {
   timestamp: number;
   flagEmoji: string;
 }
+
+// ── Email OSINT types ──────────────────────────────────────────────────────────
+
+export type EmailProviderType =
+  | "free"        // Gmail, Outlook, Yahoo, etc.
+  | "corporate"   // Custom domain / business
+  | "educational" // .edu domains
+  | "government"  // .gov / .mil domains
+  | "privacy"     // ProtonMail, Tutanota, etc.
+  | "disposable"  // Temp mail / throwaway
+  | "unknown";
+
+export interface EmailAnalysis {
+  email: string;
+  username: string;
+  domain: string;
+  tld: string;
+  isValidFormat: boolean;
+  providerType: EmailProviderType;
+  providerName: string;       // "Gmail", "ProtonMail", "Custom Corporate", etc.
+  isDisposable: boolean;
+  isWebmail: boolean;
+  isPrivacyFocused: boolean;
+  isRoleAddress: boolean;     // admin@, info@, support@, etc.
+  guessedName: string | null; // best-effort name from username
+}
+
+export interface GravatarProfile {
+  found: boolean;
+  displayName: string | null;
+  preferredUsername: string | null;
+  aboutMe: string | null;
+  currentLocation: string | null;
+  profileUrl: string | null;
+  thumbnailUrl: string | null;
+  accounts: { shortname: string; username: string; url: string }[];
+  verifiedAccounts: { serviceLabel: string; url: string }[];
+}
+
+export interface EmailRepData {
+  email: string;
+  reputation: string;
+  suspicious: boolean;
+  references: number;
+  blacklisted: boolean;
+  maliciousActivity: boolean;
+  credentialsLeaked: boolean;
+  dataBreach: boolean;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  domainExists: boolean;
+  newDomain: boolean;
+  freeProvider: boolean;
+  disposable: boolean;
+  deliverable: boolean;
+  validMx: boolean;
+  primaryMx: string | null;
+  spam: boolean;
+  spoofable: boolean;
+  spfStrict: boolean;
+  dmarc: boolean;
+  profiles: string[];
+}
+
+export interface HunterData {
+  result: string;         // "deliverable" | "undeliverable" | "risky" | "unknown"
+  score: number;          // 0-100 confidence
+  regexp: boolean;
+  gibberish: boolean;
+  disposable: boolean;
+  webmail: boolean;
+  mxRecords: boolean;
+  smtpServer: boolean;
+  smtpCheck: boolean;
+  acceptAll: boolean;
+  block: boolean;
+}
+
+export interface AbstractEmailData {
+  email: string;
+  autocorrect: string;
+  deliverability: string;
+  qualityScore: number;
+  isValidFormat: boolean;
+  isFreeEmail: boolean;
+  isDisposableEmail: boolean;
+  isRoleEmail: boolean;
+  isCatchallEmail: boolean;
+  isMxFound: boolean;
+  isSmtpValid: boolean;
+}
+
+export interface EmailLookupResponse {
+  email: string;
+  analysis: EmailAnalysis;
+  gravatar: GravatarProfile;
+  emailrep: SourceResult<EmailRepData>;
+  hunter: SourceResult<HunterData>;
+  abstract: SourceResult<AbstractEmailData>;
+  cachedAt?: number;
+}
