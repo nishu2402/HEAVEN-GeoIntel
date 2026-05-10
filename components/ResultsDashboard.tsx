@@ -18,6 +18,8 @@ import FormatPanel from "./FormatPanel";
 import ShareButton from "./ShareButton";
 import SimIntelPanel from "./SimIntelPanel";
 import QrCodePanel from "./QrCodePanel";
+import PentesterPanel from "./PentesterPanel";
+import DorkGenerator from "./DorkGenerator";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -296,6 +298,9 @@ export default function ResultsDashboard({ data }: Props) {
         </div>
       </div>
 
+      {/* ── Pentester intelligence (always shown — core value) ── */}
+      <PentesterPanel data={data} />
+
       {/* ── Metric cards — only populated fields ── */}
       {cards.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -338,6 +343,9 @@ export default function ResultsDashboard({ data }: Props) {
 
       {/* ── Country intelligence ── */}
       {countryIntel && <CountryPanel intel={countryIntel} />}
+
+      {/* ── Dork generator ── */}
+      <DorkGenerator e164={input.e164} national={input.national} />
 
       {/* ── OSINT pivots ── */}
       <OsintPivots e164={input.e164} national={input.national} country={input.country} />
