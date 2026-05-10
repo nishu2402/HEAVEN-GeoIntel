@@ -5,10 +5,11 @@ import { motion } from "framer-motion";
 import {
   User, Mail, Globe, Shield, AlertTriangle, CheckCircle2,
   XCircle, Copy, Check, Download, ExternalLink,
-  Building2, Lock, Trash2, Hash,
+  Building2, Lock, Trash2, Hash, Activity,
 } from "lucide-react";
 import type { EmailLookupResponse } from "@/lib/types";
 import EmailOsintPivots from "./EmailOsintPivots";
+import BreachPanel from "./BreachPanel";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -43,9 +44,7 @@ function InfoRow({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
-function Badge({
-  text, color = "#00ff41", bg,
-}: { text: string; color?: string; bg?: string }) {
+function Badge({ text, color = "#00ff41", bg }: { text: string; color?: string; bg?: string }) {
   return (
     <span
       className="text-[9px] font-mono font-bold px-2 py-0.5 border tracking-widest"
@@ -56,14 +55,75 @@ function Badge({
   );
 }
 
-function downloadReport(data: EmailLookupResponse): void {
-  const { email, analysis, gravatar, emailrep, hunter, abstract } = data;
+// ── Threat Score ──────────────────────────────────────────────────────────────
+function calcThreatScore(data: EmailLookupResponse): number {
+  let score = 0;
+  const xon = data.xon?.ok ? data.xon.data : null;
+  const rep = data.emailrep?.ok ? data.emailrep.data : null;
+
+  if (xon && xon.breachCount > 0) {
+    score += Math.min(xon.breachCount * 10, 30);
+    if (xon.breaches.some((b) => b.passwordRisk === "ClearText")) score += 30;
+    else if (xon.breaches.some((b) => b.passwordRisk === "EasyToCrack")) score += 20;
+    else if (xon.breaches.some((b) => b.xposedData.some((d) => d.toLowerCase().includes("password")))) score += 10;
+    const thisYear = new Date().getFullYear();
+    if (xon.breaches.some((b) => parseInt(b.xposedDate.slice(0, 4)) >= thisYear - 2)) score += 10;
+  }
+
+  if (rep) {
+    if (rep.credentialsLeaked) score = Math.max(score, 45);
+    if (rep.maliciousActivity) score += 20;
+    if (rep.suspicious) score = Math.max(score, 40);
+    if (rep.blacklisted) score = Math.max(score, 60);
+    if (rep.spam) score += 5;
+  }
+
+  if (data.analysis.isDisposable) score = Math.max(score, 20);
+  return Math.min(score, 100);
+}
+
+function ThreatScoreBar({ score }: { score: number }) {
+  const color = score >= 70 ? "#ff1a1a" : score >= 40 ? "#ff6600" : score >= 20 ? "#ffaa00" : "#00ff41";
+  const label = score >= 70 ? "CRITICAL" : score >= 40 ? "HIGH RISK" : score >= 20 ? "MODERATE" : score > 0 ? "LOW RISK" : "CLEAN";
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5" style={{ color }} />
+          <span className="text-[9px] uppercase tracking-widest text-[#00ff41]/40">Threat Score</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-bold text-lg" style={{ color }}>{score}</span>
+          <span className="text-[9px] font-mono text-[#00ff41]/30">/100</span>
+          <Badge text={label} color={color} />
+        </div>
+      </div>
+      <div className="w-full h-1.5 bg-[#00ff41]/10 relative">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${score}%` }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="h-full"
+          style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}60` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Report download ───────────────────────────────────────────────────────────
+function downloadReport(data: EmailLookupResponse, score: number): void {
+  const { email, analysis, gravatar, emailrep, hunter, abstract, xon } = data;
   const sep = "─".repeat(70);
   const now = new Date().toISOString();
+
+  const xonData = xon?.ok ? xon.data : null;
 
   const lines = [
     `HEAVEN-GeoIntel — Email Intelligence Report`,
     `Generated  : ${now}`,
+    `Threat Score: ${score}/100`,
     sep,
     ``,
     `TARGET EMAIL`,
@@ -71,18 +131,29 @@ function downloadReport(data: EmailLookupResponse): void {
     `  Address         : ${email}`,
     `  Username        : ${analysis.username}`,
     `  Domain          : ${analysis.domain}`,
-    `  TLD             : .${analysis.tld}`,
-    `  Valid Format    : ${analysis.isValidFormat ? "Yes" : "No"}`,
-    ``,
-    `OFFLINE CLASSIFICATION`,
-    sep,
-    `  Provider Type   : ${analysis.providerType}`,
-    `  Provider Name   : ${analysis.providerName}`,
-    `  Disposable      : ${analysis.isDisposable ? "YES — THROWAWAY" : "No"}`,
-    `  Privacy Focused : ${analysis.isPrivacyFocused ? "YES — encrypted/anonymous provider" : "No"}`,
-    `  Webmail         : ${analysis.isWebmail ? "Yes" : "No"}`,
-    `  Role Address    : ${analysis.isRoleAddress ? "YES (generic role address)" : "No"}`,
+    `  Provider        : ${analysis.providerName} (${analysis.providerType})`,
+    `  Disposable      : ${analysis.isDisposable ? "YES" : "No"}`,
+    `  Privacy Provider: ${analysis.isPrivacyFocused ? "YES" : "No"}`,
+    `  Role Address    : ${analysis.isRoleAddress ? "YES" : "No"}`,
     `  Guessed Name    : ${analysis.guessedName ?? "N/A"}`,
+    ``,
+    `BREACH DATABASE — XposedOrNot`,
+    sep,
+    `  Total Breaches  : ${xonData ? xonData.breachCount : "N/A"}`,
+    ...(xonData && xonData.breaches.length > 0 ? [
+      `  Exposed Data    : ${xonData.xposedDataTypes.join(", ")}`,
+      ``,
+      `  BREACH LIST:`,
+      ...xonData.breaches
+        .sort((a, b) => b.xposedDate.localeCompare(a.xposedDate))
+        .map((b) => [
+          `    [${b.xposedDate.slice(0, 4)}] ${b.breach}${b.domain ? ` (${b.domain})` : ""}`,
+          `           Data    : ${b.xposedData.join(", ")}`,
+          `           Records : ${b.xposedRecords.toLocaleString()}`,
+          `           PW Risk : ${b.passwordRisk}`,
+          `           Verified: ${b.verified ? "Yes" : "No"}`,
+        ].join("\n")),
+    ] : [`  Result          : ${xon?.ok ? "CLEAN — no breaches found" : (xon?.error ?? "N/A")}`]),
     ``,
     `GRAVATAR PROFILE`,
     sep,
@@ -93,60 +164,46 @@ function downloadReport(data: EmailLookupResponse): void {
       `  Location        : ${gravatar.currentLocation ?? "N/A"}`,
       `  About           : ${gravatar.aboutMe ?? "N/A"}`,
       `  Profile URL     : ${gravatar.profileUrl ?? "N/A"}`,
-      `  Avatar URL      : ${gravatar.thumbnailUrl ?? "N/A"}`,
-      `  Linked Accounts : ${gravatar.accounts.map(a => `${a.shortname}:${a.username}`).join(", ") || "None"}`,
+      `  Linked Accounts : ${gravatar.accounts.map((a) => `${a.shortname}:${a.username}`).join(", ") || "None"}`,
     ] : []),
     ``,
-    `REPUTATION INTEL (EmailRep.io)`,
+    `REPUTATION — EmailRep.io`,
     sep,
     ...(emailrep.ok && emailrep.data ? [
       `  Reputation      : ${emailrep.data.reputation.toUpperCase()}`,
       `  Suspicious      : ${emailrep.data.suspicious ? "YES" : "No"}`,
-      `  References      : ${emailrep.data.references}`,
-      `  Credentials Leaked : ${emailrep.data.credentialsLeaked ? "YES — CRITICAL" : "No"}`,
+      `  Credentials Leaked: ${emailrep.data.credentialsLeaked ? "YES — CRITICAL" : "No"}`,
       `  Data Breach     : ${emailrep.data.dataBreach ? "YES" : "No"}`,
-      `  Malicious Activity : ${emailrep.data.maliciousActivity ? "YES" : "No"}`,
+      `  Malicious Activity: ${emailrep.data.maliciousActivity ? "YES" : "No"}`,
       `  Spam            : ${emailrep.data.spam ? "YES" : "No"}`,
       `  Deliverable     : ${emailrep.data.deliverable ? "Yes" : "No"}`,
-      `  Valid MX        : ${emailrep.data.validMx ? "Yes" : "No"}`,
-      `  Primary MX      : ${emailrep.data.primaryMx ?? "N/A"}`,
       `  First Seen      : ${emailrep.data.firstSeen ?? "N/A"}`,
       `  Last Seen       : ${emailrep.data.lastSeen ?? "N/A"}`,
       `  Profiles        : ${emailrep.data.profiles.join(", ") || "None"}`,
     ] : [`  Status          : ${emailrep.ok ? "No data" : (emailrep.error ?? "Error")}`]),
     ``,
-    `EMAIL VALIDATION (Abstract API)`,
+    `EMAIL VALIDATION — Abstract API`,
     sep,
     ...(abstract.ok && abstract.data ? [
       `  Deliverability  : ${abstract.data.deliverability}`,
-      `  Quality Score   : ${abstract.data.qualityScore}/1.0`,
+      `  Quality Score   : ${(abstract.data.qualityScore * 100).toFixed(0)}%`,
       `  SMTP Valid      : ${abstract.data.isSmtpValid ? "Yes" : "No"}`,
       `  MX Found        : ${abstract.data.isMxFound ? "Yes" : "No"}`,
-      `  Disposable      : ${abstract.data.isDisposableEmail ? "YES" : "No"}`,
-      `  Role Address    : ${abstract.data.isRoleEmail ? "YES" : "No"}`,
-      `  Catch-All       : ${abstract.data.isCatchallEmail ? "Yes" : "No"}`,
-      `  Autocorrect     : ${abstract.data.autocorrect || "None"}`,
-    ] : [`  Status          : ${abstract.error === "NOT_CONFIGURED" ? "NOT CONFIGURED (add ABSTRACT_API_KEY)" : (abstract.error ?? "Error")}`]),
+    ] : [`  Status          : ${abstract.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : (abstract.error ?? "Error")}`]),
     ``,
-    `DELIVERABILITY (Hunter.io)`,
+    `DELIVERABILITY — Hunter.io`,
     sep,
     ...(hunter.ok && hunter.data ? [
       `  Result          : ${hunter.data.result.toUpperCase()}`,
       `  Confidence      : ${hunter.data.score}/100`,
-      `  Disposable      : ${hunter.data.disposable ? "YES" : "No"}`,
-      `  Webmail         : ${hunter.data.webmail ? "Yes" : "No"}`,
-      `  SMTP Check      : ${hunter.data.smtpCheck ? "Passed" : "Failed"}`,
-      `  MX Records      : ${hunter.data.mxRecords ? "Found" : "Not found"}`,
-      `  Accept All      : ${hunter.data.acceptAll ? "Yes" : "No"}`,
-      `  Blocked         : ${hunter.data.block ? "YES" : "No"}`,
-    ] : [`  Status          : ${hunter.error === "NOT_CONFIGURED" ? "NOT CONFIGURED (add HUNTER_API_KEY)" : (hunter.error ?? "Error")}`]),
+      `  SMTP Valid      : ${hunter.data.smtpCheck ? "Yes" : "No"}`,
+    ] : [`  Status          : ${hunter.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : (hunter.error ?? "Error")}`]),
     ``,
     sep,
     `Report generated by HEAVEN-GeoIntel — for authorized use only.`,
   ];
 
-  const content = lines.join("\n");
-  const blob = new Blob([content], { type: "text/plain" });
+  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -156,13 +213,8 @@ function downloadReport(data: EmailLookupResponse): void {
 }
 
 const PROVIDER_COLORS: Record<string, string> = {
-  free: "#00d9ff",
-  corporate: "#00ff41",
-  educational: "#00d9ff",
-  government: "#ffaa00",
-  privacy: "#888",
-  disposable: "#ff3e3e",
-  unknown: "#555",
+  free: "#00d9ff", corporate: "#00ff41", educational: "#00d9ff",
+  government: "#ffaa00", privacy: "#888", disposable: "#ff3e3e", unknown: "#555",
 };
 
 const PROVIDER_ICONS: Record<string, React.ReactNode> = {
@@ -174,22 +226,20 @@ const PROVIDER_ICONS: Record<string, React.ReactNode> = {
   disposable: <Trash2 className="w-3 h-3" />,
 };
 
+// ── Main component ────────────────────────────────────────────────────────────
 export default function EmailResultsDashboard({ data }: Props) {
-  const { email, analysis, gravatar, emailrep, hunter, abstract } = data;
+  const { email, analysis, gravatar, emailrep, hunter, abstract, xon } = data;
 
   const repData = emailrep.ok ? emailrep.data : null;
   const hunterData = hunter.ok ? hunter.data : null;
   const abstractData = abstract.ok ? abstract.data : null;
-
   const provColor = PROVIDER_COLORS[analysis.providerType] ?? "#00ff41";
 
-  // Determine confirmed name (priority: Gravatar > guessedName)
   const confirmedName = gravatar.found ? (gravatar.displayName ?? gravatar.preferredUsername) : null;
   const nameToShow = confirmedName ?? analysis.guessedName;
   const nameSource = confirmedName ? "gravatar" : analysis.guessedName ? "inferred" : null;
-
-  // Registered platforms from emailrep
   const platforms = repData?.profiles ?? [];
+  const threatScore = calcThreatScore(data);
 
   return (
     <motion.div
@@ -198,51 +248,50 @@ export default function EmailResultsDashboard({ data }: Props) {
       transition={{ duration: 0.35 }}
       className="space-y-4 mt-6"
     >
-      {/* ── Header ── */}
+      {/* ── Identity header ── */}
       <div className="terminal-card p-5 space-y-4">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">EMAIL INTELLIGENCE RESULT</div>
+        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">
+          [ EMAIL INTELLIGENCE RESULT ]
+        </div>
 
         <div className="flex items-start justify-between flex-wrap gap-4">
-          <div className="space-y-2">
-            {/* Avatar + name */}
-            <div className="flex items-center gap-4">
-              {gravatar.found && gravatar.thumbnailUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={gravatar.thumbnailUrl}
-                  alt="Gravatar"
-                  className="w-14 h-14 rounded-none border border-[#00ff41]/30"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              )}
-              <div>
-                {nameToShow && (
-                  <div className="flex items-center gap-2 mb-1">
-                    <User className="w-4 h-4 text-[#00d9ff]" />
-                    <span className="text-xl font-bold text-[#00d9ff] font-mono">{nameToShow}</span>
-                    <span className={cn(
-                      "text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 border",
-                      nameSource === "gravatar"
-                        ? "text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5"
-                        : "text-[#888] border-[#888]/30"
-                    )}>
-                      {nameSource === "gravatar" ? "✓ GRAVATAR CONFIRMED" : "INFERRED"}
-                    </span>
-                  </div>
-                )}
-                <div className="text-xl font-bold glow-green tracking-wider font-mono">{email}</div>
-                <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
-                  {analysis.username} @ {analysis.domain}
+          <div className="flex items-center gap-4">
+            {gravatar.found && gravatar.thumbnailUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={gravatar.thumbnailUrl}
+                alt="Gravatar"
+                className="w-14 h-14 rounded-none border border-[#00ff41]/30 shrink-0"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
+            <div>
+              {nameToShow && (
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <User className="w-4 h-4 text-[#00d9ff] shrink-0" />
+                  <span className="text-xl font-bold text-[#00d9ff] font-mono">{nameToShow}</span>
+                  <span className={cn(
+                    "text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 border",
+                    nameSource === "gravatar"
+                      ? "text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5"
+                      : "text-[#888] border-[#888]/30"
+                  )}>
+                    {nameSource === "gravatar" ? "✓ GRAVATAR CONFIRMED" : "INFERRED"}
+                  </span>
                 </div>
-                {gravatar.found && gravatar.currentLocation && (
-                  <div className="text-xs text-[#00d9ff]/70 mt-1 font-mono">📍 {gravatar.currentLocation}</div>
-                )}
-                {gravatar.found && gravatar.aboutMe && (
-                  <div className="text-xs text-[#00ff41]/50 mt-1 font-mono italic max-w-md line-clamp-2">
-                    &ldquo;{gravatar.aboutMe}&rdquo;
-                  </div>
-                )}
+              )}
+              <div className="text-xl font-bold glow-green tracking-wider font-mono">{email}</div>
+              <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
+                {analysis.username} @ {analysis.domain}
               </div>
+              {gravatar.found && gravatar.currentLocation && (
+                <div className="text-xs text-[#00d9ff]/70 mt-1 font-mono">📍 {gravatar.currentLocation}</div>
+              )}
+              {gravatar.found && gravatar.aboutMe && (
+                <div className="text-xs text-[#00ff41]/50 mt-1 font-mono italic max-w-md line-clamp-2">
+                  &ldquo;{gravatar.aboutMe}&rdquo;
+                </div>
+              )}
             </div>
           </div>
 
@@ -250,18 +299,22 @@ export default function EmailResultsDashboard({ data }: Props) {
           <div className="flex flex-wrap gap-2 items-start">
             <Badge text={analysis.providerType.toUpperCase()} color={provColor} />
             {analysis.isDisposable && <Badge text="DISPOSABLE" color="#ff3e3e" />}
-            {analysis.isPrivacyFocused && <Badge text="PRIVACY PROVIDER" color="#888" />}
+            {analysis.isPrivacyFocused && <Badge text="PRIVACY" color="#888" />}
             {analysis.isRoleAddress && <Badge text="ROLE ADDRESS" color="#ffaa00" />}
             {repData?.suspicious && <Badge text="SUSPICIOUS" color="#ff3e3e" />}
-            {repData?.credentialsLeaked && <Badge text="CREDENTIALS LEAKED" color="#ff3e3e" />}
-            {repData?.dataBreach && <Badge text="IN DATA BREACH" color="#ff3e3e" />}
-            {gravatar.found && <Badge text="GRAVATAR FOUND" color="#00ff41" />}
+            {repData?.credentialsLeaked && <Badge text="CREDS LEAKED" color="#ff1a1a" />}
+            {gravatar.found && <Badge text="GRAVATAR ✓" color="#00ff41" />}
             {data.cachedAt && <Badge text="CACHED" color="#444" />}
           </div>
         </div>
 
+        {/* Threat score */}
+        <div className="border-t border-[#00ff41]/10 pt-3">
+          <ThreatScoreBar score={threatScore} />
+        </div>
+
         {/* Action row */}
-        <div className="flex gap-2 flex-wrap pt-1 border-t border-[#00ff41]/10">
+        <div className="flex gap-2 flex-wrap border-t border-[#00ff41]/10 pt-3">
           <CopyBtn text={email} />
           <CopyBtn text={analysis.domain} />
           {gravatar.found && gravatar.profileUrl && (
@@ -271,11 +324,11 @@ export default function EmailResultsDashboard({ data }: Props) {
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-xs border border-[#00d9ff]/30 px-2 py-1 text-[#00d9ff]/60 hover:text-[#00d9ff] hover:border-[#00d9ff]/60 transition-colors font-mono"
             >
-              <ExternalLink className="w-3 h-3" /> GRAVATAR PROFILE
+              <ExternalLink className="w-3 h-3" /> GRAVATAR
             </a>
           )}
           <button
-            onClick={() => downloadReport(data)}
+            onClick={() => downloadReport(data, threatScore)}
             className="flex items-center gap-1 text-xs border border-[#00d9ff]/30 px-2 py-1 text-[#00d9ff]/60 hover:text-[#00d9ff] hover:border-[#00d9ff]/60 transition-colors font-mono"
           >
             <Download className="w-3 h-3" /> EXPORT REPORT
@@ -283,26 +336,68 @@ export default function EmailResultsDashboard({ data }: Props) {
         </div>
       </div>
 
-      {/* ── Two-column: Offline analysis + Gravatar ── */}
+      {/* ── BREACH DATABASE — Primary intelligence ── */}
+      <BreachPanel xon={xon} />
+
+      {/* ── Risk indicators (EmailRep critical flags) ── */}
+      {repData && (repData.credentialsLeaked || repData.dataBreach || repData.suspicious || repData.maliciousActivity) && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.25 }}
+          className="terminal-card p-4 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.03]"
+        >
+          <div className="text-[9px] uppercase tracking-widest text-[#ff3e3e]/70 mb-3 flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3" /> ADDITIONAL RISK FLAGS — EmailRep.io
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {repData.credentialsLeaked && (
+              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff1a1a]">
+                <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                Credentials confirmed in breach database
+              </div>
+            )}
+            {repData.dataBreach && !repData.credentialsLeaked && (
+              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff3e3e]">
+                <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                Appeared in one or more data breaches
+              </div>
+            )}
+            {repData.maliciousActivity && (
+              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff3e3e]">
+                <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                Associated with phishing / spam / fraud
+              </div>
+            )}
+            {repData.suspicious && (
+              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ffaa00]">
+                <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                Flagged suspicious by reputation engine
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Two-column: Classification + Gravatar ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Offline analysis */}
+        {/* Offline classification */}
         <div className="terminal-card p-4 space-y-1">
           <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/40 mb-3 flex items-center gap-1.5">
             {PROVIDER_ICONS[analysis.providerType]}
-            OFFLINE CLASSIFICATION — no API required
+            EMAIL CLASSIFICATION — offline
           </div>
           <InfoRow label="Provider" value={analysis.providerName} accent={provColor} />
-          <InfoRow label="Provider Type" value={analysis.providerType.toUpperCase()} accent={provColor} />
+          <InfoRow label="Type" value={analysis.providerType.toUpperCase()} accent={provColor} />
           <InfoRow label="Domain" value={analysis.domain} />
-          <InfoRow label="TLD" value={`.${analysis.tld}`} />
           <InfoRow label="Username" value={analysis.username} />
-          <InfoRow label="Disposable" value={analysis.isDisposable ? "YES — THROWAWAY ACCOUNT" : "No"} accent={analysis.isDisposable ? "#ff3e3e" : "#00ff41"} />
-          <InfoRow label="Privacy Provider" value={analysis.isPrivacyFocused ? "YES — Encrypted / Anonymous" : "No"} accent={analysis.isPrivacyFocused ? "#888" : "#00ff41"} />
-          <InfoRow label="Webmail" value={analysis.isWebmail ? "Yes — free personal mail" : "No"} />
+          <InfoRow label="Disposable" value={analysis.isDisposable ? "YES — THROWAWAY" : "No"} accent={analysis.isDisposable ? "#ff3e3e" : "#00ff41"} />
+          <InfoRow label="Privacy" value={analysis.isPrivacyFocused ? "YES — Encrypted / Anonymous" : "No"} accent={analysis.isPrivacyFocused ? "#888" : "#00ff41"} />
+          <InfoRow label="Webmail" value={analysis.isWebmail ? "Yes" : "No"} />
           <InfoRow label="Role Address" value={analysis.isRoleAddress ? "YES — generic inbox" : "No"} accent={analysis.isRoleAddress ? "#ffaa00" : "#00ff41"} />
           {analysis.guessedName && (
-            <InfoRow label="Inferred Name" value={`${analysis.guessedName} (from username pattern)`} accent="#00d9ff" />
+            <InfoRow label="Inferred Name" value={`${analysis.guessedName} (pattern)`} accent="#00d9ff" />
           )}
         </div>
 
@@ -310,18 +405,16 @@ export default function EmailResultsDashboard({ data }: Props) {
         <div className="terminal-card p-4 space-y-1">
           <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/40 mb-3 flex items-center gap-1.5">
             <User className="w-3 h-3" />
-            GRAVATAR PROFILE — free, no API key
+            GRAVATAR PROFILE — real identity
           </div>
           {gravatar.found ? (
             <>
-              <InfoRow label="Status" value="FOUND — profile exists" accent="#00ff41" />
-              <InfoRow label="Display Name" value={gravatar.displayName ?? "N/A"} accent="#00d9ff" />
-              <InfoRow label="Username" value={gravatar.preferredUsername ?? "N/A"} accent="#00d9ff" />
-              <InfoRow label="Location" value={gravatar.currentLocation ?? "N/A"} />
-              <InfoRow label="About" value={gravatar.aboutMe ?? "N/A"} />
-              {gravatar.profileUrl && (
-                <InfoRow label="Profile URL" value={gravatar.profileUrl} />
-              )}
+              <InfoRow label="Status" value="PROFILE FOUND" accent="#00ff41" />
+              {gravatar.displayName && <InfoRow label="Display Name" value={gravatar.displayName} accent="#00d9ff" />}
+              {gravatar.preferredUsername && <InfoRow label="Username" value={gravatar.preferredUsername} accent="#00d9ff" />}
+              {gravatar.currentLocation && <InfoRow label="Location" value={gravatar.currentLocation} />}
+              {gravatar.aboutMe && <InfoRow label="About" value={gravatar.aboutMe} />}
+              {gravatar.profileUrl && <InfoRow label="Profile URL" value={gravatar.profileUrl} />}
               {gravatar.accounts.length > 0 && (
                 <div className="pt-2">
                   <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5">LINKED ACCOUNTS</div>
@@ -344,7 +437,7 @@ export default function EmailResultsDashboard({ data }: Props) {
             </>
           ) : (
             <div className="text-center py-6 text-[#00ff41]/25 font-mono text-xs">
-              No Gravatar profile found for this email.
+              No Gravatar profile — email not linked to a public profile.
             </div>
           )}
         </div>
@@ -356,8 +449,7 @@ export default function EmailResultsDashboard({ data }: Props) {
         {/* EmailRep.io */}
         <div className="terminal-card p-4 space-y-1">
           <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/40 mb-3 flex items-center gap-1.5">
-            <Shield className="w-3 h-3" />
-            REPUTATION — EmailRep.io
+            <Shield className="w-3 h-3" /> REPUTATION — EmailRep.io
           </div>
           {repData ? (
             <>
@@ -368,12 +460,10 @@ export default function EmailResultsDashboard({ data }: Props) {
               />
               <InfoRow label="Suspicious" value={repData.suspicious ? "YES" : "No"} accent={repData.suspicious ? "#ff3e3e" : "#00ff41"} />
               <InfoRow label="References" value={String(repData.references)} />
-              <InfoRow label="Credentials Leaked" value={repData.credentialsLeaked ? "YES — CREDENTIALS IN BREACH DB" : "No"} accent={repData.credentialsLeaked ? "#ff3e3e" : "#00ff41"} />
+              <InfoRow label="Credentials Leaked" value={repData.credentialsLeaked ? "YES" : "No"} accent={repData.credentialsLeaked ? "#ff1a1a" : "#00ff41"} />
               <InfoRow label="Data Breach" value={repData.dataBreach ? "YES" : "No"} accent={repData.dataBreach ? "#ff3e3e" : "#00ff41"} />
               <InfoRow label="Malicious Activity" value={repData.maliciousActivity ? "YES" : "No"} accent={repData.maliciousActivity ? "#ff3e3e" : "#00ff41"} />
-              <InfoRow label="Spam" value={repData.spam ? "YES" : "No"} accent={repData.spam ? "#ff3e3e" : "#00ff41"} />
               <InfoRow label="Deliverable" value={repData.deliverable ? "Yes" : "No"} accent={repData.deliverable ? "#00ff41" : "#ff3e3e"} />
-              <InfoRow label="Valid MX" value={repData.validMx ? "Yes" : "No"} />
               <InfoRow label="Primary MX" value={repData.primaryMx ?? "N/A"} />
               <InfoRow label="First Seen" value={repData.firstSeen ?? "N/A"} />
               <InfoRow label="Last Seen" value={repData.lastSeen ?? "N/A"} />
@@ -391,23 +481,17 @@ export default function EmailResultsDashboard({ data }: Props) {
               )}
             </>
           ) : (
-            <div className="text-center py-6">
-              <div className="text-[#555] text-xs font-mono">
-                {emailrep.error === "RATE_LIMITED"
-                  ? "Rate limited — try again in a moment"
-                  : "EmailRep.io did not return data"}
-              </div>
+            <div className="text-center py-6 text-[#555] text-xs font-mono">
+              {emailrep.error === "RATE_LIMITED" ? "Rate limited — try again" : "EmailRep.io did not return data"}
             </div>
           )}
         </div>
 
-        {/* Abstract + Hunter combined */}
+        {/* Abstract + Hunter */}
         <div className="space-y-4">
-          {/* Abstract API */}
           <div className="terminal-card p-4 space-y-1">
             <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/40 mb-3 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3 h-3" />
-              EMAIL VALIDATION — Abstract API
+              <CheckCircle2 className="w-3 h-3" /> VALIDATION — Abstract API
             </div>
             {abstractData ? (
               <>
@@ -420,11 +504,8 @@ export default function EmailResultsDashboard({ data }: Props) {
                 <InfoRow label="SMTP Valid" value={abstractData.isSmtpValid ? "Yes" : "No"} accent={abstractData.isSmtpValid ? "#00ff41" : "#ff3e3e"} />
                 <InfoRow label="MX Found" value={abstractData.isMxFound ? "Yes" : "No"} />
                 <InfoRow label="Disposable" value={abstractData.isDisposableEmail ? "YES" : "No"} accent={abstractData.isDisposableEmail ? "#ff3e3e" : "#00ff41"} />
-                <InfoRow label="Role Email" value={abstractData.isRoleEmail ? "YES" : "No"} accent={abstractData.isRoleEmail ? "#ffaa00" : "#00ff41"} />
                 <InfoRow label="Catch-All" value={abstractData.isCatchallEmail ? "Yes" : "No"} />
-                {abstractData.autocorrect && (
-                  <InfoRow label="Did You Mean" value={abstractData.autocorrect} accent="#ffaa00" />
-                )}
+                {abstractData.autocorrect && <InfoRow label="Did You Mean" value={abstractData.autocorrect} accent="#ffaa00" />}
               </>
             ) : (
               <div className="text-center py-3 text-[#555] text-[10px] font-mono">
@@ -433,11 +514,9 @@ export default function EmailResultsDashboard({ data }: Props) {
             )}
           </div>
 
-          {/* Hunter.io */}
           <div className="terminal-card p-4 space-y-1">
             <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/40 mb-3 flex items-center gap-1.5">
-              <Hash className="w-3 h-3" />
-              DELIVERABILITY — Hunter.io
+              <Hash className="w-3 h-3" /> DELIVERABILITY — Hunter.io
             </div>
             {hunterData ? (
               <>
@@ -447,13 +526,12 @@ export default function EmailResultsDashboard({ data }: Props) {
                   accent={hunterData.result === "deliverable" ? "#00ff41" : hunterData.result === "risky" ? "#ffaa00" : "#ff3e3e"}
                 />
                 <InfoRow label="Confidence" value={`${hunterData.score}/100`} accent={hunterData.score > 70 ? "#00ff41" : "#ffaa00"} />
-                <InfoRow label="Disposable" value={hunterData.disposable ? "YES" : "No"} accent={hunterData.disposable ? "#ff3e3e" : "#00ff41"} />
-                <InfoRow label="Webmail" value={hunterData.webmail ? "Yes" : "No"} />
-                <InfoRow label="MX Records" value={hunterData.mxRecords ? "Found" : "Not found"} />
                 <InfoRow label="SMTP Valid" value={hunterData.smtpCheck ? "Yes" : "No"} />
+                <InfoRow label="MX Records" value={hunterData.mxRecords ? "Found" : "Not found"} />
+                <InfoRow label="Disposable" value={hunterData.disposable ? "YES" : "No"} accent={hunterData.disposable ? "#ff3e3e" : "#00ff41"} />
                 <InfoRow label="Accept All" value={hunterData.acceptAll ? "Yes (catch-all)" : "No"} />
-                <InfoRow label="Blocked" value={hunterData.block ? "YES — blocked by server" : "No"} accent={hunterData.block ? "#ff3e3e" : "#00ff41"} />
-                {hunterData.gibberish && <InfoRow label="Gibberish" value="YES — fake-looking address" accent="#ffaa00" />}
+                <InfoRow label="Blocked" value={hunterData.block ? "YES" : "No"} accent={hunterData.block ? "#ff3e3e" : "#00ff41"} />
+                {hunterData.gibberish && <InfoRow label="Gibberish" value="YES — fake-looking" accent="#ffaa00" />}
               </>
             ) : (
               <div className="text-center py-3 text-[#555] text-[10px] font-mono">
@@ -463,46 +541,6 @@ export default function EmailResultsDashboard({ data }: Props) {
           </div>
         </div>
       </div>
-
-      {/* ── Risk summary ── */}
-      {repData && (repData.credentialsLeaked || repData.dataBreach || repData.suspicious || repData.maliciousActivity) && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="terminal-card p-4 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.03]"
-        >
-          <div className="text-[9px] uppercase tracking-widest text-[#ff3e3e]/70 mb-3 flex items-center gap-1.5">
-            <AlertTriangle className="w-3 h-3" /> RISK INDICATORS DETECTED
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {repData.credentialsLeaked && (
-              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff3e3e]">
-                <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                Credentials found in breach databases — passwords may be known
-              </div>
-            )}
-            {repData.dataBreach && (
-              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff3e3e]">
-                <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                Email appeared in one or more data breaches
-              </div>
-            )}
-            {repData.suspicious && (
-              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ffaa00]">
-                <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                Flagged as suspicious by reputation engine
-              </div>
-            )}
-            {repData.maliciousActivity && (
-              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff3e3e]">
-                <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                Associated with malicious activity (phishing, spam, fraud)
-              </div>
-            )}
-          </div>
-        </motion.div>
-      )}
 
       {/* ── OSINT pivots ── */}
       <EmailOsintPivots email={email} domain={analysis.domain} username={analysis.username} />

@@ -8,6 +8,7 @@ import type {
   EmailRepData,
   HunterData,
   AbstractEmailData,
+  XposedOrNotData,
   SourceResult,
 } from "@/lib/types";
 
@@ -270,6 +271,76 @@ async function fetchHunter(email: string): Promise<SourceResult<HunterData>> {
   }
 }
 
+// ── XposedOrNot — free breach database, no API key ───────────────────────────
+async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNotData>> {
+  const EMPTY: XposedOrNotData = { breachCount: 0, breaches: [], xposedDataTypes: [], yearwiseDetails: {} };
+  try {
+    const res = await fetch(
+      `https://api.xposedornot.com/v1/breach-analytics?email=${encodeURIComponent(email)}`,
+      {
+        headers: { "User-Agent": "HEAVEN-GeoIntel/2.0", "Accept": "application/json" },
+        next: { revalidate: 0 },
+      }
+    );
+
+    if (res.status === 404) return { ok: true, data: EMPTY };
+    if (res.status === 429) return { ok: false, error: "RATE_LIMITED" };
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+
+    type XonBreachRaw = {
+      breach?: string;
+      xposed_data?: string;
+      xposed_date?: string;
+      xposed_records?: number;
+      domain?: string;
+      password_risk?: string;
+      verified?: number;
+    };
+    type XonRaw = {
+      Error?: string;
+      BreachMetrics?: {
+        count?: number;
+        xposed_data?: string[];
+        yearwise_details?: Record<string, number>[];
+      };
+      ExposedBreaches?: {
+        breaches_details?: XonBreachRaw[];
+      };
+    };
+
+    const raw = (await res.json()) as XonRaw;
+
+    if (raw.Error || !raw.ExposedBreaches?.breaches_details) {
+      return { ok: true, data: EMPTY };
+    }
+
+    const yearwiseDetails: Record<string, number> = {};
+    for (const yw of raw.BreachMetrics?.yearwise_details ?? []) {
+      Object.assign(yearwiseDetails, yw);
+    }
+
+    return {
+      ok: true,
+      data: {
+        breachCount: raw.BreachMetrics?.count ?? raw.ExposedBreaches.breaches_details.length,
+        breaches: raw.ExposedBreaches.breaches_details.map((b) => ({
+          breach: b.breach ?? "Unknown",
+          xposedData: (b.xposed_data ?? "").split(";").map((s) => s.trim()).filter(Boolean),
+          xposedDate: b.xposed_date ?? "Unknown",
+          xposedRecords: b.xposed_records ?? 0,
+          domain: b.domain ?? "",
+          passwordRisk: b.password_risk ?? "Unknown",
+          verified: (b.verified ?? 0) === 1,
+        })),
+        xposedDataTypes: raw.BreachMetrics?.xposed_data ?? [],
+        yearwiseDetails,
+      },
+    };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
 // ── POST handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const ip = getIp(req);
@@ -303,11 +374,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const cached = getCachedEmail(email);
   if (cached) return NextResponse.json(cached, { headers: rlHeaders });
 
-  const [gravatarResult, emailrepResult, abstractResult, hunterResult] = await Promise.allSettled([
+  const [gravatarResult, emailrepResult, abstractResult, hunterResult, xonResult] = await Promise.allSettled([
     fetchGravatar(email),
     fetchEmailRep(email),
     fetchAbstractEmail(email),
     fetchHunter(email),
+    fetchXposedOrNot(email),
   ]);
 
   const response: EmailLookupResponse = {
@@ -327,6 +399,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     hunter: hunterResult.status === "fulfilled"
       ? hunterResult.value
       : { ok: false, error: String((hunterResult as PromiseRejectedResult).reason) },
+    xon: xonResult.status === "fulfilled"
+      ? xonResult.value
+      : { ok: false, error: String((xonResult as PromiseRejectedResult).reason) },
   };
 
   setCachedEmail(email, response);
