@@ -25,7 +25,7 @@ function Row({
   };
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-[#00ff41]/[0.08] last:border-b-0">
-      <span className="text-[10px] uppercase tracking-widest text-[#00ff41]/40 shrink-0 w-36">
+      <span className="text-[10px] uppercase tracking-widest text-[#00ff41]/60 shrink-0 w-36">
         {label}
       </span>
       <span className={`text-xs font-mono text-right ${highlight ? colorMap[highlight] : "text-[#00ff41]/80"}`}>
@@ -80,7 +80,7 @@ export default function SimIntelPanel({ aggregated }: Props) {
       </div>
 
       {!hasData && (
-        <div className="text-[11px] text-[#00ff41]/30 italic font-mono py-2">
+        <div className="text-[11px] text-[#00ff41]/55 italic font-mono py-2">
           Add IPQS or Twilio API keys to .env.local for SIM intelligence data.
         </div>
       )}
@@ -177,7 +177,7 @@ export default function SimIntelPanel({ aggregated }: Props) {
 
       {/* MCC/MNC explanation */}
       {(mobileCountryCode || mobileNetworkCode) && (
-        <div className="text-[9px] text-[#00ff41]/20 font-mono pt-1">
+        <div className="text-[9px] text-[#00ff41]/45 font-mono pt-1">
           MCC = Mobile Country Code · MNC = Mobile Network Code · PLMN = Public Land Mobile Network
         </div>
       )}

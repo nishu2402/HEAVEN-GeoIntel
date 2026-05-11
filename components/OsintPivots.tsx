@@ -386,7 +386,7 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
                         <span className="ml-1 text-[8px] text-[#00ff41]/25 font-normal">[US]</span>
                       )}
                     </div>
-                    <div className="text-[9px] text-[#00ff41]/30 mt-0.5 leading-tight line-clamp-2">
+                    <div className="text-[9px] text-[#00ff41]/55 mt-0.5 leading-tight line-clamp-2">
                       {link.description}
                     </div>
                   </div>

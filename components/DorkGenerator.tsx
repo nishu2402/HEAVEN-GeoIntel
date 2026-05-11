@@ -51,7 +51,7 @@ export default function DorkGenerator({ e164, national }: Props) {
       <div className="text-xs uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
         [ DORK GENERATOR ] — {dorks.length} queries — click to copy or open
       </div>
-      <div className="text-[10px] text-[#00ff41]/30">
+      <div className="text-[10px] text-[#00ff41]/55">
         Copy → paste into any search engine. Or click the arrow to open in Google directly.
       </div>
 
@@ -72,7 +72,7 @@ export default function DorkGenerator({ e164, national }: Props) {
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => copy(d.query, d.label)}
-                  className="p-1 text-[#00ff41]/30 hover:text-[#00ff41] transition-colors"
+                  className="p-1 text-[#00ff41]/55 hover:text-[#00ff41] transition-colors"
                   title="Copy query"
                 >
                   {isCopied ? <Check className="w-3 h-3 text-[#00ff41]" /> : <Copy className="w-3 h-3" />}
@@ -81,7 +81,7 @@ export default function DorkGenerator({ e164, national }: Props) {
                   href={`${googleBase}${encodeURIComponent(d.query)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1 text-[#00ff41]/20 hover:text-[#00d9ff] transition-colors"
+                  className="p-1 text-[#00ff41]/45 hover:text-[#00d9ff] transition-colors"
                   title="Open in Google"
                 >
                   <ExternalLink className="w-3 h-3" />
