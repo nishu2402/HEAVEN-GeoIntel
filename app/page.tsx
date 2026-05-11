@@ -124,6 +124,20 @@ function PageContent() {
     if (q) void runLookup(q);
   }, [searchParams, runLookup]);
 
+  const handlePhoneClear = useCallback(() => {
+    setPhoneStatus("idle");
+    setPhoneResult(null);
+    setPhoneErrorMsg("");
+    setCurrentE164("");
+    router.replace("/", { scroll: false });
+  }, [router]);
+
+  const handleEmailClear = useCallback(() => {
+    setEmailStatus("idle");
+    setEmailResult(null);
+    setEmailErrorMsg("");
+  }, []);
+
   return (
     <>
       <MatrixRain />
@@ -195,10 +209,18 @@ function PageContent() {
               </div>
 
               {mode === "phone" && (
-                <PhoneInput onLookup={runLookup} loading={phoneStatus === "loading"} />
+                <PhoneInput
+                  onLookup={runLookup}
+                  onClear={phoneStatus !== "idle" || phoneResult ? handlePhoneClear : undefined}
+                  loading={phoneStatus === "loading"}
+                />
               )}
               {mode === "email" && (
-                <EmailInput onLookup={runEmailLookup} loading={emailStatus === "loading"} />
+                <EmailInput
+                  onLookup={runEmailLookup}
+                  onClear={emailStatus !== "idle" || emailResult ? handleEmailClear : undefined}
+                  loading={emailStatus === "loading"}
+                />
               )}
             </div>
           )}
