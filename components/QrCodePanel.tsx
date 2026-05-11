@@ -56,7 +56,7 @@ export default function QrCodePanel({ e164 }: Props) {
 
         {!ready && !err && (
           <div className="w-[196px] h-[196px] border border-[#00ff41]/15 flex items-center justify-center">
-            <span className="text-[10px] text-[#00ff41]/30 font-mono animate-pulse">GENERATING...</span>
+            <span className="text-[10px] text-[#00ff41]/55 font-mono animate-pulse">GENERATING...</span>
           </div>
         )}
 
@@ -65,7 +65,7 @@ export default function QrCodePanel({ e164 }: Props) {
         )}
 
         <div className="text-center space-y-1">
-          <div className="text-[10px] text-[#00ff41]/40 font-mono">
+          <div className="text-[10px] text-[#00ff41]/60 font-mono">
             tel:{e164}
           </div>
           {ready && (
