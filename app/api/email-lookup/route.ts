@@ -272,6 +272,32 @@ async function fetchHunter(email: string): Promise<SourceResult<HunterData>> {
 }
 
 // ── XposedOrNot — free breach database, no API key ───────────────────────────
+
+function normalizePasswordRisk(raw: string | undefined): string {
+  switch ((raw ?? "").toLowerCase()) {
+    case "plaintext":    return "ClearText";
+    case "easytocrack":  return "EasyToCrack";
+    case "hardtocrack":  return "StrongHash";
+    default:             return "Unknown";
+  }
+}
+
+// XON returns xposed_data as a nested category tree — flatten to leaf names
+function flattenXonDataTypes(xposedData: unknown): string[] {
+  const results: string[] = [];
+  function walk(node: unknown): void {
+    if (!node || typeof node !== "object") return;
+    const obj = node as Record<string, unknown>;
+    // Leaf node: has colname "level3" and a name starting with "data_"
+    if (typeof obj.name === "string" && obj.name.startsWith("data_")) {
+      results.push(obj.name.slice(5).trim()); // strip "data_" prefix
+    }
+    if (Array.isArray(obj.children)) obj.children.forEach(walk);
+  }
+  if (Array.isArray(xposedData)) xposedData.forEach(walk);
+  return Array.from(new Set(results)); // deduplicate
+}
+
 async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNotData>> {
   const EMPTY: XposedOrNotData = { breachCount: 0, breaches: [], xposedDataTypes: [], yearwiseDetails: {} };
   try {
@@ -294,13 +320,13 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
       xposed_records?: number;
       domain?: string;
       password_risk?: string;
-      verified?: number;
+      verified?: number | boolean;
     };
     type XonRaw = {
       Error?: string;
       BreachMetrics?: {
         count?: number;
-        xposed_data?: string[];
+        xposed_data?: unknown; // nested tree in v2
         yearwise_details?: Record<string, number>[];
       };
       ExposedBreaches?: {
@@ -310,7 +336,7 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
 
     const raw = (await res.json()) as XonRaw;
 
-    if (raw.Error || !raw.ExposedBreaches?.breaches_details) {
+    if (raw.Error || !raw.ExposedBreaches?.breaches_details?.length) {
       return { ok: true, data: EMPTY };
     }
 
@@ -319,20 +345,22 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
       Object.assign(yearwiseDetails, yw);
     }
 
+    const breachDetails = raw.ExposedBreaches.breaches_details;
+
     return {
       ok: true,
       data: {
-        breachCount: raw.BreachMetrics?.count ?? raw.ExposedBreaches.breaches_details.length,
-        breaches: raw.ExposedBreaches.breaches_details.map((b) => ({
+        breachCount: raw.BreachMetrics?.count ?? breachDetails.length,
+        breaches: breachDetails.map((b) => ({
           breach: b.breach ?? "Unknown",
           xposedData: (b.xposed_data ?? "").split(";").map((s) => s.trim()).filter(Boolean),
           xposedDate: b.xposed_date ?? "Unknown",
           xposedRecords: b.xposed_records ?? 0,
           domain: b.domain ?? "",
-          passwordRisk: b.password_risk ?? "Unknown",
-          verified: (b.verified ?? 0) === 1,
+          passwordRisk: normalizePasswordRisk(b.password_risk),
+          verified: b.verified === 1 || b.verified === true,
         })),
-        xposedDataTypes: raw.BreachMetrics?.xposed_data ?? [],
+        xposedDataTypes: flattenXonDataTypes(raw.BreachMetrics?.xposed_data),
         yearwiseDetails,
       },
     };
