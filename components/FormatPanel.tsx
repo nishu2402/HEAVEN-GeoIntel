@@ -25,7 +25,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="text-[#00ff41]/30 hover:text-[#00ff41] transition-colors shrink-0"
+      className="text-[#00ff41]/55 hover:text-[#00ff41] transition-colors shrink-0"
       title="Copy"
     >
       {copied ? <Check className="w-3 h-3 text-[#00ff41]" /> : <Copy className="w-3 h-3" />}
@@ -84,14 +84,14 @@ export default function FormatPanel({ data }: Props) {
               <CopyButton text={f.value} />
             </div>
             <div className="font-mono text-sm text-[#00d9ff] font-bold">{f.value}</div>
-            <div className="text-[9px] text-[#00ff41]/30">{f.description}</div>
+            <div className="text-[9px] text-[#00ff41]/55">{f.description}</div>
           </div>
         ))}
       </div>
 
       {/* Validity matrix */}
       <div className="space-y-1.5">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">VALIDATION MATRIX</div>
+        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">VALIDATION MATRIX</div>
         {validityItems.map((v) => (
           <div key={v.label} className="flex items-center gap-3">
             <span
@@ -113,7 +113,7 @@ export default function FormatPanel({ data }: Props) {
 
       {/* tel: link */}
       <div className="border border-[#00ff41]/10 p-2.5 space-y-1">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">HTML TEL LINK</div>
+        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">HTML TEL LINK</div>
         <div className="font-mono text-xs text-[#00ff41]/60 break-all">
           <span className="text-[#888]">{"<a href="}</span>
           <span className="text-[#00d9ff]">&quot;{aggregated.formatRfc3966}&quot;</span>

@@ -10,7 +10,7 @@ interface Props {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-start py-1.5 border-b border-[#00ff41]/[0.08] last:border-b-0">
-      <span className="text-[10px] uppercase tracking-widest text-[#00ff41]/40 shrink-0 w-32">{label}</span>
+      <span className="text-[10px] uppercase tracking-widest text-[#00ff41]/60 shrink-0 w-32">{label}</span>
       <span className="text-xs font-mono text-right text-[#00ff41]/90">{value}</span>
     </div>
   );
@@ -65,7 +65,7 @@ export default function CountryPanel({ intel }: Props) {
 
       {/* Timezones */}
       <div className="space-y-1">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">TIMEZONES</div>
+        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">TIMEZONES</div>
         <div className="flex flex-wrap gap-1.5">
           {intel.timezones.map((tz) => (
             <span

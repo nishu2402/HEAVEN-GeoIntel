@@ -192,7 +192,7 @@ export default function ResultsDashboard({ data }: Props) {
       <div className="terminal-card p-5 space-y-3">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div className="space-y-2">
-            <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">LOOKUP RESULT</div>
+            <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">LOOKUP RESULT</div>
 
             {/* Owner name — most prominent element when available */}
             {aggregated.callerName ? (
@@ -297,7 +297,7 @@ export default function ResultsDashboard({ data }: Props) {
 
         {/* Data source status */}
         <div className="flex items-center gap-3 pt-1 border-t border-[#00ff41]/10">
-          <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/25 font-mono">DATA SOURCES</div>
+          <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/50 font-mono">DATA SOURCES</div>
           <div className="flex gap-2">
             {[
               { label: "libphonenumber", ok: true, always: true },
@@ -313,7 +313,7 @@ export default function ResultsDashboard({ data }: Props) {
                     ? "text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5"
                     : "configured" in s && s.configured
                     ? "text-[#ff3e3e]/60 border-[#ff3e3e]/20"
-                    : "text-[#00ff41]/20 border-[#00ff41]/10"
+                    : "text-[#00ff41]/45 border-[#00ff41]/10"
                 }`}
               >
                 {s.ok ? "✓" : ("always" in s && s.always) ? "✓" : "·"} {s.label}
@@ -334,7 +334,7 @@ export default function ResultsDashboard({ data }: Props) {
           <div className="text-[9px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
             <User className="w-3 h-3" /> OWNER IDENTITY LOOKUP
           </div>
-          <p className="text-[10px] font-mono text-[#00ff41]/40 leading-relaxed">
+          <p className="text-[10px] font-mono text-[#00ff41]/60 leading-relaxed">
             No CNAM data available (requires Twilio or IPQS API key). Use these services to find the owner manually — they work for most countries:
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -351,12 +351,12 @@ export default function ResultsDashboard({ data }: Props) {
                 <span className="text-xs font-mono font-bold text-[#00d9ff]/70 group-hover:text-[#00d9ff] flex items-center gap-1">
                   {label} <span className="text-[8px] opacity-50">↗</span>
                 </span>
-                <span className="text-[9px] font-mono text-[#00ff41]/25 leading-tight">{desc}</span>
+                <span className="text-[9px] font-mono text-[#00ff41]/50 leading-tight">{desc}</span>
               </a>
             ))}
           </div>
-          <p className="text-[9px] font-mono text-[#00ff41]/20 border-t border-[#00ff41]/10 pt-2">
-            Pro tip: Add <code className="text-[#00ff41]/40">TWILIO_ACCOUNT_SID</code> + <code className="text-[#00ff41]/40">TWILIO_AUTH_TOKEN</code> to .env.local for automatic CNAM lookups (~$0.005/query).
+          <p className="text-[9px] font-mono text-[#00ff41]/45 border-t border-[#00ff41]/10 pt-2">
+            Pro tip: Add <code className="text-[#00ff41]/60">TWILIO_ACCOUNT_SID</code> + <code className="text-[#00ff41]/60">TWILIO_AUTH_TOKEN</code> to .env.local for automatic CNAM lookups (~$0.005/query).
           </p>
         </div>
       )}
@@ -418,7 +418,7 @@ export default function ResultsDashboard({ data }: Props) {
 
       {/* ── Raw source data ── */}
       <div className="space-y-2">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">
+        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">
           [ RAW SOURCE DATA ] — API responses
         </div>
         <SourceTabs sources={sources} />

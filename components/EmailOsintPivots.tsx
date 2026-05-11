@@ -206,7 +206,7 @@ export default function EmailOsintPivots({ email, domain, username }: Props) {
       <div className="text-xs uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
         [ EMAIL OSINT MATRIX ] — {links.length} investigation targets
       </div>
-      <div className="text-[10px] text-[#00ff41]/25 italic">
+      <div className="text-[10px] text-[#00ff41]/50 italic">
         Opens in new tab. Use only within your authorized scope.
       </div>
 
@@ -233,7 +233,7 @@ export default function EmailOsintPivots({ email, domain, username }: Props) {
                     <div className="text-xs font-bold truncate" style={{ color: link.color }}>
                       {link.label}
                     </div>
-                    <div className="text-[9px] text-[#00ff41]/30 mt-0.5 leading-tight line-clamp-2">
+                    <div className="text-[9px] text-[#00ff41]/55 mt-0.5 leading-tight line-clamp-2">
                       {link.description}
                     </div>
                   </div>

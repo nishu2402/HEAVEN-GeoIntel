@@ -80,7 +80,7 @@ export default function HistorySidebar({ onSelect, currentE164 }: Props) {
         <div className="flex items-center gap-2 text-[#00ff41]/60 uppercase tracking-widest text-[10px]">
           <Clock className="w-3 h-3" />[ RECENT QUERIES ] ({history.length})
         </div>
-        {open ? <ChevronDown className="w-3 h-3 text-[#00ff41]/40" /> : <ChevronRight className="w-3 h-3 text-[#00ff41]/40" />}
+        {open ? <ChevronDown className="w-3 h-3 text-[#00ff41]/60" /> : <ChevronRight className="w-3 h-3 text-[#00ff41]/60" />}
       </button>
 
       <AnimatePresence>
@@ -105,7 +105,7 @@ export default function HistorySidebar({ onSelect, currentE164 }: Props) {
                     <span className="text-base">{entry.flagEmoji}</span>
                     <span className="text-[#00ff41] truncate">{entry.e164}</span>
                   </div>
-                  <span className="text-[#00ff41]/30 shrink-0 ml-2">{formatRelativeTime(entry.timestamp)}</span>
+                  <span className="text-[#00ff41]/55 shrink-0 ml-2">{formatRelativeTime(entry.timestamp)}</span>
                 </button>
               ))}
             </div>

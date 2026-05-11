@@ -70,7 +70,7 @@ export default function NumberBreakdown({ analysis }: Props) {
           {segments.map((seg, i) => (
             <span key={i} style={{ color: seg.color }} className="font-bold">
               {seg.value}
-              {i < segments.length - 1 && <span className="text-[#00ff41]/20 mx-1">·</span>}
+              {i < segments.length - 1 && <span className="text-[#00ff41]/45 mx-1">·</span>}
             </span>
           ))}
         </div>
@@ -78,11 +78,11 @@ export default function NumberBreakdown({ analysis }: Props) {
         <div className="grid grid-cols-2 gap-2">
           {segments.map((seg, i) => (
             <div key={i} className="border border-[#00ff41]/10 p-2 space-y-0.5">
-              <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/40">{seg.label}</div>
+              <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/60">{seg.label}</div>
               <div className="font-mono font-bold text-sm" style={{ color: seg.color }}>
                 {seg.value}
               </div>
-              <div className="text-[9px] text-[#00ff41]/30">{seg.description}</div>
+              <div className="text-[9px] text-[#00ff41]/55">{seg.description}</div>
             </div>
           ))}
         </div>
@@ -90,7 +90,7 @@ export default function NumberBreakdown({ analysis }: Props) {
 
       {/* Length indicator */}
       <div className="space-y-1">
-        <div className="flex justify-between text-[10px] text-[#00ff41]/40">
+        <div className="flex justify-between text-[10px] text-[#00ff41]/60">
           <span>SUBSCRIBER DIGITS</span>
           <span>
             {analysis.numberLength} digits
@@ -129,7 +129,7 @@ export default function NumberBreakdown({ analysis }: Props) {
 
       {/* Central office / carrier prefix */}
       {analysis.carrierPrefix && (
-        <div className="text-[10px] text-[#00ff41]/40 font-mono">
+        <div className="text-[10px] text-[#00ff41]/60 font-mono">
           CENTRAL OFFICE CODE:{" "}
           <span className="text-[#00d9ff]">{analysis.carrierPrefix}</span>
           <span className="ml-2 text-[#00ff41]/25">
