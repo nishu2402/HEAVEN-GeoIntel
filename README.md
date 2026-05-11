@@ -1,7 +1,7 @@
 # 🌐 HEAVEN-GeoIntel
 
 <p align="center">
-  <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&height=320&color=0:05070F,50:FFAA00,100:BF5FFF&text=HEAVEN-GeoIntel&fontSize=44&fontAlignY=38&fontColor=ffffff&desc=Open-Source%20OSINT%20Platform%20%7C%20Phone%20and%20Email%20Intelligence%20%7C%20Zero%20API%20Keys%20Required&descAlignY=65&descSize=18"/>
+  <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&height=320&color=0:05070F,15:0D0500,30:1A0A00,45:2D1500,60:7A3500,75:FFAA00,90:BF5FFF,100:05070F&text=HEAVEN-GeoIntel&fontSize=40&fontAlignY=38&fontColor=ffffff&animation=twinkling&desc=Open-Source%20OSINT%20Platform%20%7C%20Phone%20and%20Email%20Intelligence%20%7C%20Zero%20API%20Keys%20Required&descAlignY=65&descSize=18"/>
 </p>
 
 <p align="center">
