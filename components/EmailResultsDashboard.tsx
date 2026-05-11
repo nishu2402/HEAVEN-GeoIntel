@@ -415,59 +415,36 @@ export default function EmailResultsDashboard({ data }: Props) {
         </div>
       </div>
 
-      {/* ── FullContact Identity Panel ── */}
-      {fcData && (fcData.fullName || fcData.organization || fcData.profiles.length > 0 || fcData.otherEmails.length > 0) && (
+      {/* ── FullContact Enrichment Panel — unique data only (name/location/bio already in header) ── */}
+      {fcData && (
+        fcData.profiles.length > 0 ||
+        fcData.otherEmails.length > 0 ||
+        fcData.phones.length > 0 ||
+        fcData.employment.length > 0 ||
+        fcData.age !== null ||
+        fcData.gender !== null
+      ) && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40"
         >
-          <div className="text-[9px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
-            <User className="w-3 h-3" />
-            IDENTITY ENRICHMENT — FullContact
-            <span className="text-[#00d9ff]/30 ml-auto font-mono text-[8px]">1,000+ data sources</span>
+          <div className="flex items-center justify-between">
+            <div className="text-[9px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
+              <User className="w-3 h-3" />
+              FULLCONTACT ENRICHMENT — additional identity data
+            </div>
+            <span className="text-[#00d9ff]/25 font-mono text-[8px]">1,000+ data sources</span>
           </div>
 
-          <div className="flex items-start gap-4 flex-wrap">
-            {fcData.avatar && !(gravatar.found && gravatar.thumbnailUrl) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={fcData.avatar}
-                alt="FullContact"
-                className="w-16 h-16 rounded-none border border-[#00d9ff]/30 shrink-0"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
-            <div className="flex-1 space-y-1 min-w-0">
-              {fcData.fullName && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-2xl font-bold text-[#00d9ff] font-mono">{fcData.fullName}</span>
-                  <Badge text="✓ CONFIRMED" color="#00d9ff" />
-                </div>
-              )}
-              {(fcData.title || fcData.organization) && (
-                <div className="flex items-center gap-1.5 text-sm font-mono text-[#00ff41]/70">
-                  <Briefcase className="w-3.5 h-3.5 shrink-0" />
-                  {fcData.title && fcData.organization
-                    ? `${fcData.title} @ ${fcData.organization}`
-                    : fcData.title ?? fcData.organization}
-                </div>
-              )}
-              {fcData.location && (
-                <div className="text-xs font-mono text-[#00d9ff]/60">📍 {fcData.location}</div>
-              )}
-              {fcData.bio && (
-                <div className="text-xs font-mono text-[#00ff41]/45 italic line-clamp-2 mt-1">
-                  &ldquo;{fcData.bio}&rdquo;
-                </div>
-              )}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {fcData.age && <Badge text={`AGE ~${fcData.age}`} color="#888" />}
-                {fcData.gender && <Badge text={fcData.gender.toUpperCase()} color="#888" />}
-              </div>
+          {/* Age / gender — not shown in header */}
+          {(fcData.age !== null || fcData.gender !== null) && (
+            <div className="flex flex-wrap gap-1.5">
+              {fcData.age !== null && <Badge text={`AGE ~${fcData.age}`} color="#888" />}
+              {fcData.gender !== null && <Badge text={fcData.gender.toUpperCase()} color="#888" />}
             </div>
-          </div>
+          )}
 
           {/* Social profiles */}
           {fcData.profiles.length > 0 && (
@@ -490,7 +467,7 @@ export default function EmailResultsDashboard({ data }: Props) {
             </div>
           )}
 
-          {/* Other emails / phones */}
+          {/* Other emails / linked phones */}
           {(fcData.otherEmails.length > 0 || fcData.phones.length > 0) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[#00ff41]/10 pt-3">
               {fcData.otherEmails.length > 0 && (
@@ -523,7 +500,7 @@ export default function EmailResultsDashboard({ data }: Props) {
           )}
 
           {/* Employment history */}
-          {fcData.employment.length > 1 && (
+          {fcData.employment.length > 0 && (
             <div className="border-t border-[#00ff41]/10 pt-3">
               <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-2 flex items-center gap-1">
                 <Briefcase className="w-2.5 h-2.5" /> EMPLOYMENT HISTORY

@@ -102,11 +102,13 @@ async function fetchGravatar(email: string): Promise<GravatarProfile> {
 // ── EmailRep.io ───────────────────────────────────────────────────────────────
 async function fetchEmailRep(email: string): Promise<SourceResult<EmailRepData>> {
   try {
+    // Only include Key header when a key is actually configured —
+    // sending an empty string causes EmailRep.io to return 401
+    const headers: Record<string, string> = { "User-Agent": "HEAVEN-GeoIntel/2.0" };
+    if (process.env.EMAILREP_API_KEY) headers["Key"] = process.env.EMAILREP_API_KEY;
+
     const res = await fetch(`https://emailrep.io/${encodeURIComponent(email)}`, {
-      headers: {
-        "User-Agent": "HEAVEN-GeoIntel/2.0",
-        "Key": process.env.EMAILREP_API_KEY ?? "",
-      },
+      headers,
       next: { revalidate: 0 },
     });
     if (res.status === 429) return { ok: false, error: "RATE_LIMITED" };
@@ -284,19 +286,30 @@ function normalizePasswordRisk(raw: string | undefined): string {
   }
 }
 
-// XON returns xposed_data as a nested category tree — flatten to leaf names
+// XON returns xposed_data as a nested category tree — flatten to leaf names.
+// The top-level can be either an array of categories OR a single root object.
 function flattenXonDataTypes(xposedData: unknown): string[] {
   const results: string[] = [];
   function walk(node: unknown): void {
     if (!node || typeof node !== "object") return;
     const obj = node as Record<string, unknown>;
-    // Leaf node: has colname "level3" and a name starting with "data_"
+    // Leaf node: name starting with "data_"
     if (typeof obj.name === "string" && obj.name.startsWith("data_")) {
       results.push(obj.name.slice(5).trim()); // strip "data_" prefix
     }
     if (Array.isArray(obj.children)) obj.children.forEach(walk);
+    // Also walk any nested object values (handles plain-object category trees)
+    for (const val of Object.values(obj)) {
+      if (val && typeof val === "object" && !Array.isArray(val)) {
+        walk(val);
+      }
+    }
   }
-  if (Array.isArray(xposedData)) xposedData.forEach(walk);
+  if (Array.isArray(xposedData)) {
+    xposedData.forEach(walk);
+  } else if (xposedData && typeof xposedData === "object") {
+    walk(xposedData); // single root object
+  }
   return Array.from(new Set(results)); // deduplicate
 }
 
@@ -349,20 +362,30 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
 
     const breachDetails = raw.ExposedBreaches.breaches_details;
 
+    const parsedBreaches = breachDetails.map((b) => ({
+      breach: b.breach ?? "Unknown",
+      xposedData: (b.xposed_data ?? "").split(";").map((s) => s.trim()).filter(Boolean),
+      xposedDate: b.xposed_date ?? "Unknown",
+      xposedRecords: b.xposed_records ?? 0,
+      domain: b.domain ?? "",
+      passwordRisk: normalizePasswordRisk(b.password_risk),
+      verified: b.verified === 1 || b.verified === true,
+    }));
+
+    // Try tree-walking BreachMetrics first; fall back to collecting from per-breach data
+    let xposedDataTypes = flattenXonDataTypes(raw.BreachMetrics?.xposed_data);
+    if (xposedDataTypes.length === 0) {
+      xposedDataTypes = Array.from(
+        new Set(parsedBreaches.flatMap((b) => b.xposedData))
+      );
+    }
+
     return {
       ok: true,
       data: {
         breachCount: raw.BreachMetrics?.count ?? breachDetails.length,
-        breaches: breachDetails.map((b) => ({
-          breach: b.breach ?? "Unknown",
-          xposedData: (b.xposed_data ?? "").split(";").map((s) => s.trim()).filter(Boolean),
-          xposedDate: b.xposed_date ?? "Unknown",
-          xposedRecords: b.xposed_records ?? 0,
-          domain: b.domain ?? "",
-          passwordRisk: normalizePasswordRisk(b.password_risk),
-          verified: b.verified === 1 || b.verified === true,
-        })),
-        xposedDataTypes: flattenXonDataTypes(raw.BreachMetrics?.xposed_data),
+        breaches: parsedBreaches,
+        xposedDataTypes,
         yearwiseDetails,
       },
     };
