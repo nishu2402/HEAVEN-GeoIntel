@@ -191,30 +191,51 @@ export default function ResultsDashboard({ data }: Props) {
       {/* ── Result header ── */}
       <div className="terminal-card p-5 space-y-3">
         <div className="flex items-start justify-between flex-wrap gap-3">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">LOOKUP RESULT</div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-4xl">{flag}</span>
-              <div>
-                <div className="text-2xl font-bold glow-green tracking-wider font-mono">{input.e164}</div>
-                <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
-                  {input.national} · {aggregated.countryName} ({input.countryCallingCode})
-                </div>
-                {aggregated.callerName && (
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <User className="w-3.5 h-3.5 text-[#00d9ff]" />
-                    <span className="text-base font-bold text-[#00d9ff] font-mono">
-                      {aggregated.callerName}
+
+            {/* Owner name — most prominent element when available */}
+            {aggregated.callerName ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-[#00d9ff] shrink-0" />
+                  <span className="text-2xl font-bold text-[#00d9ff] font-mono tracking-wide">
+                    {aggregated.callerName}
+                  </span>
+                  {aggregated.callerType && (
+                    <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 border text-[#00d9ff]/50 border-[#00d9ff]/25">
+                      {aggregated.callerType}
                     </span>
-                    {aggregated.callerType && (
-                      <span className="text-[10px] text-[#00d9ff]/50 uppercase tracking-widest">
-                        [{aggregated.callerType}]
-                      </span>
-                    )}
+                  )}
+                  <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 border text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5">
+                    ✓ CNAM CONFIRMED
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap pl-6">
+                  <span className="text-2xl">{flag}</span>
+                  <div>
+                    <div className="text-xl font-bold glow-green tracking-wider font-mono">{input.e164}</div>
+                    <div className="text-sm text-[#00ff41]/60 font-mono">
+                      {input.national} · {aggregated.countryName} ({input.countryCallingCode})
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-4xl">{flag}</span>
+                <div>
+                  <div className="text-2xl font-bold glow-green tracking-wider font-mono">{input.e164}</div>
+                  <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
+                    {input.national} · {aggregated.countryName} ({input.countryCallingCode})
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-[#555]">
+                    <User className="w-3 h-3" />
+                    Owner name not found — add Twilio or IPQS key, or use pivot links below
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -306,6 +327,39 @@ export default function ResultsDashboard({ data }: Props) {
           )}
         </div>
       </div>
+
+      {/* ── Owner identity — find name when CNAM missing ── */}
+      {!aggregated.callerName && (
+        <div className="terminal-card p-4 space-y-3 border border-[#00d9ff]/15">
+          <div className="text-[9px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
+            <User className="w-3 h-3" /> OWNER IDENTITY LOOKUP
+          </div>
+          <p className="text-[10px] font-mono text-[#00ff41]/40 leading-relaxed">
+            No CNAM data available (requires Twilio or IPQS API key). Use these services to find the owner manually — they work for most countries:
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[
+              { label: "Truecaller", url: `https://www.truecaller.com/search/us/${input.e164.replace("+","")}`, desc: "Largest caller ID database · 350M+ names" },
+              { label: "Whitepages", url: `https://www.whitepages.com/phone/${input.e164}`, desc: "US/CA reverse lookup with owner name" },
+              { label: "Spokeo", url: `https://www.spokeo.com/search?q=${encodeURIComponent(input.e164)}`, desc: "US people search by phone" },
+              { label: "Sync.me", url: `https://sync.me/search/?q=${encodeURIComponent(input.e164)}`, desc: "Social-based caller ID" },
+              { label: "That's Them", url: `https://thatsthem.com/phone/${input.e164}`, desc: "US people + address lookup" },
+              { label: "NumLookup", url: `https://www.numlookup.com/?number=${encodeURIComponent(input.e164)}`, desc: "Free real-time carrier + name" },
+            ].map(({ label, url, desc }) => (
+              <a key={label} href={url} target="_blank" rel="noopener noreferrer"
+                className="flex flex-col gap-0.5 p-2.5 border border-[#00d9ff]/15 hover:border-[#00d9ff]/50 hover:bg-[#00d9ff]/5 transition-all group">
+                <span className="text-xs font-mono font-bold text-[#00d9ff]/70 group-hover:text-[#00d9ff] flex items-center gap-1">
+                  {label} <span className="text-[8px] opacity-50">↗</span>
+                </span>
+                <span className="text-[9px] font-mono text-[#00ff41]/25 leading-tight">{desc}</span>
+              </a>
+            ))}
+          </div>
+          <p className="text-[9px] font-mono text-[#00ff41]/20 border-t border-[#00ff41]/10 pt-2">
+            Pro tip: Add <code className="text-[#00ff41]/40">TWILIO_ACCOUNT_SID</code> + <code className="text-[#00ff41]/40">TWILIO_AUTH_TOKEN</code> to .env.local for automatic CNAM lookups (~$0.005/query).
+          </p>
+        </div>
+      )}
 
       {/* ── Pentester intelligence (always shown — core value) ── */}
       <PentesterPanel data={data} />

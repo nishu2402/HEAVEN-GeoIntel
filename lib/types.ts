@@ -267,6 +267,49 @@ export interface XposedOrNotData {
   yearwiseDetails: Record<string, number>;
 }
 
+// ── FullContact person enrichment ─────────────────────────────────────────────
+
+export interface FullContactSocialProfile {
+  platform: string;    // "LinkedIn", "Twitter", "GitHub", etc.
+  url: string;
+  username: string;
+}
+
+export interface FullContactEmployment {
+  name: string;
+  title: string | null;
+  current: boolean;
+}
+
+export interface FullContactData {
+  fullName: string | null;
+  age: number | null;
+  gender: string | null;
+  location: string | null;
+  title: string | null;          // current job title
+  organization: string | null;   // current employer
+  bio: string | null;
+  avatar: string | null;         // profile photo URL
+  profiles: FullContactSocialProfile[];
+  otherEmails: string[];
+  phones: string[];
+  employment: FullContactEmployment[];
+}
+
+export interface BreachDirectoryEntry {
+  password: string;       // partial plaintext e.g. "p****d"
+  sha1: string;           // SHA-1 hash of the original password
+  hash: string;           // MD5 hash of the original password
+  sources: string[];      // which breach databases it came from
+}
+
+export interface BreachDirectoryData {
+  found: number;
+  fields: string[];       // field types found: ["email", "password", "username"]
+  sources: string[];      // all source breach names
+  results: BreachDirectoryEntry[];
+}
+
 export interface EmailLookupResponse {
   email: string;
   analysis: EmailAnalysis;
@@ -274,6 +317,8 @@ export interface EmailLookupResponse {
   emailrep: SourceResult<EmailRepData>;
   hunter: SourceResult<HunterData>;
   abstract: SourceResult<AbstractEmailData>;
-  xon: SourceResult<XposedOrNotData>;   // XposedOrNot — free breach DB
+  xon: SourceResult<XposedOrNotData>;                  // XposedOrNot — free breach DB
+  breachDirectory: SourceResult<BreachDirectoryData>;   // BreachDirectory — credential hashes
+  fullContact: SourceResult<FullContactData>;           // FullContact — real name + employer
   cachedAt?: number;
 }

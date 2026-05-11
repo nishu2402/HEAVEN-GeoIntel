@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { AsYouType, getCountries, getCountryCallingCode, isValidPhoneNumber } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
-import { CheckCircle2, XCircle, Search, ChevronDown } from "lucide-react";
+import { CheckCircle2, XCircle, Search, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function getCountryName(code: CountryCode): string {
@@ -24,12 +24,13 @@ const ALL_COUNTRIES: { code: CountryCode; name: string; callingCode: string }[] 
 
 interface Props {
   onLookup: (number: string) => void;
+  onClear?: () => void;
   loading: boolean;
 }
 
 type ValidationState = "empty" | "valid" | "invalid";
 
-export default function PhoneInput({ onLookup, loading }: Props) {
+export default function PhoneInput({ onLookup, onClear, loading }: Props) {
   const [country, setCountry] = useState<CountryCode>("US");
   const [raw, setRaw] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -78,9 +79,13 @@ export default function PhoneInput({ onLookup, loading }: Props) {
   const selectedCountry = ALL_COUNTRIES.find((c) => c.code === country);
 
   const handleSubmit = () => {
-    if (validation === "valid") {
-      onLookup(fullNumber);
-    }
+    if (validation === "valid") onLookup(fullNumber);
+  };
+
+  const handleClear = () => {
+    setRaw("");
+    setSearch("");
+    onClear?.();
   };
 
   return (
@@ -170,6 +175,19 @@ export default function PhoneInput({ onLookup, loading }: Props) {
           <Search className="w-4 h-4" />
           {loading ? "SCANNING..." : "EXECUTE LOOKUP"}
         </button>
+
+        {/* Clear button — only shown when there is a value or results */}
+        {(raw || onClear) && (
+          <button
+            type="button"
+            onClick={handleClear}
+            title="Clear"
+            className="h-12 px-3 border border-[#00ff41]/20 text-[#00ff41]/40 hover:text-[#ff3e3e] hover:border-[#ff3e3e]/50 transition-all font-mono"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+
       </div>
 
       {/* Status line */}

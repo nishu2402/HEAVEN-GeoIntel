@@ -9,6 +9,8 @@ import type {
   HunterData,
   AbstractEmailData,
   XposedOrNotData,
+  BreachDirectoryData,
+  FullContactData,
   SourceResult,
 } from "@/lib/types";
 
@@ -369,6 +371,146 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
   }
 }
 
+// ── FullContact — real name, employer, social profiles (optional) ─────────────
+async function fetchFullContact(email: string): Promise<SourceResult<FullContactData>> {
+  const key = process.env.FULLCONTACT_API_KEY;
+  if (!key) return { ok: false, error: "NOT_CONFIGURED" };
+
+  try {
+    const res = await fetch("https://api.fullcontact.com/v3/person.enrich", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${key}`,
+        "Content-Type": "application/json",
+        "User-Agent": "HEAVEN-GeoIntel/2.0",
+      },
+      body: JSON.stringify({ email }),
+      next: { revalidate: 0 },
+    });
+
+    if (res.status === 404) return { ok: false, error: "NOT_FOUND" };
+    if (res.status === 422) return { ok: false, error: "NOT_FOUND" };
+    if (res.status === 429) return { ok: false, error: "RATE_LIMITED" };
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+
+    type FCProfile = { url?: string; username?: string };
+    type FCEmployment = { name?: string; title?: string; current?: boolean };
+    type FCRaw = {
+      fullName?: string;
+      age?: number;
+      gender?: string;
+      location?: string;
+      title?: string;
+      organization?: string;
+      bio?: string;
+      avatar?: string;
+      details?: {
+        profiles?: Record<string, FCProfile>;
+        emails?: { value?: string }[];
+        phones?: { value?: string }[];
+        employment?: FCEmployment[];
+      };
+    };
+
+    const raw = (await res.json()) as FCRaw & { message?: string };
+    if (raw.message === "Unable to process request") return { ok: false, error: "NOT_FOUND" };
+
+    const profiles = Object.entries(raw.details?.profiles ?? {})
+      .filter(([, p]) => p.url)
+      .map(([platform, p]) => ({
+        platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+        url: p.url!,
+        username: p.username ?? "",
+      }));
+
+    return {
+      ok: true,
+      data: {
+        fullName: raw.fullName ?? null,
+        age: raw.age ?? null,
+        gender: raw.gender ?? null,
+        location: raw.location ?? null,
+        title: raw.title ?? null,
+        organization: raw.organization ?? null,
+        bio: raw.bio ?? null,
+        avatar: raw.avatar ?? null,
+        profiles,
+        otherEmails: (raw.details?.emails ?? [])
+          .map((e) => e.value ?? "")
+          .filter((e) => e && e !== email),
+        phones: (raw.details?.phones ?? []).map((p) => p.value ?? "").filter(Boolean),
+        employment: (raw.details?.employment ?? [])
+          .filter((e) => e.name)
+          .map((e) => ({ name: e.name!, title: e.title ?? null, current: e.current ?? false })),
+      },
+    };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
+// ── BreachDirectory — credential hash lookup (RapidAPI, optional) ─────────────
+async function fetchBreachDirectory(email: string): Promise<SourceResult<BreachDirectoryData>> {
+  const key = process.env.RAPIDAPI_KEY;
+  if (!key) return { ok: false, error: "NOT_CONFIGURED" };
+
+  try {
+    const res = await fetch(
+      `https://breachdirectory.p.rapidapi.com/?func=auto&term=${encodeURIComponent(email)}`,
+      {
+        headers: {
+          "x-rapidapi-host": "breachdirectory.p.rapidapi.com",
+          "x-rapidapi-key": key,
+          "Accept": "application/json",
+        },
+        next: { revalidate: 0 },
+      }
+    );
+
+    if (res.status === 404) {
+      return { ok: true, data: { found: 0, fields: [], sources: [], results: [] } };
+    }
+    if (res.status === 429) return { ok: false, error: "RATE_LIMITED" };
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+
+    type BDRaw = {
+      found?: number;
+      fields?: string[];
+      sources?: string[];
+      result?: {
+        password?: string;
+        sha1?: string;
+        hash?: string;
+        sources?: string[];
+      }[];
+    };
+
+    const raw = (await res.json()) as BDRaw;
+
+    // API returns found:false (bool) when nothing found
+    if (!raw.found || raw.found === 0) {
+      return { ok: true, data: { found: 0, fields: [], sources: [], results: [] } };
+    }
+
+    return {
+      ok: true,
+      data: {
+        found: typeof raw.found === "number" ? raw.found : 0,
+        fields: raw.fields ?? [],
+        sources: raw.sources ?? [],
+        results: (raw.result ?? []).map((r) => ({
+          password: r.password ?? "",
+          sha1: r.sha1 ?? "",
+          hash: r.hash ?? "",
+          sources: r.sources ?? [],
+        })),
+      },
+    };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
 // ── POST handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const ip = getIp(req);
@@ -402,13 +544,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const cached = getCachedEmail(email);
   if (cached) return NextResponse.json(cached, { headers: rlHeaders });
 
-  const [gravatarResult, emailrepResult, abstractResult, hunterResult, xonResult] = await Promise.allSettled([
-    fetchGravatar(email),
-    fetchEmailRep(email),
-    fetchAbstractEmail(email),
-    fetchHunter(email),
-    fetchXposedOrNot(email),
-  ]);
+  const [gravatarResult, emailrepResult, abstractResult, hunterResult, xonResult, bdResult, fcResult] =
+    await Promise.allSettled([
+      fetchGravatar(email),
+      fetchEmailRep(email),
+      fetchAbstractEmail(email),
+      fetchHunter(email),
+      fetchXposedOrNot(email),
+      fetchBreachDirectory(email),
+      fetchFullContact(email),
+    ]);
 
   const response: EmailLookupResponse = {
     email,
@@ -430,6 +575,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     xon: xonResult.status === "fulfilled"
       ? xonResult.value
       : { ok: false, error: String((xonResult as PromiseRejectedResult).reason) },
+    breachDirectory: bdResult.status === "fulfilled"
+      ? bdResult.value
+      : { ok: false, error: String((bdResult as PromiseRejectedResult).reason) },
+    fullContact: fcResult.status === "fulfilled"
+      ? fcResult.value
+      : { ok: false, error: String((fcResult as PromiseRejectedResult).reason) },
   };
 
   setCachedEmail(email, response);
