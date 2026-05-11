@@ -40,7 +40,7 @@ function guessNameFromUsername(username: string): string | null {
   return null;
 }
 
-function getProviderName(domain: string): string {
+function getProviderName(domain: string): string | null {
   const known: Record<string, string> = {
     "gmail.com": "Gmail",
     "googlemail.com": "Gmail",

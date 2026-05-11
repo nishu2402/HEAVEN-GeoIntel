@@ -9,30 +9,33 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HEAVEN-GeoIntel — Phone Intelligence Platform",
+  title: "HEAVEN-GeoIntel — Phone & Email OSINT Platform",
   description:
-    "Defensive OSINT phone number metadata lookup — carrier, line type, country intelligence, fraud signals, and format cross-references. No tracking. No geolocation. Zero API keys required.",
+    "Defensive OSINT platform for phone numbers and email addresses — carrier, breach history, identity enrichment, fraud signals, and country intelligence. Offline-first. No tracking.",
   keywords: [
     "phone OSINT",
+    "email OSINT",
     "phone number lookup",
+    "email breach check",
     "carrier lookup",
     "phone intelligence",
-    "number validation",
+    "email reputation",
     "telecom OSINT",
+    "identity enrichment",
   ],
   authors: [{ name: "HEAVEN-GeoIntel" }],
   openGraph: {
-    title: "HEAVEN-GeoIntel — Phone Intelligence Platform",
+    title: "HEAVEN-GeoIntel — Phone & Email OSINT Platform",
     description:
-      "Carrier, line type, country intelligence, fraud signals, and format cross-references for any phone number. Offline-first. Zero API keys required.",
+      "Carrier, breach history, identity enrichment, fraud signals for phones and emails. Offline-first. Zero API keys required for core features.",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary",
-    title: "HEAVEN-GeoIntel — Phone Intelligence Platform",
+    title: "HEAVEN-GeoIntel — Phone & Email OSINT Platform",
     description:
-      "Defensive OSINT phone intelligence. Carrier, type, fraud score, country data — offline-first, no tracking.",
+      "Defensive OSINT for phones and emails. Breach data, identity enrichment, fraud score, carrier intel — offline-first, no tracking.",
   },
   robots: {
     index: true,
