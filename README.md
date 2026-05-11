@@ -1,12 +1,153 @@
-# HEAVEN-GeoIntel
+# 🌐 HEAVEN-GeoIntel
 
-**Open-source OSINT intelligence platform for phone numbers and email addresses.** A production-ready web application built for penetration testers, security researchers, and OSINT analysts. Returns real, actionable intelligence — not placeholders — with zero API keys required for core functionality.
+<p align="center">
+  <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&height=320&color=0:05070F,50:FFAA00,100:BF5FFF&text=HEAVEN-GeoIntel&fontSize=44&fontAlignY=38&fontColor=ffffff&desc=Open-Source%20OSINT%20Platform%20%7C%20Phone%20and%20Email%20Intelligence%20%7C%20Zero%20API%20Keys%20Required&descAlignY=65&descSize=18"/>
+</p>
 
-> **Scope:** This tool returns publicly derivable *metadata* only. It does **not** and **cannot** provide real-time GPS location, live device tracking, SS7 interception, or any form of unauthorized surveillance. Use only within your authorized scope.
+<p align="center">
+<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Phone+%26+Email+OSINT+Intelligence+Platform;350%2B+NPA+Area+Codes+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;38+Phone+Pivots+%C2%B7+25+Email+Pivots+%C2%B7+18+Google+Dorks;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;One+Command+Start+%C2%B7+Next.js+%C2%B7+TypeScript+%C2%B7+Matrix+UI"/>
+</p>
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=6&color=0:FFAA00,25:BF5FFF,50:00D9D9,75:44FF88,100:FF3333"/>
+</p>
 
 ---
 
-## Start in one command
+<div align="center">
+
+  <p>
+    <img src="https://img.shields.io/badge/Node.js-18+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
+    <img src="https://img.shields.io/badge/Framework-Next.js_15-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
+    <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
+    <img src="https://img.shields.io/badge/API_Keys-Zero_Required-44FF88?style=for-the-badge&logo=checkmarx&logoColor=black" alt="Zero API Keys"/>
+    <img src="https://img.shields.io/badge/License-MIT-FF3333?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License"/>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/Phone_Pivots-38_Links-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
+    <img src="https://img.shields.io/badge/Email_Pivots-25_Links-BF5FFF?style=flat-square&logo=gmail&logoColor=white" alt="Email Pivots"/>
+    <img src="https://img.shields.io/badge/Breach_DBs-1000%2B_(XposedOrNot)-00D9D9?style=flat-square&logo=databricks&logoColor=black" alt="Breach DBs"/>
+    <img src="https://img.shields.io/badge/NPA_Database-350%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
+    <img src="https://img.shields.io/badge/Rate_Limit-10_req%2Fmin%2FIP-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/Stars-★_Give_a_Star-FFAA00?style=flat-square&logo=github&logoColor=black" alt="Stars"/>
+    <img src="https://img.shields.io/badge/Forks-Share_This_Project-BF5FFF?style=flat-square&logo=git&logoColor=white" alt="Forks"/>
+    <img src="https://img.shields.io/badge/Issues-Report_a_Bug-FF3333?style=flat-square&logo=quicklook&logoColor=white" alt="Issues"/>
+  </p>
+
+</div>
+
+---
+
+<a id="authors"></a>
+## 👾 Authors
+
+### Nisarg Chasmawala · Alias: **HEAVEN**
+
+<div align="center">
+
+| | Detail |
+|---|---|
+| 🔗 **LinkedIn** | [linkedin.com/in/nisarg-chasmawala](https://www.linkedin.com/in/nisarg-chasmawala) |
+| 🐙 **GitHub** | [github.com/nishu2402](https://github.com/nishu2402) |
+| 🎯 **Role** | Offensive Security Engineer · Penetration Tester · OSINT Analyst |
+
+</div>
+
+---
+
+## 📋 Table of Contents
+
+- [👾 Authors](#authors)
+- [🧠 Project Summary](#project-summary)
+- [💡 Core Idea](#core-idea)
+- [🚀 Quick Start](#quick-start)
+- [📞 Phone Intelligence](#phone-intelligence)
+- [📧 Email Intelligence](#email-intelligence)
+- [🔑 Optional API Enrichment](#api-enrichment)
+- [⚙️ How It Works](#how-it-works)
+- [✅ Data Accuracy](#data-accuracy)
+- [🔒 Security](#security)
+- [📁 Project Structure](#project-structure)
+- [⚡ Tech Stack](#tech-stack)
+- [📜 Available Scripts](#available-scripts)
+- [🔧 Troubleshooting](#troubleshooting)
+- [⚠️ Disclaimer](#disclaimer)
+
+---
+
+<a id="project-summary"></a>
+## 🧠 Project Summary
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:FFAA00,50:BF5FFF,100:00D9D9"/>
+</p>
+
+**HEAVEN-GeoIntel** is a production-ready OSINT intelligence platform for phone numbers and email addresses — built for penetration testers, security researchers, and OSINT analysts. It returns real, actionable intelligence: no placeholders, no simulations, no fake data.
+
+<div align="center">
+
+| Metric | Value |
+|---|---|
+| 🎯 **Scope** | Phone number intelligence + Email address intelligence |
+| 🔑 **Core Requirement** | Zero API keys — full offline analysis works out of the box |
+| 📞 **Phone: OSINT Pivots** | 38 investigation links across 6 categories |
+| 📧 **Email: OSINT Pivots** | 25 investigation links across 4 categories |
+| 🔍 **Phone: Google Dorks** | 18 pre-built dorks (LinkedIn · Facebook · Pastebin · credential dumps · PDFs) |
+| 📊 **Phone: Format Variants** | 11 permutations for database/OSINT searching |
+| 🗺️ **NPA Database** | 350+ US/CA area codes → state · metro · timezone (offline) |
+| 💥 **Breach Intelligence** | XposedOrNot — 1000+ breach databases, no API key required |
+| 🌍 **Country Dataset** | 40+ countries — capital · currency · languages · GDP · emergency numbers |
+| ⚡ **Cache** | 24h in-memory LRU (500 entries max) — repeat lookups instant |
+| 🚦 **Rate Limiting** | 10 requests/minute/IP — token bucket |
+| 🏗️ **Stack** | Next.js 15 · TypeScript · Tailwind CSS · Framer Motion · libphonenumber-js |
+| 🎨 **UI Theme** | Matrix/terminal — Canvas katakana rain · CRT scanlines · JetBrains Mono |
+
+</div>
+
+---
+
+<a id="core-idea"></a>
+## 💡 Core Idea
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:FF3333,50:FFAA00,100:BF5FFF"/>
+</p>
+
+During a penetration test or OSINT investigation, analysts spend significant time manually pivoting across 20–30 separate tools and browser tabs to build intelligence around a phone number or email. HEAVEN-GeoIntel centralises that workflow:
+
+```
+Target phone / email
+        │
+        ├─ Instant offline analysis  (libphonenumber-js · bundled datasets)
+        ├─ Free source fan-out       (XposedOrNot · Gravatar · EmailRep)
+        ├─ Optional API enrichment   (IPQualityScore · Twilio · Hunter.io)
+        ├─ OSINT pivot matrix        (38 phone links · 25 email links)
+        ├─ Google dork generator     (18 pre-built dorks)
+        └─ Export                    (.txt · .html report)
+```
+
+> **Scope:** Returns publicly derivable *metadata* only. Does **not** provide real-time GPS, live device tracking, SS7 interception, or any form of unauthorized surveillance.
+
+---
+
+<a id="quick-start"></a>
+## 🚀 Quick Start
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:00D9D9,50:FFAA00,100:44FF88"/>
+</p>
+
+### Requirements
+
+- **Node.js 18+** — [nodejs.org](https://nodejs.org)
+- **npm 9+** — included with Node.js
+- No database · no Docker · no Redis · no cloud account
+
+### One-command start
 
 ```bash
 bash start.sh
