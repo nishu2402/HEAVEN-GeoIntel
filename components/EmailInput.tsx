@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Search, CheckCircle2, XCircle } from "lucide-react";
+import { Search, CheckCircle2, XCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
   onLookup: (email: string) => void;
+  onClear?: () => void;
   loading: boolean;
 }
 
@@ -13,7 +14,7 @@ const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 
 type ValidationState = "empty" | "valid" | "invalid";
 
-export default function EmailInput({ onLookup, loading }: Props) {
+export default function EmailInput({ onLookup, onClear, loading }: Props) {
   const [value, setValue] = useState("");
 
   const trimmed = value.trim();
@@ -25,6 +26,11 @@ export default function EmailInput({ onLookup, loading }: Props) {
   const handleSubmit = useCallback(() => {
     if (validation === "valid") onLookup(trimmed);
   }, [validation, trimmed, onLookup]);
+
+  const handleClear = useCallback(() => {
+    setValue("");
+    onClear?.();
+  }, [onClear]);
 
   return (
     <div className="w-full space-y-3">
@@ -63,6 +69,18 @@ export default function EmailInput({ onLookup, loading }: Props) {
           <Search className="w-4 h-4" />
           {loading ? "SCANNING..." : "EXECUTE LOOKUP"}
         </button>
+
+        {/* Clear button */}
+        {(value || onClear) && (
+          <button
+            type="button"
+            onClick={handleClear}
+            title="Clear"
+            className="h-12 px-3 border border-[#00ff41]/20 text-[#00ff41]/40 hover:text-[#ff3e3e] hover:border-[#ff3e3e]/50 transition-all font-mono"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Status line */}
@@ -79,7 +97,7 @@ export default function EmailInput({ onLookup, loading }: Props) {
         )}
         {validation === "empty" && (
           <span className="text-[#00ff41]/30">
-            _ Enter an email address · Gravatar, breach data, reputation, carrier records
+            _ Enter an email address · name, breach data, reputation, social profiles
           </span>
         )}
       </div>

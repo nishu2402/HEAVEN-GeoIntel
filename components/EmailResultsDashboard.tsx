@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   User, Mail, Globe, Shield, AlertTriangle, CheckCircle2,
   XCircle, Copy, Check, Download, ExternalLink,
-  Building2, Lock, Trash2, Hash, Activity,
+  Building2, Lock, Trash2, Hash, Activity, Briefcase, Phone,
 } from "lucide-react";
 import type { EmailLookupResponse } from "@/lib/types";
 import EmailOsintPivots from "./EmailOsintPivots";
@@ -114,7 +114,7 @@ function ThreatScoreBar({ score }: { score: number }) {
 
 // ── Report download ───────────────────────────────────────────────────────────
 function downloadReport(data: EmailLookupResponse, score: number): void {
-  const { email, analysis, gravatar, emailrep, hunter, abstract, xon } = data;
+  const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact } = data;
   const sep = "─".repeat(70);
   const now = new Date().toISOString();
 
@@ -154,6 +154,60 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
           `           Verified: ${b.verified ? "Yes" : "No"}`,
         ].join("\n")),
     ] : [`  Result          : ${xon?.ok ? "CLEAN — no breaches found" : (xon?.error ?? "N/A")}`]),
+    ``,
+    `CREDENTIAL HASHES — BreachDirectory`,
+    sep,
+    ...(breachDirectory?.ok && breachDirectory.data && breachDirectory.data.found > 0 ? [
+      `  Records Found   : ${breachDirectory.data.found}`,
+      `  Sources         : ${breachDirectory.data.sources.join(", ")}`,
+      ``,
+      `  CREDENTIAL LIST:`,
+      ...breachDirectory.data.results.map((r, i) => [
+        `    [${i + 1}] Sources  : ${r.sources.join(", ")}`,
+        r.password ? `         Partial  : ${r.password}` : "",
+        r.sha1     ? `         SHA-1    : ${r.sha1}` : "",
+        r.hash     ? `         MD5      : ${r.hash}` : "",
+      ].filter(Boolean).join("\n")),
+    ] : [`  Status          : ${
+      !breachDirectory?.ok && breachDirectory?.error === "NOT_CONFIGURED"
+        ? "NOT CONFIGURED — add RAPIDAPI_KEY to .env.local"
+        : breachDirectory?.ok && breachDirectory.data?.found === 0
+        ? "CLEAN — no credentials found in BreachDirectory"
+        : (breachDirectory?.error ?? "N/A")
+    }`]),
+    ``,
+    `IDENTITY — FullContact Person Enrichment`,
+    sep,
+    ...(fullContact?.ok && fullContact.data ? [
+      `  Full Name       : ${fullContact.data.fullName ?? "N/A"}`,
+      `  Title           : ${fullContact.data.title ?? "N/A"}`,
+      `  Organization    : ${fullContact.data.organization ?? "N/A"}`,
+      `  Location        : ${fullContact.data.location ?? "N/A"}`,
+      `  Age             : ${fullContact.data.age ?? "N/A"}`,
+      `  Gender          : ${fullContact.data.gender ?? "N/A"}`,
+      `  Bio             : ${fullContact.data.bio ?? "N/A"}`,
+      fullContact.data.profiles.length > 0
+        ? `  Social Profiles : ${fullContact.data.profiles.map((p) => `${p.platform}/${p.username}`).join(", ")}`
+        : "",
+      fullContact.data.otherEmails.length > 0
+        ? `  Other Emails    : ${fullContact.data.otherEmails.join(", ")}`
+        : "",
+      fullContact.data.phones.length > 0
+        ? `  Phone Numbers   : ${fullContact.data.phones.join(", ")}`
+        : "",
+      ...(fullContact.data.employment.length > 0 ? [
+        `  Employment:`,
+        ...fullContact.data.employment.map((e) => `    ${e.current ? "[CURRENT]" : "[PAST]"} ${e.name}${e.title ? ` — ${e.title}` : ""}`),
+      ] : []),
+    ].filter(Boolean) : [
+      `  Status          : ${
+        fullContact?.error === "NOT_CONFIGURED"
+          ? "NOT CONFIGURED — add FULLCONTACT_API_KEY to .env.local"
+          : fullContact?.error === "NOT_FOUND"
+          ? "No record found for this email"
+          : (fullContact?.error ?? "N/A")
+      }`,
+    ]),
     ``,
     `GRAVATAR PROFILE`,
     sep,
@@ -228,16 +282,24 @@ const PROVIDER_ICONS: Record<string, React.ReactNode> = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EmailResultsDashboard({ data }: Props) {
-  const { email, analysis, gravatar, emailrep, hunter, abstract, xon } = data;
+  const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact } = data;
 
   const repData = emailrep.ok ? emailrep.data : null;
   const hunterData = hunter.ok ? hunter.data : null;
   const abstractData = abstract.ok ? abstract.data : null;
+  const fcData = fullContact?.ok ? fullContact.data : null;
   const provColor = PROVIDER_COLORS[analysis.providerType] ?? "#00ff41";
 
-  const confirmedName = gravatar.found ? (gravatar.displayName ?? gravatar.preferredUsername) : null;
-  const nameToShow = confirmedName ?? analysis.guessedName;
-  const nameSource = confirmedName ? "gravatar" : analysis.guessedName ? "inferred" : null;
+  // Name priority: FullContact (real enrichment) > Gravatar (profile) > inferred from username
+  const gravatarName = gravatar.found ? (gravatar.displayName ?? gravatar.preferredUsername) : null;
+  const nameToShow = fcData?.fullName ?? gravatarName ?? analysis.guessedName;
+  const nameSource: "fullcontact" | "gravatar" | "inferred" | null =
+    fcData?.fullName ? "fullcontact" : gravatarName ? "gravatar" : analysis.guessedName ? "inferred" : null;
+
+  // Avatar: prefer FullContact avatar if no Gravatar thumbnail
+  const avatarUrl = gravatar.found && gravatar.thumbnailUrl
+    ? gravatar.thumbnailUrl
+    : (fcData?.avatar ?? null);
   const platforms = repData?.profiles ?? [];
   const threatScore = calcThreatScore(data);
 
@@ -256,11 +318,11 @@ export default function EmailResultsDashboard({ data }: Props) {
 
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            {gravatar.found && gravatar.thumbnailUrl && (
+            {avatarUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={gravatar.thumbnailUrl}
-                alt="Gravatar"
+                src={avatarUrl}
+                alt="Profile"
                 className="w-14 h-14 rounded-none border border-[#00ff41]/30 shrink-0"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
@@ -272,11 +334,17 @@ export default function EmailResultsDashboard({ data }: Props) {
                   <span className="text-xl font-bold text-[#00d9ff] font-mono">{nameToShow}</span>
                   <span className={cn(
                     "text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 border",
-                    nameSource === "gravatar"
+                    nameSource === "fullcontact"
+                      ? "text-[#00d9ff] border-[#00d9ff]/30 bg-[#00d9ff]/5"
+                      : nameSource === "gravatar"
                       ? "text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5"
                       : "text-[#888] border-[#888]/30"
                   )}>
-                    {nameSource === "gravatar" ? "✓ GRAVATAR CONFIRMED" : "INFERRED"}
+                    {nameSource === "fullcontact"
+                      ? "✓ FULLCONTACT CONFIRMED"
+                      : nameSource === "gravatar"
+                      ? "✓ GRAVATAR CONFIRMED"
+                      : "INFERRED"}
                   </span>
                 </div>
               )}
@@ -284,12 +352,22 @@ export default function EmailResultsDashboard({ data }: Props) {
               <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
                 {analysis.username} @ {analysis.domain}
               </div>
-              {gravatar.found && gravatar.currentLocation && (
-                <div className="text-xs text-[#00d9ff]/70 mt-1 font-mono">📍 {gravatar.currentLocation}</div>
+              {(fcData?.location ?? (gravatar.found ? gravatar.currentLocation : null)) && (
+                <div className="text-xs text-[#00d9ff]/70 mt-1 font-mono">
+                  📍 {fcData?.location ?? gravatar.currentLocation}
+                </div>
               )}
-              {gravatar.found && gravatar.aboutMe && (
+              {(fcData?.bio ?? (gravatar.found ? gravatar.aboutMe : null)) && (
                 <div className="text-xs text-[#00ff41]/50 mt-1 font-mono italic max-w-md line-clamp-2">
-                  &ldquo;{gravatar.aboutMe}&rdquo;
+                  &ldquo;{fcData?.bio ?? gravatar.aboutMe}&rdquo;
+                </div>
+              )}
+              {(fcData?.title || fcData?.organization) && (
+                <div className="flex items-center gap-1.5 text-xs text-[#00ff41]/60 mt-1 font-mono">
+                  <Briefcase className="w-3 h-3 shrink-0" />
+                  {fcData.title && fcData.organization
+                    ? `${fcData.title} @ ${fcData.organization}`
+                    : fcData.title ?? fcData.organization}
                 </div>
               )}
             </div>
@@ -303,6 +381,7 @@ export default function EmailResultsDashboard({ data }: Props) {
             {analysis.isRoleAddress && <Badge text="ROLE ADDRESS" color="#ffaa00" />}
             {repData?.suspicious && <Badge text="SUSPICIOUS" color="#ff3e3e" />}
             {repData?.credentialsLeaked && <Badge text="CREDS LEAKED" color="#ff1a1a" />}
+            {fcData && <Badge text="FULLCONTACT ✓" color="#00d9ff" />}
             {gravatar.found && <Badge text="GRAVATAR ✓" color="#00ff41" />}
             {data.cachedAt && <Badge text="CACHED" color="#444" />}
           </div>
@@ -336,8 +415,139 @@ export default function EmailResultsDashboard({ data }: Props) {
         </div>
       </div>
 
+      {/* ── FullContact Identity Panel ── */}
+      {fcData && (fcData.fullName || fcData.organization || fcData.profiles.length > 0 || fcData.otherEmails.length > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40"
+        >
+          <div className="text-[9px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
+            <User className="w-3 h-3" />
+            IDENTITY ENRICHMENT — FullContact
+            <span className="text-[#00d9ff]/30 ml-auto font-mono text-[8px]">1,000+ data sources</span>
+          </div>
+
+          <div className="flex items-start gap-4 flex-wrap">
+            {fcData.avatar && !(gravatar.found && gravatar.thumbnailUrl) && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={fcData.avatar}
+                alt="FullContact"
+                className="w-16 h-16 rounded-none border border-[#00d9ff]/30 shrink-0"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
+            <div className="flex-1 space-y-1 min-w-0">
+              {fcData.fullName && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-2xl font-bold text-[#00d9ff] font-mono">{fcData.fullName}</span>
+                  <Badge text="✓ CONFIRMED" color="#00d9ff" />
+                </div>
+              )}
+              {(fcData.title || fcData.organization) && (
+                <div className="flex items-center gap-1.5 text-sm font-mono text-[#00ff41]/70">
+                  <Briefcase className="w-3.5 h-3.5 shrink-0" />
+                  {fcData.title && fcData.organization
+                    ? `${fcData.title} @ ${fcData.organization}`
+                    : fcData.title ?? fcData.organization}
+                </div>
+              )}
+              {fcData.location && (
+                <div className="text-xs font-mono text-[#00d9ff]/60">📍 {fcData.location}</div>
+              )}
+              {fcData.bio && (
+                <div className="text-xs font-mono text-[#00ff41]/45 italic line-clamp-2 mt-1">
+                  &ldquo;{fcData.bio}&rdquo;
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {fcData.age && <Badge text={`AGE ~${fcData.age}`} color="#888" />}
+                {fcData.gender && <Badge text={fcData.gender.toUpperCase()} color="#888" />}
+              </div>
+            </div>
+          </div>
+
+          {/* Social profiles */}
+          {fcData.profiles.length > 0 && (
+            <div>
+              <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-2">SOCIAL PROFILES</div>
+              <div className="flex flex-wrap gap-1.5">
+                {fcData.profiles.map((p) => (
+                  <a
+                    key={p.platform + p.username}
+                    href={p.url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[10px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 hover:bg-[#00d9ff]/10 transition-colors"
+                  >
+                    <ExternalLink className="w-2.5 h-2.5" />
+                    {p.platform}{p.username ? `: ${p.username}` : ""}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other emails / phones */}
+          {(fcData.otherEmails.length > 0 || fcData.phones.length > 0) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[#00ff41]/10 pt-3">
+              {fcData.otherEmails.length > 0 && (
+                <div>
+                  <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
+                    <Mail className="w-2.5 h-2.5" /> OTHER EMAILS
+                  </div>
+                  {fcData.otherEmails.map((e) => (
+                    <div key={e} className="flex items-center gap-2 text-xs font-mono text-[#00d9ff]/80 py-0.5">
+                      {e}
+                      <CopyBtn text={e} />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {fcData.phones.length > 0 && (
+                <div>
+                  <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
+                    <Phone className="w-2.5 h-2.5" /> PHONE NUMBERS
+                  </div>
+                  {fcData.phones.map((p) => (
+                    <div key={p} className="flex items-center gap-2 text-xs font-mono text-[#00d9ff]/80 py-0.5">
+                      {p}
+                      <CopyBtn text={p} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Employment history */}
+          {fcData.employment.length > 1 && (
+            <div className="border-t border-[#00ff41]/10 pt-3">
+              <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-2 flex items-center gap-1">
+                <Briefcase className="w-2.5 h-2.5" /> EMPLOYMENT HISTORY
+              </div>
+              <div className="space-y-1">
+                {fcData.employment.slice(0, 5).map((emp, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs font-mono">
+                    <span className={emp.current ? "text-[#00ff41]" : "text-[#555]"}>
+                      {emp.current ? "▶" : "·"}
+                    </span>
+                    <span className={cn("flex items-center gap-1.5 flex-wrap", emp.current ? "text-[#00ff41]/80" : "text-[#555]")}>
+                      {emp.name}{emp.title ? ` — ${emp.title}` : ""}
+                      {emp.current && <Badge text="CURRENT" color="#00ff41" />}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+
       {/* ── BREACH DATABASE — Primary intelligence ── */}
-      <BreachPanel xon={xon} />
+      <BreachPanel xon={xon} breachDirectory={breachDirectory} />
 
       {/* ── Risk indicators (EmailRep critical flags) ── */}
       {repData && (repData.credentialsLeaked || repData.dataBreach || repData.suspicious || repData.maliciousActivity) && (
