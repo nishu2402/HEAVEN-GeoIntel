@@ -1,0 +1,74 @@
+# ============================================================
+# HEAVEN-GeoIntel — Dependency Reference
+# ============================================================
+# Runtime: Node.js 18+  |  Package manager: npm 9+
+# Install: npm install  (NOT pip install — this is a Node.js project)
+# Start:   bash start.sh  OR  npm run setup
+# ============================================================
+
+# ── Framework ────────────────────────────────────────────────
+next==14.2.35                        # Next.js App Router — server + client rendering
+react==18.3.1                        # React 18 with concurrent features
+react-dom==18.3.1                    # React DOM renderer
+
+# ── Phone Intelligence ───────────────────────────────────────
+libphonenumber-js==1.13.0            # Google libphonenumber compiled to JS — parse, validate, format, type
+
+# ── UI & Animation ───────────────────────────────────────────
+framer-motion==12.38.0              # Boot sequence animation, panel transitions
+lucide-react==1.14.0                # Icon set (all UI icons)
+tailwind-merge==3.6.0               # Tailwind class merging utility
+clsx==2.1.1                         # Conditional className helper
+class-variance-authority==0.7.1     # shadcn/ui variant engine
+cmdk==1.1.1                         # Command palette / combobox (country selector)
+
+# ── Radix UI Primitives (shadcn/ui base) ─────────────────────
+@radix-ui/react-collapsible==1.1.12  # Collapsible sections
+@radix-ui/react-dialog==1.1.15       # Modal / drawer (history sidebar)
+@radix-ui/react-scroll-area==1.2.10  # Custom scrollbars
+@radix-ui/react-select==2.2.6        # Dropdown select
+@radix-ui/react-separator==1.1.8     # Divider element
+@radix-ui/react-slot==1.2.4          # Slot primitive (used by Button)
+@radix-ui/react-tabs==1.1.13         # Tab panels (source tabs, dork categories)
+@radix-ui/react-tooltip==1.2.8       # Tooltips
+
+# ── Data & Utilities ─────────────────────────────────────────
+qrcode==1.5.4                        # QR code generation (tel: URI → PNG)
+country-data-list==1.6.2             # ISO country codes + dial codes (phone input combobox)
+
+# ── Dev Dependencies ─────────────────────────────────────────
+typescript==5.9.3                    # TypeScript compiler
+tailwindcss==3.4.19                  # Tailwind CSS
+postcss==8.5.14                      # PostCSS (Tailwind pipeline)
+eslint==8.57.1                       # Linter
+eslint-config-next==14.2.35          # Next.js ESLint rules
+@types/node==20.19.40                # Node.js type definitions
+@types/react==18.3.28                # React type definitions
+@types/react-dom==18.3.7             # React DOM type definitions
+@types/qrcode==1.5.6                 # qrcode type definitions
+
+# ============================================================
+# System Requirements
+# ============================================================
+# Node.js  >= 18.0.0    https://nodejs.org
+# npm      >= 9.0.0     (bundled with Node.js 18+)
+# OS       macOS / Linux / Windows (WSL recommended on Windows)
+# RAM      >= 512 MB free (Next.js dev server)
+# Disk     ~500 MB (node_modules after npm install)
+#
+# No database  · No Docker  · No Redis  · No cloud account needed
+# ============================================================
+
+# ============================================================
+# Optional API Keys (.env.local)
+# ============================================================
+# IPQS_API_KEY=            # IPQualityScore — fraud score, VoIP, prepaid, abuse
+# NUMVERIFY_API_KEY=       # NumVerify — carrier, line type, location
+# ABSTRACT_API_KEY=        # AbstractAPI — phone + email validation
+# TWILIO_ACCOUNT_SID=      # Twilio Lookup v2 — carrier, CNAM, MCC/MNC
+# TWILIO_AUTH_TOKEN=       #   (paired with TWILIO_ACCOUNT_SID)
+# HUNTER_API_KEY=          # Hunter.io — email deliverability + confidence
+# EMAILREP_API_KEY=        # EmailRep.io — reputation (higher quota with key)
+# FULLCONTACT_API_KEY=     # FullContact — name, employer, social profiles
+# RAPIDAPI_KEY=            # BreachDirectory — real SHA-1/MD5 credential hashes
+# ============================================================

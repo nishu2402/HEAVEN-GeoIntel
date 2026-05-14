@@ -21,7 +21,7 @@ export interface CountryIntel {
   gdpPerCapita: string;
 }
 
-// Comprehensive dataset for 50+ major countries + all regions
+// Comprehensive dataset for 100 countries across all regions
 const COUNTRY_DATA: Record<string, CountryIntel> = {
   US: {
     code: "US", name: "United States", officialName: "United States of America",
@@ -1030,12 +1030,14 @@ export function getCountryIntel(code: string): CountryIntel | null {
   return COUNTRY_DATA[code.toUpperCase()] ?? null;
 }
 
+// Pre-built reverse lookup: calling code → first matching ISO country code (O(1) per call)
+const CALLING_CODE_MAP = new Map<string, string>(
+  Object.entries(COUNTRY_DATA).map(([cc, data]) => [data.callingCode, cc])
+);
+
 export function getCallingCodeToCountry(callingCode: string): string | null {
-  const clean = callingCode.replace("+", "");
-  for (const [cc, data] of Object.entries(COUNTRY_DATA)) {
-    if (data.callingCode === `+${clean}`) return cc;
-  }
-  return null;
+  const key = callingCode.startsWith("+") ? callingCode : `+${callingCode}`;
+  return CALLING_CODE_MAP.get(key) ?? null;
 }
 
 export { COUNTRY_DATA };

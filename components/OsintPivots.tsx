@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { ExternalLink } from "lucide-react";
 
 interface Props {
@@ -21,7 +22,6 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
   const encoded = encodeURIComponent(e164);
   const encodedNational = encodeURIComponent(national);
   const digits = e164.replace(/\D/g, "");
-  const withoutPlus = digits; // all digits including calling code
   const cc = country.toLowerCase();
 
   return [
@@ -170,14 +170,6 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
       category: "identity",
     },
     {
-      label: "AnyWho Reverse",
-      description: "White-pages style name + address from phone number",
-      url: `https://www.anywho.com/reverse-phone/${digits}`,
-      color: "#00d9ff",
-      category: "identity",
-      usOnly: true,
-    },
-    {
       label: "Pipl Search",
       description: "Deep-web people search — indexes non-crawled public records",
       url: `https://pipl.com/search/?q=${encoded}`,
@@ -196,14 +188,14 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
     {
       label: "WhatsApp",
       description: "Open chat — if registered, it works immediately. 2B+ users.",
-      url: `https://wa.me/${withoutPlus}`,
+      url: `https://wa.me/${digits}`,
       color: "#25D366",
       category: "messaging",
     },
     {
       label: "Telegram",
       description: "Open Telegram chat — reveals if number is registered",
-      url: `https://t.me/+${withoutPlus}`,
+      url: `https://t.me/+${digits}`,
       color: "#2AABEE",
       category: "messaging",
     },
@@ -217,7 +209,7 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
     {
       label: "Viber",
       description: "Viber deep-link — opens chat if registered",
-      url: `viber://chat?number=${withoutPlus}`,
+      url: `viber://chat?number=${digits}`,
       color: "#7360f2",
       category: "messaging",
     },
@@ -238,7 +230,7 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
     {
       label: "KakaoTalk",
       description: "Korea's dominant messaging app — check via chat link",
-      url: `https://open.kakao.com/o/s${withoutPlus}`,
+      url: `https://open.kakao.com/o/s${digits}`,
       color: "#FAE100",
       category: "messaging",
     },
@@ -311,13 +303,6 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
       label: "GhostProject",
       description: "Fast breach DB — email pivot. Cross-reference number via email",
       url: `https://ghostproject.fr/`,
-      color: "#ff3e3e",
-      category: "intel",
-    },
-    {
-      label: "Ashley Madison Check",
-      description: "Check if number appears in AM breach (haveibeenemailpwned)",
-      url: `https://haveibeenpwned.com/`,
       color: "#ff3e3e",
       category: "intel",
     },
@@ -601,11 +586,15 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
 const CATEGORY_ORDER = ["identity", "messaging", "intel", "social", "spam", "carrier"] as const;
 
 export default function OsintPivots({ e164, national, country = "us" }: Props) {
-  const links = buildLinks(e164, national, country);
-  const byCategory = CATEGORY_ORDER.map((cat) => ({
-    cat,
-    items: links.filter((l) => l.category === cat),
-  }));
+  const { links, byCategory } = useMemo(() => {
+    const links = buildLinks(e164, national, country);
+    const grouped = links.reduce<Record<string, PivotLink[]>>((acc, l) => {
+      (acc[l.category] ??= []).push(l);
+      return acc;
+    }, {});
+    const byCategory = CATEGORY_ORDER.map((cat) => ({ cat, items: grouped[cat] ?? [] }));
+    return { links, byCategory };
+  }, [e164, national, country]);
 
   return (
     <div className="terminal-card p-4 space-y-4">
@@ -623,9 +612,9 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
           <div key={cat} className="space-y-1.5">
             <div
               className="text-[12px] uppercase tracking-widest font-mono pb-0.5"
-              style={{ color: (CATEGORY_META[cat]?.color ?? "#00ff41") + "60" }}
+              style={{ color: CATEGORY_META[cat].color + "60" }}
             >
-              — {CATEGORY_META[cat]?.label ?? cat} — ({items.length})
+              — {CATEGORY_META[cat].label} — ({items.length})
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {items.map((link) => (
