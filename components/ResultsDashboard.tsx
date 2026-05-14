@@ -192,7 +192,7 @@ export default function ResultsDashboard({ data }: Props) {
       <div className="terminal-card p-5 space-y-3">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div className="space-y-2">
-            <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">LOOKUP RESULT</div>
+            <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">LOOKUP RESULT</div>
 
             {/* Owner name — most prominent element when available */}
             {aggregated.callerName ? (
@@ -203,11 +203,11 @@ export default function ResultsDashboard({ data }: Props) {
                     {aggregated.callerName}
                   </span>
                   {aggregated.callerType && (
-                    <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 border text-[#00d9ff]/50 border-[#00d9ff]/25">
+                    <span className="text-[12px] font-mono uppercase tracking-widest px-1.5 py-0.5 border text-[#00d9ff]/50 border-[#00d9ff]/25">
                       {aggregated.callerType}
                     </span>
                   )}
-                  <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 border text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5">
+                  <span className="text-[12px] font-mono uppercase tracking-widest px-1.5 py-0.5 border text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5">
                     ✓ CNAM CONFIRMED
                   </span>
                 </div>
@@ -229,7 +229,7 @@ export default function ResultsDashboard({ data }: Props) {
                   <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
                     {input.national} · {aggregated.countryName} ({input.countryCallingCode})
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono text-[#555]">
+                  <div className="flex items-center gap-1.5 mt-1 text-[13px] font-mono text-[#555]">
                     <User className="w-3 h-3" />
                     Owner name not found — add Twilio or IPQS key, or use pivot links below
                   </div>
@@ -266,7 +266,7 @@ export default function ResultsDashboard({ data }: Props) {
               </span>
             )}
             {data.cachedAt && (
-              <span className="text-[10px] border badge-neutral px-2 py-1 font-mono">CACHED</span>
+              <span className="text-[13px] border badge-neutral px-2 py-1 font-mono">CACHED</span>
             )}
           </div>
         </div>
@@ -297,7 +297,7 @@ export default function ResultsDashboard({ data }: Props) {
 
         {/* Data source status */}
         <div className="flex items-center gap-3 pt-1 border-t border-[#00ff41]/10">
-          <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/50 font-mono">DATA SOURCES</div>
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50 font-mono">DATA SOURCES</div>
           <div className="flex gap-2">
             {[
               { label: "libphonenumber", ok: true, always: true },
@@ -308,7 +308,7 @@ export default function ResultsDashboard({ data }: Props) {
             ].map((s) => (
               <span
                 key={s.label}
-                className={`text-[9px] font-mono px-1.5 py-0.5 border ${
+                className={`text-[12px] font-mono px-1.5 py-0.5 border ${
                   s.ok
                     ? "text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5"
                     : "configured" in s && s.configured
@@ -321,7 +321,7 @@ export default function ResultsDashboard({ data }: Props) {
             ))}
           </div>
           {activeSources === 0 && configuredSources === 0 && (
-            <span className="text-[9px] text-[#ffaa00]/50 font-mono ml-auto">
+            <span className="text-[12px] text-[#ffaa00]/50 font-mono ml-auto">
               + carrier/fraud data: add keys to .env.local
             </span>
           )}
@@ -331,13 +331,13 @@ export default function ResultsDashboard({ data }: Props) {
       {/* ── Owner identity — find name when CNAM missing ── */}
       {!aggregated.callerName && (
         <div className="terminal-card p-4 space-y-3 border border-[#00d9ff]/15">
-          <div className="text-[9px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
+          <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
             <User className="w-3 h-3" /> OWNER IDENTITY LOOKUP
           </div>
-          <p className="text-[10px] font-mono text-[#00ff41]/60 leading-relaxed">
+          <p className="text-[13px] font-mono text-[#00ff41]/60 leading-relaxed">
             No CNAM data available (requires Twilio or IPQS API key). Use these services to find the owner manually — they work for most countries:
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {[
               { label: "Truecaller", url: `https://www.truecaller.com/search/us/${input.e164.replace("+","")}`, desc: "Largest caller ID database · 350M+ names" },
               { label: "Whitepages", url: `https://www.whitepages.com/phone/${input.e164}`, desc: "US/CA reverse lookup with owner name" },
@@ -349,13 +349,13 @@ export default function ResultsDashboard({ data }: Props) {
               <a key={label} href={url} target="_blank" rel="noopener noreferrer"
                 className="flex flex-col gap-0.5 p-2.5 border border-[#00d9ff]/15 hover:border-[#00d9ff]/50 hover:bg-[#00d9ff]/5 transition-all group">
                 <span className="text-xs font-mono font-bold text-[#00d9ff]/70 group-hover:text-[#00d9ff] flex items-center gap-1">
-                  {label} <span className="text-[8px] opacity-50">↗</span>
+                  {label} <span className="text-[11px] opacity-50">↗</span>
                 </span>
-                <span className="text-[9px] font-mono text-[#00ff41]/50 leading-tight">{desc}</span>
+                <span className="text-[12px] font-mono text-[#00ff41]/50 leading-tight">{desc}</span>
               </a>
             ))}
           </div>
-          <p className="text-[9px] font-mono text-[#00ff41]/45 border-t border-[#00ff41]/10 pt-2">
+          <p className="text-[12px] font-mono text-[#00ff41]/45 border-t border-[#00ff41]/10 pt-2">
             Pro tip: Add <code className="text-[#00ff41]/60">TWILIO_ACCOUNT_SID</code> + <code className="text-[#00ff41]/60">TWILIO_AUTH_TOKEN</code> to .env.local for automatic CNAM lookups (~$0.005/query).
           </p>
         </div>
@@ -366,7 +366,7 @@ export default function ResultsDashboard({ data }: Props) {
 
       {/* ── Metric cards — only populated fields ── */}
       {cards.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {cards.map((c) => (
             <MetricCard
               key={c.label}
@@ -418,7 +418,7 @@ export default function ResultsDashboard({ data }: Props) {
 
       {/* ── Raw source data ── */}
       <div className="space-y-2">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">
+        <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">
           [ RAW SOURCE DATA ] — API responses
         </div>
         <SourceTabs sources={sources} />

@@ -60,7 +60,7 @@ export default function NumberBreakdown({ analysis }: Props) {
       transition={{ duration: 0.3 }}
       className="terminal-card p-4 space-y-4"
     >
-      <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
+      <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
         [ NUMBER STRUCTURE ]
       </div>
 
@@ -75,14 +75,14 @@ export default function NumberBreakdown({ analysis }: Props) {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {segments.map((seg, i) => (
             <div key={i} className="border border-[#00ff41]/10 p-2 space-y-0.5">
-              <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/60">{seg.label}</div>
+              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/60">{seg.label}</div>
               <div className="font-mono font-bold text-sm" style={{ color: seg.color }}>
                 {seg.value}
               </div>
-              <div className="text-[9px] text-[#00ff41]/55">{seg.description}</div>
+              <div className="text-[12px] text-[#00ff41]/55">{seg.description}</div>
             </div>
           ))}
         </div>
@@ -90,7 +90,7 @@ export default function NumberBreakdown({ analysis }: Props) {
 
       {/* Length indicator */}
       <div className="space-y-1">
-        <div className="flex justify-between text-[10px] text-[#00ff41]/60">
+        <div className="flex justify-between text-[13px] text-[#00ff41]/60">
           <span>SUBSCRIBER DIGITS</span>
           <span>
             {analysis.numberLength} digits
@@ -118,7 +118,7 @@ export default function NumberBreakdown({ analysis }: Props) {
           {typeFlags.map((f) => (
             <span
               key={f.label}
-              className="text-[9px] px-2 py-0.5 border font-mono font-bold"
+              className="text-[12px] px-2 py-0.5 border font-mono font-bold"
               style={{ borderColor: `${f.color}50`, color: f.color, background: `${f.color}10` }}
             >
               {f.label}
@@ -129,7 +129,7 @@ export default function NumberBreakdown({ analysis }: Props) {
 
       {/* Central office / carrier prefix */}
       {analysis.carrierPrefix && (
-        <div className="text-[10px] text-[#00ff41]/60 font-mono">
+        <div className="text-[13px] text-[#00ff41]/60 font-mono">
           CENTRAL OFFICE CODE:{" "}
           <span className="text-[#00d9ff]">{analysis.carrierPrefix}</span>
           <span className="ml-2 text-[#00ff41]/25">
