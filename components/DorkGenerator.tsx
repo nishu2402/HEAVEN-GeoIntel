@@ -24,24 +24,93 @@ export default function DorkGenerator({ e164, national }: Props) {
   };
 
   const dorks: Dork[] = [
-    { label: "Exact E.164", query: `"${e164}"` },
-    { label: "National format", query: `"${national}"` },
-    { label: "Both formats", query: `"${e164}" OR "${national}"` },
-    { label: "PDF documents", query: `"${e164}" filetype:pdf` },
-    { label: "Text / log files", query: `"${e164}" filetype:txt OR filetype:log` },
-    { label: "LinkedIn", query: `site:linkedin.com "${e164}"` },
-    { label: "Facebook", query: `site:facebook.com "${e164}"` },
-    { label: "Twitter / X", query: `site:twitter.com "${e164}"` },
-    { label: "GitHub code", query: `site:github.com "${e164}"` },
-    { label: "Pastebin leak", query: `site:pastebin.com "${e164}"` },
+    // ── Basic format hits ─────────────────────────────────────────────────────
+    { label: "Exact E.164",       query: `"${e164}"` },
+    { label: "National format",   query: `"${national}"` },
+    { label: "Both formats",      query: `"${e164}" OR "${national}"` },
+    { label: "Digits only",       query: `"${e164.replace(/\D/g, "")}"` },
+    { label: "Spaced digits",     query: `"${e164.replace(/\D/g, "").split("").join(" ")}"` },
+    { label: "Dashed format",     query: `"${national.replace(/\s/g, "-")}"` },
+
+    // ── Document / file type leaks ────────────────────────────────────────────
+    { label: "PDF documents",     query: `"${e164}" filetype:pdf` },
+    { label: "Text / log files",  query: `"${e164}" filetype:txt OR filetype:log` },
+    { label: "Excel / CSV",       query: `"${e164}" filetype:xls OR filetype:xlsx OR filetype:csv` },
+    { label: "Word / docx",       query: `"${e164}" filetype:doc OR filetype:docx` },
+    { label: "SQL dump",          query: `"${e164}" filetype:sql` },
+    { label: "JSON / XML data",   query: `"${e164}" filetype:json OR filetype:xml` },
+    { label: ".env / config leak",query: `"${e164}" filetype:env OR filetype:cfg OR filetype:conf` },
+
+    // ── Social platforms ──────────────────────────────────────────────────────
+    { label: "LinkedIn",          query: `site:linkedin.com "${e164}"` },
+    { label: "Facebook",          query: `site:facebook.com "${e164}"` },
+    { label: "Twitter / X",       query: `site:twitter.com "${e164}"` },
+    { label: "Instagram",         query: `site:instagram.com "${national}"` },
+    { label: "TikTok",            query: `site:tiktok.com "${national}"` },
+    { label: "YouTube",           query: `site:youtube.com "${national}"` },
+    { label: "Reddit",            query: `site:reddit.com "${e164}" OR "${national}"` },
+    { label: "Pinterest",         query: `site:pinterest.com "${national}"` },
+    { label: "Snapchat",          query: `site:snapchat.com "${national}"` },
+
+    // ── Code / paste / leak sites ─────────────────────────────────────────────
+    { label: "GitHub code",       query: `site:github.com "${e164}"` },
+    { label: "GitLab code",       query: `site:gitlab.com "${e164}"` },
+    { label: "Pastebin leak",     query: `site:pastebin.com "${e164}"` },
+    { label: "Paste sites",       query: `site:paste.org OR site:hastebin.com OR site:ghostbin.com "${e164}"` },
+    { label: "GitHub Gist",       query: `site:gist.github.com "${e164}"` },
+    { label: "S3 bucket leak",    query: `"${e164}" site:s3.amazonaws.com OR site:storage.googleapis.com` },
+    { label: "StackOverflow",     query: `site:stackoverflow.com "${national}"` },
+
+    // ── Credentials / breach ──────────────────────────────────────────────────
     { label: "Credentials / breach", query: `"${e164}" (password OR email OR credentials OR leak OR breach)` },
+    { label: "Database dumps",    query: `"${e164}" (dump OR database OR db OR sql)` },
+    { label: "Password leak",     query: `"${e164}" (password OR passwd OR pwd OR hash OR md5 OR sha1)` },
+    { label: "API key leak",      query: `"${e164}" (api_key OR apikey OR secret OR token OR bearer)` },
+    { label: "Credential combo",  query: `"${e164}" (":" OR ";" OR "|") (gmail OR yahoo OR hotmail OR outlook)` },
+
+    // ── Messaging / chat groups ───────────────────────────────────────────────
+    { label: "WhatsApp group",    query: `"${e164}" site:chat.whatsapp.com` },
+    { label: "Telegram group",    query: `"${e164}" site:t.me` },
+    { label: "Discord server",    query: `"${e164}" site:discord.gg OR site:discord.com` },
+    { label: "Slack workspace",   query: `"${e164}" site:slack.com` },
+
+    // ── Forums / communities ──────────────────────────────────────────────────
     { label: "Forum / community", query: `"${e164}" (forum OR thread OR post OR reply)` },
-    { label: "Resume / CV", query: `"${national}" (resume OR CV OR curriculum vitae)` },
-    { label: "Contact page", query: `"${e164}" (contact OR reach OR call us OR phone)` },
-    { label: "Database dumps", query: `"${e164}" (dump OR database OR db OR sql)` },
-    { label: "Social media any", query: `"${e164}" site:instagram.com OR site:tiktok.com OR site:reddit.com` },
+    { label: "Quora answers",     query: `site:quora.com "${national}"` },
+    { label: "Craigslist ad",     query: `site:craigslist.org "${national}"` },
+    { label: "WordPress site",    query: `"${national}" inurl:wp-content OR inurl:wordpress` },
+
+    // ── Business / professional ───────────────────────────────────────────────
+    { label: "Contact page",      query: `"${e164}" (contact OR reach OR "call us" OR phone)` },
+    { label: "Resume / CV",       query: `"${national}" (resume OR CV OR "curriculum vitae")` },
+    { label: "Business listing",  query: `"${national}" (company OR business OR LLC OR Inc OR Ltd)` },
+    { label: "Yelp listing",      query: `site:yelp.com "${national}"` },
+    { label: "BBB listing",       query: `site:bbb.org "${national}"` },
+    { label: "Yellow Pages",      query: `site:yellowpages.com "${national}"` },
+    { label: "Google Maps biz",   query: `"${national}" site:maps.google.com OR site:google.com/maps` },
+    { label: "Trustpilot review", query: `site:trustpilot.com "${national}"` },
+
+    // ── Public records / legal ────────────────────────────────────────────────
+    { label: "Court records",     query: `"${national}" (court OR case OR lawsuit OR plaintiff OR defendant)` },
+    { label: "Public records",    query: `"${national}" (public record OR government OR .gov)` },
+    { label: "WHOIS / domain",    query: `"${national}" site:whois.com OR site:who.is OR site:domaintools.com` },
+    { label: "SEC filing",        query: `"${national}" site:sec.gov OR site:edgar.sec.gov` },
+
+    // ── Geo / location ────────────────────────────────────────────────────────
+    { label: "Real estate",       query: `"${national}" (realtor OR zillow OR redfin OR property OR listing)` },
+    { label: "Hotel / travel",    query: `"${national}" (hotel OR booking OR airbnb OR reservation)` },
+    { label: "Meetup / events",   query: `"${national}" site:meetup.com OR site:eventbrite.com` },
+
+    // ── Email correlation ─────────────────────────────────────────────────────
     { label: "Email correlation", query: `"${e164}" "@gmail.com" OR "@yahoo.com" OR "@hotmail.com"` },
-    { label: "Google Maps biz", query: `"${national}" site:maps.google.com OR site:google.com/maps` },
+    { label: "Corporate email",   query: `"${national}" "@" (company OR corp OR inc OR llc OR org OR edu OR gov)` },
+
+    // ── Misc / broad ──────────────────────────────────────────────────────────
+    { label: "Social media any",  query: `"${e164}" site:instagram.com OR site:tiktok.com OR site:reddit.com` },
+    { label: "News mention",      query: `"${e164}" (news OR press OR article OR report OR journalist)` },
+    { label: "Dark web index",    query: `"${e164}" site:onion.ly OR site:darkweblink.com` },
+    { label: "Job / recruitment", query: `"${national}" (job OR recruitment OR hiring OR vacancy OR career)` },
+    { label: "Cached versions",   query: `cache:"${national}"` },
   ];
 
   const googleBase = "https://www.google.com/search?q=";
