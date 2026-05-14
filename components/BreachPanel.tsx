@@ -63,7 +63,7 @@ function DataBadge({ type }: { type: string }) {
   const color = getDataTypeColor(type);
   return (
     <span
-      className="text-[9px] font-mono font-semibold px-2 py-0.5 border tracking-wider"
+      className="text-[12px] font-mono font-semibold px-2 py-0.5 border tracking-wider"
       style={{ color, borderColor: color + "70", backgroundColor: color + "18" }}
     >
       {type.toUpperCase()}
@@ -75,7 +75,7 @@ function RiskBadge({ risk }: { risk: string }) {
   const m = PASSWORD_RISK_META[risk] ?? PASSWORD_RISK_META["Unknown"];
   return (
     <span
-      className="text-[9px] font-mono font-bold px-2 py-0.5 border tracking-widest"
+      className="text-[12px] font-mono font-bold px-2 py-0.5 border tracking-widest"
       style={{ color: m.color, borderColor: m.color + "70", backgroundColor: m.color + "18" }}
     >
       {m.label}
@@ -99,7 +99,7 @@ function CopyOpenBtn({
     <button
       onClick={handle}
       disabled={disabled}
-      className={`flex items-center gap-1 text-[9px] font-mono px-2 py-1 border transition-all ${
+      className={`flex items-center gap-1 text-[12px] font-mono px-2 py-1 border transition-all ${
         disabled
           ? "border-[#555]/40 text-[#888] cursor-not-allowed"
           : "border-[#00d9ff]/50 text-[#00d9ff] hover:border-[#00d9ff] hover:bg-[#00d9ff]/10 cursor-pointer"
@@ -120,7 +120,7 @@ function CopyHashBtn({ hash }: { hash: string }) {
         setDone(true);
         setTimeout(() => setDone(false), 1500);
       }}
-      className="flex items-center gap-1 text-[9px] font-mono px-2 py-1 border border-[#00ff41]/40 text-[#00ff41]/70 hover:text-[#00ff41] hover:border-[#00ff41]/70 transition-all"
+      className="flex items-center gap-1 text-[12px] font-mono px-2 py-1 border border-[#00ff41]/40 text-[#00ff41]/70 hover:text-[#00ff41] hover:border-[#00ff41]/70 transition-all"
     >
       {done ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
       {done ? "COPIED" : "COPY"}
@@ -155,13 +155,13 @@ function BreachRow({ breach, index }: { breach: XposedOrNotBreach; index: number
               href={`https://${breach.domain}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[10px] font-mono text-[#00ff41]/60 hover:text-[#00ff41] flex items-center gap-0.5 transition-colors"
+              className="text-[13px] font-mono text-[#00ff41]/60 hover:text-[#00ff41] flex items-center gap-0.5 transition-colors"
             >
               {breach.domain} <ExternalLink className="w-2.5 h-2.5 inline ml-0.5" />
             </a>
           )}
           {breach.verified && (
-            <span className="text-[9px] font-mono text-[#00ff41]/70 border border-[#00ff41]/40 px-1.5 py-0.5">
+            <span className="text-[12px] font-mono text-[#00ff41]/70 border border-[#00ff41]/40 px-1.5 py-0.5">
               VERIFIED
             </span>
           )}
@@ -169,9 +169,9 @@ function BreachRow({ breach, index }: { breach: XposedOrNotBreach; index: number
 
         {/* Right: year + records + risk badge */}
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <span className="text-[10px] font-mono text-[#00ff41]/70 font-semibold">{year}</span>
+          <span className="text-[13px] font-mono text-[#00ff41]/70 font-semibold">{year}</span>
           {breach.xposedRecords > 0 && (
-            <span className="text-[10px] font-mono text-[#00ff41]/60">
+            <span className="text-[13px] font-mono text-[#00ff41]/60">
               {formatCount(breach.xposedRecords)} records
             </span>
           )}
@@ -208,9 +208,9 @@ function CredentialCard({
       {/* Sources */}
       {entry.sources.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[9px] uppercase tracking-widest text-[#00ff41]/60">Source:</span>
+          <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/60">Source:</span>
           {entry.sources.map((s) => (
-            <span key={s} className="text-[10px] font-mono text-[#00d9ff]/80 border border-[#00d9ff]/30 px-1.5 py-0.5">
+            <span key={s} className="text-[13px] font-mono text-[#00d9ff]/80 border border-[#00d9ff]/30 px-1.5 py-0.5">
               {s}
             </span>
           ))}
@@ -244,28 +244,28 @@ function HashField({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[9px] uppercase tracking-widest text-[#00ff41]/60">{label}</span>
+        <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/60">{label}</span>
         <span
-          className="text-[9px] font-mono font-bold px-1.5 py-0.5 border tracking-widest"
+          className="text-[12px] font-mono font-bold px-1.5 py-0.5 border tracking-widest"
           style={{ color: info.color, borderColor: info.color + "60", backgroundColor: info.color + "15" }}
         >
           {info.algorithm}
         </span>
         {!isPartial && (
-          <span className="text-[9px] font-mono font-semibold" style={{ color: diffColor }}>
+          <span className="text-[12px] font-mono font-semibold" style={{ color: diffColor }}>
             {CRACK_DIFFICULTY_LABEL[info.crackable]}
           </span>
         )}
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <code className="font-mono text-[10px] break-all flex-1" style={{ color: info.color }}>
+        <code className="font-mono text-[13px] break-all flex-1" style={{ color: info.color }}>
           {value}
         </code>
         <CopyHashBtn hash={value} />
       </div>
 
-      <p className="text-[9px] font-mono text-[#00ff41]/55 leading-snug">{info.note}</p>
+      <p className="text-[12px] font-mono text-[#00ff41]/55 leading-snug">{info.note}</p>
 
       {!isPartial && info.crackable !== "infeasible" && (
         <div className="flex gap-2 flex-wrap pt-0.5">
@@ -285,7 +285,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
   if (!xon.ok) {
     return (
       <div className="terminal-card p-4 border border-[#555]/30">
-        <div className="text-[10px] uppercase tracking-widest text-[#888] mb-2 flex items-center gap-1.5">
+        <div className="text-[13px] uppercase tracking-widest text-[#888] mb-2 flex items-center gap-1.5">
           <ShieldAlert className="w-3 h-3" /> BREACH DATABASE — XposedOrNot
         </div>
         <div className="text-xs font-mono text-[#aaa]">
@@ -322,7 +322,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
       {/* ── Header ── */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60 mb-1.5 flex items-center gap-1.5">
+          <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60 mb-1.5 flex items-center gap-1.5">
             {xonData.breachCount === 0
               ? <ShieldCheck className="w-3 h-3 text-[#00ff41]" />
               : <ShieldAlert className="w-3 h-3" style={{ color: borderColor }} />}
@@ -353,7 +353,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
 
         {xonData.breachCount > 0 && xonData.xposedDataTypes.length > 0 && (
           <div className="text-right shrink-0">
-            <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/50">Unique Data Types</div>
+            <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50">Unique Data Types</div>
             <div className="font-mono text-sm font-bold text-[#00d9ff] mt-0.5">
               {xonData.xposedDataTypes.length}
             </div>
@@ -365,7 +365,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
       {xonData.breachCount > 0 && (
         <div className="flex items-start gap-2 p-3 border border-[#00d9ff]/20 bg-[#00d9ff]/[0.04]">
           <Info className="w-3.5 h-3.5 text-[#00d9ff]/70 shrink-0 mt-0.5" />
-          <div className="text-[10px] font-mono text-[#00d9ff]/80 leading-relaxed">
+          <div className="text-[13px] font-mono text-[#00d9ff]/80 leading-relaxed">
             <span className="font-bold text-[#00d9ff]">What this means:</span> The badges below show
             WHICH types of data were stolen in each breach (e.g. &ldquo;Passwords&rdquo;, &ldquo;Phone Numbers&rdquo;).
             To see the <span className="text-[#00d9ff] font-bold">actual leaked credential hashes</span> for
@@ -396,7 +396,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
       {/* ── All data types summary ── */}
       {xonData.xposedDataTypes.length > 0 && (
         <div>
-          <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/60 mb-2">All Exposed Data Types (across all breaches)</div>
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/60 mb-2">All Exposed Data Types (across all breaches)</div>
           <div className="flex flex-wrap gap-1.5">
             {xonData.xposedDataTypes.map((dt) => <DataBadge key={dt} type={dt} />)}
           </div>
@@ -408,11 +408,11 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
         <div className="space-y-3">
           <div className="flex items-center gap-2 border-b border-[#ff3e3e]/30 pb-2">
             <Lock className="w-3 h-3 text-[#ff3e3e]" />
-            <span className="text-[10px] uppercase tracking-widest text-[#ff3e3e]/80 font-semibold">
+            <span className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/80 font-semibold">
               ACTUAL CREDENTIAL HASHES — BreachDirectory · {bdData.found} record{bdData.found !== 1 ? "s" : ""} found
             </span>
           </div>
-          <p className="text-[10px] font-mono text-[#00ff41]/60 leading-relaxed">
+          <p className="text-[13px] font-mono text-[#00ff41]/60 leading-relaxed">
             These are the real password hashes from breach databases for this email. Click
             &ldquo;CRACK&rdquo; to copy the hash and open a cracking tool in one action.
           </p>
@@ -421,7 +421,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
               <CredentialCard key={i} entry={entry} index={i} />
             ))}
             {bdData.results.length > 10 && (
-              <div className="text-[10px] font-mono text-[#00ff41]/50 text-center border border-[#00ff41]/15 py-2">
+              <div className="text-[13px] font-mono text-[#00ff41]/50 text-center border border-[#00ff41]/15 py-2">
                 + {bdData.results.length - 10} more records (showing first 10)
               </div>
             )}
@@ -429,10 +429,10 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
         </div>
       ) : bdData && bdData.found === 0 ? (
         <div className="border border-[#00ff41]/15 p-3 space-y-1">
-          <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60 flex items-center gap-1.5">
+          <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60 flex items-center gap-1.5">
             <Lock className="w-3 h-3" /> CREDENTIAL HASHES — BreachDirectory
           </div>
-          <div className="text-[10px] font-mono text-[#00ff41]/60">
+          <div className="text-[13px] font-mono text-[#00ff41]/60">
             No credential records found in BreachDirectory for this email.
           </div>
         </div>
@@ -441,20 +441,20 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
         <div className="border border-[#ffaa00]/30 p-4 space-y-3 bg-[#ffaa00]/[0.04]">
           <div className="flex items-center gap-2">
             <Lock className="w-3.5 h-3.5 text-[#ffaa00]" />
-            <span className="text-[10px] uppercase tracking-widest text-[#ffaa00] font-bold">
+            <span className="text-[13px] uppercase tracking-widest text-[#ffaa00] font-bold">
               GET ACTUAL LEAKED PASSWORDS — BreachDirectory Setup
             </span>
           </div>
 
-          <p className="text-[10px] font-mono text-[#ffaa00]/80 leading-relaxed">
+          <p className="text-[13px] font-mono text-[#ffaa00]/80 leading-relaxed">
             BreachDirectory holds <span className="text-[#ffaa00] font-bold">real password hashes</span> from
             3.5 billion+ leaked credentials. Add a free API key to see the actual SHA-1 / MD5 hashes
             for this email with one-click crack buttons.
           </p>
 
           <div className="space-y-1.5 border-t border-[#ffaa00]/20 pt-3">
-            <div className="text-[9px] uppercase tracking-widest text-[#ffaa00]/70">3 steps to enable:</div>
-            <div className="text-[10px] font-mono text-[#00ff41]/80 space-y-1">
+            <div className="text-[12px] uppercase tracking-widest text-[#ffaa00]/70">3 steps to enable:</div>
+            <div className="text-[13px] font-mono text-[#00ff41]/80 space-y-1">
               <div><span className="text-[#ffaa00]">1.</span> Go to{" "}
                 <a href="https://rapidapi.com/rohan-patra/api/breachdirectory" target="_blank" rel="noopener noreferrer"
                   className="text-[#00d9ff] underline underline-offset-2 hover:text-[#00d9ff]/80">
@@ -475,7 +475,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
           {/* Manual crack tools — always available */}
           {(hasPlaintext || hasEasyCrack) && (
             <div className="space-y-2 border-t border-[#ffaa00]/20 pt-3">
-              <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/60">
+              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/60">
                 Meanwhile — paste hashes from HaveIBeenPwned or Dehashed into these:
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -486,7 +486,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
                   { label: "Dehashed",      url: "https://dehashed.com" },
                 ].map(({ label, url }) => (
                   <a key={label} href={url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 border border-[#00d9ff]/40 text-[#00d9ff] hover:text-[#00d9ff] hover:border-[#00d9ff]/70 hover:bg-[#00d9ff]/10 transition-all">
+                    className="flex items-center gap-1 text-[13px] font-mono px-2 py-1 border border-[#00d9ff]/40 text-[#00d9ff] hover:text-[#00d9ff] hover:border-[#00d9ff]/70 hover:bg-[#00d9ff]/10 transition-all">
                     <ExternalLink className="w-2.5 h-2.5" /> {label}
                   </a>
                 ))}
@@ -499,7 +499,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
       {/* ── Breach list from XposedOrNot ── */}
       {sorted.length > 0 && (
         <div className="space-y-3">
-          <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60 border-b border-[#00ff41]/15 pb-2 font-semibold">
+          <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60 border-b border-[#00ff41]/15 pb-2 font-semibold">
             Breach Details — newest first
           </div>
           <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1 scrollbar-thin">
@@ -510,7 +510,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
 
       {/* Clean state footer */}
       {xonData.breachCount === 0 && (
-        <div className="text-[10px] font-mono text-[#00ff41]/50 border-t border-[#00ff41]/15 pt-3">
+        <div className="text-[13px] font-mono text-[#00ff41]/50 border-t border-[#00ff41]/15 pt-3">
           Use the OSINT matrix below to cross-check HaveIBeenPwned, Dehashed, IntelligenceX, and LeakCheck.
         </div>
       )}

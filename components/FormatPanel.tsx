@@ -72,7 +72,7 @@ export default function FormatPanel({ data }: Props) {
       transition={{ duration: 0.3, delay: 0.15 }}
       className="terminal-card p-4 space-y-4"
     >
-      <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
+      <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
         [ FORMAT CROSS-REFERENCE ]
       </div>
 
@@ -80,18 +80,18 @@ export default function FormatPanel({ data }: Props) {
         {formats.map((f) => (
           <div key={f.label} className="border border-[#00ff41]/10 p-2.5 space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-widest text-[#00ff41]/50">{f.label}</span>
+              <span className="text-[13px] uppercase tracking-widest text-[#00ff41]/50">{f.label}</span>
               <CopyButton text={f.value} />
             </div>
             <div className="font-mono text-sm text-[#00d9ff] font-bold">{f.value}</div>
-            <div className="text-[9px] text-[#00ff41]/55">{f.description}</div>
+            <div className="text-[12px] text-[#00ff41]/55">{f.description}</div>
           </div>
         ))}
       </div>
 
       {/* Validity matrix */}
       <div className="space-y-1.5">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">VALIDATION MATRIX</div>
+        <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">VALIDATION MATRIX</div>
         {validityItems.map((v) => (
           <div key={v.label} className="flex items-center gap-3">
             <span
@@ -101,7 +101,7 @@ export default function FormatPanel({ data }: Props) {
             />
             <span className="font-mono text-xs text-[#00ff41]/70">{v.label}</span>
             <span
-              className={`text-[10px] font-mono ml-auto ${
+              className={`text-[13px] font-mono ml-auto ${
                 v.value ? "text-[#00ff41]" : "text-[#ff3e3e]"
               }`}
             >
@@ -113,7 +113,7 @@ export default function FormatPanel({ data }: Props) {
 
       {/* tel: link */}
       <div className="border border-[#00ff41]/10 p-2.5 space-y-1">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">HTML TEL LINK</div>
+        <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">HTML TEL LINK</div>
         <div className="font-mono text-xs text-[#00ff41]/60 break-all">
           <span className="text-[#888]">{"<a href="}</span>
           <span className="text-[#00d9ff]">&quot;{aggregated.formatRfc3966}&quot;</span>

@@ -10,7 +10,7 @@ interface Props {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-start py-1.5 border-b border-[#00ff41]/[0.08] last:border-b-0">
-      <span className="text-[10px] uppercase tracking-widest text-[#00ff41]/60 shrink-0 w-32">{label}</span>
+      <span className="text-[13px] uppercase tracking-widest text-[#00ff41]/60 shrink-0 w-32">{label}</span>
       <span className="text-xs font-mono text-right text-[#00ff41]/90">{value}</span>
     </div>
   );
@@ -31,7 +31,7 @@ export default function CountryPanel({ intel }: Props) {
       transition={{ duration: 0.3, delay: 0.1 }}
       className="terminal-card p-4 space-y-3"
     >
-      <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
+      <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
         [ COUNTRY INTELLIGENCE ]
       </div>
 
@@ -65,12 +65,12 @@ export default function CountryPanel({ intel }: Props) {
 
       {/* Timezones */}
       <div className="space-y-1">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">TIMEZONES</div>
+        <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">TIMEZONES</div>
         <div className="flex flex-wrap gap-1.5">
           {intel.timezones.map((tz) => (
             <span
               key={tz}
-              className="text-[10px] px-2 py-0.5 border border-[#00d9ff]/30 text-[#00d9ff] font-mono"
+              className="text-[13px] px-2 py-0.5 border border-[#00d9ff]/30 text-[#00d9ff] font-mono"
             >
               {tz}
             </span>

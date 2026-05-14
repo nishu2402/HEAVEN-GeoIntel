@@ -77,7 +77,7 @@ export default function HistorySidebar({ onSelect, currentE164 }: Props) {
         onClick={() => setOpen((p) => !p)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#00ff41]/5 transition-colors"
       >
-        <div className="flex items-center gap-2 text-[#00ff41]/60 uppercase tracking-widest text-[10px]">
+        <div className="flex items-center gap-2 text-[#00ff41]/60 uppercase tracking-widest text-[13px]">
           <Clock className="w-3 h-3" />[ RECENT QUERIES ] ({history.length})
         </div>
         {open ? <ChevronDown className="w-3 h-3 text-[#00ff41]/60" /> : <ChevronRight className="w-3 h-3 text-[#00ff41]/60" />}
@@ -113,7 +113,7 @@ export default function HistorySidebar({ onSelect, currentE164 }: Props) {
             <div className="border-t border-[#00ff41]/15 px-4 py-2.5">
               <button
                 onClick={clearHistory}
-                className="flex items-center gap-1.5 text-[#ff3e3e]/50 hover:text-[#ff3e3e] transition-colors text-[10px] uppercase tracking-widest"
+                className="flex items-center gap-1.5 text-[#ff3e3e]/50 hover:text-[#ff3e3e] transition-colors text-[13px] uppercase tracking-widest"
               >
                 <Trash2 className="w-3 h-3" /> CLEAR HISTORY
               </button>

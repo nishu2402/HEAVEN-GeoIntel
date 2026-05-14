@@ -356,7 +356,7 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
           [ OSINT PIVOT MATRIX ] — {links.length} investigation targets
         </div>
       </div>
-      <div className="text-[10px] text-[#00ff41]/25 italic">
+      <div className="text-[13px] text-[#00ff41]/25 italic">
         Opens in new tab. Use only within your authorized scope.
       </div>
 
@@ -364,12 +364,12 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
         items.length === 0 ? null : (
           <div key={cat} className="space-y-1.5">
             <div
-              className="text-[9px] uppercase tracking-widest font-mono pb-0.5"
+              className="text-[12px] uppercase tracking-widest font-mono pb-0.5"
               style={{ color: (CATEGORY_META[cat]?.color ?? "#00ff41") + "60" }}
             >
               — {CATEGORY_META[cat]?.label ?? cat} —
             </div>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {items.map((link) => (
                 <a
                   key={link.label}
@@ -383,10 +383,10 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
                     <div className="text-xs font-bold truncate" style={{ color: link.color }}>
                       {link.label}
                       {link.usOnly && (
-                        <span className="ml-1 text-[8px] text-[#00ff41]/25 font-normal">[US]</span>
+                        <span className="ml-1 text-[11px] text-[#00ff41]/25 font-normal">[US]</span>
                       )}
                     </div>
-                    <div className="text-[9px] text-[#00ff41]/55 mt-0.5 leading-tight line-clamp-2">
+                    <div className="text-[12px] text-[#00ff41]/55 mt-0.5 leading-tight line-clamp-2">
                       {link.description}
                     </div>
                   </div>

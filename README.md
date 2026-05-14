@@ -99,12 +99,13 @@
 | 🔍 **Phone: Google Dorks** | 18 pre-built dorks (LinkedIn · Facebook · Pastebin · credential dumps · PDFs) |
 | 📊 **Phone: Format Variants** | 11 permutations for database/OSINT searching |
 | 🗺️ **NPA Database** | 350+ US/CA area codes → state · metro · timezone (offline) |
-| 💥 **Breach Intelligence** | XposedOrNot — 1000+ breach databases, no API key required |
+| 💥 **Breach Intelligence** | XposedOrNot (free, no key) + BreachDirectory (real credential hashes, RapidAPI key) |
+| 🔐 **Identity Enrichment** | FullContact person enrichment — real name · employer · social profiles · linked contacts |
 | 🌍 **Country Dataset** | 40+ countries — capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache** | 24h in-memory LRU (500 entries max) — repeat lookups instant |
 | 🚦 **Rate Limiting** | 10 requests/minute/IP — token bucket |
-| 🏗️ **Stack** | Next.js 15 · TypeScript · Tailwind CSS · Framer Motion · libphonenumber-js |
-| 🎨 **UI Theme** | Matrix/terminal — Canvas katakana rain · CRT scanlines · JetBrains Mono |
+| 🏗️ **Stack** | Next.js 14 · TypeScript · Tailwind CSS · Framer Motion · libphonenumber-js |
+| 🎨 **UI Theme** | Matrix/terminal — Canvas katakana rain · CRT scanlines · JetBrains Mono · fully responsive |
 
 </div>
 
@@ -192,7 +193,7 @@ Every phone lookup returns real data derived from the number structure and bundl
 |---|---|
 | **Result Header** | E.164 · country flag · line type badge · caller name (API) · ambiguity warning |
 | **Threat Assessment** | Fraud score · VoIP/prepaid/abuse flags · risk level |
-| **Pentester Panel** | Live local time · call window (business/evening/late/weekend) · NPA area code intel · attack surface analysis |
+| **Phone OSINT Intelligence** | **Intelligence Score (0–100)** · Target Profile classifier · Attack Vector grid (Vishing/Smishing/SIM Swap/Spoofing/Pretexting/Location) · live local time · call window · NPA area code intel · Quick OSINT Lookups · signal flags |
 | **Number Structure** | Country code · area code · subscriber number · NXX prefix — country-specific extraction (US/CA · GB · DE · FR · AU) |
 | **Metric Cards** | Only populated fields — no N/A cards. 6–8 offline; up to 16 with API keys |
 | **Format Cross-Reference** | E.164 · International · National · RFC 3966 — all copyable |
@@ -254,10 +255,11 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 
 | Panel | What It Shows |
 |---|---|
-| **Identity Header** | Confirmed name (Gravatar) or inferred name (username pattern) · avatar photo · location · threat score bar |
+| **Identity Header** | Confirmed name (FullContact → Gravatar → inferred) · avatar photo · job title · employer · location · bio · threat score bar |
 | **Threat Score** | 0–100 risk score — breach count · password risk level · recency · reputation signals |
-| **Breach Database** | Real breach results from XposedOrNot — 1000+ databases · no API key required |
-| **Breach Detail** | Per-breach: name · year · record count · exposed data types · password risk level (Plaintext / Easy Crack / Hashed) |
+| **FullContact Enrichment** | Real name · age · gender · social profiles · linked emails & phones · employment history (FullContact Person API, optional key) |
+| **Breach Database** | XposedOrNot — 1000+ databases, no key required. Per-breach: name · year · records · exposed data types · password risk level (Plaintext/Easy Crack/Hashed) |
+| **Credential Hashes** | BreachDirectory — real SHA-1/MD5 password hashes for the email with one-click crack buttons (CrackStation · Hashes.com · Hashkiller) — optional RapidAPI key |
 | **Risk Flags** | Critical banners when plaintext passwords or crackable hashes are found |
 | **Email Classification** | Provider type (corporate/free/disposable/privacy/government/educational) · disposable detection (300+ domains) · role address detection |
 | **Gravatar Profile** | Display name · username · location · about · linked social accounts — free, no key |
@@ -265,7 +267,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **Validation** | AbstractAPI: deliverability · quality score (0–1) · SMTP validity · MX records · catch-all detection |
 | **Deliverability** | Hunter.io: deliverable/risky/undeliverable · confidence score · SMTP check |
 | **OSINT Matrix** | 25 investigation links across 4 categories |
-| **Report Export** | Full intelligence report as `.txt` including all breach details |
+| **Report Export** | Full intelligence report as `.txt` including all breach details and FullContact data |
 
 </div>
 
@@ -335,6 +337,8 @@ The app works fully without API keys. Add keys to `.env.local` for deeper intell
 
 | Service | What It Adds | Free Tier |
 |---|---|---|
+| **FullContact** | Real name · age · gender · job title · employer · social profiles · linked emails & phones | 500/month |
+| **BreachDirectory** (RapidAPI) | Actual SHA-1/MD5 credential hashes from 3.5B+ leaked records — one-click crack buttons | 50/day |
 | **Hunter.io** | Email deliverability · confidence score · SMTP check | 25/month |
 | **AbstractAPI** (email) | SMTP validity · MX records · quality score · catch-all detection | 250/month |
 | **EmailRep.io** | Reputation · breach flags · platform registrations — works without key | Higher quota with key |
@@ -347,16 +351,18 @@ The app works fully without API keys. Add keys to `.env.local` for deeper intell
 # Phone sources
 NUMVERIFY_API_KEY=
 IPQS_API_KEY=
-ABSTRACT_API_KEY=
+ABSTRACT_API_KEY=          # also used for email validation
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 
 # Email sources
 HUNTER_API_KEY=
 EMAILREP_API_KEY=
+FULLCONTACT_API_KEY=       # person enrichment — name, employer, social profiles
+RAPIDAPI_KEY=              # BreachDirectory — real credential hashes (3.5B+ records)
 ```
 
-Sign up: [IPQualityScore](https://www.ipqualityscore.com) · [NumVerify](https://numverify.com) · [AbstractAPI](https://www.abstractapi.com) · [Twilio](https://www.twilio.com) · [Hunter.io](https://hunter.io) · [EmailRep.io](https://emailrep.io)
+Sign up: [IPQualityScore](https://www.ipqualityscore.com) · [NumVerify](https://numverify.com) · [AbstractAPI](https://www.abstractapi.com) · [Twilio](https://www.twilio.com) · [Hunter.io](https://hunter.io) · [EmailRep.io](https://emailrep.io) · [FullContact](https://www.fullcontact.com) · [BreachDirectory on RapidAPI](https://rapidapi.com/rohan-patra/api/breachdirectory)
 
 ---
 
@@ -409,6 +415,8 @@ Browser → POST /api/email-lookup { email: "target@domain.com" }
                    Gravatar       → MD5 hash → real name, avatar, location, linked accounts (free, no key)
                    XposedOrNot    → breach database lookup — 1000+ sources (free, no key)
                    EmailRep.io    → reputation, breach flags, platform registrations (free, no key)
+                   FullContact    → person enrichment — real name, employer, social profiles (FULLCONTACT_API_KEY)
+                   BreachDirectory→ real SHA-1/MD5 credential hashes — 3.5B+ records (RAPIDAPI_KEY)
                    AbstractAPI    → SMTP/MX validation, quality score (ABSTRACT_API_KEY)
                    Hunter.io      → deliverability check, confidence score (HUNTER_API_KEY)
 ```
@@ -501,7 +509,7 @@ components/
 │  ── Phone ────────────────────────────────────────────────────────────
 ├── PhoneInput.tsx               ← 250+ country combobox + AsYouType formatter + validation
 ├── ResultsDashboard.tsx         ← All phone result panels — no N/A cards
-├── PentesterPanel.tsx           ← Live clock, call window, NPA intel, attack surface flags
+├── PentesterPanel.tsx           ← Intelligence Score · Target Profile · Attack Vector grid · call window · NPA intel · OSINT quick-lookups
 ├── MetricCard.tsx               ← Animated metric tile
 ├── FraudScoreBar.tsx            ← Animated 0–100 fraud score bar
 ├── NumberBreakdown.tsx          ← Visual digit structure breakdown
@@ -518,9 +526,9 @@ components/
 └── ReportExport.tsx             ← Download report as .txt or .html
 │
 │  ── Email ────────────────────────────────────────────────────────────
-├── EmailInput.tsx               ← Email input with regex validation + status line
-├── EmailResultsDashboard.tsx    ← Full email results — threat score, breach, identity, reputation
-├── BreachPanel.tsx              ← Per-breach detail, password risk, warnings
+├── EmailInput.tsx               ← Email input with regex validation + status line · mobile-optimised layout
+├── EmailResultsDashboard.tsx    ← Full email results — threat score, FullContact, breach, identity, reputation
+├── BreachPanel.tsx              ← Per-breach detail · password risk · BreachDirectory credential hash display · one-click crack buttons
 └── EmailOsintPivots.tsx         ← 25 investigation links across 4 categories
 
 lib/
@@ -529,6 +537,7 @@ lib/
 ├── countryIntel.ts              ← Bundled dataset for 40+ countries (zero API)
 ├── usNpaDatabase.ts             ← US/CA NPA area code database (350+ entries, offline)
 ├── disposableEmailDomains.ts    ← 300+ disposable domains + webmail + privacy + role prefix sets
+├── hashDetect.ts                ← Hash type detection (MD5 · SHA-1 · bcrypt · SHA-256) + crack difficulty + best tool routing
 ├── types.ts                     ← Full TypeScript interface tree (phone + email)
 ├── cache.ts                     ← 24h in-memory Map cache
 ├── rateLimit.ts                 ← Token-bucket rate limiter (10/min/IP)
@@ -549,19 +558,19 @@ lib/
 
 | Layer | Technology |
 |---|---|
-| **Framework** | Next.js 15 (App Router) |
+| **Framework** | Next.js 14 (App Router) |
 | **Language** | TypeScript — full interface tree for all data types |
 | **Phone Parsing** | `libphonenumber-js` — Google's libphonenumber compiled to JS |
-| **UI** | Tailwind CSS · shadcn/ui components |
+| **UI** | Tailwind CSS · shadcn/ui · fully responsive (mobile · tablet · desktop) |
 | **Animation** | Framer Motion (boot sequence) · Canvas API (katakana rain · QR code) |
-| **Breach Data** | XposedOrNot (free · no key) |
-| **Profile Data** | Gravatar (free · no key) |
+| **Breach Data** | XposedOrNot (free · no key) · BreachDirectory via RapidAPI (credential hashes) |
+| **Identity Enrichment** | FullContact Person API (optional) · Gravatar (free · no key) |
 | **Reputation** | EmailRep.io (free · no key) |
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
 | **Email Enrichment** | Hunter.io · AbstractAPI (both optional) |
 | **Caching** | In-memory Map · LRU eviction · 24h TTL · 500 entries max |
 | **Rate Limiting** | Token-bucket per IP · 10 req/min |
-| **Font** | JetBrains Mono (monospace) · system sans for body |
+| **Font** | JetBrains Mono (monospace) · 15px base for improved readability |
 
 </div>
 
@@ -608,6 +617,12 @@ These fields require API keys in `.env.local`. Country, type, timezone, and all 
 
 ### Email breach panel shows no data
 XposedOrNot may rate-limit repeated lookups. Wait a moment and retry. A clean result ("no exposures found") is also a valid — and good — outcome.
+
+### Credential hashes not showing (BreachDirectory)
+BreachDirectory requires a `RAPIDAPI_KEY` in `.env.local`. Subscribe to the free tier (50 lookups/day) at [rapidapi.com → BreachDirectory](https://rapidapi.com/rohan-patra/api/breachdirectory), copy your key, and restart the server.
+
+### FullContact enrichment panel missing
+Add `FULLCONTACT_API_KEY` to `.env.local`. FullContact offers a free developer tier. If configured but showing no data, the email has no FullContact record — this is normal for uncommon addresses.
 
 ### `npm run dev` fails with MODULE_NOT_FOUND
 Use `bash start.sh` or `npm run setup` instead. Both invoke Next.js via `node node_modules/next/dist/bin/next` and bypass symlink issues.

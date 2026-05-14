@@ -144,36 +144,36 @@ function PageContent() {
 
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header */}
-        <header className="border-b border-[#00ff41]/20 px-6 py-3 flex items-center justify-between bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-20">
-          <div className="flex items-center gap-3">
-            <Terminal className="w-5 h-5 text-[#00ff41]" />
-            <span className="font-mono font-bold text-sm tracking-widest">
+        <header className="border-b border-[#00ff41]/20 px-4 sm:px-6 py-3 flex items-center justify-between bg-[#0a0a0a]/80 backdrop-blur-sm sticky top-0 z-20">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Terminal className="w-5 h-5 text-[#00ff41] shrink-0" />
+            <span className="font-mono font-bold text-sm sm:text-base tracking-widest">
               <span className="glow-green">HEAVEN</span>
               <span className="text-[#00ff41]/50">-</span>
               <span className="text-[#00d9ff]">GeoIntel</span>
             </span>
-            <span className="text-[10px] text-[#00ff41]/30 uppercase tracking-widest hidden sm:block">
+            <span className="text-[11px] text-[#00ff41]/40 uppercase tracking-widest hidden md:block">
               {"//"} osint intelligence platform
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 text-[10px] text-[#00ff41]/30 font-mono hidden md:flex">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <div className="flex items-center gap-1.5 text-[11px] text-[#00ff41]/40 font-mono hidden lg:flex">
               <Shield className="w-3 h-3" />
               DEFENSIVE OSINT ONLY
             </div>
-            <div className="text-[10px] text-[#00ff41]/25 font-mono hidden sm:block">
-              HEAVEN-GeoIntel v2.0
+            <div className="text-[11px] text-[#00ff41]/30 font-mono hidden sm:block">
+              v2.0
             </div>
           </div>
         </header>
 
         {/* Main */}
-        <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
+        <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-5xl">
 
           {/* Boot sequence */}
           {isBooting && (
-            <div className="mb-8 terminal-card p-6">
-              <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40 mb-4">
+            <div className="mb-6 terminal-card p-4 sm:p-6">
+              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50 mb-4">
                 [ SYSTEM INIT ] — HEAVEN-GeoIntel OSINT Intelligence Platform
               </div>
               <BootSequence onDone={handleBootDone} />
@@ -182,29 +182,26 @@ function PageContent() {
 
           {/* Input card */}
           {!isBooting && (
-            <div className="terminal-card p-6 mb-4 space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40">
+            <div className="terminal-card p-4 sm:p-5 mb-4 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50">
                   [ TARGET ACQUISITION ]
                 </div>
-                {/* Mode tabs */}
-                <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                {/* Mode tabs — full width on mobile */}
+                <div className="flex gap-2 font-mono text-sm">
                   {(["phone", "email"] as Mode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => setMode(m)}
-                      className={`px-3 py-1.5 border tracking-widest uppercase transition-all ${
+                      className={`flex-1 sm:flex-none px-4 py-2 border tracking-widest uppercase transition-all text-sm ${
                         mode === m
                           ? "border-[#00ff41] text-[#00ff41] bg-[#00ff41]/10 shadow-[0_0_10px_rgba(0,255,65,0.15)]"
-                          : "border-[#00ff41]/20 text-[#00ff41]/35 hover:border-[#00ff41]/50 hover:text-[#00ff41]/60"
+                          : "border-[#00ff41]/25 text-[#00ff41]/50 hover:border-[#00ff41]/55 hover:text-[#00ff41]/70"
                       }`}
                     >
-                      {m === "phone" ? "[ PHONE ]" : "[ EMAIL ]"}
+                      {m === "phone" ? "📡 PHONE" : "✉ EMAIL"}
                     </button>
                   ))}
-                  <span className="text-[#00ff41]/20 ml-1 hidden sm:block">
-                    · offline-first
-                  </span>
                 </div>
               </div>
 
@@ -239,7 +236,7 @@ function PageContent() {
           {/* Phone error */}
           {mode === "phone" && phoneStatus === "error" && (
             <div className="mt-6 terminal-card p-5 border border-[#ff3e3e]/30">
-              <div className="text-[10px] uppercase tracking-widest text-[#ff3e3e]/60 mb-2">
+              <div className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/60 mb-2">
                 [ LOOKUP FAILED ]
               </div>
               <div className="text-[#ff3e3e] font-mono text-sm">
@@ -251,7 +248,7 @@ function PageContent() {
                   setPhoneStatus("idle");
                   router.replace("/", { scroll: false });
                 }}
-                className="mt-3 text-[10px] uppercase tracking-widest text-[#00ff41]/50 hover:text-[#00ff41] transition-colors font-mono"
+                className="mt-3 text-[13px] uppercase tracking-widest text-[#00ff41]/50 hover:text-[#00ff41] transition-colors font-mono"
               >
                 ← RETRY
               </button>
@@ -261,7 +258,7 @@ function PageContent() {
           {/* Email error */}
           {mode === "email" && emailStatus === "error" && (
             <div className="mt-6 terminal-card p-5 border border-[#ff3e3e]/30">
-              <div className="text-[10px] uppercase tracking-widest text-[#ff3e3e]/60 mb-2">
+              <div className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/60 mb-2">
                 [ LOOKUP FAILED ]
               </div>
               <div className="text-[#ff3e3e] font-mono text-sm">
@@ -270,7 +267,7 @@ function PageContent() {
               </div>
               <button
                 onClick={() => setEmailStatus("idle")}
-                className="mt-3 text-[10px] uppercase tracking-widest text-[#00ff41]/50 hover:text-[#00ff41] transition-colors font-mono"
+                className="mt-3 text-[13px] uppercase tracking-widest text-[#00ff41]/50 hover:text-[#00ff41] transition-colors font-mono"
               >
                 ← RETRY
               </button>
@@ -289,11 +286,11 @@ function PageContent() {
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-[#00ff41]/15 px-6 py-4 bg-[#0a0a0a]/80 backdrop-blur-sm">
-          <div className="text-center text-[10px] font-mono text-[#00ff41]/25 tracking-widest uppercase">
-            OSINT METADATA ONLY · NO REAL-TIME LOCATION · NO GPS TRACKING · USE RESPONSIBLY
+        <footer className="border-t border-[#00ff41]/15 px-4 py-4 bg-[#0a0a0a]/80 backdrop-blur-sm">
+          <div className="text-center text-[12px] font-mono text-[#00ff41]/35 tracking-widest uppercase">
+            OSINT METADATA ONLY · NO REAL-TIME LOCATION · USE RESPONSIBLY
           </div>
-          <div className="text-center text-[9px] font-mono text-[#00ff41]/15 mt-1 tracking-wide">
+          <div className="text-center text-[11px] font-mono text-[#00ff41]/20 mt-1 tracking-wide">
             Powered by libphonenumber-js · Offline-first · Open source intelligence
           </div>
         </footer>

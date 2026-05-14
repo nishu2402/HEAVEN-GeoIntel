@@ -36,7 +36,7 @@ function CopyBtn({ text }: { text: string }) {
 function InfoRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div className="flex items-start gap-2 py-1.5 border-b border-[#00ff41]/10">
-      <span className="text-[9px] uppercase tracking-widest text-[#00ff41]/55 w-36 shrink-0 pt-0.5">{label}</span>
+      <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/55 w-36 shrink-0 pt-0.5">{label}</span>
       <span className="font-mono text-xs flex-1 break-all" style={{ color: accent ?? "#00ff41" }}>
         {value}
       </span>
@@ -47,7 +47,7 @@ function InfoRow({ label, value, accent }: { label: string; value: string; accen
 function Badge({ text, color = "#00ff41", bg }: { text: string; color?: string; bg?: string }) {
   return (
     <span
-      className="text-[9px] font-mono font-bold px-2 py-0.5 border tracking-widest"
+      className="text-[12px] font-mono font-bold px-2 py-0.5 border tracking-widest"
       style={{ color, borderColor: color + "70", backgroundColor: bg ?? color + "18" }}
     >
       {text}
@@ -91,11 +91,11 @@ function ThreatScoreBar({ score }: { score: number }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5" style={{ color }} />
-          <span className="text-[9px] uppercase tracking-widest text-[#00ff41]/70">Threat Score</span>
+          <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/70">Threat Score</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono font-bold text-lg" style={{ color }}>{score}</span>
-          <span className="text-[9px] font-mono text-[#00ff41]/55">/100</span>
+          <span className="text-[12px] font-mono text-[#00ff41]/55">/100</span>
           <Badge text={label} color={color} />
         </div>
       </div>
@@ -312,7 +312,7 @@ export default function EmailResultsDashboard({ data }: Props) {
     >
       {/* ── Identity header ── */}
       <div className="terminal-card p-5 space-y-4">
-        <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/70">
+        <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/70">
           [ EMAIL INTELLIGENCE RESULT ]
         </div>
 
@@ -333,7 +333,7 @@ export default function EmailResultsDashboard({ data }: Props) {
                   <User className="w-4 h-4 text-[#00d9ff] shrink-0" />
                   <span className="text-xl font-bold text-[#00d9ff] font-mono">{nameToShow}</span>
                   <span className={cn(
-                    "text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 border",
+                    "text-[12px] font-mono uppercase tracking-widest px-1.5 py-0.5 border",
                     nameSource === "fullcontact"
                       ? "text-[#00d9ff] border-[#00d9ff]/30 bg-[#00d9ff]/5"
                       : nameSource === "gravatar"
@@ -431,11 +431,11 @@ export default function EmailResultsDashboard({ data }: Props) {
           className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40"
         >
           <div className="flex items-center justify-between">
-            <div className="text-[9px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
+            <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
               <User className="w-3 h-3" />
               FULLCONTACT ENRICHMENT — additional identity data
             </div>
-            <span className="text-[#00d9ff]/25 font-mono text-[8px]">1,000+ data sources</span>
+            <span className="text-[#00d9ff]/25 font-mono text-[11px]">1,000+ data sources</span>
           </div>
 
           {/* Age / gender — not shown in header */}
@@ -449,7 +449,7 @@ export default function EmailResultsDashboard({ data }: Props) {
           {/* Social profiles */}
           {fcData.profiles.length > 0 && (
             <div>
-              <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-2">SOCIAL PROFILES</div>
+              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-2">SOCIAL PROFILES</div>
               <div className="flex flex-wrap gap-1.5">
                 {fcData.profiles.map((p) => (
                   <a
@@ -457,7 +457,7 @@ export default function EmailResultsDashboard({ data }: Props) {
                     href={p.url || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-[10px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 hover:bg-[#00d9ff]/10 transition-colors"
+                    className="flex items-center gap-1 text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 hover:bg-[#00d9ff]/10 transition-colors"
                   >
                     <ExternalLink className="w-2.5 h-2.5" />
                     {p.platform}{p.username ? `: ${p.username}` : ""}
@@ -472,7 +472,7 @@ export default function EmailResultsDashboard({ data }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[#00ff41]/10 pt-3">
               {fcData.otherEmails.length > 0 && (
                 <div>
-                  <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
+                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
                     <Mail className="w-2.5 h-2.5" /> OTHER EMAILS
                   </div>
                   {fcData.otherEmails.map((e) => (
@@ -485,7 +485,7 @@ export default function EmailResultsDashboard({ data }: Props) {
               )}
               {fcData.phones.length > 0 && (
                 <div>
-                  <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
+                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
                     <Phone className="w-2.5 h-2.5" /> PHONE NUMBERS
                   </div>
                   {fcData.phones.map((p) => (
@@ -502,7 +502,7 @@ export default function EmailResultsDashboard({ data }: Props) {
           {/* Employment history */}
           {fcData.employment.length > 0 && (
             <div className="border-t border-[#00ff41]/10 pt-3">
-              <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-2 flex items-center gap-1">
+              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-2 flex items-center gap-1">
                 <Briefcase className="w-2.5 h-2.5" /> EMPLOYMENT HISTORY
               </div>
               <div className="space-y-1">
@@ -534,30 +534,30 @@ export default function EmailResultsDashboard({ data }: Props) {
           transition={{ delay: 0.25 }}
           className="terminal-card p-4 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.03]"
         >
-          <div className="text-[9px] uppercase tracking-widest text-[#ff3e3e]/70 mb-3 flex items-center gap-1.5">
+          <div className="text-[12px] uppercase tracking-widest text-[#ff3e3e]/70 mb-3 flex items-center gap-1.5">
             <AlertTriangle className="w-3 h-3" /> ADDITIONAL RISK FLAGS — EmailRep.io
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {repData.credentialsLeaked && (
-              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff1a1a]">
+              <div className="flex items-start gap-2 text-[13px] font-mono text-[#ff1a1a]">
                 <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
                 Credentials confirmed in breach database
               </div>
             )}
             {repData.dataBreach && !repData.credentialsLeaked && (
-              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff3e3e]">
+              <div className="flex items-start gap-2 text-[13px] font-mono text-[#ff3e3e]">
                 <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
                 Appeared in one or more data breaches
               </div>
             )}
             {repData.maliciousActivity && (
-              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ff3e3e]">
+              <div className="flex items-start gap-2 text-[13px] font-mono text-[#ff3e3e]">
                 <XCircle className="w-3 h-3 mt-0.5 shrink-0" />
                 Associated with phishing / spam / fraud
               </div>
             )}
             {repData.suspicious && (
-              <div className="flex items-start gap-2 text-[10px] font-mono text-[#ffaa00]">
+              <div className="flex items-start gap-2 text-[13px] font-mono text-[#ffaa00]">
                 <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
                 Flagged suspicious by reputation engine
               </div>
@@ -571,7 +571,7 @@ export default function EmailResultsDashboard({ data }: Props) {
 
         {/* Offline classification */}
         <div className="terminal-card p-4 space-y-1">
-          <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
             {PROVIDER_ICONS[analysis.providerType]}
             EMAIL CLASSIFICATION — offline
           </div>
@@ -590,7 +590,7 @@ export default function EmailResultsDashboard({ data }: Props) {
 
         {/* Gravatar profile */}
         <div className="terminal-card p-4 space-y-1">
-          <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
             <User className="w-3 h-3" />
             GRAVATAR PROFILE — real identity
           </div>
@@ -604,7 +604,7 @@ export default function EmailResultsDashboard({ data }: Props) {
               {gravatar.profileUrl && <InfoRow label="Profile URL" value={gravatar.profileUrl} />}
               {gravatar.accounts.length > 0 && (
                 <div className="pt-2">
-                  <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5">LINKED ACCOUNTS</div>
+                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5">LINKED ACCOUNTS</div>
                   <div className="flex flex-wrap gap-1.5">
                     {gravatar.accounts.map((acc) => (
                       <a
@@ -612,7 +612,7 @@ export default function EmailResultsDashboard({ data }: Props) {
                         href={acc.url || "#"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-[10px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 transition-colors"
+                        className="flex items-center gap-1 text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 transition-colors"
                       >
                         <ExternalLink className="w-2.5 h-2.5" />
                         {acc.shortname}: {acc.username}
@@ -635,7 +635,7 @@ export default function EmailResultsDashboard({ data }: Props) {
 
         {/* EmailRep.io */}
         <div className="terminal-card p-4 space-y-1">
-          <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
             <Shield className="w-3 h-3" /> REPUTATION — EmailRep.io
           </div>
           {repData ? (
@@ -656,10 +656,10 @@ export default function EmailResultsDashboard({ data }: Props) {
               <InfoRow label="Last Seen" value={repData.lastSeen ?? "N/A"} />
               {platforms.length > 0 && (
                 <div className="pt-2">
-                  <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5">REGISTERED PLATFORMS</div>
+                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5">REGISTERED PLATFORMS</div>
                   <div className="flex flex-wrap gap-1.5">
                     {platforms.map((p) => (
-                      <span key={p} className="text-[10px] font-mono border border-[#00ff41]/30 bg-[#00ff41]/5 text-[#00ff41] px-2 py-0.5">
+                      <span key={p} className="text-[13px] font-mono border border-[#00ff41]/30 bg-[#00ff41]/5 text-[#00ff41] px-2 py-0.5">
                         {p}
                       </span>
                     ))}
@@ -677,7 +677,7 @@ export default function EmailResultsDashboard({ data }: Props) {
         {/* Abstract + Hunter */}
         <div className="space-y-4">
           <div className="terminal-card p-4 space-y-1">
-            <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
+            <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
               <CheckCircle2 className="w-3 h-3" /> VALIDATION — Abstract API
             </div>
             {abstractData ? (
@@ -695,14 +695,14 @@ export default function EmailResultsDashboard({ data }: Props) {
                 {abstractData.autocorrect && <InfoRow label="Did You Mean" value={abstractData.autocorrect} accent="#ffaa00" />}
               </>
             ) : (
-              <div className="text-center py-3 text-[#888] text-[10px] font-mono">
+              <div className="text-center py-3 text-[#888] text-[13px] font-mono">
                 {abstract.error === "NOT_CONFIGURED" ? "Add ABSTRACT_API_KEY — free 250/month" : abstract.error ?? "No data"}
               </div>
             )}
           </div>
 
           <div className="terminal-card p-4 space-y-1">
-            <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
+            <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
               <Hash className="w-3 h-3" /> DELIVERABILITY — Hunter.io
             </div>
             {hunterData ? (
@@ -721,7 +721,7 @@ export default function EmailResultsDashboard({ data }: Props) {
                 {hunterData.gibberish && <InfoRow label="Gibberish" value="YES — fake-looking" accent="#ffaa00" />}
               </>
             ) : (
-              <div className="text-center py-3 text-[#888] text-[10px] font-mono">
+              <div className="text-center py-3 text-[#888] text-[13px] font-mono">
                 {hunter.error === "NOT_CONFIGURED" ? "Add HUNTER_API_KEY — free 25/month" : hunter.error ?? "No data"}
               </div>
             )}
