@@ -143,7 +143,7 @@ export const DISPOSABLE_DOMAINS = new Set<string>([
   "wickmail.net","wilemail.com","willhackforfood.biz","willselfdestruct.com","wimsg.com","winemaven.info",
   "wronghead.com","www.e4ward.com","wwwnew.eu","x1post.com","xagloo.com","xemaps.com",
   "xents.com","xmaily.com","xoxy.net","xsmail.com","xyzfree.net","yapped.net",
-  "yeah.net","yep.it","yogamaven.com","yopmail.com","yopmail.fr","yopmail.net",
+  "yep.it","yogamaven.com","yopmail.com","yopmail.fr","yopmail.net",
   "youmailr.com","ypmail.webarnak.fr.eu.org","yuurok.com","z1p.biz","za.com","zehnminuten.de",
   "zehnminutenmail.de","zippymail.info","zoemail.com","zoemail.net","zoemail.org","zomg.info",
   "zurtel.com","zwallet.com",
@@ -188,7 +188,7 @@ export const FREE_WEBMAIL_DOMAINS = new Set<string>([
   "yahoo.ca","yahoo.co.in","yahoo.co.jp","yahoo.co.nz","yahoo.co.uk","yahoo.com",
   "yahoo.com.ar","yahoo.com.au","yahoo.com.br","yahoo.com.mx","yahoo.com.ph","yahoo.com.sg",
   "yahoo.de","yahoo.es","yahoo.fr","yahoo.gr","yahoo.it","yandex.by",
-  "yandex.com","yandex.kz","yandex.ru","yandex.ua","yeah.net","ymail.com",
+  "yandex.com","yandex.kz","yandex.ru","yandex.ua","ymail.com",
   "zoho.com","zohomail.com","zohomail.eu","zohomail.in","zoznam.sk",
 ]);
 
