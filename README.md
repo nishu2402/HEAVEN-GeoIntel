@@ -153,10 +153,8 @@ Target phone / email
 All dependencies are listed in [`requirements.txt`](./requirements.txt). Install them with a single command:
 
 ```bash
-npm install
+pip install -r requirements.txt
 ```
-
-> This reads `package.json` (the Node.js equivalent of `pip install -r requirements.txt`) and installs every dependency at the exact versions pinned in `requirements.txt`.
 
 ### One-command start
 
