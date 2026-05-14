@@ -1,5 +1,5 @@
 export interface NpaInfo {
-  country: "US" | "CA" | "1";
+  country: "US" | "CA" | "NANP";
   state: string;
   stateAbbr: string;
   region: string;
@@ -450,26 +450,26 @@ const NPA_DATABASE: Record<string, NpaInfo> = {
   "867": { country:"CA", state:"Yukon / NWT / Nunavut", stateAbbr:"YT", region:"Yukon, Northwest Territories, Nunavut", timezone:"America/Whitehorse" },
 
   // ── CARIBBEAN NANP ───────────────────────────────────────────────────────────
-  "242": { country:"1", state:"Bahamas", stateAbbr:"BS", region:"Nassau / Bahamas", timezone:"America/Nassau" },
-  "246": { country:"1", state:"Barbados", stateAbbr:"BB", region:"Barbados", timezone:"America/Barbados" },
-  "264": { country:"1", state:"Anguilla", stateAbbr:"AI", region:"Anguilla", timezone:"America/Anguilla" },
-  "268": { country:"1", state:"Antigua and Barbuda", stateAbbr:"AG", region:"Antigua and Barbuda", timezone:"America/Antigua" },
-  "284": { country:"1", state:"British Virgin Islands", stateAbbr:"VG", region:"British Virgin Islands", timezone:"America/Tortola" },
-  "345": { country:"1", state:"Cayman Islands", stateAbbr:"KY", region:"Cayman Islands", timezone:"America/Cayman" },
-  "441": { country:"1", state:"Bermuda", stateAbbr:"BM", region:"Bermuda", timezone:"Atlantic/Bermuda" },
-  "473": { country:"1", state:"Grenada", stateAbbr:"GD", region:"Grenada", timezone:"America/Grenada" },
-  "649": { country:"1", state:"Turks and Caicos", stateAbbr:"TC", region:"Turks and Caicos Islands", timezone:"America/Grand_Turk" },
-  "664": { country:"1", state:"Montserrat", stateAbbr:"MS", region:"Montserrat", timezone:"America/Montserrat" },
-  "721": { country:"1", state:"Sint Maarten", stateAbbr:"SX", region:"Sint Maarten", timezone:"America/Lower_Princes" },
-  "758": { country:"1", state:"St. Lucia", stateAbbr:"LC", region:"Saint Lucia", timezone:"America/St_Lucia" },
-  "767": { country:"1", state:"Dominica", stateAbbr:"DM", region:"Dominica", timezone:"America/Dominica" },
-  "784": { country:"1", state:"St. Vincent and the Grenadines", stateAbbr:"VC", region:"Saint Vincent and the Grenadines", timezone:"America/St_Vincent" },
-  "809": { country:"1", state:"Dominican Republic", stateAbbr:"DO", region:"Santo Domingo / S Dominican Republic", timezone:"America/Santo_Domingo" },
-  "829": { country:"1", state:"Dominican Republic", stateAbbr:"DO", region:"Dominican Republic (overlay)", timezone:"America/Santo_Domingo" },
-  "849": { country:"1", state:"Dominican Republic", stateAbbr:"DO", region:"Dominican Republic (overlay)", timezone:"America/Santo_Domingo" },
-  "868": { country:"1", state:"Trinidad and Tobago", stateAbbr:"TT", region:"Trinidad and Tobago", timezone:"America/Port_of_Spain" },
-  "869": { country:"1", state:"St. Kitts and Nevis", stateAbbr:"KN", region:"Saint Kitts and Nevis", timezone:"America/St_Kitts" },
-  "876": { country:"1", state:"Jamaica", stateAbbr:"JM", region:"Jamaica", timezone:"America/Jamaica" },
+  "242": { country:"NANP", state:"Bahamas", stateAbbr:"BS", region:"Nassau / Bahamas", timezone:"America/Nassau" },
+  "246": { country:"NANP", state:"Barbados", stateAbbr:"BB", region:"Barbados", timezone:"America/Barbados" },
+  "264": { country:"NANP", state:"Anguilla", stateAbbr:"AI", region:"Anguilla", timezone:"America/Anguilla" },
+  "268": { country:"NANP", state:"Antigua and Barbuda", stateAbbr:"AG", region:"Antigua and Barbuda", timezone:"America/Antigua" },
+  "284": { country:"NANP", state:"British Virgin Islands", stateAbbr:"VG", region:"British Virgin Islands", timezone:"America/Tortola" },
+  "345": { country:"NANP", state:"Cayman Islands", stateAbbr:"KY", region:"Cayman Islands", timezone:"America/Cayman" },
+  "441": { country:"NANP", state:"Bermuda", stateAbbr:"BM", region:"Bermuda", timezone:"Atlantic/Bermuda" },
+  "473": { country:"NANP", state:"Grenada", stateAbbr:"GD", region:"Grenada", timezone:"America/Grenada" },
+  "649": { country:"NANP", state:"Turks and Caicos", stateAbbr:"TC", region:"Turks and Caicos Islands", timezone:"America/Grand_Turk" },
+  "664": { country:"NANP", state:"Montserrat", stateAbbr:"MS", region:"Montserrat", timezone:"America/Montserrat" },
+  "721": { country:"NANP", state:"Sint Maarten", stateAbbr:"SX", region:"Sint Maarten", timezone:"America/Lower_Princes" },
+  "758": { country:"NANP", state:"St. Lucia", stateAbbr:"LC", region:"Saint Lucia", timezone:"America/St_Lucia" },
+  "767": { country:"NANP", state:"Dominica", stateAbbr:"DM", region:"Dominica", timezone:"America/Dominica" },
+  "784": { country:"NANP", state:"St. Vincent and the Grenadines", stateAbbr:"VC", region:"Saint Vincent and the Grenadines", timezone:"America/St_Vincent" },
+  "809": { country:"NANP", state:"Dominican Republic", stateAbbr:"DO", region:"Santo Domingo / S Dominican Republic", timezone:"America/Santo_Domingo" },
+  "829": { country:"NANP", state:"Dominican Republic", stateAbbr:"DO", region:"Dominican Republic (overlay)", timezone:"America/Santo_Domingo" },
+  "849": { country:"NANP", state:"Dominican Republic", stateAbbr:"DO", region:"Dominican Republic (overlay)", timezone:"America/Santo_Domingo" },
+  "868": { country:"NANP", state:"Trinidad and Tobago", stateAbbr:"TT", region:"Trinidad and Tobago", timezone:"America/Port_of_Spain" },
+  "869": { country:"NANP", state:"St. Kitts and Nevis", stateAbbr:"KN", region:"Saint Kitts and Nevis", timezone:"America/St_Kitts" },
+  "876": { country:"NANP", state:"Jamaica", stateAbbr:"JM", region:"Jamaica", timezone:"America/Jamaica" },
 };
 
 export function getNpaInfo(nationalDigits: string): NpaInfo | null {
