@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Check, ExternalLink } from "lucide-react";
 
 interface Props {
@@ -11,19 +11,22 @@ interface Props {
 interface Dork {
   label: string;
   query: string;
-  engine?: string; // search engine to use (default Google)
 }
 
 export default function DorkGenerator({ e164, national }: Props) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const copy = (text: string, key: string) => {
     navigator.clipboard.writeText(text).catch(console.error);
     setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 1500);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopiedKey(null), 1500);
   };
 
-  const dorks: Dork[] = [
+  const dorks = useMemo<Dork[]>(() => [
     // ── Basic format hits ─────────────────────────────────────────────────────
     { label: "Exact E.164",       query: `"${e164}"` },
     { label: "National format",   query: `"${national}"` },
@@ -111,7 +114,7 @@ export default function DorkGenerator({ e164, national }: Props) {
     { label: "Dark web index",    query: `"${e164}" site:onion.ly OR site:darkweblink.com` },
     { label: "Job / recruitment", query: `"${national}" (job OR recruitment OR hiring OR vacancy OR career)` },
     { label: "Cached versions",   query: `cache:"${national}"` },
-  ];
+  ], [e164, national]);
 
   const googleBase = "https://www.google.com/search?q=";
 
