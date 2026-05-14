@@ -15,7 +15,7 @@ export default function NotFound() {
         </div>
 
         <div className="space-y-2">
-          <div className="text-[10px] uppercase tracking-widest text-[#ff3e3e]/60">
+          <div className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/60">
             [ 404 — TARGET NOT FOUND ]
           </div>
           <div className="text-4xl font-bold text-[#ff3e3e]/80">404</div>

@@ -51,7 +51,7 @@ export default function DorkGenerator({ e164, national }: Props) {
       <div className="text-xs uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
         [ DORK GENERATOR ] — {dorks.length} queries — click to copy or open
       </div>
-      <div className="text-[10px] text-[#00ff41]/55">
+      <div className="text-[13px] text-[#00ff41]/55">
         Copy → paste into any search engine. Or click the arrow to open in Google directly.
       </div>
 
@@ -63,10 +63,10 @@ export default function DorkGenerator({ e164, national }: Props) {
               key={d.label}
               className="flex items-center gap-2 py-1.5 px-1 hover:bg-[#00ff41]/5 transition-colors group"
             >
-              <span className="text-[9px] uppercase tracking-widest text-[#00ff41]/35 w-32 shrink-0 leading-tight">
+              <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 w-32 shrink-0 leading-tight">
                 {d.label}
               </span>
-              <span className="font-mono text-[10px] text-[#00ff41]/70 flex-1 min-w-0 truncate" title={d.query}>
+              <span className="font-mono text-[13px] text-[#00ff41]/70 flex-1 min-w-0 truncate" title={d.query}>
                 {d.query}
               </span>
               <div className="flex items-center gap-1 shrink-0">

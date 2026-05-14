@@ -27,7 +27,7 @@ export default function MetricCard({ label, value, icon, variant = "default", in
       transition={{ delay: index * 0.05, duration: 0.25 }}
       className="terminal-card p-4 flex flex-col gap-1.5"
     >
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-[#00ff41]/50">
+      <div className="flex items-center gap-2 text-[13px] uppercase tracking-widest text-[#00ff41]/50">
         {icon && <span className="w-3 h-3">{icon}</span>}
         {label}
       </div>

@@ -52,7 +52,7 @@ export default function NumberPermutations({ data }: Props) {
       <div className="text-xs uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
         [ NUMBER PERMUTATIONS ] — all database formats
       </div>
-      <div className="text-[10px] text-[#00ff41]/55">
+      <div className="text-[13px] text-[#00ff41]/55">
         Every format this number may appear as in leaks, forms, or databases. Copy and search each.
       </div>
 
@@ -65,9 +65,9 @@ export default function NumberPermutations({ data }: Props) {
               className="flex items-center gap-2 py-2 px-1 hover:bg-[#00ff41]/5 transition-colors group"
             >
               <div className="w-36 shrink-0">
-                <div className="text-[9px] uppercase tracking-widest text-[#00ff41]/35">{f.label}</div>
+                <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35">{f.label}</div>
                 {f.note && (
-                  <div className="text-[8px] text-[#00ff41]/45 mt-0.5">{f.note}</div>
+                  <div className="text-[11px] text-[#00ff41]/45 mt-0.5">{f.note}</div>
                 )}
               </div>
               <span className="font-mono text-[11px] text-[#00ff41]/80 flex-1 min-w-0 break-all">

@@ -45,7 +45,7 @@ export default function QrCodePanel({ e164 }: Props) {
       transition={{ duration: 0.3, delay: 0.2 }}
       className="terminal-card p-4 space-y-3"
     >
-      <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
+      <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
         [ QR CODE — SCAN TO DIAL ]
       </div>
 
@@ -56,22 +56,22 @@ export default function QrCodePanel({ e164 }: Props) {
 
         {!ready && !err && (
           <div className="w-[196px] h-[196px] border border-[#00ff41]/15 flex items-center justify-center">
-            <span className="text-[10px] text-[#00ff41]/55 font-mono animate-pulse">GENERATING...</span>
+            <span className="text-[13px] text-[#00ff41]/55 font-mono animate-pulse">GENERATING...</span>
           </div>
         )}
 
         {err && (
-          <div className="text-[10px] text-[#ff3e3e]/60 font-mono">QR generation failed</div>
+          <div className="text-[13px] text-[#ff3e3e]/60 font-mono">QR generation failed</div>
         )}
 
         <div className="text-center space-y-1">
-          <div className="text-[10px] text-[#00ff41]/60 font-mono">
+          <div className="text-[13px] text-[#00ff41]/60 font-mono">
             tel:{e164}
           </div>
           {ready && (
             <button
               onClick={downloadQr}
-              className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-[#00d9ff]/50 hover:text-[#00d9ff] transition-colors mx-auto font-mono"
+              className="flex items-center gap-1.5 text-[13px] uppercase tracking-widest text-[#00d9ff]/50 hover:text-[#00d9ff] transition-colors mx-auto font-mono"
             >
               <Download className="w-3 h-3" /> SAVE PNG
             </button>

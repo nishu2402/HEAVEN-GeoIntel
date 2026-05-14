@@ -20,7 +20,7 @@ export default function LoadingSkeletons() {
       </div>
 
       {/* Metric cards skeleton */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="terminal-card p-4 space-y-2">
             <div className="skeleton-matrix h-2.5 w-16 rounded-none" />
