@@ -1,5 +1,5 @@
 export interface NpaInfo {
-  country: "US" | "CA";
+  country: "US" | "CA" | "1";
   state: string;
   stateAbbr: string;
   region: string;
@@ -31,6 +31,7 @@ const NPA_DATABASE: Record<string, NpaInfo> = {
   "279": { country:"US", state:"California", stateAbbr:"CA", region:"Sacramento (overlay)", timezone:"America/Los_Angeles" },
   "310": { country:"US", state:"California", stateAbbr:"CA", region:"W Los Angeles (Beverly Hills, Santa Monica)", timezone:"America/Los_Angeles" },
   "323": { country:"US", state:"California", stateAbbr:"CA", region:"E/S Los Angeles (Hollywood, Compton)", timezone:"America/Los_Angeles" },
+  "341": { country:"US", state:"California", stateAbbr:"CA", region:"East Bay (overlay)", timezone:"America/Los_Angeles" },
   "408": { country:"US", state:"California", stateAbbr:"CA", region:"Silicon Valley (San Jose, Santa Clara)", timezone:"America/Los_Angeles" },
   "415": { country:"US", state:"California", stateAbbr:"CA", region:"San Francisco", timezone:"America/Los_Angeles" },
   "424": { country:"US", state:"California", stateAbbr:"CA", region:"W Los Angeles (overlay)", timezone:"America/Los_Angeles" },
@@ -116,6 +117,7 @@ const NPA_DATABASE: Record<string, NpaInfo> = {
   "309": { country:"US", state:"Illinois", stateAbbr:"IL", region:"Central-W Illinois (Peoria, Bloomington)", timezone:"America/Chicago" },
   "312": { country:"US", state:"Illinois", stateAbbr:"IL", region:"Chicago core (Loop, downtown)", timezone:"America/Chicago" },
   "331": { country:"US", state:"Illinois", stateAbbr:"IL", region:"W Chicago suburbs (overlay)", timezone:"America/Chicago" },
+  "447": { country:"US", state:"Illinois", stateAbbr:"IL", region:"Central Illinois (overlay)", timezone:"America/Chicago" },
   "618": { country:"US", state:"Illinois", stateAbbr:"IL", region:"S Illinois (East St. Louis, Carbondale)", timezone:"America/Chicago" },
   "630": { country:"US", state:"Illinois", stateAbbr:"IL", region:"W Chicago suburbs (Naperville, Wheaton)", timezone:"America/Chicago" },
   "708": { country:"US", state:"Illinois", stateAbbr:"IL", region:"S/W Chicago suburbs", timezone:"America/Chicago" },
@@ -386,54 +388,88 @@ const NPA_DATABASE: Record<string, NpaInfo> = {
   // ── Wyoming ──────────────────────────────────────────────────────────────────
   "307": { country:"US", state:"Wyoming", stateAbbr:"WY", region:"Statewide (Cheyenne, Casper)", timezone:"America/Denver" },
   // ── US Territories ───────────────────────────────────────────────────────────
-  "787": { country:"US", state:"Puerto Rico", stateAbbr:"PR", region:"Puerto Rico", timezone:"America/Puerto_Rico" },
-  "939": { country:"US", state:"Puerto Rico", stateAbbr:"PR", region:"Puerto Rico (overlay)", timezone:"America/Puerto_Rico" },
   "340": { country:"US", state:"U.S. Virgin Islands", stateAbbr:"VI", region:"St. Thomas / St. Croix / St. John", timezone:"America/St_Thomas" },
+  "670": { country:"US", state:"N. Mariana Islands", stateAbbr:"MP", region:"Saipan / CNMI", timezone:"Pacific/Saipan" },
   "671": { country:"US", state:"Guam", stateAbbr:"GU", region:"Guam", timezone:"Pacific/Guam" },
   "684": { country:"US", state:"American Samoa", stateAbbr:"AS", region:"American Samoa", timezone:"Pacific/Pago_Pago" },
-  "670": { country:"US", state:"N. Mariana Islands", stateAbbr:"MP", region:"Saipan / CNMI", timezone:"Pacific/Saipan" },
+  "787": { country:"US", state:"Puerto Rico", stateAbbr:"PR", region:"San Juan / Puerto Rico metro", timezone:"America/Puerto_Rico" },
+  "939": { country:"US", state:"Puerto Rico", stateAbbr:"PR", region:"Puerto Rico (overlay)", timezone:"America/Puerto_Rico" },
 
   // ── CANADA ───────────────────────────────────────────────────────────────────
-  "204": { country:"CA", state:"Manitoba", stateAbbr:"MB", region:"Winnipeg metro", timezone:"America/Winnipeg" },
-  "226": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"SW Ontario (Windsor, Kitchener-Waterloo, London)", timezone:"America/Toronto" },
+  // Alberta
+  "403": { country:"CA", state:"Alberta", stateAbbr:"AB", region:"S Alberta (Calgary, Lethbridge, Medicine Hat)", timezone:"America/Edmonton" },
+  "587": { country:"CA", state:"Alberta", stateAbbr:"AB", region:"Alberta (overlay)", timezone:"America/Edmonton" },
+  "780": { country:"CA", state:"Alberta", stateAbbr:"AB", region:"N Alberta (Edmonton, Fort McMurray)", timezone:"America/Edmonton" },
+  "825": { country:"CA", state:"Alberta", stateAbbr:"AB", region:"Alberta (overlay)", timezone:"America/Edmonton" },
+  // British Columbia
   "236": { country:"CA", state:"British Columbia", stateAbbr:"BC", region:"BC (overlay)", timezone:"America/Vancouver" },
-  "249": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"N Ontario (Sudbury, Sault Ste. Marie, overlay)", timezone:"America/Toronto" },
   "250": { country:"CA", state:"British Columbia", stateAbbr:"BC", region:"BC outside Vancouver (Victoria, Kelowna, Prince George)", timezone:"America/Vancouver" },
+  "604": { country:"CA", state:"British Columbia", stateAbbr:"BC", region:"Metro Vancouver", timezone:"America/Vancouver" },
+  "672": { country:"CA", state:"British Columbia", stateAbbr:"BC", region:"BC (overlay)", timezone:"America/Vancouver" },
+  "778": { country:"CA", state:"British Columbia", stateAbbr:"BC", region:"BC (overlay)", timezone:"America/Vancouver" },
+  // Manitoba
+  "204": { country:"CA", state:"Manitoba", stateAbbr:"MB", region:"Winnipeg metro", timezone:"America/Winnipeg" },
+  "431": { country:"CA", state:"Manitoba", stateAbbr:"MB", region:"Manitoba (overlay)", timezone:"America/Winnipeg" },
+  // New Brunswick
+  "506": { country:"CA", state:"New Brunswick", stateAbbr:"NB", region:"New Brunswick (Fredericton, Moncton, Saint John)", timezone:"America/Moncton" },
+  // Newfoundland & Labrador
+  "709": { country:"CA", state:"Newfoundland & Labrador", stateAbbr:"NL", region:"Newfoundland & Labrador (St. John's)", timezone:"America/St_Johns" },
+  // Nova Scotia / PEI
+  "782": { country:"CA", state:"Nova Scotia / PEI", stateAbbr:"NS", region:"Nova Scotia & PEI (overlay)", timezone:"America/Halifax" },
+  "902": { country:"CA", state:"Nova Scotia / PEI", stateAbbr:"NS", region:"Nova Scotia & PEI (Halifax, Charlottetown)", timezone:"America/Halifax" },
+  // Ontario
+  "226": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"SW Ontario (Windsor, Kitchener-Waterloo, London)", timezone:"America/Toronto" },
+  "249": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"N Ontario (Sudbury, Sault Ste. Marie, overlay)", timezone:"America/Toronto" },
   "289": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"S Ontario (Hamilton, Oakville, St. Catharines, overlay)", timezone:"America/Toronto" },
-  "306": { country:"CA", state:"Saskatchewan", stateAbbr:"SK", region:"Saskatchewan (Regina, Saskatoon)", timezone:"America/Regina" },
   "343": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"E Ontario (Ottawa area, overlay)", timezone:"America/Toronto" },
   "365": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"S Ontario (overlay)", timezone:"America/Toronto" },
-  "403": { country:"CA", state:"Alberta", stateAbbr:"AB", region:"S Alberta (Calgary, Lethbridge, Medicine Hat)", timezone:"America/Edmonton" },
   "416": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"Toronto core", timezone:"America/Toronto" },
-  "418": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Quebec City area", timezone:"America/Toronto" },
-  "431": { country:"CA", state:"Manitoba", stateAbbr:"MB", region:"Manitoba (overlay)", timezone:"America/Winnipeg" },
   "437": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"Toronto (overlay)", timezone:"America/Toronto" },
-  "438": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Montreal (overlay)", timezone:"America/Toronto" },
-  "450": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"S shore Montreal / Laval / Longueuil", timezone:"America/Toronto" },
-  "506": { country:"CA", state:"New Brunswick", stateAbbr:"NB", region:"New Brunswick (Fredericton, Moncton, Saint John)", timezone:"America/Moncton" },
-  "514": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Montreal core", timezone:"America/Toronto" },
   "519": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"SW Ontario (London, Windsor, Kitchener)", timezone:"America/Toronto" },
   "548": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"SW Ontario (overlay)", timezone:"America/Toronto" },
+  "613": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"E Ontario (Ottawa)", timezone:"America/Toronto" },
+  "647": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"Toronto (overlay)", timezone:"America/Toronto" },
+  "705": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"N Ontario (Sudbury, North Bay, Barrie)", timezone:"America/Toronto" },
+  "807": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"NW Ontario (Thunder Bay)", timezone:"America/Toronto" },
+  "905": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"Golden Horseshoe (Mississauga, Hamilton, Oshawa, Brampton)", timezone:"America/Toronto" },
+  // Quebec
+  "354": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Quebec (overlay)", timezone:"America/Toronto" },
+  "367": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Quebec City (overlay)", timezone:"America/Toronto" },
+  "418": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Quebec City area", timezone:"America/Toronto" },
+  "438": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Montreal (overlay)", timezone:"America/Toronto" },
+  "450": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"S shore Montreal / Laval / Longueuil", timezone:"America/Toronto" },
+  "514": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Montreal core", timezone:"America/Toronto" },
   "579": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"S shore Montreal (overlay)", timezone:"America/Toronto" },
   "581": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"Quebec City (overlay)", timezone:"America/Toronto" },
-  "587": { country:"CA", state:"Alberta", stateAbbr:"AB", region:"Alberta (overlay)", timezone:"America/Edmonton" },
-  "604": { country:"CA", state:"British Columbia", stateAbbr:"BC", region:"Metro Vancouver", timezone:"America/Vancouver" },
-  "613": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"E Ontario (Ottawa)", timezone:"America/Toronto" },
-  "639": { country:"CA", state:"Saskatchewan", stateAbbr:"SK", region:"Saskatchewan (overlay)", timezone:"America/Regina" },
-  "647": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"Toronto (overlay)", timezone:"America/Toronto" },
-  "672": { country:"CA", state:"British Columbia", stateAbbr:"BC", region:"BC (overlay)", timezone:"America/Vancouver" },
-  "705": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"N Ontario (Sudbury, North Bay, Barrie)", timezone:"America/Toronto" },
-  "709": { country:"CA", state:"Newfoundland & Labrador", stateAbbr:"NL", region:"Newfoundland & Labrador (St. John's)", timezone:"America/St_Johns" },
-  "778": { country:"CA", state:"British Columbia", stateAbbr:"BC", region:"BC (overlay)", timezone:"America/Vancouver" },
-  "780": { country:"CA", state:"Alberta", stateAbbr:"AB", region:"N Alberta (Edmonton, Fort McMurray)", timezone:"America/Edmonton" },
-  "782": { country:"CA", state:"Nova Scotia / PEI", stateAbbr:"NS", region:"Nova Scotia & PEI (overlay)", timezone:"America/Halifax" },
-  "807": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"NW Ontario (Thunder Bay)", timezone:"America/Toronto" },
   "819": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"W Quebec / Gatineau (Outaouais)", timezone:"America/Toronto" },
-  "825": { country:"CA", state:"Alberta", stateAbbr:"AB", region:"Alberta (overlay)", timezone:"America/Edmonton" },
-  "867": { country:"CA", state:"Yukon / NWT / Nunavut", stateAbbr:"YT", region:"Yukon, Northwest Territories, Nunavut", timezone:"America/Whitehorse" },
   "873": { country:"CA", state:"Quebec", stateAbbr:"QC", region:"W Quebec (overlay)", timezone:"America/Toronto" },
-  "902": { country:"CA", state:"Nova Scotia / PEI", stateAbbr:"NS", region:"Nova Scotia & PEI (Halifax, Charlottetown)", timezone:"America/Halifax" },
-  "905": { country:"CA", state:"Ontario", stateAbbr:"ON", region:"Golden Horseshoe (Mississauga, Hamilton, Oshawa, Brampton)", timezone:"America/Toronto" },
+  // Saskatchewan
+  "306": { country:"CA", state:"Saskatchewan", stateAbbr:"SK", region:"Saskatchewan (Regina, Saskatoon)", timezone:"America/Regina" },
+  "639": { country:"CA", state:"Saskatchewan", stateAbbr:"SK", region:"Saskatchewan (overlay)", timezone:"America/Regina" },
+  // Yukon / NWT / Nunavut
+  "867": { country:"CA", state:"Yukon / NWT / Nunavut", stateAbbr:"YT", region:"Yukon, Northwest Territories, Nunavut", timezone:"America/Whitehorse" },
+
+  // ── CARIBBEAN NANP ───────────────────────────────────────────────────────────
+  "242": { country:"1", state:"Bahamas", stateAbbr:"BS", region:"Nassau / Bahamas", timezone:"America/Nassau" },
+  "246": { country:"1", state:"Barbados", stateAbbr:"BB", region:"Barbados", timezone:"America/Barbados" },
+  "264": { country:"1", state:"Anguilla", stateAbbr:"AI", region:"Anguilla", timezone:"America/Anguilla" },
+  "268": { country:"1", state:"Antigua and Barbuda", stateAbbr:"AG", region:"Antigua and Barbuda", timezone:"America/Antigua" },
+  "284": { country:"1", state:"British Virgin Islands", stateAbbr:"VG", region:"British Virgin Islands", timezone:"America/Tortola" },
+  "345": { country:"1", state:"Cayman Islands", stateAbbr:"KY", region:"Cayman Islands", timezone:"America/Cayman" },
+  "441": { country:"1", state:"Bermuda", stateAbbr:"BM", region:"Bermuda", timezone:"Atlantic/Bermuda" },
+  "473": { country:"1", state:"Grenada", stateAbbr:"GD", region:"Grenada", timezone:"America/Grenada" },
+  "649": { country:"1", state:"Turks and Caicos", stateAbbr:"TC", region:"Turks and Caicos Islands", timezone:"America/Grand_Turk" },
+  "664": { country:"1", state:"Montserrat", stateAbbr:"MS", region:"Montserrat", timezone:"America/Montserrat" },
+  "721": { country:"1", state:"Sint Maarten", stateAbbr:"SX", region:"Sint Maarten", timezone:"America/Lower_Princes" },
+  "758": { country:"1", state:"St. Lucia", stateAbbr:"LC", region:"Saint Lucia", timezone:"America/St_Lucia" },
+  "767": { country:"1", state:"Dominica", stateAbbr:"DM", region:"Dominica", timezone:"America/Dominica" },
+  "784": { country:"1", state:"St. Vincent and the Grenadines", stateAbbr:"VC", region:"Saint Vincent and the Grenadines", timezone:"America/St_Vincent" },
+  "809": { country:"1", state:"Dominican Republic", stateAbbr:"DO", region:"Santo Domingo / S Dominican Republic", timezone:"America/Santo_Domingo" },
+  "829": { country:"1", state:"Dominican Republic", stateAbbr:"DO", region:"Dominican Republic (overlay)", timezone:"America/Santo_Domingo" },
+  "849": { country:"1", state:"Dominican Republic", stateAbbr:"DO", region:"Dominican Republic (overlay)", timezone:"America/Santo_Domingo" },
+  "868": { country:"1", state:"Trinidad and Tobago", stateAbbr:"TT", region:"Trinidad and Tobago", timezone:"America/Port_of_Spain" },
+  "869": { country:"1", state:"St. Kitts and Nevis", stateAbbr:"KN", region:"Saint Kitts and Nevis", timezone:"America/St_Kitts" },
+  "876": { country:"1", state:"Jamaica", stateAbbr:"JM", region:"Jamaica", timezone:"America/Jamaica" },
 };
 
 export function getNpaInfo(nationalDigits: string): NpaInfo | null {

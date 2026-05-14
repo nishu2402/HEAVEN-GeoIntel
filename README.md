@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Phone+%26+Email+OSINT+Intelligence+Platform;350%2B+NPA+Area+Codes+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;38+Phone+Pivots+%C2%B7+25+Email+Pivots+%C2%B7+18+Google+Dorks;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;One+Command+Start+%C2%B7+Next.js+%C2%B7+TypeScript+%C2%B7+Matrix+UI"/>
+<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Phone+%26+Email+OSINT+Intelligence+Platform;400%2B+NPA+Area+Codes+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;85+Phone+Pivots+%C2%B7+25+Email+Pivots+%C2%B7+64+Google+Dorks;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;One+Command+Start+%C2%B7+Next.js+14+%C2%B7+TypeScript+%C2%B7+Matrix+UI"/>
 </p>
 
 <p align="center">
@@ -18,17 +18,17 @@
 
   <p>
     <img src="https://img.shields.io/badge/Node.js-18+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
-    <img src="https://img.shields.io/badge/Framework-Next.js_15-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
+    <img src="https://img.shields.io/badge/Framework-Next.js_14-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
     <img src="https://img.shields.io/badge/API_Keys-Zero_Required-44FF88?style=for-the-badge&logo=checkmarx&logoColor=black" alt="Zero API Keys"/>
     <img src="https://img.shields.io/badge/License-MIT-FF3333?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License"/>
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Phone_Pivots-38_Links-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
+    <img src="https://img.shields.io/badge/Phone_Pivots-85_Links-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
     <img src="https://img.shields.io/badge/Email_Pivots-25_Links-BF5FFF?style=flat-square&logo=gmail&logoColor=white" alt="Email Pivots"/>
     <img src="https://img.shields.io/badge/Breach_DBs-1000%2B_(XposedOrNot)-00D9D9?style=flat-square&logo=databricks&logoColor=black" alt="Breach DBs"/>
-    <img src="https://img.shields.io/badge/NPA_Database-350%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
+    <img src="https://img.shields.io/badge/NPA_Database-400%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
     <img src="https://img.shields.io/badge/Rate_Limit-10_req%2Fmin%2FIP-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
   </p>
 
@@ -94,14 +94,14 @@
 |---|---|
 | 🎯 **Scope** | Phone number intelligence + Email address intelligence |
 | 🔑 **Core Requirement** | Zero API keys — full offline analysis works out of the box |
-| 📞 **Phone: OSINT Pivots** | 38 investigation links across 6 categories |
+| 📞 **Phone: OSINT Pivots** | 85 investigation links across 6 categories |
 | 📧 **Email: OSINT Pivots** | 25 investigation links across 4 categories |
-| 🔍 **Phone: Google Dorks** | 18 pre-built dorks (LinkedIn · Facebook · Pastebin · credential dumps · PDFs) |
+| 🔍 **Phone: Google Dorks** | 64 pre-built dorks (LinkedIn · Facebook · Pastebin · S3 leaks · credential dumps · PDFs · forum/court/business) |
 | 📊 **Phone: Format Variants** | 11 permutations for database/OSINT searching |
-| 🗺️ **NPA Database** | 350+ US/CA area codes → state · metro · timezone (offline) |
+| 🗺️ **NPA Database** | 400+ US/CA area codes → state · metro · timezone (offline) |
 | 💥 **Breach Intelligence** | XposedOrNot (free, no key) + BreachDirectory (real credential hashes, RapidAPI key) |
 | 🔐 **Identity Enrichment** | FullContact person enrichment — real name · employer · social profiles · linked contacts |
-| 🌍 **Country Dataset** | 40+ countries — capital · currency · languages · GDP · emergency numbers |
+| 🌍 **Country Dataset** | 100 countries — capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache** | 24h in-memory LRU (500 entries max) — repeat lookups instant |
 | 🚦 **Rate Limiting** | 10 requests/minute/IP — token bucket |
 | 🏗️ **Stack** | Next.js 14 · TypeScript · Tailwind CSS · Framer Motion · libphonenumber-js |
@@ -126,8 +126,8 @@ Target phone / email
         ├─ Instant offline analysis  (libphonenumber-js · bundled datasets)
         ├─ Free source fan-out       (XposedOrNot · Gravatar · EmailRep)
         ├─ Optional API enrichment   (IPQualityScore · Twilio · Hunter.io)
-        ├─ OSINT pivot matrix        (38 phone links · 25 email links)
-        ├─ Google dork generator     (18 pre-built dorks)
+        ├─ OSINT pivot matrix        (85 phone links · 25 email links)
+        ├─ Google dork generator     (64 pre-built dorks)
         └─ Export                    (.txt · .html report)
 ```
 
@@ -200,8 +200,8 @@ Every phone lookup returns real data derived from the number structure and bundl
 | **Number Permutations** | 11 format variants for database/OSINT searching (dots · dashes · URL-encoded · WhatsApp link · etc.) |
 | **SIM & Carrier Intel** | Owner/CNAM · carrier · prepaid status · active status · MCC/MNC/PLMN · associated emails |
 | **Country Intelligence** | Capital · continent · region · population · currency · languages · driving side · emergency number · internet penetration · GDP per capita |
-| **Dork Generator** | 18 pre-built Google dorks — LinkedIn · Facebook · Twitter · GitHub · Pastebin · credential dumps · PDFs |
-| **OSINT Pivots** | 38 investigation links across 6 categories |
+| **Dork Generator** | 64 pre-built Google dorks — LinkedIn · Facebook · Twitter · GitHub · Pastebin · credential dumps · PDFs · S3 leaks · court records · forums · business listings |
+| **OSINT Pivots** | 85 investigation links across 6 categories |
 | **QR Code** | Canvas-rendered QR for the `tel:` URI · downloadable as PNG |
 | **Report Export** | Full intelligence report as `.txt` or `.html` |
 | **History Drawer** | Last 20 lookups saved in browser localStorage |
@@ -211,20 +211,20 @@ Every phone lookup returns real data derived from the number structure and bundl
 
 ### NPA Area Code Database (US/CA)
 
-350+ US and Canadian area codes bundled offline, mapped to: state/province · metro region/major city · IANA timezone · country. Every US/CA number immediately shows local time, call window, and geographic context — **zero API calls**.
+400+ US and Canadian area codes bundled offline, mapped to: state/province · metro region/major city · IANA timezone · country. Every US/CA number immediately shows local time, call window, and geographic context — **zero API calls**.
 
-### Phone OSINT Pivots — 38 links, 6 categories
+### Phone OSINT Pivots — 85 links, 6 categories
 
 <div align="center">
 
-| Category | Services |
-|---|---|
-| **Identity / Reverse Lookup** | Truecaller · Sync.me · NumLookup · That's Them · Spy Dialer · CallerSmart · TruePeopleSearch · FastPeopleSearch · USPhoneBook · AnyWho · Infobel · PhoneBook.com |
-| **Breach / Data Exposure** | Epieos · HaveIBeenPwned · IntelligenceX · Dehashed · LeakCheck |
-| **Social / Open Web** | Google (LinkedIn · Facebook · Instagram · Twitter) · Bing · Google Maps · Pastebin |
-| **Messaging Platforms** | WhatsApp (wa.me/) · Telegram (+prefix) · Signal · Viber · iMessage check |
-| **Carrier / Telecom** | FreeCarrierLookup · HLR-Lookups · TextMagic · MNP portability checker |
-| **Intel / Deep Search** | IntelligenceX · Dehashed · Epieos correlation · HIBP · LeakCheck |
+| Category | Count | Services |
+|---|---|---|
+| **Identity / Reverse Lookup** | 22 | Truecaller · Sync.me · NumLookup · Whitepages · Spokeo · BeenVerified · Intelius · That's Them · Spy Dialer · ZabaSearch · PeekYou · Pipl · Radaris · AnyWho · Infobel · PhoneBook.com + more |
+| **Messaging Platforms** | 8 | WhatsApp · Telegram · Signal · Viber · Line · KakaoTalk · WeChat · iMessage check |
+| **Intelligence / Breach Data** | 10 | IntelligenceX · Dehashed · Epieos · HaveIBeenPwned · LeakCheck · Snusbase · BreachDirectory · SpyCloud · GhostProject |
+| **Social / Open Web** | 16 | Google dorks (LinkedIn · Facebook · Instagram · Twitter · Reddit · TikTok · YouTube · Yelp) · DuckDuckGo · Yandex · Baidu · Bing · Wayback Machine · Google Maps |
+| **Spam / Abuse Reports** | 10 | 800notes · Should I Answer · Who Called Me · WhoCalledUs · CallTruth · Nomorobo · IPQS · SpamCalls.net · CallerReport + more |
+| **Carrier / HLR / Telecom** | 10 | FreeCarrierLookup · HLR-Lookups · TextMagic · OpenCNAM · Twilio Lookup · Plivo · Vonage · NumInfo · MNP portability checker |
 
 </div>
 
@@ -261,7 +261,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **Breach Database** | XposedOrNot — 1000+ databases, no key required. Per-breach: name · year · records · exposed data types · password risk level (Plaintext/Easy Crack/Hashed) |
 | **Credential Hashes** | BreachDirectory — real SHA-1/MD5 password hashes for the email with one-click crack buttons (CrackStation · Hashes.com · Hashkiller) — optional RapidAPI key |
 | **Risk Flags** | Critical banners when plaintext passwords or crackable hashes are found |
-| **Email Classification** | Provider type (corporate/free/disposable/privacy/government/educational) · disposable detection (300+ domains) · role address detection |
+| **Email Classification** | Provider type (corporate/free/disposable/privacy/government/educational) · disposable detection (1000+ domains) · role address detection |
 | **Gravatar Profile** | Display name · username · location · about · linked social accounts — free, no key |
 | **Reputation** | EmailRep.io signals: suspicious · blacklisted · malicious activity · credentials leaked · spam · first/last seen · registered platforms |
 | **Validation** | AbstractAPI: deliverability · quality score (0–1) · SMTP validity · MX records · catch-all detection |
@@ -387,7 +387,7 @@ Browser → POST /api/lookup { number: "+14155552671" }
               │    NXX central office code from subscriber portion
               │
               ├─ US/CA NPA database  (always, offline)
-              │    350+ area codes → state · region · timezone · country
+              │    400+ area codes → state · region · timezone · country
               │
               ├─ Bundled country dataset  (always, offline)
               │    capital · currency · languages · driving side · emergency number
@@ -406,7 +406,7 @@ Browser → POST /api/lookup { number: "+14155552671" }
 Browser → POST /api/email-lookup { email: "target@domain.com" }
               │
               ├─ Offline analysis  (always, instant)
-              │    disposable domain detection (300+ domains)
+              │    disposable domain detection (1000+ domains)
               │    free webmail / privacy provider / role address classification
               │    username pattern analysis → inferred name (john.smith → "John Smith")
               │    provider classification: corporate / free / educational / gov / privacy / disposable
@@ -449,7 +449,7 @@ Browser → POST /api/email-lookup { email: "target@domain.com" }
 
 ### Email — offline analysis (zero APIs)
 
-- Disposable provider detection (300+ throwaway services)
+- Disposable provider detection (1000+ throwaway services)
 - Privacy provider detection (ProtonMail · Tutanota · Riseup · etc.)
 - Free webmail detection (Gmail · Outlook · Yahoo · iCloud · etc.)
 - Role address detection (admin@ · support@ · info@ · noreply@ · etc.)
@@ -514,8 +514,8 @@ components/
 ├── FraudScoreBar.tsx            ← Animated 0–100 fraud score bar
 ├── NumberBreakdown.tsx          ← Visual digit structure breakdown
 ├── NumberPermutations.tsx       ← 11 format variants for OSINT database searching
-├── DorkGenerator.tsx            ← 18 pre-built Google dorks with copy + open buttons
-├── OsintPivots.tsx              ← 38 investigation links across 6 categories
+├── DorkGenerator.tsx            ← 64 pre-built Google dorks with copy + open buttons
+├── OsintPivots.tsx              ← 85 investigation links across 6 categories
 ├── SimIntelPanel.tsx            ← SIM intelligence — owner, prepaid, active, MCC/MNC
 ├── QrCodePanel.tsx              ← Canvas QR code for tel: URI
 ├── CountryPanel.tsx             ← Bundled country intelligence display
@@ -534,9 +534,9 @@ components/
 lib/
 ├── phoneAnalysis.ts             ← Offline phone engine (110+ country timezone map, area codes, NXX)
 ├── emailAnalysis.ts             ← Offline email engine (classification, name inference)
-├── countryIntel.ts              ← Bundled dataset for 40+ countries (zero API)
-├── usNpaDatabase.ts             ← US/CA NPA area code database (350+ entries, offline)
-├── disposableEmailDomains.ts    ← 300+ disposable domains + webmail + privacy + role prefix sets
+├── countryIntel.ts              ← Bundled dataset for 100 countries (zero API)
+├── usNpaDatabase.ts             ← US/CA NPA area code database (400+ entries, offline)
+├── disposableEmailDomains.ts    ← 1000+ disposable domains · 100+ webmail · 44 privacy · 70+ role prefix sets
 ├── hashDetect.ts                ← Hash type detection (MD5 · SHA-1 · bcrypt · SHA-256) + crack difficulty + best tool routing
 ├── types.ts                     ← Full TypeScript interface tree (phone + email)
 ├── cache.ts                     ← 24h in-memory Map cache
@@ -558,7 +558,7 @@ lib/
 
 | Layer | Technology |
 |---|---|
-| **Framework** | Next.js 14 (App Router) |
+| **Framework** | Next.js 14.2 (App Router) |
 | **Language** | TypeScript — full interface tree for all data types |
 | **Phone Parsing** | `libphonenumber-js` — Google's libphonenumber compiled to JS |
 | **UI** | Tailwind CSS · shadcn/ui · fully responsive (mobile · tablet · desktop) |

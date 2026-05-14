@@ -115,6 +115,82 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
       color: "#00d9ff",
       category: "identity",
     },
+    {
+      label: "Whitepages",
+      description: "US & Canada reverse lookup — name, address, relatives, background",
+      url: `https://www.whitepages.com/phone/${digits}`,
+      color: "#00d9ff",
+      category: "identity",
+      usOnly: true,
+    },
+    {
+      label: "Spokeo",
+      description: "US people search aggregator — social, address, email correlation",
+      url: `https://www.spokeo.com/phone-number-lookup/${digits}`,
+      color: "#00d9ff",
+      category: "identity",
+      usOnly: true,
+    },
+    {
+      label: "BeenVerified",
+      description: "US background & reverse phone — name, criminal, social links",
+      url: `https://www.beenverified.com/phone/${digits}`,
+      color: "#00d9ff",
+      category: "identity",
+      usOnly: true,
+    },
+    {
+      label: "Intelius",
+      description: "US deep background — identity, address history, associates",
+      url: `https://www.intelius.com/reverse-phone-lookup/${digits}/`,
+      color: "#00d9ff",
+      category: "identity",
+      usOnly: true,
+    },
+    {
+      label: "ZabaSearch",
+      description: "US free people-search aggregator — name + address pivot",
+      url: `https://www.zabasearch.com/phone/${digits}/`,
+      color: "#00d9ff",
+      category: "identity",
+      usOnly: true,
+    },
+    {
+      label: "PeekYou",
+      description: "Social identity aggregator — links phone to online profiles",
+      url: `https://www.peekyou.com/phone/${digits}`,
+      color: "#00d9ff",
+      category: "identity",
+    },
+    {
+      label: "NumVerify",
+      description: "REST phone validation — carrier, line type, location (free tier)",
+      url: `https://numverify.com/`,
+      color: "#00d9ff",
+      category: "identity",
+    },
+    {
+      label: "AnyWho Reverse",
+      description: "White-pages style name + address from phone number",
+      url: `https://www.anywho.com/reverse-phone/${digits}`,
+      color: "#00d9ff",
+      category: "identity",
+      usOnly: true,
+    },
+    {
+      label: "Pipl Search",
+      description: "Deep-web people search — indexes non-crawled public records",
+      url: `https://pipl.com/search/?q=${encoded}`,
+      color: "#00d9ff",
+      category: "identity",
+    },
+    {
+      label: "Radaris",
+      description: "US + international background — address, relatives, associates",
+      url: `https://radaris.com/p/${digits}`,
+      color: "#00d9ff",
+      category: "identity",
+    },
 
     // ── Messaging platforms — check if registered ──────────────────────────────
     {
@@ -152,6 +228,27 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
       color: "#34C759",
       category: "messaging",
     },
+    {
+      label: "Line",
+      description: "Line messenger — popular in Japan, Thailand, Taiwan, Indonesia",
+      url: `https://line.me/ti/p/${encoded}`,
+      color: "#00C300",
+      category: "messaging",
+    },
+    {
+      label: "KakaoTalk",
+      description: "Korea's dominant messaging app — check via chat link",
+      url: `https://open.kakao.com/o/s${withoutPlus}`,
+      color: "#FAE100",
+      category: "messaging",
+    },
+    {
+      label: "WeChat",
+      description: "Dominant in China — search phone number inside WeChat app",
+      url: `https://web.wechat.com/`,
+      color: "#7BB32E",
+      category: "messaging",
+    },
 
     // ── Intelligence platforms ─────────────────────────────────────────────────
     {
@@ -186,6 +283,41 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
       label: "LeakCheck",
       description: "Breach search — password, email, name linked to number",
       url: `https://leakcheck.io/?query=${encoded}`,
+      color: "#ff3e3e",
+      category: "intel",
+    },
+    {
+      label: "Snusbase",
+      description: "Large breach database search — phone, email, username pivot",
+      url: `https://snusbase.com/`,
+      color: "#ff3e3e",
+      category: "intel",
+    },
+    {
+      label: "BreachDirectory",
+      description: "Open breach search API — email/phone to password hash lookup",
+      url: `https://breachdirectory.org/`,
+      color: "#ff3e3e",
+      category: "intel",
+    },
+    {
+      label: "SpyCloud",
+      description: "Enterprise breach clearinghouse — recaptured ATO data",
+      url: `https://spycloud.com/check-your-exposure/`,
+      color: "#ff3e3e",
+      category: "intel",
+    },
+    {
+      label: "GhostProject",
+      description: "Fast breach DB — email pivot. Cross-reference number via email",
+      url: `https://ghostproject.fr/`,
+      color: "#ff3e3e",
+      category: "intel",
+    },
+    {
+      label: "Ashley Madison Check",
+      description: "Check if number appears in AM breach (haveibeenemailpwned)",
+      url: `https://haveibeenpwned.com/`,
       color: "#ff3e3e",
       category: "intel",
     },
@@ -254,6 +386,62 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
       color: "#00ff41",
       category: "social",
     },
+    {
+      label: "DuckDuckGo",
+      description: "Privacy-focused engine — sometimes shows results Google suppresses",
+      url: `https://duckduckgo.com/?q=%22${encoded}%22+OR+%22${encodedNational}%22`,
+      color: "#00ff41",
+      category: "social",
+    },
+    {
+      label: "Yandex Search",
+      description: "Russian engine — excellent for Eastern Europe, MENA, CIS numbers",
+      url: `https://yandex.com/search/?text=${encoded}`,
+      color: "#00ff41",
+      category: "social",
+    },
+    {
+      label: "Google: Reddit",
+      description: `site:reddit.com "${e164}" — forum posts, threads`,
+      url: `https://www.google.com/search?q=site:reddit.com+%22${encoded}%22`,
+      color: "#00ff41",
+      category: "social",
+    },
+    {
+      label: "Google: TikTok",
+      description: `site:tiktok.com "${national}" — profile bios`,
+      url: `https://www.google.com/search?q=site:tiktok.com+%22${encodedNational}%22`,
+      color: "#00ff41",
+      category: "social",
+    },
+    {
+      label: "Google: YouTube",
+      description: `site:youtube.com "${national}" — channel About pages`,
+      url: `https://www.google.com/search?q=site:youtube.com+%22${encodedNational}%22`,
+      color: "#00ff41",
+      category: "social",
+    },
+    {
+      label: "Google: Yelp",
+      description: `site:yelp.com "${national}" — business listings`,
+      url: `https://www.google.com/search?q=site:yelp.com+%22${encodedNational}%22`,
+      color: "#00ff41",
+      category: "social",
+    },
+    {
+      label: "Wayback Machine",
+      description: "Archived web snapshots — number may appear in deleted pages",
+      url: `https://web.archive.org/web/*/${encoded}`,
+      color: "#00ff41",
+      category: "social",
+    },
+    {
+      label: "Baidu Search",
+      description: "China's search engine — critical for CN/HK/TW numbers",
+      url: `https://www.baidu.com/s?wd=${encoded}`,
+      color: "#00ff41",
+      category: "social",
+    },
 
     // ── Spam / Abuse reports ───────────────────────────────────────────────────
     {
@@ -291,6 +479,41 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
       color: "#ff8800",
       category: "spam",
     },
+    {
+      label: "WhoCalledUs",
+      description: "UK-focused spam reporting database",
+      url: `https://www.whocalledus.com/${digits}`,
+      color: "#ff8800",
+      category: "spam",
+    },
+    {
+      label: "CallTruth",
+      description: "US number reputation — spam score, complaint history",
+      url: `https://www.calltruth.com/call/${digits}`,
+      color: "#ff8800",
+      category: "spam",
+    },
+    {
+      label: "PhoneSpamFilter",
+      description: "Real-time spam classification for phone numbers",
+      url: `https://phonespamfilter.com/`,
+      color: "#ff8800",
+      category: "spam",
+    },
+    {
+      label: "Nomorobo",
+      description: "Robocall / telemarketer database — checks known STIR/SHAKEN flags",
+      url: `https://www.nomorobo.com/lookup/${digits}`,
+      color: "#ff8800",
+      category: "spam",
+    },
+    {
+      label: "IPQS Reputation",
+      description: "IP Quality Score — fraud score, VoIP flag, carrier, activity",
+      url: `https://www.ipqualityscore.com/free-ip-lookup-proxy-vpn-test/lookup/${encoded}`,
+      color: "#ff8800",
+      category: "spam",
+    },
 
     // ── Carrier / HLR / Telecom ────────────────────────────────────────────────
     {
@@ -325,6 +548,41 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
       label: "MNP API (portability)",
       description: "Check if number has been ported to a different carrier",
       url: `https://www.mnpchecker.com/`,
+      color: "#888",
+      category: "carrier",
+    },
+    {
+      label: "OpenCNAM",
+      description: "CNAM lookup API — caller name from PSTN database (free tier)",
+      url: `https://www.opencnam.com/`,
+      color: "#888",
+      category: "carrier",
+    },
+    {
+      label: "Twilio Lookup Demo",
+      description: "Twilio Lookup API demo — line type, carrier, caller name",
+      url: `https://www.twilio.com/lookup`,
+      color: "#888",
+      category: "carrier",
+    },
+    {
+      label: "Plivo Lookup",
+      description: "Plivo phone number lookup — carrier, type, country",
+      url: `https://console.plivo.com/phone-numbers/lookup/`,
+      color: "#888",
+      category: "carrier",
+    },
+    {
+      label: "Vonage Number Insight",
+      description: "Real-time number type, carrier, validity check",
+      url: `https://www.vonage.com/communications-apis/number-insight/`,
+      color: "#888",
+      category: "carrier",
+    },
+    {
+      label: "NumInfo",
+      description: "Free phone number info — format, country, type",
+      url: `https://www.phoneinfoga.cz/`,
       color: "#888",
       category: "carrier",
     },
@@ -367,7 +625,7 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
               className="text-[12px] uppercase tracking-widest font-mono pb-0.5"
               style={{ color: (CATEGORY_META[cat]?.color ?? "#00ff41") + "60" }}
             >
-              — {CATEGORY_META[cat]?.label ?? cat} —
+              — {CATEGORY_META[cat]?.label ?? cat} — ({items.length})
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {items.map((link) => (
