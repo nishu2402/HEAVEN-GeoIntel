@@ -148,6 +148,66 @@ Target phone / email
 - **npm 9+** — included with Node.js
 - No database · no Docker · no Redis · no cloud account
 
+### Fulfill Requirements
+
+**macOS (Homebrew)**
+```bash
+# Install Homebrew if you don't have it
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Node.js (includes npm)
+brew install node
+
+# Verify
+node -v && npm -v
+```
+
+**macOS / Linux (nvm — recommended)**
+```bash
+# Install nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# Reload shell, then install Node 18 LTS
+source ~/.zshrc
+nvm install 18
+nvm use 18
+
+# Verify
+node -v && npm -v
+```
+
+**Linux (Ubuntu / Debian)**
+```bash
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify
+node -v && npm -v
+```
+
+**Windows**
+```powershell
+# Option 1 — winget (Windows 11 / 10)
+winget install OpenJS.NodeJS.LTS
+
+# Option 2 — download installer from https://nodejs.org
+# After install, open a new terminal and verify:
+node -v && npm -v
+```
+
+> Once `node -v` shows `v18.x.x` or higher and `npm -v` shows `9.x.x` or higher, you're ready.
+
+### Install project dependencies
+
+```bash
+# Clone the repo (if you haven't already)
+git clone https://github.com/nishu2402/HEAVEN-GeoIntel.git
+cd HEAVEN-GeoIntel
+
+# Install all dependencies from requirements.txt (package.json)
+npm install
+```
+
 ### One-command start
 
 ```bash
