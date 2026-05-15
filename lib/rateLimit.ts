@@ -1,6 +1,25 @@
+import type { NextRequest } from "next/server";
+
 const WINDOW_MS = 60_000; // 1 minute
 const MAX_REQUESTS = 10;
 const CLEANUP_INTERVAL_MS = 5 * 60_000; // clean stale buckets every 5 min
+
+/**
+ * Extract client IP for rate-limiting.
+ *
+ * X-Forwarded-For / X-Real-IP are trivially spoofable. Trust them ONLY when
+ * the operator opts in via TRUST_PROXY=1 (e.g. behind Cloudflare, nginx, etc.).
+ * Default behavior (local dev / direct exposure) ignores headers entirely.
+ */
+export function getClientIp(req: NextRequest): string {
+  if (process.env.TRUST_PROXY === "1") {
+    const xff = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (xff) return xff;
+    const xri = req.headers.get("x-real-ip");
+    if (xri) return xri;
+  }
+  return req.ip ?? "127.0.0.1";
+}
 
 interface Bucket {
   count: number;
