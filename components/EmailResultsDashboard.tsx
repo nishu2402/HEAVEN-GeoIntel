@@ -507,7 +507,7 @@ export default function EmailResultsDashboard({ data }: Props) {
               </div>
               <div className="space-y-1">
                 {fcData.employment.slice(0, 5).map((emp, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs font-mono">
+                  <div key={`${emp.name}-${emp.title ?? ""}-${i}`} className="flex items-start gap-2 text-xs font-mono">
                     <span className={emp.current ? "text-[#00ff41]" : "text-[#888]"}>
                       {emp.current ? "▶" : "·"}
                     </span>

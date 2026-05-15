@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { analyzeEmail } from "@/lib/emailAnalysis";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import type {
   EmailLookupResponse,
   GravatarProfile,
@@ -13,14 +13,6 @@ import type {
   FullContactData,
   SourceResult,
 } from "@/lib/types";
-
-function getIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "127.0.0.1"
-  );
-}
 
 function md5(str: string): string {
   return createHash("md5").update(str).digest("hex");
@@ -57,7 +49,7 @@ async function fetchGravatar(email: string): Promise<GravatarProfile> {
   try {
     const res = await fetch(`https://gravatar.com/${hash}.json`, {
       headers: { "User-Agent": "HEAVEN-GeoIntel/2.0" },
-      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
     });
     if (!res.ok) return empty;
 
@@ -109,7 +101,7 @@ async function fetchEmailRep(email: string): Promise<SourceResult<EmailRepData>>
 
     const res = await fetch(`https://emailrep.io/${encodeURIComponent(email)}`, {
       headers,
-      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
     });
     if (res.status === 429) return { ok: false, error: "RATE_LIMITED" };
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
@@ -182,7 +174,7 @@ async function fetchAbstractEmail(email: string): Promise<SourceResult<AbstractE
   try {
     const res = await fetch(
       `https://emailvalidation.abstractapi.com/v1/?api_key=${key}&email=${encodeURIComponent(email)}`,
-      { next: { revalidate: 0 } }
+      { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
 
@@ -230,7 +222,7 @@ async function fetchHunter(email: string): Promise<SourceResult<HunterData>> {
   try {
     const res = await fetch(
       `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${key}`,
-      { next: { revalidate: 0 } }
+      { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
 
@@ -320,7 +312,7 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
       `https://api.xposedornot.com/v1/breach-analytics?email=${encodeURIComponent(email)}`,
       {
         headers: { "User-Agent": "HEAVEN-GeoIntel/2.0", "Accept": "application/json" },
-        next: { revalidate: 0 },
+        signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
       }
     );
 
@@ -408,7 +400,7 @@ async function fetchFullContact(email: string): Promise<SourceResult<FullContact
         "User-Agent": "HEAVEN-GeoIntel/2.0",
       },
       body: JSON.stringify({ email }),
-      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
     });
 
     if (res.status === 404) return { ok: false, error: "NOT_FOUND" };
@@ -486,7 +478,7 @@ async function fetchBreachDirectory(email: string): Promise<SourceResult<BreachD
           "x-rapidapi-key": key,
           "Accept": "application/json",
         },
-        next: { revalidate: 0 },
+        signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
       }
     );
 
@@ -536,7 +528,7 @@ async function fetchBreachDirectory(email: string): Promise<SourceResult<BreachD
 
 // ── POST handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip = getIp(req);
+  const ip = getClientIp(req);
   const { allowed, remaining } = checkRateLimit(ip);
   const rlHeaders = {
     "X-RateLimit-Limit": "10",
