@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { getCached, setCached } from "@/lib/cache";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
 import { getCountryIntel } from "@/lib/countryIntel";
 import type { CountryIntel } from "@/lib/countryIntel";
@@ -17,14 +17,6 @@ import type {
 } from "@/lib/types";
 import type { PhoneAnalysis } from "@/lib/phoneAnalysis";
 
-function getIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "127.0.0.1"
-  );
-}
-
 async function fetchNumVerify(e164: string): Promise<SourceResult<NumVerifyData>> {
   const key = process.env.NUMVERIFY_API_KEY;
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
@@ -32,7 +24,7 @@ async function fetchNumVerify(e164: string): Promise<SourceResult<NumVerifyData>
     const number = e164.replace("+", "");
     const res = await fetch(
       `http://apilayer.net/api/validate?access_key=${key}&number=${number}&format=1`,
-      { next: { revalidate: 0 } }
+      { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = (await res.json()) as NumVerifyData & { error?: { info: string } };
@@ -50,7 +42,7 @@ async function fetchIpqs(e164: string): Promise<SourceResult<IpqsData>> {
     const encoded = encodeURIComponent(e164);
     const res = await fetch(
       `https://www.ipqualityscore.com/api/json/phone/${key}/${encoded}?strictness=1&allow_prepaid=true`,
-      { next: { revalidate: 0 } }
+      { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = (await res.json()) as IpqsData;
@@ -67,7 +59,7 @@ async function fetchAbstract(e164: string): Promise<SourceResult<AbstractData>> 
   try {
     const res = await fetch(
       `https://phonevalidation.abstractapi.com/v1/?api_key=${key}&phone=${encodeURIComponent(e164)}`,
-      { next: { revalidate: 0 } }
+      { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = (await res.json()) as AbstractData & { error?: { message: string } };
@@ -90,7 +82,7 @@ async function fetchTwilio(e164: string): Promise<SourceResult<TwilioData>> {
         headers: {
           Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
         },
-        next: { revalidate: 0 },
+        signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
       }
     );
     if (!res.ok) {
@@ -228,7 +220,7 @@ function buildAggregated(
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip = getIp(req);
+  const ip = getClientIp(req);
   const { allowed, remaining } = checkRateLimit(ip);
   const rlHeaders = {
     "X-RateLimit-Limit": "10",
