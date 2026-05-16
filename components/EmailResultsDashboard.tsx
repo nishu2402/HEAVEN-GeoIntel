@@ -10,7 +10,7 @@ import {
 import type { EmailLookupResponse } from "@/lib/types";
 import EmailOsintPivots from "./EmailOsintPivots";
 import BreachPanel from "./BreachPanel";
-import { cn } from "@/lib/utils";
+import { cn, copyText } from "@/lib/utils";
 
 interface Props {
   data: EmailLookupResponse;
@@ -21,7 +21,7 @@ function CopyBtn({ text }: { text: string }) {
   return (
     <button
       onClick={() => {
-        navigator.clipboard.writeText(text).catch(console.error);
+        void copyText(text);
         setDone(true);
         setTimeout(() => setDone(false), 1500);
       }}

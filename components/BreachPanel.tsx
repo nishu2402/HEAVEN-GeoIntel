@@ -12,6 +12,7 @@ import {
   CRACK_DIFFICULTY_LABEL,
   CRACK_DIFFICULTY_COLOR,
 } from "@/lib/hashDetect";
+import { copyText } from "@/lib/utils";
 
 interface Props {
   xon: { ok: boolean; data?: XposedOrNotData; error?: string };
@@ -90,7 +91,7 @@ function CopyOpenBtn({
   const [done, setDone] = useState(false);
   const handle = () => {
     if (disabled) return;
-    navigator.clipboard.writeText(hash).catch(console.error);
+    void copyText(hash);
     window.open(url, "_blank", "noopener,noreferrer");
     setDone(true);
     setTimeout(() => setDone(false), 2000);
@@ -116,7 +117,7 @@ function CopyHashBtn({ hash }: { hash: string }) {
   return (
     <button
       onClick={() => {
-        navigator.clipboard.writeText(hash).catch(console.error);
+        void copyText(hash);
         setDone(true);
         setTimeout(() => setDone(false), 1500);
       }}

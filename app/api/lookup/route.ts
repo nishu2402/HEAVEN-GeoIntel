@@ -138,12 +138,9 @@ function buildAggregated(
       ? [countryIntel.timezones[0]]
       : null;
 
-  const utcOffsets =
-    analysis.utcOffsets.length > 0
-      ? analysis.utcOffsets
-      : countryIntel?.timezones && countryIntel.timezones.length > 0
-      ? [countryIntel.timezones[0]]
-      : null;
+  // Only real UTC offsets — never fall back to an IANA timezone name,
+  // which is not an offset and would render as wrong data.
+  const utcOffsets = analysis.utcOffsets.length > 0 ? analysis.utcOffsets : null;
 
   const fraudScore = ipqs.ok && ipqs.data ? ipqs.data.fraud_score : null;
 
@@ -286,19 +283,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     numverify:
       numverifyResult.status === "fulfilled"
         ? numverifyResult.value
-        : { ok: false, error: numverifyResult.reason as string },
+        : { ok: false, error: String(numverifyResult.reason) },
     ipqs:
       ipqsResult.status === "fulfilled"
         ? ipqsResult.value
-        : { ok: false, error: ipqsResult.reason as string },
+        : { ok: false, error: String(ipqsResult.reason) },
     abstract:
       abstractResult.status === "fulfilled"
         ? abstractResult.value
-        : { ok: false, error: abstractResult.reason as string },
+        : { ok: false, error: String(abstractResult.reason) },
     twilio:
       twilioResult.status === "fulfilled"
         ? twilioResult.value
-        : { ok: false, error: twilioResult.reason as string },
+        : { ok: false, error: String(twilioResult.reason) },
   };
 
   const aggregated = buildAggregated(
