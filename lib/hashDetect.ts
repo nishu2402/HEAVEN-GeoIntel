@@ -7,7 +7,7 @@
 export interface HashInfo {
   algorithm: string;       // "MD5" | "SHA-1" | "bcrypt" | ...
   bits: number | null;     // key length in bits (null = unknown)
-  crackable: "trivial" | "easy" | "hard" | "infeasible";
+  crackable: "trivial" | "easy" | "hard" | "infeasible" | "unknown";
   color: string;           // UI accent
   note: string;            // human-readable one-liner
   bestTool: { label: string; url: string };
@@ -225,7 +225,7 @@ function unknown(): HashInfo {
   return {
     algorithm: "Unknown",
     bits: null,
-    crackable: "easy",
+    crackable: "unknown",
     color: "#555",
     note: "Format not recognized — paste into a hash identifier for analysis.",
     bestTool: HASHES_COM,
@@ -237,6 +237,7 @@ export const CRACK_DIFFICULTY_LABEL: Record<HashInfo["crackable"], string> = {
   easy:       "EASY — minutes to hours",
   hard:       "HARD — GPU farm required",
   infeasible: "INFEASIBLE — not crackable",
+  unknown:    "UNKNOWN — identify hash first",
 };
 
 export const CRACK_DIFFICULTY_COLOR: Record<HashInfo["crackable"], string> = {
@@ -244,4 +245,5 @@ export const CRACK_DIFFICULTY_COLOR: Record<HashInfo["crackable"], string> = {
   easy:       "#ff6600",
   hard:       "#ffaa00",
   infeasible: "#00ff41",
+  unknown:    "#555",
 };

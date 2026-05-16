@@ -282,25 +282,26 @@ function normalizePasswordRisk(raw: string | undefined): string {
 // The top-level can be either an array of categories OR a single root object.
 function flattenXonDataTypes(xposedData: unknown): string[] {
   const results: string[] = [];
-  function walk(node: unknown): void {
-    if (!node || typeof node !== "object") return;
+  const MAX_DEPTH = 20; // guard against hostile/cyclic JSON from the external API
+  function walk(node: unknown, depth: number): void {
+    if (depth > MAX_DEPTH || !node || typeof node !== "object") return;
     const obj = node as Record<string, unknown>;
     // Leaf node: name starting with "data_"
     if (typeof obj.name === "string" && obj.name.startsWith("data_")) {
       results.push(obj.name.slice(5).trim()); // strip "data_" prefix
     }
-    if (Array.isArray(obj.children)) obj.children.forEach(walk);
+    if (Array.isArray(obj.children)) obj.children.forEach((c) => walk(c, depth + 1));
     // Also walk any nested object values (handles plain-object category trees)
     for (const val of Object.values(obj)) {
       if (val && typeof val === "object" && !Array.isArray(val)) {
-        walk(val);
+        walk(val, depth + 1);
       }
     }
   }
   if (Array.isArray(xposedData)) {
-    xposedData.forEach(walk);
+    xposedData.forEach((n) => walk(n, 0));
   } else if (xposedData && typeof xposedData === "object") {
-    walk(xposedData); // single root object
+    walk(xposedData, 0); // single root object
   }
   return Array.from(new Set(results)); // deduplicate
 }

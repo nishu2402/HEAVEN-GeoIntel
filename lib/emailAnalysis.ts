@@ -31,12 +31,8 @@ function guessNameFromUsername(username: string): string | null {
     }
   }
 
-  // firstnamelastname heuristic: if it's one word and 5-20 chars, might be a name
-  if (/^[a-zA-Z]{5,20}$/.test(cleaned)) {
-    // Can't reliably split — return the cleaned username with capitalization
-    return toTitleCase(cleaned);
-  }
-
+  // A single word is NOT evidence of a real name ("newsletter", "dragonslayer",
+  // "qwerty"...). Only the explicit first.last pattern above is reported.
   return null;
 }
 

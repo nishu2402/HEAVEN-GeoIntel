@@ -305,40 +305,17 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
 
   const nationalDigits = national.replace(/\D/g, "");
 
-  // Area code extraction — country-specific rules
+  // Area code extraction — US/CA ONLY, backed by the real NPA database.
+  // Other countries use variable-length area codes (DE: 2-5 digits, GB
+  // landline vs mobile, etc.) — a fixed-width slice produces fabricated
+  // data. Per the no-false-positives rule, extract nothing rather than guess.
   let areaCode: string | null = null;
   let subscriberNumber = nationalDigits;
 
   if (country === "US" || country === "CA") {
     areaCode = nationalDigits.slice(0, 3);
     subscriberNumber = nationalDigits.slice(3);
-  } else if (country === "GB") {
-    // UK: 07xxx mobile = 4-digit area code, landline 01/02 = 3-5 digits
-    if (nationalDigits.startsWith("7") || nationalDigits.startsWith("07")) {
-      areaCode = nationalDigits.startsWith("0") ? nationalDigits.slice(1, 5) : nationalDigits.slice(0, 4);
-      subscriberNumber = nationalDigits.slice(4);
-    } else {
-      areaCode = nationalDigits.slice(0, 3);
-      subscriberNumber = nationalDigits.slice(3);
-    }
-  } else if (country === "DE") {
-    areaCode = nationalDigits.slice(0, 3);
-    subscriberNumber = nationalDigits.slice(3);
-  } else if (country === "FR") {
-    areaCode = nationalDigits.slice(0, 2);
-    subscriberNumber = nationalDigits.slice(2);
-  } else if (country === "AU") {
-    areaCode = nationalDigits.slice(0, 1);
-    subscriberNumber = nationalDigits.slice(1);
-  } else if (country === "IT" || country === "ES" || country === "PL" || country === "NL") {
-    // These countries have 2-3 digit area codes, extract first 2 digits
-    if (nationalDigits.length >= 9) {
-      areaCode = nationalDigits.slice(0, 2);
-      subscriberNumber = nationalDigits.slice(2);
-    }
   }
-  // For all other countries: do NOT guess an area code
-  // Showing wrong data is worse than showing no data
 
   const expectedLengths: number[] = country ? (COUNTRY_NUMBER_LENGTHS[country] ?? []) : [];
 

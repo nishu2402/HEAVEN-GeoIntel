@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Check, ExternalLink } from "lucide-react";
+import { copyText } from "@/lib/utils";
 
 interface Props {
   e164: string;
@@ -20,7 +21,7 @@ export default function DorkGenerator({ e164, national }: Props) {
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const copy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text).catch(console.error);
+    void copyText(text);
     setCopiedKey(key);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setCopiedKey(null), 1500);

@@ -19,14 +19,16 @@ export default function QrCodePanel({ e164 }: Props) {
     setErr(false);
     const canvas = canvasRef.current;
     if (!canvas) return;
+    let cancelled = false;
     QRCode.toCanvas(canvas, `tel:${e164}`, {
       width: 180,
       margin: 2,
       color: { dark: "#00ff41", light: "#0a0a0a" },
       errorCorrectionLevel: "M",
     })
-      .then(() => setReady(true))
-      .catch(() => setErr(true));
+      .then(() => { if (!cancelled) setReady(true); })
+      .catch(() => { if (!cancelled) setErr(true); });
+    return () => { cancelled = true; };
   }, [e164]);
 
   function downloadQr() {

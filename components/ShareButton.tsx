@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Share2, Check } from "lucide-react";
+import { copyText } from "@/lib/utils";
 
 interface Props {
   e164: string;
@@ -12,7 +13,7 @@ export default function ShareButton({ e164 }: Props) {
 
   const handleShare = () => {
     const url = `${window.location.origin}?q=${encodeURIComponent(e164)}`;
-    navigator.clipboard.writeText(url).catch(console.error);
+    void copyText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

@@ -17,7 +17,8 @@ export function saveToHistory(entry: HistoryEntry): void {
   if (typeof window === "undefined") return;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const existing: HistoryEntry[] = raw ? (JSON.parse(raw) as HistoryEntry[]) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    const existing: HistoryEntry[] = Array.isArray(parsed) ? parsed : [];
     const filtered = existing.filter((e) => e.e164 !== entry.e164);
     const updated = [entry, ...filtered].slice(0, MAX_ENTRIES);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -44,7 +45,8 @@ export default function HistorySidebar({ onSelect, currentE164 }: Props) {
   const loadHistory = useCallback(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      setHistory(raw ? (JSON.parse(raw) as HistoryEntry[]) : []);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setHistory(Array.isArray(parsed) ? parsed : []);
     } catch {
       setHistory([]);
     }
@@ -65,7 +67,11 @@ export default function HistorySidebar({ onSelect, currentE164 }: Props) {
   }, [loadHistory]);
 
   const clearHistory = () => {
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // localStorage unavailable — clear in-memory state regardless
+    }
     setHistory([]);
   };
 

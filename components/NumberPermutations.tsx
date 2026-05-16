@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import type { LookupResponse } from "@/lib/types";
+import { copyText } from "@/lib/utils";
 
 interface Props {
   data: LookupResponse;
@@ -19,7 +20,7 @@ export default function NumberPermutations({ data }: Props) {
   const noCC = allDigits.slice(input.countryCallingCode.replace("+","").length); // 4155551234
 
   const copy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text).catch(console.error);
+    void copyText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 1500);
   };
