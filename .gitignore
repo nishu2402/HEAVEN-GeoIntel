@@ -20,6 +20,11 @@
 .DS_Store
 *.pem
 
+# editor / agent tooling
+.claude/
+.vscode/
+.idea/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
