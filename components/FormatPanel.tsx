@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Copy, Check } from "lucide-react";
 import type { LookupResponse } from "@/lib/types";
+import { copyText } from "@/lib/utils";
 
 interface Props {
   data: LookupResponse;
@@ -18,7 +19,7 @@ interface FormatRow {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    navigator.clipboard.writeText(text).catch(console.error);
+    void copyText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

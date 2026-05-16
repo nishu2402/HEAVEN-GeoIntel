@@ -22,14 +22,14 @@ import PentesterPanel from "./PentesterPanel";
 import DorkGenerator from "./DorkGenerator";
 import NumberPermutations from "./NumberPermutations";
 import ReportExport from "./ReportExport";
-import { cn } from "@/lib/utils";
+import { cn, copyText } from "@/lib/utils";
 
 interface Props {
   data: LookupResponse;
 }
 
 function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text).catch(console.error);
+  void copyText(text);
 }
 
 function downloadJson(data: LookupResponse) {
