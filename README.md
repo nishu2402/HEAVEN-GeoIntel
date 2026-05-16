@@ -204,7 +204,7 @@ Every phone lookup returns real data derived from the number structure and bundl
 | **Result Header** | E.164 · country flag · line type badge · caller name (API) · ambiguity warning |
 | **Threat Assessment** | Fraud score · VoIP/prepaid/abuse flags · risk level |
 | **Phone OSINT Intelligence** | **Intelligence Score (0–100)** · Target Profile classifier · Attack Vector grid (Vishing/Smishing/SIM Swap/Spoofing/Pretexting/Location) · live local time · call window · NPA area code intel · Quick OSINT Lookups · signal flags |
-| **Number Structure** | Country code · area code · subscriber number · NXX prefix — country-specific extraction (US/CA · GB · DE · FR · AU) |
+| **Number Structure** | Country code · area code · subscriber number · NXX prefix — area code extracted for US/CA (NPA database) |
 | **Metric Cards** | Only populated fields — no N/A cards. 6–8 offline; up to 16 with API keys |
 | **Format Cross-Reference** | E.164 · International · National · RFC 3966 — all copyable |
 | **Number Permutations** | 11 format variants for database/OSINT searching (dots · dashes · URL-encoded · WhatsApp link · etc.) |
@@ -393,7 +393,7 @@ Browser → POST /api/lookup { number: "+14155552671" }
               │    detect type: mobile / fixed / VoIP / toll-free / premium / pager
               │    ambiguous type (FIXED_LINE_OR_MOBILE) flagged — never falsely claimed
               │    IANA timezone derived from 110-country bundled map
-              │    area code extracted per country-specific rules
+              │    area code extracted for US/CA (real NPA database)
               │    NXX central office code from subscriber portion
               │
               ├─ US/CA NPA database  (always, offline)
@@ -451,7 +451,7 @@ Browser → POST /api/email-lookup { email: "target@domain.com" }
 - Number type — mobile / fixed / VoIP / toll-free / premium / pager / personal
 - Ambiguous type: `FIXED_LINE_OR_MOBILE` shown as "TYPE AMBIGUOUS" — never falsely claimed
 - IANA timezone + UTC offset (110+ countries/territories)
-- Area code — extracted for US/CA · GB · DE · FR · AU · IT · ES · PL · NL only
+- Area code — extracted for US/CA only, backed by the real NPA database (other countries use variable-length area codes — guessing them would fabricate data)
 - NXX central office code — from subscriber portion, not area code
 - All 4 number formats
 - Expected digit length per country
