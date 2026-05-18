@@ -155,9 +155,20 @@ node -v   # must be v18.17.0 or higher
 npm -v    # must be 7.0.0 or higher
 ```
 
+### Clone the Repository
+
+Download the project source with Git:
+
+```bash
+git clone https://github.com/nishu2402/HEAVEN-GeoIntel.git
+cd HEAVEN-GeoIntel
+```
+
+> No Git installed? Install it from [git-scm.com](https://git-scm.com), or download the project as a ZIP from the GitHub page (**Code → Download ZIP**) and extract it. Then `cd` into the extracted folder.
+
 ### Install Dependencies
 
-All dependencies are listed in [`requirements.txt`](./requirements.txt). Install them with a single command:
+All dependencies are listed in [`requirements.txt`](./requirements.txt). From inside the project folder, install them with a single command:
 
 ```bash
 npm install
