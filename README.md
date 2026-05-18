@@ -144,9 +144,16 @@ Target phone / email
 
 ### Requirements
 
-- **Node.js 18+** — [nodejs.org](https://nodejs.org)
-- **npm 9+** — included with Node.js
+- **Node.js 18.17 or higher** — [nodejs.org](https://nodejs.org) (Next.js 14 will not run on older versions)
+- **npm 7 or higher** — included with Node.js 18+
 - No database · no Docker · no Redis · no cloud account
+
+Check your versions before installing:
+
+```bash
+node -v   # must be v18.17.0 or higher
+npm -v    # must be 7.0.0 or higher
+```
 
 ### Install Dependencies
 
@@ -157,6 +164,8 @@ npm install
 ```
 
 > `npm install` is the Node.js equivalent of `pip install -r requirements.txt` — it reads `package.json` and installs every dependency at the exact versions pinned in `requirements.txt`.
+
+> **Moving the project to another PC?** Do **not** copy the `node_modules` folder — it contains OS-specific binaries and breaks across machines. Copy only the source, then run `npm install` fresh on the new PC.
 
 ### One-command start
 
@@ -636,6 +645,9 @@ Add `FULLCONTACT_API_KEY` to `.env.local`. FullContact offers a free developer t
 
 ### `npm run dev` fails with MODULE_NOT_FOUND
 Use `bash start.sh` or `npm run setup` instead. Both invoke Next.js via `node node_modules/next/dist/bin/next` and bypass symlink issues.
+
+### `npm install` fails on another PC
+Almost always an outdated Node.js. Run `node -v` — it must be **v18.17.0 or higher**. If it is older, install the current LTS from [nodejs.org](https://nodejs.org) (or use [nvm](https://github.com/nvm-sh/nvm): `nvm install 18`), then retry. A clear `EBADENGINE` error means exactly this. If you copied the project folder, delete `node_modules` and run `npm install` fresh — binaries are OS-specific and do not transfer between machines.
 
 ---
 
