@@ -15,8 +15,15 @@ import {
 import { copyText } from "@/lib/utils";
 
 interface Props {
-  xon: { ok: boolean; data?: XposedOrNotData; error?: string };
+  // xon is email-only — pass undefined for phone lookups
+  xon?: { ok: boolean; data?: XposedOrNotData; error?: string };
   breachDirectory: { ok: boolean; data?: BreachDirectoryData; error?: string };
+  /** Label shown in the section header. Defaults to "BREACH DATABASE — XposedOrNot". */
+  headerLabel?: string;
+  /** Subject of the lookup (e.g. "this email" / "this phone"). Defaults to "this email". */
+  subjectLabel?: string;
+  /** Raw E.164 for phone-mode free-lookup buttons. */
+  e164?: string;
 }
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
@@ -279,15 +286,174 @@ function HashField({
   );
 }
 
+// ── Phone-only panel (BreachDirectory + free fallback search buttons) ────────
+
+interface BdOnlyProps {
+  breachDirectory: { ok: boolean; data?: BreachDirectoryData; error?: string };
+  subjectLabel: string;
+  /** Raw E.164 number, used to build the free-lookup buttons */
+  e164?: string;
+}
+
+function buildFreeBreachLookups(e164: string) {
+  const enc = encodeURIComponent(e164);
+  const digits = e164.replace(/\D/g, "");
+  return [
+    { label: "HaveIBeenPwned",   url: `https://haveibeenpwned.com/`,                                    note: "Captcha-only · no key" },
+    { label: "IntelligenceX",    url: `https://intelx.io/?s=${enc}`,                                    note: "Free preview" },
+    { label: "Dehashed",         url: `https://dehashed.com/search?query=${enc}`,                       note: "First-page preview free" },
+    { label: "LeakCheck",        url: `https://leakcheck.io/?query=${enc}`,                             note: "Free web check" },
+    { label: "Snusbase",         url: `https://snusbase.com/search?term=${enc}`,                        note: "Free count, paid details" },
+    { label: "OSINT Industries", url: `https://osint.industries/?q=${enc}`,                             note: "Free phone-to-social" },
+    { label: "Epieos",           url: `https://epieos.com/?q=${enc}&t=phone`,                           note: "Free Gravatar/Google check" },
+    { label: "GhostProject",     url: `https://ghostproject.fr/`,                                       note: "Free email/phone fuzz" },
+    { label: "Pastebin search",  url: `https://www.google.com/search?q=site:pastebin.com+%22${enc}%22`, note: "Indexed leaks" },
+    { label: "DorkSearch all",   url: `https://www.google.com/search?q=%22${enc}%22+OR+%22${digits}%22+(leak+OR+breach+OR+dump+OR+credentials)`, note: "Broad web sweep" },
+  ];
+}
+
+function BdOnlyPanel({
+  breachDirectory,
+  subjectLabel,
+  e164,
+}: BdOnlyProps) {
+  const ok = breachDirectory.ok;
+  const bd = ok ? breachDirectory.data : null;
+  const configured = breachDirectory.error !== "NOT_CONFIGURED";
+  const hasHits = ok && bd && bd.found > 0 && bd.results.length > 0;
+  const isClean = ok && bd && bd.found === 0;
+
+  const borderColor = hasHits ? "#ff3e3e" : isClean ? "#00ff41" : "#00d9ff";
+  const freeLookups = e164 ? buildFreeBreachLookups(e164) : [];
+
+  return (
+    <div className="terminal-card p-4 space-y-4" style={{ borderColor: borderColor + "50" }}>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60 mb-1.5 flex items-center gap-1.5">
+            {isClean
+              ? <ShieldCheck className="w-3 h-3 text-[#00ff41]" />
+              : <ShieldAlert className="w-3 h-3" style={{ color: borderColor }} />}
+            CREDENTIAL BREACH SEARCH — phone number
+          </div>
+          {isClean && (
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold font-mono text-[#00ff41]">CLEAN (BreachDirectory)</span>
+              <span className="text-xs font-mono text-[#00ff41]/60">
+                — no credential records for {subjectLabel} in BreachDirectory&apos;s 3.5B-record index
+              </span>
+            </div>
+          )}
+          {hasHits && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-2xl font-bold font-mono text-[#ff3e3e]">
+                {bd!.found} RECORD{bd!.found !== 1 ? "S" : ""}
+              </span>
+              <span className="text-xs font-mono flex items-center gap-1 text-[#ff3e3e]">
+                <AlertTriangle className="w-3 h-3" />
+                {subjectLabel} appears in {bd!.sources.length || "one or more"} breach dataset
+                {bd!.sources.length === 1 ? "" : "s"}
+              </span>
+            </div>
+          )}
+          {!configured && (
+            <div className="text-[13px] font-mono text-[#00d9ff]/75">
+              No BreachDirectory key configured. Use the free lookups below — they need no API key.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {hasHits && (
+        <div className="space-y-3">
+          <p className="text-[13px] font-mono text-[#00ff41]/60 leading-relaxed">
+            Real password hashes from breach datasets tied to {subjectLabel}. Click
+            &ldquo;CRACK&rdquo; to copy a hash and open a cracking tool in one action.
+          </p>
+          <div className="space-y-3">
+            {bd!.results.slice(0, 10).map((entry, i) => (
+              <CredentialCard key={i} entry={entry} index={i} />
+            ))}
+            {bd!.results.length > 10 && (
+              <div className="text-[13px] font-mono text-[#00ff41]/50 text-center border border-[#00ff41]/15 py-2">
+                + {bd!.results.length - 10} more records (showing first 10)
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Free, no-key lookup action center — always shown for phone mode */}
+      {freeLookups.length > 0 && (
+        <div className="border-t border-[#00ff41]/10 pt-3 space-y-2">
+          <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/65 flex items-center gap-1.5">
+            <Zap className="w-3 h-3" /> FREE BREACH LOOKUPS — one click, no key, no login
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {freeLookups.map((l) => (
+              <a
+                key={l.label}
+                href={l.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-2 border border-[#00d9ff]/15 hover:border-[#00d9ff]/45 hover:bg-[#00d9ff]/[0.05] transition-all"
+              >
+                <ExternalLink className="w-3 h-3 text-[#00d9ff]/65 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-mono font-bold text-[#00d9ff]/85 truncate">{l.label}</div>
+                  <div className="text-[11px] font-mono text-[#00ff41]/45 truncate">{l.note}</div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!configured && (
+        <div className="border border-[#ffaa00]/30 p-3 space-y-1.5 bg-[#ffaa00]/[0.03]">
+          <div className="text-[12px] uppercase tracking-widest text-[#ffaa00] font-semibold flex items-center gap-1.5">
+            <Lock className="w-3 h-3" /> Want in-app credential hashes?
+          </div>
+          <p className="text-[12px] font-mono text-[#ffaa00]/75 leading-snug">
+            Add a free RapidAPI key for BreachDirectory to surface real SHA-1/MD5 hashes
+            inline.{" "}
+            <a href="https://rapidapi.com/rohan-patra/api/breachdirectory" target="_blank" rel="noopener noreferrer"
+              className="text-[#00d9ff] underline underline-offset-2 hover:text-[#00d9ff]/80">
+              Get a free key
+            </a>{" "}
+            then add{" "}
+            <code className="text-[#00ff41] bg-[#00ff41]/10 px-1">RAPIDAPI_KEY=…</code>{" "}
+            to <code className="text-[#00ff41] bg-[#00ff41]/10 px-1">.env.local</code>.
+          </p>
+        </div>
+      )}
+
+      {configured && !ok && (
+        <div className="text-[13px] font-mono text-[#aaa]">
+          BreachDirectory error: {breachDirectory.error ?? "unknown"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function BreachPanel({ xon, breachDirectory }: Props) {
+export default function BreachPanel({
+  xon, breachDirectory,
+  headerLabel = "BREACH DATABASE — XposedOrNot · free · 1000+ sources",
+  subjectLabel = "this email",
+  e164,
+}: Props) {
+
+  // Phone mode (no XON) — render a phone-specific breach card based purely on BreachDirectory.
+  if (!xon) return <BdOnlyPanel breachDirectory={breachDirectory} subjectLabel={subjectLabel} e164={e164} />;
 
   if (!xon.ok) {
     return (
       <div className="terminal-card p-4 border border-[#555]/30">
         <div className="text-[13px] uppercase tracking-widest text-[#888] mb-2 flex items-center gap-1.5">
-          <ShieldAlert className="w-3 h-3" /> BREACH DATABASE — XposedOrNot
+          <ShieldAlert className="w-3 h-3" /> {headerLabel}
         </div>
         <div className="text-xs font-mono text-[#aaa]">
           {xon.error === "RATE_LIMITED"
@@ -327,7 +493,7 @@ export default function BreachPanel({ xon, breachDirectory }: Props) {
             {xonData.breachCount === 0
               ? <ShieldCheck className="w-3 h-3 text-[#00ff41]" />
               : <ShieldAlert className="w-3 h-3" style={{ color: borderColor }} />}
-            BREACH DATABASE — XposedOrNot · free · 1000+ sources
+            {headerLabel}
           </div>
 
           {xonData.breachCount === 0 ? (

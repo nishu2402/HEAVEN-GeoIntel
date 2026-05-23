@@ -137,6 +137,29 @@ export interface AggregatedResult {
   city: string | null;
 }
 
+// ── Hudson Rock infostealer search (free, no key) ────────────────────────────
+// Hudson Rock's Cavalier "osint-tools/search-by-login" endpoint accepts any
+// identifier (email, username, phone) and returns infostealer infections that
+// captured that identifier.  Free, no API key.
+export interface HudsonRockStealer {
+  computerName: string | null;
+  operatingSystem: string | null;
+  malwareFamily: string | null;
+  dateCompromised: string | null;
+  ip: string | null;
+  topPasswords: string[];      // observed paired credentials (first N)
+  topLogins: string[];         // sites the credentials were used on
+}
+
+export interface HudsonRockData {
+  /** total infections found (or zero) */
+  total: number;
+  /** detailed stealer hits, limited to N */
+  stealers: HudsonRockStealer[];
+  /** message returned by the API when nothing found */
+  message?: string;
+}
+
 export interface LookupResponse {
   input: PhoneInputData;
   analysis: PhoneAnalysis;
@@ -146,8 +169,13 @@ export interface LookupResponse {
     ipqs: SourceResult<IpqsData>;
     abstract: SourceResult<AbstractData>;
     twilio: SourceResult<TwilioData>;
+    breachDirectory: SourceResult<BreachDirectoryData>;
+    fullContact: SourceResult<FullContactData>;
+    hudsonRock: SourceResult<HudsonRockData>;
   };
   aggregated: AggregatedResult;
+  threatScore: number;          // 0-100 unified threat score
+  threatLabel: string;          // "CLEAN" | "LOW RISK" | "MODERATE" | "HIGH RISK" | "CRITICAL"
   cachedAt?: number;
 }
 
@@ -158,6 +186,9 @@ export interface HistoryEntry {
   timestamp: number;
   flagEmoji: string;
 }
+
+// ── BreachDirectory / FullContact types are declared in the email section below ──
+// They are re-used by the phone lookup route for breach hash hits and person enrichment.
 
 // ── Email OSINT types ──────────────────────────────────────────────────────────
 

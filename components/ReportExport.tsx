@@ -16,9 +16,11 @@ function val(v: unknown): string {
 }
 
 function generateTextReport(data: LookupResponse): string {
-  const { input, aggregated, analysis, sources } = data;
+  const { input, aggregated, analysis, sources, threatScore, threatLabel } = data;
   const now = new Date().toISOString();
   const separator = "─".repeat(70);
+  const fc = sources.fullContact.ok ? sources.fullContact.data : null;
+  const bd = sources.breachDirectory.ok ? sources.breachDirectory.data : null;
 
   const sourceStatus = [
     `  libphonenumber-js : ACTIVE (offline, always available)`,
@@ -26,13 +28,16 @@ function generateTextReport(data: LookupResponse): string {
     `  IPQualityScore    : ${sources.ipqs.ok ? "ACTIVE" : sources.ipqs.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.ipqs.error}`}`,
     `  AbstractAPI       : ${sources.abstract.ok ? "ACTIVE" : sources.abstract.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.abstract.error}`}`,
     `  Twilio Lookup     : ${sources.twilio.ok ? "ACTIVE" : sources.twilio.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.twilio.error}`}`,
+    `  BreachDirectory   : ${sources.breachDirectory.ok ? "ACTIVE" : sources.breachDirectory.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.breachDirectory.error}`}`,
+    `  FullContact       : ${sources.fullContact.ok ? "ACTIVE" : sources.fullContact.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.fullContact.error}`}`,
   ].join("\n");
 
   const npa = analysis.npaInfo;
 
   const lines = [
     `HEAVEN-GeoIntel — Phone Intelligence Report`,
-    `Generated  : ${now}`,
+    `Generated   : ${now}`,
+    `Threat Score: ${threatScore}/100 — ${threatLabel}`,
     separator,
     ``,
     `TARGET NUMBER`,
@@ -50,14 +55,12 @@ function generateTextReport(data: LookupResponse): string {
     `  Calling Code       : ${input.countryCallingCode}`,
     ...(npa ? [
       `  State / Province   : ${npa.state} (${npa.stateAbbr})`,
-      `  Region / Metro     : ${npa.region}`,
+      `  Metro / Region     : ${npa.region}`,
       `  Area Code (NPA)    : ${analysis.nationalNumber.slice(0, 3)}`,
-      `  Timezone (NPA DB)  : ${npa.timezone}`,
     ] : []),
-    `  Timezone (IANA)    : ${val(aggregated.timezone)}`,
-    `  UTC Offset         : ${val(aggregated.utcOffsets)}`,
-    `  Region (API)       : ${val(aggregated.region)}`,
-    `  City (API)         : ${val(aggregated.city)}`,
+    ...(aggregated.region && aggregated.region !== aggregated.city ? [`  Region (API)       : ${aggregated.region}`] : []),
+    ...(aggregated.city                                   ? [`  City (API)         : ${aggregated.city}`]   : []),
+    `  Timezone           : ${aggregated.timezone?.[0] ?? (npa?.timezone ?? "N/A")}${aggregated.utcOffsets?.[0] ? ` (${aggregated.utcOffsets[0]})` : ""}`,
     ``,
     `NUMBER CLASSIFICATION`,
     separator,
@@ -84,6 +87,44 @@ function generateTextReport(data: LookupResponse): string {
     `  Owner / CNAM       : ${val(aggregated.callerName)}`,
     `  Caller Type        : ${val(aggregated.callerType)}`,
     `  Associated Emails  : ${val(aggregated.associatedEmails)}`,
+    ``,
+    `IDENTITY ENRICHMENT — FullContact`,
+    separator,
+    ...(fc ? [
+      `  Full Name          : ${val(fc.fullName)}`,
+      `  Title              : ${val(fc.title)}`,
+      `  Organization       : ${val(fc.organization)}`,
+      `  Location           : ${val(fc.location)}`,
+      `  Bio                : ${val(fc.bio)}`,
+      `  Age                : ${val(fc.age)}`,
+      `  Gender             : ${val(fc.gender)}`,
+      `  Linked Emails      : ${val(fc.otherEmails)}`,
+      `  Linked Phones      : ${val(fc.phones)}`,
+      `  Social Profiles    : ${fc.profiles.length > 0 ? fc.profiles.map((p) => `${p.platform}:${p.username || p.url}`).join(", ") : "N/A"}`,
+      ...(fc.employment.length > 0 ? [
+        `  Employment:`,
+        ...fc.employment.map((e) => `    ${e.current ? "[CURRENT]" : "[PAST]"} ${e.name}${e.title ? ` — ${e.title}` : ""}`),
+      ] : []),
+    ] : [
+      `  Status             : ${sources.fullContact.error === "NOT_CONFIGURED" ? "NOT CONFIGURED — add FULLCONTACT_API_KEY" : sources.fullContact.error === "NOT_FOUND" ? "No record found" : (sources.fullContact.error ?? "N/A")}`,
+    ]),
+    ``,
+    `BREACH DATABASE — BreachDirectory`,
+    separator,
+    ...(bd && bd.found > 0 ? [
+      `  Records Found      : ${bd.found}`,
+      `  Sources            : ${bd.sources.join(", ") || "N/A"}`,
+      ``,
+      `  CREDENTIAL LIST:`,
+      ...bd.results.slice(0, 20).map((r, i) => [
+        `    [${i + 1}] Sources : ${r.sources.join(", ") || "—"}`,
+        r.password ? `         Partial : ${r.password}` : "",
+        r.sha1     ? `         SHA-1   : ${r.sha1}` : "",
+        r.hash     ? `         MD5     : ${r.hash}` : "",
+      ].filter(Boolean).join("\n")),
+    ] : [
+      `  Status             : ${sources.breachDirectory.error === "NOT_CONFIGURED" ? "NOT CONFIGURED — add RAPIDAPI_KEY" : bd && bd.found === 0 ? "CLEAN — no credential records found" : (sources.breachDirectory.error ?? "N/A")}`,
+    ]),
     ``,
     `RISK INTELLIGENCE`,
     separator,

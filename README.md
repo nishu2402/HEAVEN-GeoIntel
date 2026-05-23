@@ -25,9 +25,9 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Phone_Pivots-85_Links-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
+    <img src="https://img.shields.io/badge/Phone_Pivots-66_Links_(FREE%2FCAPTCHA%2FLOGIN%2FPAID)-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
     <img src="https://img.shields.io/badge/Email_Pivots-25_Links-BF5FFF?style=flat-square&logo=gmail&logoColor=white" alt="Email Pivots"/>
-    <img src="https://img.shields.io/badge/Breach_DBs-1000%2B_(XposedOrNot)-00D9D9?style=flat-square&logo=databricks&logoColor=black" alt="Breach DBs"/>
+    <img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/>
     <img src="https://img.shields.io/badge/NPA_Database-400%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
     <img src="https://img.shields.io/badge/Rate_Limit-10_req%2Fmin%2FIP-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
   </p>
@@ -65,6 +65,7 @@
 - [🧠 Project Summary](#project-summary)
 - [💡 Core Idea](#core-idea)
 - [🚀 Quick Start](#quick-start)
+- [🐳 Docker Deployment](#docker-deployment)
 - [📞 Phone Intelligence](#phone-intelligence)
 - [📧 Email Intelligence](#email-intelligence)
 - [🔑 Optional API Enrichment](#api-enrichment)
@@ -146,7 +147,7 @@ Target phone / email
 
 - **Node.js 18.17 or higher** — [nodejs.org](https://nodejs.org) (Next.js 14 will not run on older versions)
 - **npm 7 or higher** — included with Node.js 18+
-- No database · no Docker · no Redis · no cloud account
+- No database, no Redis, no cloud account required. Docker is **optional** — see the [Docker section](#docker-deployment) if you prefer a container.
 
 Check your versions before installing:
 
@@ -206,6 +207,53 @@ npm run install-global
 
 ---
 
+<a id="docker-deployment"></a>
+## 🐳 Docker Deployment
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:00D9D9,50:BF5FFF,100:FFAA00"/>
+</p>
+
+A multi-stage `Dockerfile` and `docker-compose.yml` ship with the repo. The
+runtime image weighs **under 200 MB**, runs as a non-root user, and reads
+optional API keys from your `.env.local` file at start-up.
+
+### One-command start
+
+```bash
+docker compose up -d        # build + start in the background
+open http://localhost:3000  # macOS — Linux: xdg-open, Windows: start
+```
+
+### Plain Docker (no compose)
+
+```bash
+docker build -t heaven-geointel:2.0 .
+docker run --rm -p 3000:3000 --env-file .env.local heaven-geointel:2.0
+```
+
+### What's inside the image
+
+<div align="center">
+
+| Layer | Purpose | Size impact |
+|---|---|---|
+| `deps`    | `npm ci` against a frozen `package-lock.json` | cache-friendly |
+| `builder` | `next build` — emits the production bundle  | discarded |
+| `runner`  | `node:20-alpine` + non-root user + `next start` | < 200 MB final |
+
+</div>
+
+### Tips
+
+- **Updating API keys** — edit `.env.local` and run `docker compose restart`. The container picks up the new keys on boot.
+- **Custom port** — set `PORT` in the environment, or change the `ports:` mapping in `docker-compose.yml`.
+- **Logs** — `docker compose logs -f geointel`.
+- **Health check** — built-in. `docker ps` shows the container as `(healthy)` when the API responds.
+- **Production reverse proxy** — terminate TLS in your existing nginx/Caddy/Traefik and proxy to `localhost:3000`.
+
+---
+
 <a id="phone-intelligence"></a>
 ## 📞 Phone Intelligence
 
@@ -221,17 +269,18 @@ Every phone lookup returns real data derived from the number structure and bundl
 
 | Panel | What It Shows |
 |---|---|
-| **Result Header** | E.164 · country flag · line type badge · caller name (API) · ambiguity warning |
-| **Threat Assessment** | Fraud score · VoIP/prepaid/abuse flags · risk level |
-| **Phone OSINT Intelligence** | **Intelligence Score (0–100)** · Target Profile classifier · Attack Vector grid (Vishing/Smishing/SIM Swap/Spoofing/Pretexting/Location) · live local time · call window · NPA area code intel · Quick OSINT Lookups · signal flags |
-| **Number Structure** | Country code · area code · subscriber number · NXX prefix — area code extracted for US/CA (NPA database) |
-| **Metric Cards** | Only populated fields — no N/A cards. 6–8 offline; up to 16 with API keys |
-| **Format Cross-Reference** | E.164 · International · National · RFC 3966 — all copyable |
-| **Number Permutations** | 11 format variants for database/OSINT searching (dots · dashes · URL-encoded · WhatsApp link · etc.) |
-| **SIM & Carrier Intel** | Owner/CNAM · carrier · prepaid status · active status · MCC/MNC/PLMN · associated emails |
-| **Country Intelligence** | Capital · continent · region · population · currency · languages · driving side · emergency number · internet penetration · GDP per capita |
-| **Dork Generator** | 64 pre-built Google dorks — LinkedIn · Facebook · Twitter · GitHub · Pastebin · credential dumps · PDFs · S3 leaks · court records · forums · business listings |
-| **OSINT Pivots** | 85 investigation links across 6 categories |
+| **Result Header** | E.164 · country flag · validity · unified **Threat Score (0–100)** with colour-coded label |
+| **Identity — Owner Profile** | Real name · employer · social profiles (FullContact). When no key is configured the panel becomes an **action centre** with 8 free phone-OSINT services that genuinely accept the number in their URL. |
+| **Credential Breach Search** | BreachDirectory password-hash hits when the key is set, plus an always-on **free-lookup action centre** (HaveIBeenPwned · IntelligenceX · LeakCheck · Dehashed · Snusbase · OSINT Industries · Epieos · Google sweep). |
+| **Infostealer Malware Exposure** | Hudson Rock free check — **no API key required**. Shows every infected device that captured this phone number, paired credential samples, captured sites, malware family, OS, and capture date. |
+| **Phone OSINT Intelligence** | Intelligence Score (0–100) · Target Profile classifier · Attack Vector grid (Vishing/Smishing/SIM Swap/Spoofing/Pretexting/Location) · live local time · call window · NPA area code intel · signal flags |
+| **Location Intelligence** | Country · state/province · metro · city · area code · timezone with UTC offset |
+| **Country Intelligence** | Capital · continent · region · population · currency · languages · driving side · emergency number · GDP per capita |
+| **Number Anatomy** | Single consolidated panel — visual digit breakdown, line type with description, libphonenumber validity checks, and all four standard formats (E.164 / International / National / RFC 3966). Replaces three older overlapping panels. |
+| **SIM & Carrier Intel** | Owner/CNAM · carrier · prepaid · active status · MCC/MNC/PLMN · associated emails |
+| **Number Permutations** | 12 format variants for OSINT/database searching (dots · dashes · URL-encoded · WhatsApp link · etc.) |
+| **Dork Generator** | 58 pre-built dorks across **8 colour-coded categories**, each with a **hit-rate badge** (HIGH / MED / LOW), a **search-engine selector** (Google · DuckDuckGo · Bing · Yandex · Brave), a "TOP 6 HIGH-HIT-RATE" quick-action that opens all in tabs, and per-category batch "OPEN N" buttons. |
+| **OSINT Pivots** | 66 investigation links across 6 categories — each tagged with **FREE / CAPTCHA / LOGIN / PAID** so you can filter to only the links that work without auth. Defaults to FREE + CAPTCHA. |
 | **QR Code** | Canvas-rendered QR for the `tel:` URI · downloadable as PNG |
 | **Report Export** | Full intelligence report as `.txt` or `.html` |
 | **History Drawer** | Last 20 lookups saved in browser localStorage |
@@ -247,14 +296,14 @@ Every phone lookup returns real data derived from the number structure and bundl
 
 <div align="center">
 
-| Category | Count | Services |
-|---|---|---|
-| **Identity / Reverse Lookup** | 22 | Truecaller · Sync.me · NumLookup · Whitepages · Spokeo · BeenVerified · Intelius · That's Them · Spy Dialer · ZabaSearch · PeekYou · Pipl · Radaris · AnyWho · Infobel · PhoneBook.com + more |
-| **Messaging Platforms** | 8 | WhatsApp · Telegram · Signal · Viber · Line · KakaoTalk · WeChat · iMessage check |
-| **Intelligence / Breach Data** | 10 | IntelligenceX · Dehashed · Epieos · HaveIBeenPwned · LeakCheck · Snusbase · BreachDirectory · SpyCloud · GhostProject |
-| **Social / Open Web** | 16 | Google dorks (LinkedIn · Facebook · Instagram · Twitter · Reddit · TikTok · YouTube · Yelp) · DuckDuckGo · Yandex · Baidu · Bing · Wayback Machine · Google Maps |
-| **Spam / Abuse Reports** | 10 | 800notes · Should I Answer · Who Called Me · WhoCalledUs · CallTruth · Nomorobo · IPQS · SpamCalls.net · CallerReport + more |
-| **Carrier / HLR / Telecom** | 10 | FreeCarrierLookup · HLR-Lookups · TextMagic · OpenCNAM · Twilio Lookup · Plivo · Vonage · NumInfo · MNP portability checker |
+| Category | Count | Services | Default tier |
+|---|---|---|---|
+| **Identity / Reverse Lookup** | 21 | OSINT Industries · Epieos · NumLookup · Sync.me · Truecaller · Spy Dialer · CallerSmart · TruePeopleSearch · FastPeopleSearch · USPhoneBook · That's Them · AnyWho · ZabaSearch · PeekYou · Radaris · Infobel · Whitepages · Spokeo · BeenVerified · Intelius · Pipl | FREE first, login/paid hidden |
+| **Messaging — Is it Registered?** | 8 | WhatsApp · Telegram · Signal · Viber · iMessage · Line · KakaoTalk · WeChat | all FREE |
+| **Intelligence / Breach Data** | 9 | IntelligenceX · LeakCheck · Dehashed · HaveIBeenPwned · Snusbase · BreachDirectory · GhostProject · Hudson Rock · SpyCloud | FREE first |
+| **Social / Open Web** | 14 | Google site-dorks (LinkedIn · Facebook · Instagram · X/Twitter · GitHub · Pastebin · Reddit) · broad sweep · Bing · DuckDuckGo · Yandex · Baidu · Wayback Machine · Google Maps | all FREE |
+| **Spam / Abuse Reports** | 7 | 800notes · Should I Answer · Who Called Me · SpamCalls.net · Nomorobo · IPQS public · CallTruth | all FREE |
+| **Carrier / HLR / Telecom** | 7 | FreeCarrierLookup · PhoneValidator · TextMagic · OpenCNAM · HLR-Lookups · Twilio Lookup · MNP portability | mix of FREE / LOGIN / PAID |
 
 </div>
 
@@ -352,12 +401,15 @@ The app works fully without API keys. Add keys to `.env.local` for deeper intell
 
 <div align="center">
 
-| Service | What It Adds | Free Tier |
+| Service | What It Adds | Tier |
 |---|---|---|
-| **IPQualityScore** | Fraud score · VoIP flag · recent abuse · risk flag · prepaid · active status · user activity · city · associated emails | 200/day |
-| **NumVerify** | Carrier name · line type · location | 100/month |
-| **AbstractAPI** (phone) | Carrier · line type · country | 250/month |
+| **Hudson Rock Cavalier** | Infostealer-malware exposure — devices that captured this number, captured sites & passwords | **free · no key** (always-on) |
+| **IPQualityScore** | Fraud score · VoIP flag · recent abuse · risk flag · prepaid · active status · user activity · city · associated emails | 200/day free |
+| **NumVerify** | Carrier name · line type · location | 100/month free |
+| **AbstractAPI** (phone) | Carrier · line type · country | 250/month free |
 | **Twilio Lookup v2** | Carrier name · owner/CNAM · MCC · MNC | ~$0.005/lookup |
+| **BreachDirectory** (RapidAPI) | Real SHA-1/MD5 credential hashes tied to the phone | 50/day free |
+| **FullContact** | Owner real name · employer · social profiles · linked emails | 500/month free |
 
 </div>
 
@@ -423,11 +475,16 @@ Browser → POST /api/lookup { number: "+14155552671" }
               │    capital · currency · languages · driving side · emergency number
               │    population · GDP · internet users · timezones
               │
+              ├─ Hudson Rock Cavalier  (always — no key)
+              │    infostealer-malware exposure, captured passwords & sites
+              │
               └─ Optional API fan-out  (Promise.allSettled — one failure ≠ total failure)
-                   NumVerify      → carrier name, line type, location
-                   IPQualityScore → fraud score, prepaid, active, abuse, MCC, city
-                   AbstractAPI    → carrier, line type
-                   Twilio Lookup  → carrier, line type, owner/CNAM, MCC/MNC
+                   NumVerify        → carrier name, line type, location
+                   IPQualityScore   → fraud score, prepaid, active, abuse, MCC, city
+                   AbstractAPI      → carrier, line type
+                   Twilio Lookup    → carrier, line type, owner/CNAM, MCC/MNC
+                   BreachDirectory  → real SHA-1/MD5 password hashes for the number
+                   FullContact      → owner real name, employer, social profiles
 ```
 
 ### Email lookup
@@ -624,6 +681,9 @@ lib/
 | `npm run build` | Production build |
 | `npm run start` | Start production server (requires prior `npm run build`) |
 | `npm run lint` | ESLint check |
+| `docker compose up -d` | Build the production image and run it on port 3000 |
+| `docker compose down`  | Stop the container |
+| `docker compose logs -f geointel` | Tail container logs |
 
 </div>
 

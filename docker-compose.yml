@@ -1,0 +1,26 @@
+# docker compose up   →   http://localhost:3000
+#
+# Reads optional API keys from .env.local (file is git-ignored).
+# Every key is optional — the app works fully without any of them.
+services:
+  geointel:
+    build: .
+    image: heaven-geointel:2.0
+    container_name: heaven-geointel
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    # tmpfs keeps the lookup cache fast even on slow disks
+    tmpfs:
+      - /tmp:size=128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/lookup --post-data='{\"number\":\"+14155552671\"}' --header='Content-Type: application/json' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
