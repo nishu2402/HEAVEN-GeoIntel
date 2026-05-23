@@ -15,6 +15,9 @@ const SOURCE_LABELS: Record<SourceKey, string> = {
   ipqs: "IPQS",
   abstract: "Abstract",
   twilio: "Twilio",
+  breachDirectory: "Breach",
+  fullContact: "FullContact",
+  hudsonRock: "HudsonRock",
 };
 
 const SOURCE_ENV_HINT: Record<SourceKey, string> = {
@@ -22,6 +25,9 @@ const SOURCE_ENV_HINT: Record<SourceKey, string> = {
   ipqs: "IPQS_API_KEY",
   abstract: "ABSTRACT_API_KEY",
   twilio: "TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN",
+  breachDirectory: "RAPIDAPI_KEY",
+  fullContact: "FULLCONTACT_API_KEY",
+  hudsonRock: "(no key — free)",
 };
 
 function StatusDot({ ok, error }: { ok: boolean; error?: string }) {
@@ -41,7 +47,7 @@ export default function SourceTabs({ sources }: Props) {
 
   return (
     <Tabs defaultValue={keys[0]} className="w-full">
-      <TabsList className="w-full grid grid-cols-4 bg-[#0a0a0a] border border-[#00ff41]/20 rounded-none h-auto p-0">
+      <TabsList className="w-full grid grid-cols-3 sm:grid-cols-7 bg-[#0a0a0a] border border-[#00ff41]/20 rounded-none h-auto p-0">
         {keys.map((key) => {
           const src = sources[key];
           return (
