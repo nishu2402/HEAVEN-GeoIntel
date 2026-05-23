@@ -2,19 +2,14 @@
 
 import { motion } from "framer-motion";
 import {
-  Wifi, Phone, MapPin, Clock, Shield,
-  Copy, Download, Hash, Globe, User, CreditCard,
-  Activity, Radio, AlertTriangle,
+  Phone, Copy, Download, Activity,
 } from "lucide-react";
 import type { LookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
-import MetricCard from "./MetricCard";
-import FraudScoreBar from "./FraudScoreBar";
 import SourceTabs from "./SourceTabs";
 import OsintPivots from "./OsintPivots";
-import NumberBreakdown from "./NumberBreakdown";
+import NumberAnatomyPanel from "./NumberAnatomyPanel";
 import CountryPanel from "./CountryPanel";
-import FormatPanel from "./FormatPanel";
 import ShareButton from "./ShareButton";
 import SimIntelPanel from "./SimIntelPanel";
 import QrCodePanel from "./QrCodePanel";
@@ -22,6 +17,10 @@ import PentesterPanel from "./PentesterPanel";
 import DorkGenerator from "./DorkGenerator";
 import NumberPermutations from "./NumberPermutations";
 import ReportExport from "./ReportExport";
+import LocationPanel from "./LocationPanel";
+import PhoneIdentityPanel from "./PhoneIdentityPanel";
+import BreachPanel from "./BreachPanel";
+import InfostealerPanel from "./InfostealerPanel";
 import { cn, copyText } from "@/lib/utils";
 
 interface Props {
@@ -43,142 +42,59 @@ function downloadJson(data: LookupResponse) {
   URL.revokeObjectURL(url);
 }
 
+// ── Inline ThreatScoreBar — mirrors the email panel so phone & email look consistent
+function ThreatScoreBar({ score, label }: { score: number; label: string }) {
+  const color = score >= 70 ? "#ff1a1a" : score >= 40 ? "#ff6600" : score >= 20 ? "#ffaa00" : "#00ff41";
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5" style={{ color }} />
+          <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/70">Threat Score</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-bold text-lg" style={{ color }}>{score}</span>
+          <span className="text-[12px] font-mono text-[#00ff41]/55">/100</span>
+          <span
+            className="text-[12px] font-mono font-bold px-2 py-0.5 border tracking-widest"
+            style={{ color, borderColor: color + "70", backgroundColor: color + "18" }}
+          >
+            {label}
+          </span>
+        </div>
+      </div>
+      <div className="w-full h-1.5 bg-[#00ff41]/10 relative">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${score}%` }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="h-full"
+          style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}60` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ResultsDashboard({ data }: Props) {
-  const { input, aggregated, sources, analysis, countryIntel } = data;
+  const { input, aggregated, sources, countryIntel, threatScore, threatLabel } = data;
   const flag = countryToFlagEmoji(input.country);
 
-  // Build only the cards that have real, meaningful data
-  type CardDef = {
-    label: string;
-    value: string;
-    icon?: React.ReactNode;
-    variant?: "default" | "warn" | "danger" | "cyan" | "neutral";
-    index: number;
-  };
-
-  const cards: CardDef[] = [];
-  let idx = 0;
-
-  // --- Always-available offline data ---
-  // Country
-  cards.push({ label: "Country", value: aggregated.countryName, icon: <Globe className="w-3 h-3" />, variant: "default", index: idx++ });
-
-  // US/CA area code intelligence (offline — no API needed)
-  if (analysis.npaInfo) {
-    cards.push({ label: "State / Province", value: `${analysis.npaInfo.state} (${analysis.npaInfo.stateAbbr})`, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
-    cards.push({ label: "Region / Metro", value: analysis.npaInfo.region, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
-  }
-
-  // Calling code
-  cards.push({ label: "Calling Code", value: input.countryCallingCode, icon: <Phone className="w-3 h-3" />, variant: "cyan", index: idx++ });
-
-  // Number type — show what we actually know
-  if (aggregated.isAmbiguousType) {
-    cards.push({ label: "Number Type", value: "Mobile or Landline", icon: <Wifi className="w-3 h-3" />, variant: "neutral", index: idx++ });
-  } else if (aggregated.typeDescription && aggregated.typeDescription !== "Unknown") {
-    const typeVariant =
-      aggregated.isVoip ? "warn" :
-      analysis.isPremiumRate ? "danger" :
-      analysis.isTollFree ? "cyan" :
-      "default";
-    cards.push({ label: "Number Type", value: aggregated.typeDescription, icon: <Wifi className="w-3 h-3" />, variant: typeVariant, index: idx++ });
-  }
-
-  // Timezone
-  const tzDisplay = aggregated.utcOffsets?.[0] ?? aggregated.timezone?.[0]?.split("/").pop() ?? null;
-  if (tzDisplay) {
-    cards.push({ label: "Timezone", value: tzDisplay, icon: <Clock className="w-3 h-3" />, variant: "default", index: idx++ });
-  }
-
-  // IANA timezone name
-  if (aggregated.timezone?.[0]) {
-    cards.push({ label: "IANA Timezone", value: aggregated.timezone[0], icon: <Clock className="w-3 h-3" />, variant: "neutral", index: idx++ });
-  }
-
-  // Area code (only for countries where it's meaningful)
-  if (aggregated.areaCode) {
-    cards.push({ label: "Area Code", value: aggregated.areaCode, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
-  }
-
-  // Number length vs expected
-  if (aggregated.numberLength) {
-    const expectedStr = analysis.expectedLengths.length > 0 ? ` / ${analysis.expectedLengths.join(" or ")} expected` : "";
-    cards.push({ label: "Digit Count", value: `${aggregated.numberLength} digits${expectedStr}`, icon: <Hash className="w-3 h-3" />, variant: "neutral", index: idx++ });
-  }
-
-  // --- Confirmed type flags (only show when definitively true) ---
-  if (aggregated.isMobile === true) {
-    cards.push({ label: "Confirmed Mobile", value: "YES", variant: "default", index: idx++ });
-  }
-  if (aggregated.isFixedLine === true) {
-    cards.push({ label: "Confirmed Landline", value: "YES", variant: "cyan", index: idx++ });
-  }
-  if (aggregated.isVoip === true) {
-    cards.push({ label: "VOIP / Internet", value: "CONFIRMED VOIP", icon: <AlertTriangle className="w-3 h-3" />, variant: "warn", index: idx++ });
-  }
-  if (analysis.isTollFree) {
-    cards.push({ label: "Toll-Free", value: "YES — FREE TO CALL", variant: "cyan", index: idx++ });
-  }
-  if (analysis.isPremiumRate) {
-    cards.push({ label: "Premium Rate", value: "YES — CHARGES APPLY", icon: <AlertTriangle className="w-3 h-3" />, variant: "danger", index: idx++ });
-  }
-  if (analysis.isSharedCost) {
-    cards.push({ label: "Shared Cost", value: "YES", variant: "warn", index: idx++ });
-  }
-  if (analysis.isPersonalNumber) {
-    cards.push({ label: "Personal Number", value: "YES", variant: "neutral", index: idx++ });
-  }
-
-  // --- API-enriched data (only show if we actually have it) ---
-  if (aggregated.callerName) {
-    cards.push({ label: "Owner / CNAM", value: aggregated.callerName, icon: <User className="w-3 h-3" />, variant: "cyan", index: idx++ });
-  }
-  if (aggregated.callerType) {
-    cards.push({ label: "Caller Type", value: aggregated.callerType.charAt(0).toUpperCase() + aggregated.callerType.slice(1), icon: <User className="w-3 h-3" />, variant: "neutral", index: idx++ });
-  }
-  if (aggregated.carrier) {
-    cards.push({ label: "Network Carrier", value: aggregated.carrier, icon: <Phone className="w-3 h-3" />, variant: "cyan", index: idx++ });
-  }
-  if (aggregated.prepaid !== null) {
-    cards.push({ label: "Prepaid SIM", value: aggregated.prepaid ? "YES — PREPAID" : "NO — CONTRACT", icon: <CreditCard className="w-3 h-3" />, variant: aggregated.prepaid ? "warn" : "default", index: idx++ });
-  }
-  if (aggregated.active !== null) {
-    cards.push({ label: "Line Active", value: aggregated.active ? "ACTIVE" : "INACTIVE", icon: <Activity className="w-3 h-3" />, variant: aggregated.active ? "default" : "danger", index: idx++ });
-  }
-  if (aggregated.activeStatus) {
-    cards.push({ label: "Active Status", value: aggregated.activeStatus, variant: "neutral", index: idx++ });
-  }
-  if (aggregated.userActivity) {
-    cards.push({ label: "User Activity", value: aggregated.userActivity, variant: "neutral", index: idx++ });
-  }
-  if (aggregated.region) {
-    cards.push({ label: "Region", value: aggregated.region, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
-  }
-  if (aggregated.city) {
-    cards.push({ label: "City", value: aggregated.city, icon: <MapPin className="w-3 h-3" />, variant: "cyan", index: idx++ });
-  }
-  if (aggregated.mobileCountryCode && aggregated.mobileNetworkCode) {
-    cards.push({ label: "MCC / MNC", value: `${aggregated.mobileCountryCode} / ${aggregated.mobileNetworkCode}`, icon: <Radio className="w-3 h-3" />, variant: "cyan", index: idx++ });
-  }
-  if (aggregated.recentAbuse === true) {
-    cards.push({ label: "Recent Abuse", value: "DETECTED", icon: <Shield className="w-3 h-3" />, variant: "danger", index: idx++ });
-  }
-  if (aggregated.isRisky === true) {
-    cards.push({ label: "Risk Flag", value: "HIGH RISK", icon: <Shield className="w-3 h-3" />, variant: "danger", index: idx++ });
-  }
-
-  // How many API sources returned useful data
-  const activeSources = [sources.numverify, sources.ipqs, sources.abstract, sources.twilio].filter(
-    (s) => s.ok
-  ).length;
-  const configuredSources = [sources.numverify, sources.ipqs, sources.abstract, sources.twilio].filter(
-    (s) => !s.ok && s.error !== "NOT_CONFIGURED"
-  ).length + activeSources;
+  // Active data-source count for the status strip
+  const configuredSourceErrors: (string | undefined)[] = [
+    sources.numverify.error, sources.ipqs.error, sources.abstract.error,
+    sources.twilio.error, sources.breachDirectory.error, sources.fullContact.error,
+  ];
+  const activeSourcesCount = [
+    sources.numverify, sources.ipqs, sources.abstract, sources.twilio,
+    sources.breachDirectory, sources.fullContact, sources.hudsonRock,
+  ].filter((s) => s.ok).length;
+  const configuredCount = configuredSourceErrors.filter((e) => e !== "NOT_CONFIGURED").length;
 
   const hasSimData = !!(
-    aggregated.callerName || aggregated.prepaid !== null || aggregated.active !== null ||
-    aggregated.mobileCountryCode || aggregated.userActivity || aggregated.city ||
-    aggregated.carrier || aggregated.associatedEmails
+    aggregated.prepaid !== null || aggregated.active !== null ||
+    aggregated.mobileCountryCode || aggregated.userActivity || aggregated.carrier
   );
 
   return (
@@ -188,54 +104,17 @@ export default function ResultsDashboard({ data }: Props) {
       transition={{ duration: 0.35 }}
       className="space-y-4 mt-6"
     >
-      {/* ── Result header ── */}
-      <div className="terminal-card p-5 space-y-3">
+      {/* ── HEADER: number + flag + status badges ───────────────────────────── */}
+      <div className="terminal-card p-5 space-y-4">
         <div className="flex items-start justify-between flex-wrap gap-3">
-          <div className="space-y-2">
-            <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">LOOKUP RESULT</div>
-
-            {/* Owner name — most prominent element when available */}
-            {aggregated.callerName ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-[#00d9ff] shrink-0" />
-                  <span className="text-2xl font-bold text-[#00d9ff] font-mono tracking-wide">
-                    {aggregated.callerName}
-                  </span>
-                  {aggregated.callerType && (
-                    <span className="text-[12px] font-mono uppercase tracking-widest px-1.5 py-0.5 border text-[#00d9ff]/50 border-[#00d9ff]/25">
-                      {aggregated.callerType}
-                    </span>
-                  )}
-                  <span className="text-[12px] font-mono uppercase tracking-widest px-1.5 py-0.5 border text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5">
-                    ✓ CNAM CONFIRMED
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 flex-wrap pl-6">
-                  <span className="text-2xl">{flag}</span>
-                  <div>
-                    <div className="text-xl font-bold glow-green tracking-wider font-mono">{input.e164}</div>
-                    <div className="text-sm text-[#00ff41]/60 font-mono">
-                      {input.national} · {aggregated.countryName} ({input.countryCallingCode})
-                    </div>
-                  </div>
-                </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-4xl">{flag}</span>
+            <div>
+              <div className="text-2xl font-bold glow-green tracking-wider font-mono">{input.e164}</div>
+              <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
+                {input.national} · {aggregated.countryName} ({input.countryCallingCode})
               </div>
-            ) : (
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-4xl">{flag}</span>
-                <div>
-                  <div className="text-2xl font-bold glow-green tracking-wider font-mono">{input.e164}</div>
-                  <div className="text-sm text-[#00ff41]/60 mt-0.5 font-mono">
-                    {input.national} · {aggregated.countryName} ({input.countryCallingCode})
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-1 text-[13px] font-mono text-[#555]">
-                    <User className="w-3 h-3" />
-                    Owner name not found — add Twilio or IPQS key, or use pivot links below
-                  </div>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -245,34 +124,19 @@ export default function ResultsDashboard({ data }: Props) {
             )}>
               {input.isValid ? "✓ VALID" : "✗ INVALID"}
             </span>
-            {aggregated.typeDescription && aggregated.typeDescription !== "Unknown" && (
-              <span className="text-xs px-3 py-1 border badge-info font-mono">
-                {aggregated.typeDescription.toUpperCase()}
-              </span>
-            )}
-            {aggregated.isAmbiguousType && (
-              <span className="text-xs px-2 py-1 border font-mono text-[#888] border-[#888]/30" title="libphonenumber cannot determine if this is mobile or landline from the number structure alone">
-                TYPE AMBIGUOUS
-              </span>
-            )}
-            {aggregated.prepaid && (
-              <span className="text-xs px-2 py-1 border font-mono text-[#ffaa00] border-[#ffaa00]/40 bg-[#ffaa00]/5">
-                PREPAID
-              </span>
-            )}
-            {aggregated.active === false && (
-              <span className="text-xs px-2 py-1 border font-mono text-[#ff3e3e] border-[#ff3e3e]/40">
-                INACTIVE LINE
-              </span>
-            )}
             {data.cachedAt && (
               <span className="text-[13px] border badge-neutral px-2 py-1 font-mono">CACHED</span>
             )}
           </div>
         </div>
 
+        {/* Unified threat score */}
+        <div className="border-t border-[#00ff41]/10 pt-3">
+          <ThreatScoreBar score={threatScore} label={threatLabel} />
+        </div>
+
         {/* Action buttons */}
-        <div className="flex gap-2 flex-wrap pt-1">
+        <div className="flex gap-2 flex-wrap pt-1 border-t border-[#00ff41]/10">
           <button
             onClick={() => copyToClipboard(input.e164)}
             className="flex items-center gap-1.5 text-xs border border-[#00ff41]/30 px-3 py-1.5 text-[#00ff41]/70 hover:text-[#00ff41] hover:border-[#00ff41]/60 transition-colors font-mono"
@@ -295,16 +159,19 @@ export default function ResultsDashboard({ data }: Props) {
           <ReportExport data={data} />
         </div>
 
-        {/* Data source status */}
-        <div className="flex items-center gap-3 pt-1 border-t border-[#00ff41]/10">
+        {/* Data source status strip */}
+        <div className="flex items-center gap-3 pt-1 border-t border-[#00ff41]/10 flex-wrap">
           <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50 font-mono">DATA SOURCES</div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {[
-              { label: "libphonenumber", ok: true, always: true },
-              { label: "NumVerify", ok: sources.numverify.ok, configured: sources.numverify.error !== "NOT_CONFIGURED" },
-              { label: "IPQS", ok: sources.ipqs.ok, configured: sources.ipqs.error !== "NOT_CONFIGURED" },
-              { label: "Abstract", ok: sources.abstract.ok, configured: sources.abstract.error !== "NOT_CONFIGURED" },
-              { label: "Twilio", ok: sources.twilio.ok, configured: sources.twilio.error !== "NOT_CONFIGURED" },
+              { label: "libphonenumber",  ok: true,                        always: true },
+              { label: "Hudson Rock",     ok: sources.hudsonRock.ok,       configured: true },
+              { label: "NumVerify",       ok: sources.numverify.ok,        configured: sources.numverify.error !== "NOT_CONFIGURED" },
+              { label: "IPQS",            ok: sources.ipqs.ok,             configured: sources.ipqs.error !== "NOT_CONFIGURED" },
+              { label: "Abstract",        ok: sources.abstract.ok,         configured: sources.abstract.error !== "NOT_CONFIGURED" },
+              { label: "Twilio",          ok: sources.twilio.ok,           configured: sources.twilio.error !== "NOT_CONFIGURED" },
+              { label: "BreachDirectory", ok: sources.breachDirectory.ok,  configured: sources.breachDirectory.error !== "NOT_CONFIGURED" },
+              { label: "FullContact",     ok: sources.fullContact.ok,      configured: sources.fullContact.error !== "NOT_CONFIGURED" },
             ].map((s) => (
               <span
                 key={s.label}
@@ -320,103 +187,58 @@ export default function ResultsDashboard({ data }: Props) {
               </span>
             ))}
           </div>
-          {activeSources === 0 && configuredSources === 0 && (
-            <span className="text-[12px] text-[#ffaa00]/50 font-mono ml-auto">
-              + carrier/fraud data: add keys to .env.local
+          {activeSourcesCount <= 1 && configuredCount === 0 && (
+            <span className="text-[12px] text-[#ffaa00]/60 font-mono">
+              + carrier/breach/identity APIs: see .env.local for free-tier keys
             </span>
           )}
         </div>
       </div>
 
-      {/* ── Owner identity — find name when CNAM missing ── */}
-      {!aggregated.callerName && (
-        <div className="terminal-card p-4 space-y-3 border border-[#00d9ff]/15">
-          <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
-            <User className="w-3 h-3" /> OWNER IDENTITY LOOKUP
-          </div>
-          <p className="text-[13px] font-mono text-[#00ff41]/60 leading-relaxed">
-            No CNAM data available (requires Twilio or IPQS API key). Use these services to find the owner manually — they work for most countries:
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-            {[
-              { label: "Truecaller", url: `https://www.truecaller.com/search/us/${input.e164.replace("+","")}`, desc: "Largest caller ID database · 350M+ names" },
-              { label: "Whitepages", url: `https://www.whitepages.com/phone/${input.e164}`, desc: "US/CA reverse lookup with owner name" },
-              { label: "Spokeo", url: `https://www.spokeo.com/search?q=${encodeURIComponent(input.e164)}`, desc: "US people search by phone" },
-              { label: "Sync.me", url: `https://sync.me/search/?q=${encodeURIComponent(input.e164)}`, desc: "Social-based caller ID" },
-              { label: "That's Them", url: `https://thatsthem.com/phone/${input.e164}`, desc: "US people + address lookup" },
-              { label: "NumLookup", url: `https://www.numlookup.com/?number=${encodeURIComponent(input.e164)}`, desc: "Free real-time carrier + name" },
-            ].map(({ label, url, desc }) => (
-              <a key={label} href={url} target="_blank" rel="noopener noreferrer"
-                className="flex flex-col gap-0.5 p-2.5 border border-[#00d9ff]/15 hover:border-[#00d9ff]/50 hover:bg-[#00d9ff]/5 transition-all group">
-                <span className="text-xs font-mono font-bold text-[#00d9ff]/70 group-hover:text-[#00d9ff] flex items-center gap-1">
-                  {label} <span className="text-[11px] opacity-50">↗</span>
-                </span>
-                <span className="text-[12px] font-mono text-[#00ff41]/50 leading-tight">{desc}</span>
-              </a>
-            ))}
-          </div>
-          <p className="text-[12px] font-mono text-[#00ff41]/45 border-t border-[#00ff41]/10 pt-2">
-            Pro tip: Add <code className="text-[#00ff41]/60">TWILIO_ACCOUNT_SID</code> + <code className="text-[#00ff41]/60">TWILIO_AUTH_TOKEN</code> to .env.local for automatic CNAM lookups (~$0.005/query).
-          </p>
-        </div>
-      )}
+      {/* ── IDENTITY (FullContact + CNAM + free-lookup action center) ───────── */}
+      <PhoneIdentityPanel data={data} />
 
-      {/* ── Pentester intelligence (always shown — core value) ── */}
+      {/* ── BREACH DATA (BreachDirectory + free-lookup action center) ──────── */}
+      <BreachPanel
+        breachDirectory={sources.breachDirectory}
+        subjectLabel="this phone number"
+        e164={input.e164}
+      />
+
+      {/* ── INFOSTEALER MALWARE (Hudson Rock — free, always-on) ─────────────── */}
+      <InfostealerPanel data={data} />
+
+      {/* ── Pentester intelligence — core value of the tool ─────────────────── */}
       <PentesterPanel data={data} />
 
-      {/* ── Metric cards — only populated fields ── */}
-      {cards.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {cards.map((c) => (
-            <MetricCard
-              key={c.label}
-              label={c.label}
-              value={c.value}
-              icon={c.icon}
-              variant={c.variant}
-              index={c.index}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* ── Fraud score (only if we have it) ── */}
-      {aggregated.fraudScore !== null && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="terminal-card p-4"
-        >
-          <FraudScoreBar score={aggregated.fraudScore} />
-        </motion.div>
-      )}
-
-      {/* ── Number breakdown + Format cross-reference ── */}
+      {/* ── Consolidated metadata: location + anatomy ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <NumberBreakdown analysis={analysis} />
-        <FormatPanel data={data} />
+        <LocationPanel data={data} />
+        {countryIntel ? <CountryPanel intel={countryIntel} /> : <div />}
       </div>
 
-      {/* ── SIM intelligence + QR code ── */}
+      {/* ── Number anatomy (replaces 3 old duplicate panels) ────────────────── */}
+      <NumberAnatomyPanel data={data} />
+
+      {/* ── SIM intelligence + QR code ──────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {hasSimData && <SimIntelPanel aggregated={aggregated} />}
+        {hasSimData
+          ? <SimIntelPanel aggregated={aggregated} />
+          : <PlaceholderCard
+              icon={<Phone className="w-3 h-3" />}
+              title="SIM & CARRIER INTELLIGENCE"
+              note="Add IPQS or Twilio API keys to .env.local for live carrier, prepaid, and SIM activity data." />}
         <QrCodePanel e164={input.e164} />
       </div>
 
-      {/* ── Country intelligence ── */}
-      {countryIntel && <CountryPanel intel={countryIntel} />}
+      {/* ── Number permutations + Dork generator side-by-side on desktop ───── */}
+      <NumberPermutations data={data} />
+      <DorkGenerator e164={input.e164} national={input.national} />
 
-      {/* ── Number permutations + Dork generator ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <NumberPermutations data={data} />
-        <DorkGenerator e164={input.e164} national={input.national} />
-      </div>
-
-      {/* ── OSINT pivots ── */}
+      {/* ── OSINT pivots ────────────────────────────────────────────────────── */}
       <OsintPivots e164={input.e164} national={input.national} country={input.country} />
 
-      {/* ── Raw source data ── */}
+      {/* ── Raw source data ─────────────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">
           [ RAW SOURCE DATA ] — API responses
@@ -424,5 +246,16 @@ export default function ResultsDashboard({ data }: Props) {
         <SourceTabs sources={sources} />
       </div>
     </motion.div>
+  );
+}
+
+function PlaceholderCard({ icon, title, note }: { icon: React.ReactNode; title: string; note: string }) {
+  return (
+    <div className="terminal-card p-4 space-y-2">
+      <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 flex items-center gap-1.5">
+        {icon} {title}
+      </div>
+      <div className="text-[12px] font-mono text-[#00ff41]/55 italic">{note}</div>
+    </div>
   );
 }

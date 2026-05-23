@@ -1,0 +1,266 @@
+"use client";
+
+import { motion } from "framer-motion";
+import {
+  User, Briefcase, ExternalLink, Mail, Phone, Building2,
+} from "lucide-react";
+import type { LookupResponse, FullContactData } from "@/lib/types";
+
+interface Props {
+  data: LookupResponse;
+}
+
+function Badge({ text, color = "#00ff41" }: { text: string; color?: string }) {
+  return (
+    <span
+      className="text-[12px] font-mono font-bold px-2 py-0.5 border tracking-widest"
+      style={{ color, borderColor: color + "70", backgroundColor: color + "18" }}
+    >
+      {text}
+    </span>
+  );
+}
+
+export default function PhoneIdentityPanel({ data }: Props) {
+  const fc: FullContactData | undefined = data.sources.fullContact.ok
+    ? data.sources.fullContact.data
+    : undefined;
+  const cnamName  = data.aggregated.callerName;
+  const cnamType  = data.aggregated.callerType;
+
+  // Build a single, prioritized identity surface.
+  // Priority: FullContact (real enrichment) > CNAM (carrier database)
+  const realName    = fc?.fullName ?? cnamName ?? null;
+  const realLocation = fc?.location ?? data.aggregated.city ?? data.aggregated.region ?? null;
+  const realTitle    = fc?.title ?? null;
+  const realOrg      = fc?.organization ?? null;
+  const realBio      = fc?.bio ?? null;
+  const avatar       = fc?.avatar ?? null;
+  const profiles     = fc?.profiles ?? [];
+  const otherEmails  = fc?.otherEmails ?? [];
+  const otherPhones  = fc?.phones ?? [];
+  const employment   = fc?.employment ?? [];
+  const ipqsEmails   = data.aggregated.associatedEmails ?? [];
+
+  const fcConfigured = data.sources.fullContact.error !== "NOT_CONFIGURED";
+  const hasAnyIdentity =
+    realName || realLocation || realTitle || realOrg || realBio || avatar ||
+    profiles.length > 0 || otherEmails.length > 0 || otherPhones.length > 0 ||
+    employment.length > 0 || ipqsEmails.length > 0;
+
+  if (!hasAnyIdentity) {
+    // No identity data was resolved — present an action center instead of an
+    // empty wall.  Each link is a free, no-login lookup that genuinely accepts
+    // the phone number in the URL and returns owner information.
+    const e164  = data.input.e164;
+    const enc   = encodeURIComponent(e164);
+    const digits = e164.replace(/\D/g, "");
+    const ccLc  = data.input.country.toLowerCase();
+    const nat   = data.input.national;
+    const encNat = encodeURIComponent(nat);
+
+    const lookups: { label: string; url: string; note: string }[] = [
+      // ── Free, accepts phone in URL, returns owner page (not homepage) ──
+      { label: "OSINT Industries",   url: `https://osint.industries/?q=${enc}`,                                 note: "Free · 100+ platform check by phone" },
+      { label: "Epieos",             url: `https://epieos.com/?q=${enc}&t=phone`,                               note: "Free · Gravatar + Google services" },
+      { label: "NumLookup",          url: `https://www.numlookup.com/${digits}`,                                note: "Free · carrier, CNAM, type" },
+      { label: "Truecaller",         url: `https://www.truecaller.com/search/${ccLc || "us"}/${digits}`,        note: "Login required · global community caller ID" },
+      { label: "Sync.me",            url: `https://sync.me/search/?number=${enc}`,                              note: "Free preview · social-account linking" },
+      { label: "Whitepages",         url: `https://www.whitepages.com/phone/${digits}`,                         note: "US/CA · partial info free" },
+      { label: "Spy Dialer",         url: `https://www.spydialer.com/`,                                         note: "Free · voicemail-greeting reveals name" },
+      { label: "Google Site Sweep",  url: `https://www.google.com/search?q=%22${enc}%22+OR+%22${encNat}%22`,    note: "All public web mentions" },
+    ];
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="terminal-card p-4 space-y-3 border border-[#00d9ff]/20"
+      >
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/65 flex items-center gap-1.5">
+            <User className="w-3 h-3" /> IDENTITY — OWNER PROFILE
+          </div>
+          <span className="text-[11px] font-mono text-[#00ff41]/35">No automatic enrichment — try free lookups below</span>
+        </div>
+
+        <p className="text-[13px] font-mono text-[#00ff41]/60 leading-snug">
+          No identity resolved through configured APIs. Each button below opens a free
+          phone-OSINT service in a new tab — most show owner name, carrier, or social
+          profile without requiring an account.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {lookups.map((l) => (
+            <a
+              key={l.label}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 p-2 border border-[#00d9ff]/15 hover:border-[#00d9ff]/45 hover:bg-[#00d9ff]/[0.05] transition-all"
+            >
+              <ExternalLink className="w-3 h-3 text-[#00d9ff]/65 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-mono font-bold text-[#00d9ff]/85 truncate">{l.label}</div>
+                <div className="text-[11px] font-mono text-[#00ff41]/45 truncate">{l.note}</div>
+              </div>
+            </a>
+          ))}
+        </div>
+
+        {!fcConfigured && (
+          <p className="text-[11px] font-mono text-[#00ff41]/35 border-t border-[#00ff41]/10 pt-2">
+            Want in-app enrichment? Add <code className="text-[#00ff41]/65">FULLCONTACT_API_KEY</code>{" "}
+            to <code className="text-[#00ff41]/65">.env.local</code> for inline name/employer/social-profile data.
+          </p>
+        )}
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.08 }}
+      className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40"
+    >
+      <div className="flex items-center justify-between">
+        <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/60 flex items-center gap-1.5">
+          <User className="w-3 h-3" /> IDENTITY — owner profile
+        </div>
+        <div className="flex gap-1.5">
+          {fc && <Badge text="FULLCONTACT ✓" color="#00d9ff" />}
+          {cnamName && !fc?.fullName && <Badge text="CNAM ✓" color="#00ff41" />}
+        </div>
+      </div>
+
+      {/* Top row: avatar + name + headline */}
+      <div className="flex items-start gap-4">
+        {avatar && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatar}
+            alt="Profile"
+            className="w-16 h-16 border border-[#00d9ff]/30 shrink-0 object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
+        <div className="min-w-0 flex-1 space-y-1">
+          {realName && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xl font-bold text-[#00d9ff] font-mono">{realName}</span>
+              {cnamType && (
+                <Badge text={cnamType.toUpperCase()} color="#00d9ff" />
+              )}
+            </div>
+          )}
+          {(realTitle || realOrg) && (
+            <div className="flex items-center gap-1.5 text-[13px] text-[#00ff41]/75 font-mono">
+              <Briefcase className="w-3 h-3 shrink-0" />
+              {realTitle && realOrg
+                ? `${realTitle} @ ${realOrg}`
+                : (realTitle ?? realOrg)}
+            </div>
+          )}
+          {realLocation && (
+            <div className="text-[13px] text-[#00d9ff]/70 font-mono">
+              📍 {realLocation}
+            </div>
+          )}
+          {realBio && (
+            <div className="text-[12px] text-[#00ff41]/65 font-mono italic max-w-md line-clamp-2">
+              &ldquo;{realBio}&rdquo;
+            </div>
+          )}
+          {(fc?.age != null || fc?.gender) && (
+            <div className="flex gap-1.5 pt-0.5">
+              {fc?.age != null && <Badge text={`AGE ~${fc.age}`} color="#888" />}
+              {fc?.gender && <Badge text={fc.gender.toUpperCase()} color="#888" />}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Social profiles */}
+      {profiles.length > 0 && (
+        <div className="border-t border-[#00ff41]/10 pt-3">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/45 mb-2">
+            SOCIAL PROFILES — {profiles.length} linked account{profiles.length === 1 ? "" : "s"}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {profiles.map((p) => (
+              <a
+                key={p.platform + p.username}
+                href={p.url || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 hover:bg-[#00d9ff]/10 transition-colors"
+              >
+                <ExternalLink className="w-2.5 h-2.5" />
+                {p.platform}{p.username ? `: ${p.username}` : ""}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Linked emails — merge FullContact + IPQS associated emails, dedup */}
+      {(otherEmails.length > 0 || ipqsEmails.length > 0) && (
+        <div className="border-t border-[#00ff41]/10 pt-3">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/45 mb-1.5 flex items-center gap-1">
+            <Mail className="w-2.5 h-2.5" /> LINKED EMAIL ADDRESSES
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from(new Set([...otherEmails, ...ipqsEmails])).map((e) => (
+              <span key={e}
+                className="text-[13px] font-mono border border-[#ffaa00]/30 bg-[#ffaa00]/5 text-[#ffaa00] px-2 py-0.5">
+                {e}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Linked phones */}
+      {otherPhones.length > 0 && (
+        <div className="border-t border-[#00ff41]/10 pt-3">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/45 mb-1.5 flex items-center gap-1">
+            <Phone className="w-2.5 h-2.5" /> ALSO REGISTERED TO
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {otherPhones.map((p) => (
+              <span key={p}
+                className="text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5">
+                {p}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Employment */}
+      {employment.length > 0 && (
+        <div className="border-t border-[#00ff41]/10 pt-3">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/45 mb-2 flex items-center gap-1">
+            <Building2 className="w-2.5 h-2.5" /> EMPLOYMENT HISTORY
+          </div>
+          <div className="space-y-1">
+            {employment.slice(0, 5).map((emp, i) => (
+              <div key={`${emp.name}-${i}`} className="flex items-start gap-2 text-xs font-mono">
+                <span className={emp.current ? "text-[#00ff41]" : "text-[#888]"}>
+                  {emp.current ? "▶" : "·"}
+                </span>
+                <span className={emp.current ? "text-[#00ff41]/85" : "text-[#888]"}>
+                  {emp.name}{emp.title ? ` — ${emp.title}` : ""}
+                  {emp.current && <span className="ml-2"><Badge text="CURRENT" color="#00ff41" /></span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}

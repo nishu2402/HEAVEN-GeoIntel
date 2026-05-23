@@ -1,0 +1,16 @@
+.git
+.github
+.next
+.claude
+.vscode
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Screenshot
+*.local
+.env*.local
+README.md
+Dockerfile
+docker-compose.yml
