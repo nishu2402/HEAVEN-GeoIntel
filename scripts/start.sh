@@ -66,11 +66,11 @@ if ! command -v geointel &>/dev/null && [ ! -f "/usr/local/bin/geointel" ]; then
   MARKER="# HEAVEN-GeoIntel global command"
 
   if [ -w "/usr/local/bin" ]; then
-    printf '#!/bin/bash\ncd "%s" && bash start.sh "$@"\n' "$PROJECT_DIR" > /usr/local/bin/geointel
+    printf '#!/bin/bash\ncd "%s" && bash scripts/start.sh "$@"\n' "$PROJECT_DIR" > /usr/local/bin/geointel
     chmod +x /usr/local/bin/geointel
     echo "[✓] Global command installed: type 'geointel' anywhere to start"
   elif [ -n "$SHELL_RC" ] && ! grep -q "$MARKER" "$SHELL_RC" 2>/dev/null; then
-    printf '\n%s\ngeointel() { cd "%s" && bash start.sh "$@"; }\n' "$MARKER" "$PROJECT_DIR" >> "$SHELL_RC"
+    printf '\n%s\ngeointel() { cd "%s" && bash scripts/start.sh "$@"; }\n' "$MARKER" "$PROJECT_DIR" >> "$SHELL_RC"
     echo "[✓] Added 'geointel' to $SHELL_RC — run: source $SHELL_RC"
   fi
 fi

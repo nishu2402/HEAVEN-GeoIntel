@@ -27,7 +27,6 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 geointel
 
 # Copy build output + minimal runtime files
-COPY --from=builder /app/public          ./public
 COPY --from=builder --chown=geointel:nodejs /app/.next ./.next
 COPY --from=builder /app/node_modules    ./node_modules
 COPY --from=builder /app/package.json    ./package.json
