@@ -63,9 +63,11 @@ export function deriveOfflineReputation(analysis: PhoneAnalysis): OfflineReputat
     }
   }
 
-  // India carrier group hint
+  // India carrier group hint — strip the optional leading "0" some carriers
+  // include in the national format ("09876543210" → "9876543210").
   if (analysis.country === "IN" && analysis.subscriberNumber) {
-    const group = INDIA_MOBILE_GROUPS.find((g) => g.prefix.test(analysis.subscriberNumber));
+    const stripped = analysis.subscriberNumber.replace(/^0+/, "");
+    const group = INDIA_MOBILE_GROUPS.find((g) => g.prefix.test(stripped));
     if (group) {
       inferredCarrier = group.carrier;
       signals.push(`Group: ${group.carrier}`);

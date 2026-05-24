@@ -136,3 +136,52 @@ body::after {
 @layer utilities {
   .text-balance { text-wrap: balance; }
 }
+
+/* ── Accessibility: focus-visible ring on every interactive element ───── */
+button:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #00ff41;
+  outline-offset: 2px;
+}
+
+/* ── Respect reduced-motion (canvas rain, framer-motion) ──────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Print-friendly stylesheet for ReportExport HTML/screenshots ──────── */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .terminal-card,
+  .terminal-input {
+    background: #fff !important;
+    border: 1px solid #888 !important;
+    box-shadow: none !important;
+  }
+  /* Hide the matrix-rain canvas, nav, sticky header, and tab buttons */
+  canvas,
+  header,
+  footer,
+  [role="tab"] {
+    display: none !important;
+  }
+  /* Force readable greens to dark colours */
+  .glow-green,
+  .text-\[#00ff41\],
+  .text-\[#00d9ff\] {
+    color: #000 !important;
+    text-shadow: none !important;
+  }
+  /* Break inside cards is undesirable */
+  .terminal-card { page-break-inside: avoid; }
+}

@@ -6,21 +6,22 @@ import {
 } from "lucide-react";
 import type { LookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
-import SourceTabs from "./SourceTabs";
-import OsintPivots from "./OsintPivots";
-import NumberAnatomyPanel from "./NumberAnatomyPanel";
-import CountryPanel from "./CountryPanel";
-import ShareButton from "./ShareButton";
-import SimIntelPanel from "./SimIntelPanel";
-import QrCodePanel from "./QrCodePanel";
-import PentesterPanel from "./PentesterPanel";
-import DorkGenerator from "./DorkGenerator";
-import NumberPermutations from "./NumberPermutations";
-import ReportExport from "./ReportExport";
-import LocationPanel from "./LocationPanel";
-import PhoneIdentityPanel from "./PhoneIdentityPanel";
-import BreachPanel from "./BreachPanel";
-import InfostealerPanel from "./InfostealerPanel";
+import SourceTabs            from "@/components/dashboard/SourceTabs";
+import OsintPivots           from "@/components/osint/OsintPivots";
+import NumberAnatomyPanel    from "@/components/phone/NumberAnatomyPanel";
+import NumberPermutations    from "@/components/phone/NumberPermutations";
+import PentesterPanel        from "@/components/phone/PentesterPanel";
+import PhoneIdentityPanel    from "@/components/phone/PhoneIdentityPanel";
+import SimIntelPanel         from "@/components/phone/SimIntelPanel";
+import CountryPanel          from "@/components/osint/CountryPanel";
+import LocationPanel         from "@/components/osint/LocationPanel";
+import QrCodePanel           from "@/components/osint/QrCodePanel";
+import DorkGenerator         from "@/components/osint/DorkGenerator";
+import BreachPanel           from "@/components/breach/BreachPanel";
+import InfostealerPanel      from "@/components/breach/InfostealerPanel";
+import ShareButton           from "@/components/shared/ShareButton";
+import ReportExport          from "@/components/shared/ReportExport";
+import PanelErrorBoundary    from "@/components/shared/PanelErrorBoundary";
 import { cn, copyText } from "@/lib/utils";
 
 interface Props {
@@ -196,54 +197,58 @@ export default function ResultsDashboard({ data }: Props) {
       </div>
 
       {/* ── IDENTITY (FullContact + CNAM + free-lookup action center) ───────── */}
-      <PhoneIdentityPanel data={data} />
+      <PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} /></PanelErrorBoundary>
 
       {/* ── BREACH DATA (BreachDirectory + free-lookup action center) ──────── */}
-      <BreachPanel
-        breachDirectory={sources.breachDirectory}
-        subjectLabel="this phone number"
-        e164={input.e164}
-      />
+      <PanelErrorBoundary label="Breach search">
+        <BreachPanel
+          breachDirectory={sources.breachDirectory}
+          subjectLabel="this phone number"
+          e164={input.e164}
+        />
+      </PanelErrorBoundary>
 
       {/* ── INFOSTEALER MALWARE (Hudson Rock — free, always-on) ─────────────── */}
-      <InfostealerPanel data={data} />
+      <PanelErrorBoundary label="Hudson Rock infostealer"><InfostealerPanel data={data} /></PanelErrorBoundary>
 
       {/* ── Pentester intelligence — core value of the tool ─────────────────── */}
-      <PentesterPanel data={data} />
+      <PanelErrorBoundary label="Pentester intelligence"><PentesterPanel data={data} /></PanelErrorBoundary>
 
       {/* ── Consolidated metadata: location + anatomy ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <LocationPanel data={data} />
-        {countryIntel ? <CountryPanel intel={countryIntel} /> : <div />}
+        <PanelErrorBoundary label="Location"><LocationPanel data={data} /></PanelErrorBoundary>
+        {countryIntel
+          ? <PanelErrorBoundary label="Country intel"><CountryPanel intel={countryIntel} /></PanelErrorBoundary>
+          : <div />}
       </div>
 
       {/* ── Number anatomy (replaces 3 old duplicate panels) ────────────────── */}
-      <NumberAnatomyPanel data={data} />
+      <PanelErrorBoundary label="Number anatomy"><NumberAnatomyPanel data={data} /></PanelErrorBoundary>
 
       {/* ── SIM intelligence + QR code ──────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {hasSimData
-          ? <SimIntelPanel aggregated={aggregated} />
+          ? <PanelErrorBoundary label="SIM & carrier"><SimIntelPanel aggregated={aggregated} /></PanelErrorBoundary>
           : <PlaceholderCard
               icon={<Phone className="w-3 h-3" />}
               title="SIM & CARRIER INTELLIGENCE"
               note="Add IPQS or Twilio API keys to .env.local for live carrier, prepaid, and SIM activity data." />}
-        <QrCodePanel e164={input.e164} />
+        <PanelErrorBoundary label="QR code"><QrCodePanel e164={input.e164} /></PanelErrorBoundary>
       </div>
 
-      {/* ── Number permutations + Dork generator side-by-side on desktop ───── */}
-      <NumberPermutations data={data} />
-      <DorkGenerator e164={input.e164} national={input.national} />
+      {/* ── Number permutations + Dork generator ────────────────────────────── */}
+      <PanelErrorBoundary label="Number permutations"><NumberPermutations data={data} /></PanelErrorBoundary>
+      <PanelErrorBoundary label="Dork generator"><DorkGenerator e164={input.e164} national={input.national} /></PanelErrorBoundary>
 
       {/* ── OSINT pivots ────────────────────────────────────────────────────── */}
-      <OsintPivots e164={input.e164} national={input.national} country={input.country} />
+      <PanelErrorBoundary label="OSINT pivots"><OsintPivots e164={input.e164} national={input.national} country={input.country} /></PanelErrorBoundary>
 
       {/* ── Raw source data ─────────────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">
           [ RAW SOURCE DATA ] — API responses
         </div>
-        <SourceTabs sources={sources} />
+        <PanelErrorBoundary label="Raw sources"><SourceTabs sources={sources} /></PanelErrorBoundary>
       </div>
     </motion.div>
   );
