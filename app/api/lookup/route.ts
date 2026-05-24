@@ -4,6 +4,7 @@ import { getCached, setCached } from "@/lib/cache";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
 import { getCountryIntel } from "@/lib/countryIntel";
+import { deriveOfflineReputation } from "@/lib/freePhoneIntel";
 import type { CountryIntel } from "@/lib/countryIntel";
 import type {
   LookupResponse,
@@ -543,8 +544,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     sources.hudsonRock
   );
 
+  const offline = deriveOfflineReputation(analysis);
+
   const response: LookupResponse = {
-    input, analysis, countryIntel, sources, aggregated, threatScore, threatLabel,
+    input, analysis, countryIntel, offline, sources, aggregated, threatScore, threatLabel,
   };
   setCached(e164, response);
 

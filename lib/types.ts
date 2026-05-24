@@ -1,7 +1,8 @@
 import type { PhoneAnalysis } from "./phoneAnalysis";
 import type { CountryIntel } from "./countryIntel";
+import type { OfflineReputation } from "./freePhoneIntel";
 
-export type { PhoneAnalysis, CountryIntel };
+export type { PhoneAnalysis, CountryIntel, OfflineReputation };
 
 export interface PhoneInputData {
   raw: string;
@@ -164,6 +165,8 @@ export interface LookupResponse {
   input: PhoneInputData;
   analysis: PhoneAnalysis;
   countryIntel: CountryIntel | null;
+  /** Offline reputation derived purely from number structure — never an API */
+  offline: OfflineReputation;
   sources: {
     numverify: SourceResult<NumVerifyData>;
     ipqs: SourceResult<IpqsData>;
