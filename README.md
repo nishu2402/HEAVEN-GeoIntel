@@ -5,12 +5,42 @@
 </p>
 
 <p align="center">
-<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Phone+%26+Email+OSINT+Intelligence+Platform;400%2B+NPA+Area+Codes+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;85+Phone+Pivots+%C2%B7+25+Email+Pivots+%C2%B7+64+Google+Dorks;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;One+Command+Start+%C2%B7+Next.js+14+%C2%B7+TypeScript+%C2%B7+Matrix+UI"/>
+<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Phone+%26+Email+OSINT+Intelligence+Platform;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;66+Phone+Pivots+%C2%B7+25+Email+Pivots+%C2%B7+58+Smart+Dorks+%C2%B7+Bulk+Mode;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+14+%C2%B7+TypeScript"/>
 </p>
 
 <p align="center">
 <img src="https://capsule-render.vercel.app/api?type=rect&height=6&color=0:FFAA00,25:BF5FFF,50:00D9D9,75:44FF88,100:FF3333"/>
 </p>
+
+---
+
+> ### ⚠️ Acceptable use
+>
+> **HEAVEN-GeoIntel returns publicly-derivable metadata only.** It does **not** and **cannot** provide real-time GPS, live device tracking, or SS7 interception.
+>
+> Use this tool only:
+> - Within an **explicit, written penetration-test scope of work**.
+> - For OSINT research, journalism, or protecting yourself / your family / your organisation.
+> - In ways that comply with the laws of **both your jurisdiction and the target's**.
+>
+> Stalking, harassment, doxing, domestic abuse, and any non-consensual surveillance are **explicitly prohibited** by the [LICENSE](./LICENSE). Misuse is the sole responsibility of the user.
+
+---
+
+## 🖼️ Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="./docs/screenshots/phone-results.png" alt="Phone OSINT result dashboard" width="100%"/></td>
+<td width="50%"><img src="./docs/screenshots/dork-generator.png" alt="Dork generator with category groups and engine selector" width="100%"/></td>
+</tr>
+<tr>
+<td width="50%"><img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix with access-tier filter chips" width="100%"/></td>
+<td width="50%"><img src="./docs/screenshots/bulk-mode.png" alt="Bulk lookup mode" width="100%"/></td>
+</tr>
+</table>
+
+> Screenshots not yet rendered? Drop your own PNGs into [`docs/screenshots/`](./docs/screenshots/) — the filenames are documented there.
 
 ---
 
@@ -68,14 +98,18 @@
 - [🐳 Docker Deployment](#docker-deployment)
 - [📞 Phone Intelligence](#phone-intelligence)
 - [📧 Email Intelligence](#email-intelligence)
+- [≡ Bulk Mode](#bulk-mode)
 - [🔑 Optional API Enrichment](#api-enrichment)
 - [⚙️ How It Works](#how-it-works)
+- [🔌 REST API](#rest-api)
 - [✅ Data Accuracy](#data-accuracy)
 - [🔒 Security](#security)
+- [🧪 Tests](#tests)
 - [📁 Project Structure](#project-structure)
 - [⚡ Tech Stack](#tech-stack)
 - [📜 Available Scripts](#available-scripts)
 - [🔧 Troubleshooting](#troubleshooting)
+- [🤝 Contributing](#contributing)
 - [⚠️ Disclaimer](#disclaimer)
 
 ---
@@ -93,19 +127,23 @@
 
 | Metric | Value |
 |---|---|
-| 🎯 **Scope** | Phone number intelligence + Email address intelligence |
-| 🔑 **Core Requirement** | Zero API keys — full offline analysis works out of the box |
-| 📞 **Phone: OSINT Pivots** | 85 investigation links across 6 categories |
+| 🎯 **Scope** | Phone numbers · Email addresses · Bulk phone batches |
+| 🔑 **Core Requirement** | Zero API keys — offline + free-source enrichment works out of the box |
+| 📞 **Phone: OSINT Pivots** | 66 investigation links across 6 categories — each tagged **FREE / CAPTCHA / LOGIN / PAID** |
 | 📧 **Email: OSINT Pivots** | 25 investigation links across 4 categories |
-| 🔍 **Phone: Google Dorks** | 64 pre-built dorks (LinkedIn · Facebook · Pastebin · S3 leaks · credential dumps · PDFs · forum/court/business) |
-| 📊 **Phone: Format Variants** | 11 permutations for database/OSINT searching |
+| 🔍 **Phone: Google Dorks** | 58 dorks across 8 colour-coded categories with hit-rate badges + 5-engine selector |
+| 📊 **Phone: Format Variants** | 12 permutations for database/OSINT searching |
 | 🗺️ **NPA Database** | 400+ US/CA area codes → state · metro · timezone (offline) |
-| 💥 **Breach Intelligence** | XposedOrNot (free, no key) + BreachDirectory (real credential hashes, RapidAPI key) |
-| 🔐 **Identity Enrichment** | FullContact person enrichment — real name · employer · social profiles · linked contacts |
+| 💥 **Breach Intelligence** | XposedOrNot (free) + BreachDirectory (RapidAPI free tier) + **10 free fallback breach-search buttons** |
+| 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier** — free, no key, always-on |
+| 🔐 **Identity Enrichment** | FullContact + free-lookup action centre (OSINT Industries · Epieos · NumLookup · Sync.me · …) |
 | 🌍 **Country Dataset** | 100 countries — capital · currency · languages · GDP · emergency numbers |
-| ⚡ **Cache** | 24h in-memory LRU (500 entries max) — repeat lookups instant |
+| ⚡ **Cache** | 24 h in-memory LRU (500 entries max) — repeat lookups instant |
 | 🚦 **Rate Limiting** | 10 requests/minute/IP — token bucket |
-| 🏗️ **Stack** | Next.js 14 · TypeScript · Tailwind CSS · Framer Motion · libphonenumber-js |
+| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs` · 4 endpoints |
+| 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
+| 🧪 **CI / Tests** | Vitest · GitHub Actions on every PR · multi-arch ghcr image on every push to `main` |
+| 🏗️ **Stack** | Next.js 14 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
 | 🎨 **UI Theme** | Matrix/terminal — Canvas katakana rain · CRT scanlines · JetBrains Mono · fully responsive |
 
 </div>
@@ -142,6 +180,19 @@ Target phone / email
 <p align="center">
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:00D9D9,50:FFAA00,100:44FF88"/>
 </p>
+
+### One-click deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnishu2402%2FHEAVEN-GeoIntel&project-name=heaven-geointel&repository-name=HEAVEN-GeoIntel)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fnishu2402%2FHEAVEN-GeoIntel)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fnishu2402%2FHEAVEN-GeoIntel)
+
+Or pull the pre-built container:
+
+```bash
+docker run -d --name geointel -p 3000:3000 \
+  ghcr.io/nishu2402/heaven-geointel:latest
+```
 
 ### Requirements
 
@@ -182,7 +233,7 @@ npm install
 ### One-command start
 
 ```bash
-bash start.sh
+bash scripts/start.sh
 ```
 
 The script checks Node.js, installs dependencies, creates `.env.local`, auto-detects an available port, and starts the server. No manual steps required.
@@ -194,7 +245,7 @@ npm run setup
 
 ### Global command
 
-After running `bash start.sh` once, a `geointel` shell function is registered in `~/.zshrc`. Open a new terminal and type:
+After running `bash scripts/start.sh` once, a `geointel` shell function is registered in `~/.zshrc`. Open a new terminal and type:
 
 ```bash
 geointel
@@ -388,6 +439,33 @@ user+tag@provider.net
 
 ---
 
+<a id="bulk-mode"></a>
+## ≡ Bulk Mode
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:44FF88,50:00D9D9,100:BF5FFF"/>
+</p>
+
+Paste up to **25 phone numbers** into the third tab (`≡ BULK`), one per line
+or comma-separated. The endpoint runs **offline-only analysis** on each
+number (libphonenumber + NPA + bundled country data + reused cache) and
+returns a flat result table, downloadable as **CSV** in one click.
+
+Why offline-only? Most free APIs cap out at 100–250 calls per day; a bulk
+batch would burn an entire day's quota. Use bulk to **triage**, then drill
+into the interesting rows from the PHONE tab to fan out the full enrichment.
+
+```bash
+# Call the endpoint directly
+curl -s http://localhost:3000/api/bulk-lookup \
+  -H 'content-type: application/json' \
+  -d '{"numbers":["+14155552671","+447911123456","+919876543210"]}' | jq .
+```
+
+Returns: `{ count, rows: [{ input, ok, e164, country, type, carrier, timezone, utcOffset, npaState, npaRegion, cached }] }`.
+
+---
+
 <a id="api-enrichment"></a>
 ## 🔑 Optional API Enrichment
 
@@ -514,6 +592,46 @@ Browser → POST /api/email-lookup { email: "target@domain.com" }
 
 ---
 
+<a id="rest-api"></a>
+## 🔌 REST API
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:00D9D9,50:FFAA00,100:FF3333"/>
+</p>
+
+Every UI feature is also reachable as a JSON API. Spec served at
+`GET /api/docs` (OpenAPI 3.1) — import into Postman, Insomnia, or Swagger
+UI for an interactive playground.
+
+```bash
+# Single phone lookup
+curl -s http://localhost:3000/api/lookup \
+  -H 'content-type: application/json' \
+  -d '{"number":"+14155552671"}' | jq .threatScore
+
+# Single email lookup
+curl -s http://localhost:3000/api/email-lookup \
+  -H 'content-type: application/json' \
+  -d '{"email":"test@example.com"}' | jq .
+
+# Bulk (offline-only, max 25)
+curl -s http://localhost:3000/api/bulk-lookup \
+  -H 'content-type: application/json' \
+  -d '{"numbers":["+14155552671","+447911123456"]}' | jq .
+
+# OpenAPI spec
+curl -s http://localhost:3000/api/docs | jq .info
+```
+
+Headers returned by every endpoint:
+- `X-RateLimit-Limit: 10`
+- `X-RateLimit-Remaining: <n>`
+- `X-Robots-Tag: noindex, nofollow, noarchive` (API routes only)
+
+429 responses include `Retry-After: 60`.
+
+---
+
 <a id="data-accuracy"></a>
 ## ✅ Data Accuracy
 
@@ -558,13 +676,39 @@ Browser → POST /api/email-lookup { email: "target@domain.com" }
 
 | Control | Implementation |
 |---|---|
-| **API key isolation** | All external calls happen in server-side API routes — keys never leave the server. Verified: `grep -r "process.env" .next/static/` returns nothing. |
-| **Security headers** | `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy` · `Permissions-Policy` (blocks geolocation/camera/mic) · `Content-Security-Policy` |
-| **No tracking** | Derives metadata from number/email structure and public databases only. No geolocation, no device tracking. |
-| **Rate limiting** | 10 requests/minute/IP — prevents bulk scraping and abuse |
-| **Safe dependencies** | `libphonenumber-js` is Google's libphonenumber compiled to JS. No telemetry packages. |
+| **API key isolation** | Every external fetch happens in `src/app/api/*` server routes — keys never reach the browser bundle. Verified: `grep -r "process.env" .next/static/` returns nothing. |
+| **Security headers** | `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy: strict-origin-when-cross-origin` · `Permissions-Policy` (geo/camera/mic/payment/usb/accelerometer all blocked) · `Cross-Origin-Opener-Policy: same-origin` · `Cross-Origin-Resource-Policy: same-origin` |
+| **CSP** | `default-src 'self'` · `connect-src 'self'` · `object-src 'none'` · `frame-ancestors 'none'` · `form-action 'self'` · `base-uri 'self'` · `upgrade-insecure-requests` — image allow-list narrowed to Gravatar / LinkedIn / Twitter / Google / FullContact |
+| **API hardening** | `/api/*` routes return `X-Robots-Tag: noindex, nofollow, noarchive` + `Cache-Control: no-store` + `Access-Control-Allow-Origin: same-origin` |
+| **No tracking** | Derives metadata from number / email structure and public databases only. No geolocation, no device tracking, no analytics, no telemetry. |
+| **Rate limiting** | 10 requests/minute/IP token-bucket — `Retry-After: 60` on 429 |
+| **Panel isolation** | Every results panel wrapped in `PanelErrorBoundary` — a broken third-party response only takes down one card, not the page. |
+| **Safe dependencies** | `libphonenumber-js` is Google's libphonenumber compiled to JS. No telemetry packages. Dependabot recommended. |
+| **Disclosure policy** | [SECURITY.md](./SECURITY.md) — GitHub Security Advisory flow, 72 h ack, 14 d critical fix SLA. |
 
 </div>
+
+---
+
+<a id="tests"></a>
+## 🧪 Tests
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:44FF88,50:FFAA00,100:BF5FFF"/>
+</p>
+
+```bash
+npm test              # run once (vitest)
+npm run test:watch    # watch mode
+npm run test:coverage # text + html report under coverage/
+npm run typecheck     # tsc --noEmit
+npm run lint          # next lint
+```
+
+Every push to `main` and every PR runs `lint → typecheck → test → build` via
+GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
+Successful pushes to `main` also publish a multi-arch image to
+[`ghcr.io/nishu2402/heaven-geointel`](https://github.com/nishu2402/HEAVEN-GeoIntel/pkgs/container/heaven-geointel).
 
 ---
 
@@ -575,61 +719,115 @@ Browser → POST /api/email-lookup { email: "target@domain.com" }
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:BF5FFF,50:FF3333,100:FFAA00"/>
 </p>
 
-```
-app/
-├── api/
-│   ├── lookup/route.ts          ← Phone POST endpoint — parse, analyze, fan-out, aggregate
-│   └── email-lookup/route.ts    ← Email POST endpoint — Gravatar, XON, EmailRep, Abstract, Hunter
-├── layout.tsx                   ← Root layout — JetBrains Mono, meta tags, OG/Twitter cards
-├── page.tsx                     ← Main page — mode switcher, boot sequence, input, results
-├── not-found.tsx                ← Custom 404 (matrix theme)
-├── robots.ts                    ← robots.txt
-└── globals.css                  ← Matrix/terminal theme, CRT scanlines, shadcn overrides
+All source lives under `src/`. Components are grouped by feature so a 30-file
+flat directory becomes 7 focused folders. Tests live under `tests/`, shell
+scripts under `scripts/`, and supplementary docs under `docs/`.
 
-components/
+```text
+HEAVEN-GeoIntel/
 │
-│  ── Shared ──────────────────────────────────────────────────────────
-├── MatrixRain.tsx               ← Canvas katakana background animation
-├── BootSequence.tsx             ← Staggered terminal init (Framer Motion)
-├── LoadingSkeletons.tsx         ← Matrix-pulsing skeleton loaders
+├── .github/                          GitHub-native config
+│   ├── ISSUE_TEMPLATE/               bug · feature · contact links
+│   ├── workflows/
+│   │   ├── ci.yml                    lint · typecheck · test · build on every PR
+│   │   └── docker-image.yml          publish multi-arch image to ghcr.io
+│   └── pull_request_template.md
 │
-│  ── Phone ────────────────────────────────────────────────────────────
-├── PhoneInput.tsx               ← 250+ country combobox + AsYouType formatter + validation
-├── ResultsDashboard.tsx         ← All phone result panels — no N/A cards
-├── PentesterPanel.tsx           ← Intelligence Score · Target Profile · Attack Vector grid · call window · NPA intel · OSINT quick-lookups
-├── MetricCard.tsx               ← Animated metric tile
-├── FraudScoreBar.tsx            ← Animated 0–100 fraud score bar
-├── NumberBreakdown.tsx          ← Visual digit structure breakdown
-├── NumberPermutations.tsx       ← 11 format variants for OSINT database searching
-├── DorkGenerator.tsx            ← 64 pre-built Google dorks with copy + open buttons
-├── OsintPivots.tsx              ← 85 investigation links across 6 categories
-├── SimIntelPanel.tsx            ← SIM intelligence — owner, prepaid, active, MCC/MNC
-├── QrCodePanel.tsx              ← Canvas QR code for tel: URI
-├── CountryPanel.tsx             ← Bundled country intelligence display
-├── FormatPanel.tsx              ← Format cross-reference + validation matrix
-├── HistorySidebar.tsx           ← localStorage history drawer (last 20 lookups)
-├── ShareButton.tsx              ← Copies ?q= shareable URL to clipboard
-├── SourceTabs.tsx               ← Raw JSON per API source
-└── ReportExport.tsx             ← Download report as .txt or .html
+├── docs/                             Supplementary documentation
+│   └── screenshots/                  drop PNGs here — README references them
 │
-│  ── Email ────────────────────────────────────────────────────────────
-├── EmailInput.tsx               ← Email input with regex validation + status line · mobile-optimised layout
-├── EmailResultsDashboard.tsx    ← Full email results — threat score, FullContact, breach, identity, reputation
-├── BreachPanel.tsx              ← Per-breach detail · password risk · BreachDirectory credential hash display · one-click crack buttons
-└── EmailOsintPivots.tsx         ← 25 investigation links across 4 categories
-
-lib/
-├── phoneAnalysis.ts             ← Offline phone engine (110+ country timezone map, area codes, NXX)
-├── emailAnalysis.ts             ← Offline email engine (classification, name inference)
-├── countryIntel.ts              ← Bundled dataset for 100 countries (zero API)
-├── usNpaDatabase.ts             ← US/CA NPA area code database (400+ entries, offline)
-├── disposableEmailDomains.ts    ← 1000+ disposable domains · 100+ webmail · 44 privacy · 70+ role prefix sets
-├── hashDetect.ts                ← Hash type detection (MD5 · SHA-1 · bcrypt · SHA-256) + crack difficulty + best tool routing
-├── types.ts                     ← Full TypeScript interface tree (phone + email)
-├── cache.ts                     ← 24h in-memory Map cache
-├── rateLimit.ts                 ← Token-bucket rate limiter (10/min/IP)
-├── flagEmoji.ts                 ← Country code → emoji flag
-└── utils.ts                     ← Tailwind merge helper
+├── scripts/                          Shell entrypoints
+│   ├── start.sh                      one-step install + dev server + global cmd
+│   └── install-global.sh             register the `geointel` shell function
+│
+├── src/                              All application source
+│   │
+│   ├── app/                          Next.js App Router
+│   │   ├── api/
+│   │   │   ├── lookup/route.ts       phone POST endpoint
+│   │   │   ├── email-lookup/route.ts email POST endpoint
+│   │   │   ├── bulk-lookup/route.ts  bulk phone POST endpoint (max 25)
+│   │   │   └── docs/route.ts         OpenAPI 3.1 spec
+│   │   ├── fonts/                    GeistMono + GeistVF
+│   │   ├── favicon.ico
+│   │   ├── globals.css               matrix theme · print + reduced-motion media
+│   │   ├── layout.tsx                root layout · meta · OG · skip-link
+│   │   ├── page.tsx                  mode switcher · boot · input · results
+│   │   ├── not-found.tsx             matrix-themed 404
+│   │   └── robots.ts                 dynamic robots.txt
+│   │
+│   ├── components/                   React components — grouped by feature
+│   │   │
+│   │   ├── phone/                    PHONE OSINT
+│   │   │   ├── PhoneInput.tsx              250+ country combobox + AsYouType
+│   │   │   ├── PentesterPanel.tsx          Intelligence Score · Attack Vectors · NPA intel
+│   │   │   ├── NumberAnatomyPanel.tsx      digits · type · validity · 4 formats
+│   │   │   ├── NumberPermutations.tsx      12 format variants for OSINT searches
+│   │   │   ├── PhoneIdentityPanel.tsx      FullContact + free-lookup action centre
+│   │   │   ├── SimIntelPanel.tsx           prepaid · active · MCC/MNC
+│   │   │   └── FraudScoreBar.tsx           animated 0–100 fraud bar
+│   │   │
+│   │   ├── email/                    EMAIL OSINT
+│   │   │   ├── EmailInput.tsx              regex validation + status line
+│   │   │   ├── EmailResultsDashboard.tsx   threat score · breach · identity
+│   │   │   └── EmailOsintPivots.tsx        25 investigation links
+│   │   │
+│   │   ├── breach/                   BREACH + INFOSTEALER
+│   │   │   ├── BreachPanel.tsx             XposedOrNot/BreachDirectory + free-lookup centre
+│   │   │   └── InfostealerPanel.tsx        Hudson Rock infections (free · no key)
+│   │   │
+│   │   ├── dashboard/                RESULT ORCHESTRATION
+│   │   │   ├── ResultsDashboard.tsx        wires every panel together
+│   │   │   ├── BulkLookup.tsx              paste-list + CSV export
+│   │   │   ├── HistorySidebar.tsx          last 20 lookups (localStorage)
+│   │   │   ├── LoadingSkeletons.tsx        matrix-pulsing placeholders
+│   │   │   ├── MetricCard.tsx              animated metric tile
+│   │   │   └── SourceTabs.tsx              raw JSON per API source
+│   │   │
+│   │   ├── osint/                    OSINT PIVOTS + AUX LOOKUPS
+│   │   │   ├── OsintPivots.tsx             66 links · FREE/CAPTCHA/LOGIN/PAID badges
+│   │   │   ├── DorkGenerator.tsx           58 dorks · 8 categories · engine selector
+│   │   │   ├── LocationPanel.tsx           consolidated location intelligence
+│   │   │   ├── CountryPanel.tsx            bundled country dataset display
+│   │   │   └── QrCodePanel.tsx             canvas QR for tel: URI
+│   │   │
+│   │   ├── shared/                   CROSS-MODE UTILITIES
+│   │   │   ├── MatrixRain.tsx              canvas katakana background
+│   │   │   ├── BootSequence.tsx            staggered terminal init
+│   │   │   ├── PanelErrorBoundary.tsx      per-panel error isolation
+│   │   │   ├── ShareButton.tsx             copy ?q= shareable URL
+│   │   │   └── ReportExport.tsx            download .txt / .html report
+│   │   │
+│   │   └── ui/                       shadcn/ui primitives (Radix-based)
+│   │
+│   └── lib/                          Pure logic — no React, no DOM
+│       ├── phoneAnalysis.ts          offline phone engine (libphonenumber + maps)
+│       ├── emailAnalysis.ts          offline email engine
+│       ├── freePhoneIntel.ts         offline reputation derivation
+│       ├── countryIntel.ts           bundled 100-country dataset
+│       ├── usNpaDatabase.ts          400+ US/CA NPA area codes
+│       ├── disposableEmailDomains.ts 1000+ throwaway + webmail + privacy lists
+│       ├── hashDetect.ts             MD5 / SHA-1 / bcrypt classifier
+│       ├── flagEmoji.ts              ISO-2 → 🇺🇸 emoji
+│       ├── cache.ts                  in-memory 24 h LRU
+│       ├── rateLimit.ts              token-bucket per IP
+│       ├── types.ts                  full TypeScript interface tree
+│       └── utils.ts                  cn() · copyText()
+│
+├── tests/                            Vitest suites — run with `npm test`
+│   ├── phoneAnalysis.test.ts
+│   └── freePhoneIntel.test.ts
+│
+├── .env.example                      every supported API key, all optional
+├── .eslintrc.json · .gitignore · .nvmrc · .npmrc · .dockerignore
+├── CHANGELOG.md · CODE_OF_CONDUCT.md · CONTRIBUTING.md · SECURITY.md · LICENSE
+├── components.json                   shadcn/ui config
+├── Dockerfile · docker-compose.yml   multi-stage container build
+├── next.config.mjs                   hardened CSP, CORS, security headers
+├── package.json · package-lock.json
+├── postcss.config.mjs · tailwind.config.ts
+├── tsconfig.json                     `@/*` → `./src/*`
+└── vitest.config.ts
 ```
 
 ---
@@ -674,7 +872,7 @@ lib/
 
 | Command | What It Does |
 |---|---|
-| `bash start.sh` | One-step: install deps · register global command · start dev server |
+| `bash scripts/start.sh` | One-step: install deps · register global command · start dev server |
 | `npm run setup` | Same as above, npm version |
 | `npm run install-global` | Register the `geointel` shell command in `~/.zshrc` |
 | `npm run dev` | Start dev server (requires prior `npm install`) |
@@ -715,10 +913,33 @@ BreachDirectory requires a `RAPIDAPI_KEY` in `.env.local`. Subscribe to the free
 Add `FULLCONTACT_API_KEY` to `.env.local`. FullContact offers a free developer tier. If configured but showing no data, the email has no FullContact record — this is normal for uncommon addresses.
 
 ### `npm run dev` fails with MODULE_NOT_FOUND
-Use `bash start.sh` or `npm run setup` instead. Both invoke Next.js via `node node_modules/next/dist/bin/next` and bypass symlink issues.
+Use `bash scripts/start.sh` or `npm run setup` instead. Both invoke Next.js via `node node_modules/next/dist/bin/next` and bypass symlink issues.
 
 ### `npm install` fails on another PC
 Almost always an outdated Node.js. Run `node -v` — it must be **v18.17.0 or higher**. If it is older, install the current LTS from [nodejs.org](https://nodejs.org) (or use [nvm](https://github.com/nvm-sh/nvm): `nvm install 18`), then retry. A clear `EBADENGINE` error means exactly this. If you copied the project folder, delete `node_modules` and run `npm install` fresh — binaries are OS-specific and do not transfer between machines.
+
+---
+
+<a id="contributing"></a>
+## 🤝 Contributing
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:BF5FFF,50:00D9D9,100:44FF88"/>
+</p>
+
+Pull requests are welcome! Please read [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+first — it covers the data-quality rules (no fake values, no real-time
+tracking), the PR checklist, and how to add new OSINT data sources or pivot
+links.
+
+Other useful documents:
+
+| Document | Purpose |
+|---|---|
+| [`LICENSE`](./LICENSE) | MIT + OSINT acceptable-use policy |
+| [`SECURITY.md`](./SECURITY.md) | Vulnerability disclosure process |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Contributor Covenant v2.1 |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Release notes (Keep-a-Changelog format) |
 
 ---
 

@@ -11,8 +11,12 @@
     "build": "node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start",
     "lint": "node node_modules/next/dist/bin/next lint",
+    "test": "node node_modules/vitest/vitest.mjs run",
+    "test:watch": "node node_modules/vitest/vitest.mjs",
+    "test:coverage": "node node_modules/vitest/vitest.mjs run --coverage",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "setup": "npm install && node node_modules/next/dist/bin/next dev",
-    "install-global": "bash install-global.sh"
+    "install-global": "bash scripts/install-global.sh"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -41,10 +45,12 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }

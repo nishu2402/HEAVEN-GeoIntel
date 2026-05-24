@@ -6,20 +6,21 @@ import dynamic from "next/dynamic";
 import { Shield, Terminal } from "lucide-react";
 import type { LookupResponse, EmailLookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
-import PhoneInput from "@/components/PhoneInput";
-import EmailInput from "@/components/EmailInput";
-import ResultsDashboard from "@/components/ResultsDashboard";
-import EmailResultsDashboard from "@/components/EmailResultsDashboard";
-import LoadingSkeletons from "@/components/LoadingSkeletons";
-import BootSequence from "@/components/BootSequence";
-import { saveToHistory } from "@/components/HistorySidebar";
+import PhoneInput            from "@/components/phone/PhoneInput";
+import EmailInput            from "@/components/email/EmailInput";
+import BulkLookup            from "@/components/dashboard/BulkLookup";
+import ResultsDashboard      from "@/components/dashboard/ResultsDashboard";
+import EmailResultsDashboard from "@/components/email/EmailResultsDashboard";
+import LoadingSkeletons      from "@/components/dashboard/LoadingSkeletons";
+import BootSequence          from "@/components/shared/BootSequence";
+import { saveToHistory }     from "@/components/dashboard/HistorySidebar";
 
-const MatrixRain = dynamic(() => import("@/components/MatrixRain"), { ssr: false });
-const HistorySidebar = dynamic(() => import("@/components/HistorySidebar"), { ssr: false });
+const MatrixRain     = dynamic(() => import("@/components/shared/MatrixRain"),       { ssr: false });
+const HistorySidebar = dynamic(() => import("@/components/dashboard/HistorySidebar"), { ssr: false });
 
 type PhoneStatus = "boot" | "idle" | "loading" | "done" | "error";
 type EmailStatus = "idle" | "loading" | "done" | "error";
-type Mode = "phone" | "email";
+type Mode = "phone" | "email" | "bulk";
 
 interface ApiErrorResponse {
   error?: string;
@@ -168,7 +169,7 @@ function PageContent() {
         </header>
 
         {/* Main */}
-        <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-5xl">
+        <main id="main" aria-label="Lookup and results" className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-5xl">
 
           {/* Boot sequence */}
           {isBooting && (
@@ -188,36 +189,48 @@ function PageContent() {
                   [ TARGET ACQUISITION ]
                 </div>
                 {/* Mode tabs — full width on mobile */}
-                <div className="flex gap-2 font-mono text-sm">
-                  {(["phone", "email"] as Mode[]).map((m) => (
+                <div className="flex gap-2 font-mono text-sm" role="tablist" aria-label="Lookup mode">
+                  {(["phone", "email", "bulk"] as Mode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => setMode(m)}
-                      className={`flex-1 sm:flex-none px-4 py-2 border tracking-widest uppercase transition-all text-sm ${
+                      role="tab"
+                      aria-selected={mode === m}
+                      aria-controls={`panel-${m}`}
+                      className={`flex-1 sm:flex-none px-4 py-2 border tracking-widest uppercase transition-all text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00ff41]/60 ${
                         mode === m
                           ? "border-[#00ff41] text-[#00ff41] bg-[#00ff41]/10 shadow-[0_0_10px_rgba(0,255,65,0.15)]"
                           : "border-[#00ff41]/25 text-[#00ff41]/50 hover:border-[#00ff41]/55 hover:text-[#00ff41]/70"
                       }`}
                     >
-                      {m === "phone" ? "📡 PHONE" : "✉ EMAIL"}
+                      {m === "phone" ? "📡 PHONE" : m === "email" ? "✉ EMAIL" : "≡ BULK"}
                     </button>
                   ))}
                 </div>
               </div>
 
               {mode === "phone" && (
-                <PhoneInput
-                  onLookup={runLookup}
-                  onClear={phoneStatus !== "idle" || phoneResult ? handlePhoneClear : undefined}
-                  loading={phoneStatus === "loading"}
-                />
+                <div id="panel-phone" role="tabpanel">
+                  <PhoneInput
+                    onLookup={runLookup}
+                    onClear={phoneStatus !== "idle" || phoneResult ? handlePhoneClear : undefined}
+                    loading={phoneStatus === "loading"}
+                  />
+                </div>
               )}
               {mode === "email" && (
-                <EmailInput
-                  onLookup={runEmailLookup}
-                  onClear={emailStatus !== "idle" || emailResult ? handleEmailClear : undefined}
-                  loading={emailStatus === "loading"}
-                />
+                <div id="panel-email" role="tabpanel">
+                  <EmailInput
+                    onLookup={runEmailLookup}
+                    onClear={emailStatus !== "idle" || emailResult ? handleEmailClear : undefined}
+                    loading={emailStatus === "loading"}
+                  />
+                </div>
+              )}
+              {mode === "bulk" && (
+                <div id="panel-bulk" role="tabpanel">
+                  <BulkLookup />
+                </div>
               )}
             </div>
           )}

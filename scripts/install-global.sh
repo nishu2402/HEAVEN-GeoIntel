@@ -27,7 +27,7 @@ echo ""
 if [ -w "/usr/local/bin" ]; then
   cat > "$INSTALL_PATH" <<SCRIPT
 #!/bin/bash
-cd "$PROJECT_DIR" && bash start.sh "\$@"
+cd "$PROJECT_DIR" && bash scripts/start.sh "\$@"
 SCRIPT
   chmod +x "$INSTALL_PATH"
   echo "[✓] Installed: $INSTALL_PATH"
@@ -36,7 +36,7 @@ elif command -v sudo &>/dev/null; then
   echo "[!] /usr/local/bin requires sudo — prompting..."
   sudo bash -c "cat > '$INSTALL_PATH' <<'SCRIPT'
 #!/bin/bash
-cd \"$PROJECT_DIR\" && bash start.sh \"\$@\"
+cd \"$PROJECT_DIR\" && bash scripts/start.sh \"\$@\"
 SCRIPT"
   sudo chmod +x "$INSTALL_PATH"
   echo "[✓] Installed: $INSTALL_PATH"
@@ -50,7 +50,7 @@ else
 
 $MARKER
 geointel() {
-  cd "$PROJECT_DIR" && bash start.sh "\$@"
+  cd "$PROJECT_DIR" && bash scripts/start.sh "\$@"
 }
 FUNC
       echo "[✓] Added 'geointel' function to $SHELL_RC"
@@ -62,7 +62,7 @@ FUNC
     echo "[!] Could not auto-install. Add this to your shell config manually:"
     echo ""
     echo "    geointel() {"
-    echo "      cd \"$PROJECT_DIR\" && bash start.sh"
+    echo "      cd \"$PROJECT_DIR\" && bash scripts/start.sh"
     echo "    }"
   fi
 fi

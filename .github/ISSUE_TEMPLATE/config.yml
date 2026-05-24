@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/nishu2402/HEAVEN-GeoIntel/security/advisories/new
+    about: Report a security issue privately via a GitHub Security Advisory.
+  - name: Question or discussion
+    url: https://github.com/nishu2402/HEAVEN-GeoIntel/discussions
+    about: Ask a question or start a discussion (not for bug reports).

@@ -8,8 +8,8 @@ import {
   Building2, Lock, Trash2, Hash, Activity, Briefcase, Phone,
 } from "lucide-react";
 import type { EmailLookupResponse } from "@/lib/types";
-import EmailOsintPivots from "./EmailOsintPivots";
-import BreachPanel from "./BreachPanel";
+import EmailOsintPivots from "@/components/email/EmailOsintPivots";
+import BreachPanel      from "@/components/breach/BreachPanel";
 import { cn, copyText } from "@/lib/utils";
 
 interface Props {
