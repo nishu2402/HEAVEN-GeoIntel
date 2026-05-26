@@ -32,11 +32,12 @@
 <table>
 <tr>
 <td width="50%"><img src="./docs/screenshots/phone-results.png" alt="Phone OSINT result dashboard" width="100%"/></td>
-<td width="50%"><img src="./docs/screenshots/dork-generator.png" alt="Dork generator with category groups and engine selector" width="100%"/></td>
+<td width="50%"><img src="./docs/screenshots/bulk-mode.png" alt="Bulk lookup mode" width="100%"/></td>
+</td>
 </tr>
 <tr>
+<td width="50%"><img src="./docs/screenshots/dork-generator.png" alt="Dork generator with category groups and engine selector" width="100%"/>
 <td width="50%"><img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix with access-tier filter chips" width="100%"/></td>
-<td width="50%"><img src="./docs/screenshots/bulk-mode.png" alt="Bulk lookup mode" width="100%"/></td>
 </tr>
 </table>
 
