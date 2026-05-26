@@ -40,7 +40,7 @@
 </tr>
 </table>
 
-> Screenshots not yet rendered? Drop your own PNGs into [`docs/screenshots/`](./docs/screenshots/) — the filenames are documented there.
+> Want to refresh these? Run `npm run dev` in one terminal and `npm run screenshots` in another — the [capture script](./scripts/capture-screenshots.mjs) uses puppeteer-core against your system Chrome and writes high-DPI PNGs back into [`docs/screenshots/`](./docs/screenshots/).
 
 ---
 

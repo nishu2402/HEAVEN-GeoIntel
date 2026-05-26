@@ -16,7 +16,8 @@
     "test:coverage": "node node_modules/vitest/vitest.mjs run --coverage",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "setup": "npm install && node node_modules/next/dist/bin/next dev",
-    "install-global": "bash scripts/install-global.sh"
+    "install-global": "bash scripts/install-global.sh",
+    "screenshots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -49,6 +50,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
+    "puppeteer-core": "^22.15.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
     "vitest": "^2.1.9"
