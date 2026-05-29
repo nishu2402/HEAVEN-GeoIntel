@@ -230,8 +230,8 @@ export default function PhoneIdentityPanel({ data }: Props) {
             <Phone className="w-2.5 h-2.5" /> ALSO REGISTERED TO
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {otherPhones.map((p) => (
-              <span key={p}
+            {otherPhones.map((p, i) => (
+              <span key={`${p}-${i}`}
                 className="text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5">
                 {p}
               </span>

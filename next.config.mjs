@@ -55,15 +55,30 @@ const nextConfig = {
         ],
       },
       {
-        // API routes — never indexed, never cached, never embeddable
-        source: "/api/(.*)",
+        // Lookup API routes — never indexed, never cached, never embeddable.
+        // We intentionally do NOT send an Access-Control-Allow-Origin header
+        // here: omitting it means browsers enforce same-origin by default and
+        // block cross-site reads. ("same-origin" is NOT a valid ACAO value, so
+        // sending it would be a no-op at best and a malformed duplicate header
+        // when a route also sets its own — e.g. the public /api/docs spec.)
+        source: "/api/lookup(.*)",
         headers: [
-          { key: "X-Robots-Tag",             value: "noindex, nofollow, noarchive" },
-          { key: "Cache-Control",            value: "no-store, max-age=0" },
-          // Same-origin CORS — block cross-origin browsers explicitly.
-          // Server-side curl/fetch from other hosts is unaffected (CORS is a
-          // browser-only enforcement), but rate-limited in the route handlers.
-          { key: "Access-Control-Allow-Origin", value: "same-origin" },
+          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+        ],
+      },
+      {
+        source: "/api/email-lookup(.*)",
+        headers: [
+          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+        ],
+      },
+      {
+        source: "/api/bulk-lookup(.*)",
+        headers: [
+          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "no-store, max-age=0" },
         ],
       },
     ];

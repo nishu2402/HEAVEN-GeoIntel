@@ -128,8 +128,8 @@ export default function InfostealerPanel({ data }: Props) {
                     <Eye className="w-2.5 h-2.5" /> Sites this credential was used on
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {s.topLogins.map((url) => (
-                      <span key={url} className="text-[11px] font-mono text-[#00d9ff]/85 px-1.5 py-0.5 border border-[#00d9ff]/25">
+                    {s.topLogins.filter(Boolean).map((url, j) => (
+                      <span key={`${url}-${j}`} className="text-[11px] font-mono text-[#00d9ff]/85 px-1.5 py-0.5 border border-[#00d9ff]/25">
                         {url}
                       </span>
                     ))}
