@@ -5,7 +5,6 @@ import { ExternalLink } from "lucide-react";
 interface Props {
   email: string;
   domain: string;
-  username: string;
 }
 
 interface PivotLink {
@@ -16,17 +15,16 @@ interface PivotLink {
   category: string;
 }
 
-function buildLinks(email: string, domain: string, username: string): PivotLink[] {
+function buildLinks(email: string, domain: string): PivotLink[] {
   const enc = encodeURIComponent(email);
   const encDomain = encodeURIComponent(domain);
-  const encUser = encodeURIComponent(username);
 
   return [
     // ── Breach / Data exposure ────────────────────────────────────────────────
     {
       label: "HaveIBeenPwned",
-      description: "Check which data breaches exposed this email",
-      url: `https://haveibeenpwned.com/account/${enc}`,
+      description: "Check which data breaches exposed this email (paste into the search box)",
+      url: `https://haveibeenpwned.com/`,
       color: "#ff3e3e", category: "breach",
     },
     {
@@ -50,13 +48,13 @@ function buildLinks(email: string, domain: string, username: string): PivotLink[
     {
       label: "Snusbase",
       description: "Database breach search — fast credential lookup",
-      url: `https://snusbase.com/?term=${enc}&type=email`,
+      url: `https://snusbase.com/search?term=${enc}`,
       color: "#ff3e3e", category: "breach",
     },
     {
       label: "BreachDirectory",
       description: "Free breach search with password hash exposure",
-      url: `https://breachdirectory.org/?query=${enc}`,
+      url: `https://breachdirectory.org/?term=${enc}`,
       color: "#ff3e3e", category: "breach",
     },
     // ── Identity / OSINT correlation ─────────────────────────────────────────
@@ -67,9 +65,9 @@ function buildLinks(email: string, domain: string, username: string): PivotLink[
       color: "#00d9ff", category: "identity",
     },
     {
-      label: "Gravatar",
-      description: "Check avatar profile — often contains name + linked accounts",
-      url: `https://gravatar.com/${encUser}`,
+      label: "OSINT Industries",
+      description: "Free email → 100+ platform account check",
+      url: `https://osint.industries/?q=${enc}`,
       color: "#00d9ff", category: "identity",
     },
     {
@@ -92,8 +90,8 @@ function buildLinks(email: string, domain: string, username: string): PivotLink[
     },
     {
       label: "Pipl Search",
-      description: "Global people search by email",
-      url: `https://pipl.com/search/?q=${enc}&l=&sloc=&in=5`,
+      description: "Global people search by email (enterprise — paid)",
+      url: `https://pipl.com/`,
       color: "#00d9ff", category: "identity",
     },
     // ── Social media ──────────────────────────────────────────────────────────
@@ -194,8 +192,8 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
 
 const CATEGORY_ORDER = ["breach", "identity", "social", "domain"] as const;
 
-export default function EmailOsintPivots({ email, domain, username }: Props) {
-  const links = buildLinks(email, domain, username);
+export default function EmailOsintPivots({ email, domain }: Props) {
+  const links = buildLinks(email, domain);
   const byCategory = CATEGORY_ORDER.map((cat) => ({
     cat,
     items: links.filter((l) => l.category === cat),

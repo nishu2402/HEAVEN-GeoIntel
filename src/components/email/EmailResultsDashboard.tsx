@@ -475,8 +475,8 @@ export default function EmailResultsDashboard({ data }: Props) {
                   <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
                     <Mail className="w-2.5 h-2.5" /> OTHER EMAILS
                   </div>
-                  {fcData.otherEmails.map((e) => (
-                    <div key={e} className="flex items-center gap-2 text-xs font-mono text-[#00d9ff]/80 py-0.5">
+                  {fcData.otherEmails.map((e, i) => (
+                    <div key={`${e}-${i}`} className="flex items-center gap-2 text-xs font-mono text-[#00d9ff]/80 py-0.5">
                       {e}
                       <CopyBtn text={e} />
                     </div>
@@ -488,8 +488,8 @@ export default function EmailResultsDashboard({ data }: Props) {
                   <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
                     <Phone className="w-2.5 h-2.5" /> PHONE NUMBERS
                   </div>
-                  {fcData.phones.map((p) => (
-                    <div key={p} className="flex items-center gap-2 text-xs font-mono text-[#00d9ff]/80 py-0.5">
+                  {fcData.phones.map((p, i) => (
+                    <div key={`${p}-${i}`} className="flex items-center gap-2 text-xs font-mono text-[#00d9ff]/80 py-0.5">
                       {p}
                       <CopyBtn text={p} />
                     </div>
@@ -730,7 +730,7 @@ export default function EmailResultsDashboard({ data }: Props) {
       </div>
 
       {/* ── OSINT pivots ── */}
-      <EmailOsintPivots email={email} domain={analysis.domain} username={analysis.username} />
+      <EmailOsintPivots email={email} domain={analysis.domain} />
     </motion.div>
   );
 }

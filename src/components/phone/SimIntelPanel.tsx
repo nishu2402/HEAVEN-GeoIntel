@@ -166,8 +166,8 @@ export default function SimIntelPanel({ aggregated }: Props) {
             ASSOCIATED EMAIL ADDRESSES
           </div>
           <div className="space-y-1">
-            {associatedEmails.map((email) => (
-              <div key={email} className="text-xs font-mono text-[#ffaa00]/80">
+            {associatedEmails.map((email, i) => (
+              <div key={`${email}-${i}`} className="text-xs font-mono text-[#ffaa00]/80">
                 {email}
               </div>
             ))}
