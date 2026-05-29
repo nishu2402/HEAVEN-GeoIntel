@@ -190,7 +190,7 @@ function BreachRow({ breach, index }: { breach: XposedOrNotBreach; index: number
       {/* Data type badges */}
       {breach.xposedData.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {breach.xposedData.map((dt) => <DataBadge key={dt} type={dt} />)}
+          {breach.xposedData.map((dt, i) => <DataBadge key={`${dt}-${i}`} type={dt} />)}
         </div>
       )}
     </motion.div>
@@ -217,8 +217,8 @@ function CredentialCard({
       {entry.sources.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/60">Source:</span>
-          {entry.sources.map((s) => (
-            <span key={s} className="text-[13px] font-mono text-[#00d9ff]/80 border border-[#00d9ff]/30 px-1.5 py-0.5">
+          {entry.sources.map((s, si) => (
+            <span key={`${s}-${si}`} className="text-[13px] font-mono text-[#00d9ff]/80 border border-[#00d9ff]/30 px-1.5 py-0.5">
               {s}
             </span>
           ))}
@@ -565,7 +565,7 @@ export default function BreachPanel({
         <div>
           <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/60 mb-2">All Exposed Data Types (across all breaches)</div>
           <div className="flex flex-wrap gap-1.5">
-            {xonData.xposedDataTypes.map((dt) => <DataBadge key={dt} type={dt} />)}
+            {xonData.xposedDataTypes.map((dt, i) => <DataBadge key={`${dt}-${i}`} type={dt} />)}
           </div>
         </div>
       )}

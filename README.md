@@ -57,7 +57,7 @@
 
   <p>
     <img src="https://img.shields.io/badge/Phone_Pivots-66_Links_(FREE%2FCAPTCHA%2FLOGIN%2FPAID)-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
-    <img src="https://img.shields.io/badge/Email_Pivots-25_Links-BF5FFF?style=flat-square&logo=gmail&logoColor=white" alt="Email Pivots"/>
+    <img src="https://img.shields.io/badge/Email_Pivots-26_Links-BF5FFF?style=flat-square&logo=gmail&logoColor=white" alt="Email Pivots"/>
     <img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/>
     <img src="https://img.shields.io/badge/NPA_Database-400%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
     <img src="https://img.shields.io/badge/Rate_Limit-10_req%2Fmin%2FIP-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
@@ -131,7 +131,7 @@
 | 🎯 **Scope** | Phone numbers · Email addresses · Bulk phone batches |
 | 🔑 **Core Requirement** | Zero API keys — offline + free-source enrichment works out of the box |
 | 📞 **Phone: OSINT Pivots** | 66 investigation links across 6 categories — each tagged **FREE / CAPTCHA / LOGIN / PAID** |
-| 📧 **Email: OSINT Pivots** | 25 investigation links across 4 categories |
+| 📧 **Email: OSINT Pivots** | 26 investigation links across 4 categories |
 | 🔍 **Phone: Google Dorks** | 58 dorks across 8 colour-coded categories with hit-rate badges + 5-engine selector |
 | 📊 **Phone: Format Variants** | 12 permutations for database/OSINT searching |
 | 🗺️ **NPA Database** | 400+ US/CA area codes → state · metro · timezone (offline) |
@@ -166,8 +166,8 @@ Target phone / email
         ├─ Instant offline analysis  (libphonenumber-js · bundled datasets)
         ├─ Free source fan-out       (XposedOrNot · Gravatar · EmailRep)
         ├─ Optional API enrichment   (IPQualityScore · Twilio · Hunter.io)
-        ├─ OSINT pivot matrix        (85 phone links · 25 email links)
-        ├─ Google dork generator     (64 pre-built dorks)
+        ├─ OSINT pivot matrix        (66 phone links · 26 email links)
+        ├─ Google dork generator     (58 dorks · 8 categories · 5 engines)
         └─ Export                    (.txt · .html report)
 ```
 
@@ -397,7 +397,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **Reputation** | EmailRep.io signals: suspicious · blacklisted · malicious activity · credentials leaked · spam · first/last seen · registered platforms |
 | **Validation** | AbstractAPI: deliverability · quality score (0–1) · SMTP validity · MX records · catch-all detection |
 | **Deliverability** | Hunter.io: deliverable/risky/undeliverable · confidence score · SMTP check |
-| **OSINT Matrix** | 25 investigation links across 4 categories |
+| **OSINT Matrix** | 26 investigation links across 4 categories |
 | **Report Export** | Full intelligence report as `.txt` including all breach details and FullContact data |
 
 </div>
@@ -417,7 +417,7 @@ The core feature for pentesters. XposedOrNot aggregates 1000+ breach databases a
 
 No API key required. Free to use.
 
-### Email OSINT Pivots — 25 links, 4 categories
+### Email OSINT Pivots — 26 links, 4 categories
 
 <div align="center">
 
@@ -765,8 +765,7 @@ HEAVEN-GeoIntel/
 │   │   │   ├── NumberAnatomyPanel.tsx      digits · type · validity · 4 formats
 │   │   │   ├── NumberPermutations.tsx      12 format variants for OSINT searches
 │   │   │   ├── PhoneIdentityPanel.tsx      FullContact + free-lookup action centre
-│   │   │   ├── SimIntelPanel.tsx           prepaid · active · MCC/MNC
-│   │   │   └── FraudScoreBar.tsx           animated 0–100 fraud bar
+│   │   │   └── SimIntelPanel.tsx           prepaid · active · MCC/MNC
 │   │   │
 │   │   ├── email/                    EMAIL OSINT
 │   │   │   ├── EmailInput.tsx              regex validation + status line
@@ -782,7 +781,6 @@ HEAVEN-GeoIntel/
 │   │   │   ├── BulkLookup.tsx              paste-list + CSV export
 │   │   │   ├── HistorySidebar.tsx          last 20 lookups (localStorage)
 │   │   │   ├── LoadingSkeletons.tsx        matrix-pulsing placeholders
-│   │   │   ├── MetricCard.tsx              animated metric tile
 │   │   │   └── SourceTabs.tsx              raw JSON per API source
 │   │   │
 │   │   ├── osint/                    OSINT PIVOTS + AUX LOOKUPS
@@ -809,7 +807,6 @@ HEAVEN-GeoIntel/
 │       ├── usNpaDatabase.ts          400+ US/CA NPA area codes
 │       ├── disposableEmailDomains.ts 1000+ throwaway + webmail + privacy lists
 │       ├── hashDetect.ts             MD5 / SHA-1 / bcrypt classifier
-│       ├── flagEmoji.ts              ISO-2 → 🇺🇸 emoji
 │       ├── cache.ts                  in-memory 24 h LRU
 │       ├── rateLimit.ts              token-bucket per IP
 │       ├── types.ts                  full TypeScript interface tree
