@@ -27,23 +27,6 @@
 
 ---
 
-## 🖼️ Screenshots
-
-<table>
-<tr>
-<td width="50%"><img src="./docs/screenshots/phone-results.png" alt="Phone OSINT result dashboard" width="100%"/></td>
-<td width="50%"><img src="./docs/screenshots/bulk-mode.png" alt="Bulk lookup mode" width="100%"/></td>
-</tr>
-<tr>
-<td width="50%"><img src="./docs/screenshots/dork-generator.png" alt="Dork generator with category groups and engine selector" width="100%"/></td>
-<td width="50%"><img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix with access-tier filter chips" width="100%"/></td>
-</tr>
-</table>
-
-> Want to refresh these? Run `npm run dev` in one terminal and `npm run screenshots` in another — the [capture script](./scripts/capture-screenshots.mjs) uses puppeteer-core against your system Chrome and writes high-DPI PNGs back into [`docs/screenshots/`](./docs/screenshots/).
-
----
-
 <div align="center">
 
   <p>
