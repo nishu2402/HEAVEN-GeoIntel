@@ -35,10 +35,16 @@ const CSP = [
 
 const nextConfig = {
   images: {
+    // The app renders plain <img> tags (never next/image), so disable the
+    // built-in Image Optimizer entirely — removes the /_next/image endpoint
+    // and its DoS / unbounded-cache attack surface (defense in depth).
+    unoptimized: true,
     remotePatterns: [],
   },
   // Disable the "X-Powered-By: Next.js" banner — small fingerprint reduction.
   poweredByHeader: false,
+  // Don't ship source maps to the browser in production (smaller + less leak).
+  productionBrowserSourceMaps: false,
   async headers() {
     return [
       {
@@ -76,6 +82,34 @@ const nextConfig = {
       },
       {
         source: "/api/bulk-lookup(.*)",
+        headers: [
+          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+        ],
+      },
+      {
+        source: "/api/username-lookup(.*)",
+        headers: [
+          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+        ],
+      },
+      {
+        source: "/api/ip-lookup(.*)",
+        headers: [
+          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+        ],
+      },
+      {
+        source: "/api/domain-lookup(.*)",
+        headers: [
+          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+        ],
+      },
+      {
+        source: "/api/cases(.*)",
         headers: [
           { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
           { key: "Cache-Control", value: "no-store, max-age=0" },

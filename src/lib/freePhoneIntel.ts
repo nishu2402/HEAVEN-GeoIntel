@@ -42,11 +42,8 @@ export interface OfflineReputation {
   confidence: "high" | "medium" | "low";
   // Inferred carrier label (best-effort, never claims more than we know).
   inferredCarrier: string | null;
-  // Free-form notes the UI can show as small badges.
+  // Free-form notes the UI shows as small badges.
   signals: string[];
-  // Sites that *should* index this number, ordered by likelihood of a hit.
-  // Each entry is a search URL that does NOT require login.
-  recommendedLookups: { label: string; url: string; reason: string }[];
 }
 
 export function deriveOfflineReputation(analysis: PhoneAnalysis): OfflineReputation {
@@ -88,38 +85,5 @@ export function deriveOfflineReputation(analysis: PhoneAnalysis): OfflineReputat
   if (analysis.isValid && (analysis.npaInfo || analysis.country)) confidence = "high";
   if (!analysis.isValid || !analysis.country) confidence = "low";
 
-  // Build curated lookup links — only sites that genuinely accept the phone
-  // in the URL without a login.  Each one is verified to render a result page
-  // (not a homepage) for the supplied number.
-  const e164 = analysis.e164;
-  const enc = encodeURIComponent(e164);
-  const recommendedLookups: OfflineReputation["recommendedLookups"] = [
-    {
-      label: "IntelligenceX",
-      url:   `https://intelx.io/?s=${enc}`,
-      reason: "Free preview of deep-web hits, breach mentions, and paste-site appearances.",
-    },
-    {
-      label: "LeakCheck (public)",
-      url:   `https://leakcheck.io/?query=${enc}`,
-      reason: "Free web check — shows breach count even without an account.",
-    },
-    {
-      label: "OSINT Industries",
-      url:   `https://osint.industries/?q=${enc}`,
-      reason: "Free phone-to-social-account check; covers 100+ platforms.",
-    },
-    {
-      label: "Epieos",
-      url:   `https://epieos.com/?q=${enc}&t=phone`,
-      reason: "Free Gravatar/Google-services correlation by phone.",
-    },
-    {
-      label: "HaveIBeenPwned (phone)",
-      url:   `https://haveibeenpwned.com/`,
-      reason: "Captcha-only, no key — paste the digits to see if the number appears in known breaches.",
-    },
-  ];
-
-  return { confidence, inferredCarrier, signals, recommendedLookups };
+  return { confidence, inferredCarrier, signals };
 }

@@ -7,7 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [2.1.0] — 2026-05-24
+## [1.3.0] — 2026-05-29
+
+### Added — three new identifier types (all free, no API key)
+- **Username OSINT** (`/api/username-lookup`): checks a handle across ~45 high-signal
+  sites in parallel (developer, social, creative, gaming, forum, professional),
+  classified found / unverified, grouped by category, with a presence score.
+- **IP intelligence** (`/api/ip-lookup`): geolocation, ASN/ISP, reverse DNS, and
+  VPN/proxy/hosting/mobile risk flags via ip-api, plus a 0–100 IP-risk score and
+  9 free pivots (Shodan, Censys, AbuseIPDB, GreyNoise, …).
+- **Domain intelligence** (`/api/domain-lookup`): DNS-over-HTTPS records
+  (A/AAAA/MX/TXT/NS/CNAME), RDAP WHOIS, certificate-transparency subdomains
+  (crt.sh), and an SPF/DMARC/MX email-security posture panel.
+
+### Added — platform & UX
+- **Unified 8-mode workspace**: Phone · Email · Username · IP · Domain · Bulk ·
+  Graph · Cases, with a shared mode registry and auto-detection.
+- **Command palette (⌘K)**: smart-run any identifier (auto-detects type),
+  switch modes, toggle theme — built on `cmdk`.
+- **Light + dark themes** with a persisted toggle and an anti-flash boot script;
+  a full CSS design-token system (glassmorphism, neon glow, 3D parallax-tilt
+  cards, holographic borders, animated grid background).
+- **Link-analysis graph**: interactive SVG node graph connecting every
+  identifier looked up in a session (or a case's entities) to a central target,
+  with PNG export.
+- **Persistent investigation cases** (`/api/cases`): file-backed store
+  (`.data/cases.json`) that survives restarts — group identifiers, edit analyst
+  notes, visualise each case as a graph. Cross-session, zero native deps.
+
+### Added — data
+- **MCC/MNC operator database** (`lib/mccMnc.ts`): resolves Twilio network codes
+  to a real carrier name offline; wired into the phone aggregation as a fallback.
+
+### Changed
+- App version → v1.3. README + OpenAPI surface updated for the new endpoints.
+- `terminal-card` re-skinned as a glass surface (theme-aware) — every existing
+  panel inherits the new look with no per-component changes.
+
+### Security
+- **Upgraded Next.js 14.2.35 → 15.3.9**, which resolves the high-severity
+  Next.js advisory cluster (image-optimizer DoS, RSC DoS, cache poisoning,
+  request smuggling, CSP-nonce XSS, WebSocket SSRF, …). Only the one
+  Next-15 breaking change relevant to us was needed: `NextRequest.ip` was
+  removed, so `getClientIp()` now relies on `x-forwarded-for` / `x-real-ip`
+  (opt-in via `TRUST_PROXY=1`).
+- **Disabled the Next image optimizer** (`images.unoptimized: true`) — the app
+  only renders plain `<img>`, so this removes the `/_next/image` endpoint and
+  its attack surface entirely.
+- Light theme reworked to a legible **light-backdrop + dark-glass-panel** scheme
+  so every text surface keeps full contrast.
+- Remaining `npm audit`: 2 **moderate** advisories in Next's bundled PostCSS
+  (`</style>` XSS in CSS stringify output) — build-time only, not reachable at
+  runtime because the app never stringifies untrusted CSS. Cleared only by
+  Next 16; tracked for a future, separately-verified upgrade.
+
+### Fixed
+- Restored the `import "./globals.css"` side-effect import in `layout.tsx` (an
+  import-organizer had dropped it, which silently disabled ALL global styles).
+- Reworked the holographic border to avoid `@property` / animated custom
+  properties, which the production CSS minifier (SWC) was silently stripping.
+
+## [1.2.0] — 2026-05-24
 
 ### Added
 - **Hudson Rock infostealer search** for phone numbers — free, no API key,
@@ -44,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Dead components `NumberBreakdown.tsx`, `NumberTypePanel.tsx`,
   `FormatPanel.tsx` — replaced by the consolidated `NumberAnatomyPanel`.
 
-## [2.0.0] — 2026-05-12
+## [1.0.0] — 2026-05-12
 
 Initial public-ready release of HEAVEN-GeoIntel.
 

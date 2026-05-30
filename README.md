@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Phone+%26+Email+OSINT+Intelligence+Platform;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;66+Phone+Pivots+%C2%B7+25+Email+Pivots+%C2%B7+58+Smart+Dorks+%C2%B7+Bulk+Mode;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+14+%C2%B7+TypeScript"/>
+<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Unified+OSINT+Intelligence+Platform;Phone+%C2%B7+Email+%C2%B7+Username+%C2%B7+IP+%C2%B7+Domain+%E2%80%94+5+Identifier+Types;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;Link-Analysis+Graph+%C2%B7+Persistent+Cases+%C2%B7+%E2%8C%98K+Command+Palette;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+15+%C2%B7+TypeScript"/>
 </p>
 
 <p align="center">
@@ -33,10 +33,9 @@
 <tr>
 <td width="50%"><img src="./docs/screenshots/phone-results.png" alt="Phone OSINT result dashboard" width="100%"/></td>
 <td width="50%"><img src="./docs/screenshots/bulk-mode.png" alt="Bulk lookup mode" width="100%"/></td>
-</td>
 </tr>
 <tr>
-<td width="50%"><img src="./docs/screenshots/dork-generator.png" alt="Dork generator with category groups and engine selector" width="100%"/>
+<td width="50%"><img src="./docs/screenshots/dork-generator.png" alt="Dork generator with category groups and engine selector" width="100%"/></td>
 <td width="50%"><img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix with access-tier filter chips" width="100%"/></td>
 </tr>
 </table>
@@ -49,7 +48,7 @@
 
   <p>
     <img src="https://img.shields.io/badge/Node.js-18+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
-    <img src="https://img.shields.io/badge/Framework-Next.js_14-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
+    <img src="https://img.shields.io/badge/Framework-Next.js_15-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
     <img src="https://img.shields.io/badge/API_Keys-Zero_Required-44FF88?style=for-the-badge&logo=checkmarx&logoColor=black" alt="Zero API Keys"/>
     <img src="https://img.shields.io/badge/License-MIT-FF3333?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License"/>
@@ -122,13 +121,14 @@
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:FFAA00,50:BF5FFF,100:00D9D9"/>
 </p>
 
-**HEAVEN-GeoIntel** is a production-ready OSINT intelligence platform for phone numbers and email addresses — built for penetration testers, security researchers, and OSINT analysts. It returns real, actionable intelligence: no placeholders, no simulations, no fake data.
+**HEAVEN-GeoIntel** is a production-ready, unified OSINT intelligence platform for **phone numbers, email addresses, usernames, IP addresses, and domains** — with a link-analysis graph and persistent investigation cases — built for penetration testers, security researchers, and OSINT analysts. It returns real, actionable intelligence: no placeholders, no simulations, no fake data.
 
 <div align="center">
 
 | Metric | Value |
 |---|---|
-| 🎯 **Scope** | Phone numbers · Email addresses · Bulk phone batches |
+| 🎯 **Scope** | Phone · Email · Username · IP · Domain · Bulk · Link-graph · Persistent cases |
+| 🧭 **Workspace** | 8-mode unified console · ⌘K command palette · light/dark themes · 3D glass UI |
 | 🔑 **Core Requirement** | Zero API keys — offline + free-source enrichment works out of the box |
 | 📞 **Phone: OSINT Pivots** | 66 investigation links across 6 categories — each tagged **FREE / CAPTCHA / LOGIN / PAID** |
 | 📧 **Email: OSINT Pivots** | 26 investigation links across 4 categories |
@@ -141,10 +141,10 @@
 | 🌍 **Country Dataset** | 100 countries — capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache** | 24 h in-memory LRU (500 entries max) — repeat lookups instant |
 | 🚦 **Rate Limiting** | 10 requests/minute/IP — token bucket |
-| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs` · 4 endpoints |
+| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs` · 8 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest · GitHub Actions on every PR · multi-arch ghcr image on every push to `main` |
-| 🏗️ **Stack** | Next.js 14 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
+| 🏗️ **Stack** | Next.js 15 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
 | 🎨 **UI Theme** | Matrix/terminal — Canvas katakana rain · CRT scanlines · JetBrains Mono · fully responsive |
 
 </div>
@@ -280,8 +280,8 @@ open http://localhost:3000  # macOS — Linux: xdg-open, Windows: start
 ### Plain Docker (no compose)
 
 ```bash
-docker build -t heaven-geointel:2.0 .
-docker run --rm -p 3000:3000 --env-file .env.local heaven-geointel:2.0
+docker build -t heaven-geointel:1.3 .
+docker run --rm -p 3000:3000 --env-file .env.local heaven-geointel:1.3
 ```
 
 ### What's inside the image
@@ -680,7 +680,8 @@ Headers returned by every endpoint:
 | **API key isolation** | Every external fetch happens in `src/app/api/*` server routes — keys never reach the browser bundle. Verified: `grep -r "process.env" .next/static/` returns nothing. |
 | **Security headers** | `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy: strict-origin-when-cross-origin` · `Permissions-Policy` (geo/camera/mic/payment/usb/accelerometer all blocked) · `Cross-Origin-Opener-Policy: same-origin` · `Cross-Origin-Resource-Policy: same-origin` |
 | **CSP** | `default-src 'self'` · `connect-src 'self'` · `object-src 'none'` · `frame-ancestors 'none'` · `form-action 'self'` · `base-uri 'self'` · `upgrade-insecure-requests` — image allow-list narrowed to Gravatar / LinkedIn / Twitter / Google / FullContact |
-| **API hardening** | `/api/*` routes return `X-Robots-Tag: noindex, nofollow, noarchive` + `Cache-Control: no-store` + `Access-Control-Allow-Origin: same-origin` |
+| **API hardening** | Lookup routes return `X-Robots-Tag: noindex, nofollow, noarchive` + `Cache-Control: no-store`. No `Access-Control-Allow-Origin` header is sent, so browsers enforce same-origin and block cross-site reads by default. |
+| **Input validation / no SSRF** | Every lookup validates input before any outbound call (libphonenumber · IPv4/IPv6 regex · domain-label regex · `[A-Za-z0-9._-]{2,40}` usernames) and only URL-encodes it into **fixed** third-party hosts — callers can't choose the destination host. |
 | **No tracking** | Derives metadata from number / email structure and public databases only. No geolocation, no device tracking, no analytics, no telemetry. |
 | **Rate limiting** | 10 requests/minute/IP token-bucket — `Retry-After: 60` on 429 |
 | **Panel isolation** | Every results panel wrapped in `PanelErrorBoundary` — a broken third-party response only takes down one card, not the page. |
@@ -841,7 +842,7 @@ HEAVEN-GeoIntel/
 
 | Layer | Technology |
 |---|---|
-| **Framework** | Next.js 14.2 (App Router) |
+| **Framework** | Next.js 15 (App Router) |
 | **Language** | TypeScript — full interface tree for all data types |
 | **Phone Parsing** | `libphonenumber-js` — Google's libphonenumber compiled to JS |
 | **UI** | Tailwind CSS · shadcn/ui · fully responsive (mobile · tablet · desktop) |

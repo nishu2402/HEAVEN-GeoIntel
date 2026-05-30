@@ -11,7 +11,7 @@ const OPENAPI = {
     title: "HEAVEN-GeoIntel API",
     description:
       "Phone + Email OSINT intelligence platform. Returns publicly-derivable metadata only — never real-time location or device tracking.",
-    version: "2.1.0",
+    version: "1.3.0",
     contact: {
       name: "HEAVEN-GeoIntel maintainers",
       url:  "https://github.com/nishu2402/HEAVEN-GeoIntel",
@@ -137,20 +137,9 @@ const OPENAPI = {
             type: "object",
             description: "Offline reputation derived from number structure — no API.",
             properties: {
-              confidence:        { type: "string", enum: ["high", "medium", "low"] },
-              inferredCarrier:   { type: "string", nullable: true },
-              signals:           { type: "array", items: { type: "string" } },
-              recommendedLookups: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    label:  { type: "string" },
-                    url:    { type: "string", format: "uri" },
-                    reason: { type: "string" },
-                  },
-                },
-              },
+              confidence:      { type: "string", enum: ["high", "medium", "low"] },
+              inferredCarrier: { type: "string", nullable: true },
+              signals:         { type: "array", items: { type: "string" } },
             },
           },
           sources: {

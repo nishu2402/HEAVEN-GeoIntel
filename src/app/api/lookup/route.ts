@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
 import { getCountryIntel } from "@/lib/countryIntel";
 import { deriveOfflineReputation } from "@/lib/freePhoneIntel";
+import { lookupMccMnc } from "@/lib/mccMnc";
 import type { CountryIntel } from "@/lib/countryIntel";
 import type {
   LookupResponse,
@@ -139,7 +140,7 @@ async function fetchFullContactPhone(e164: string): Promise<SourceResult<FullCon
       headers: {
         "Authorization": `Bearer ${key}`,
         "Content-Type": "application/json",
-        "User-Agent": "HEAVEN-GeoIntel/2.0",
+        "User-Agent": "HEAVEN-GeoIntel/1.3",
       },
       body: JSON.stringify({ phone: e164 }),
       signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
@@ -216,7 +217,7 @@ async function fetchHudsonRock(e164: string): Promise<SourceResult<HudsonRockDat
   try {
     const url = `https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-username?username=${encodeURIComponent(e164)}`;
     const res = await fetch(url, {
-      headers: { "Accept": "application/json", "User-Agent": "HEAVEN-GeoIntel/2.0" },
+      headers: { "Accept": "application/json", "User-Agent": "HEAVEN-GeoIntel/1.3" },
       signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
     });
 
@@ -390,8 +391,13 @@ function buildAggregated(
   const rawEmails = ipqs.ok ? ipqs.data?.associated_email_addresses?.emails : undefined;
   const associatedEmails = rawEmails && rawEmails.length > 0 ? rawEmails : null;
 
+  // Offline PLMN → operator resolution: if no API gave us a carrier name but
+  // Twilio returned MCC/MNC, resolve the operator from the bundled database.
+  const plmnCarrier = lookupMccMnc(mobileCountryCode, mobileNetworkCode);
+  const resolvedCarrier = carrier ?? plmnCarrier?.operator ?? null;
+
   return {
-    carrier,
+    carrier: resolvedCarrier,
     lineType: lineType ?? analysis.typeDescription,
     typeDescription: analysis.typeDescription,
     country: analysis.country ?? "Unknown",

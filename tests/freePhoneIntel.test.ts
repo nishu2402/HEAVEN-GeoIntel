@@ -15,15 +15,6 @@ describe("deriveOfflineReputation", () => {
     expect(rep.inferredCarrier).toMatch(/9-series|Jio|Airtel|Vi/);
   });
 
-  it("returns at least one free, no-login recommended lookup", () => {
-    const a = analyzePhoneNumber("+14155552671")!;
-    const rep = deriveOfflineReputation(a);
-    expect(rep.recommendedLookups.length).toBeGreaterThan(0);
-    for (const link of rep.recommendedLookups) {
-      expect(link.url).toMatch(/^https?:\/\//);
-    }
-  });
-
   it("rates confidence as high for a valid country-bound number", () => {
     const a = analyzePhoneNumber("+14155552671")!;
     const rep = deriveOfflineReputation(a);
