@@ -48,8 +48,9 @@ export default function LoadingSkeletons() {
             ))}
           </div>
           <div className="p-4 space-y-1">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="skeleton-matrix h-3 rounded-none" style={{ width: `${60 + Math.random() * 35}%` }} />
+            {/* Deterministic widths — no Math.random() (avoids SSR/CSR hydration mismatch). */}
+            {[92, 74, 88, 61, 95, 70, 83, 66].map((w, i) => (
+              <div key={i} className="skeleton-matrix h-3 rounded-none" style={{ width: `${w}%` }} />
             ))}
           </div>
         </div>

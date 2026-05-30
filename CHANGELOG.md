@@ -45,21 +45,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   panel inherits the new look with no per-component changes.
 
 ### Security
-- **Upgraded Next.js 14.2.35 → 15.3.9**, which resolves the high-severity
-  Next.js advisory cluster (image-optimizer DoS, RSC DoS, cache poisoning,
-  request smuggling, CSP-nonce XSS, WebSocket SSRF, …). Only the one
-  Next-15 breaking change relevant to us was needed: `NextRequest.ip` was
-  removed, so `getClientIp()` now relies on `x-forwarded-for` / `x-real-ip`
-  (opt-in via `TRUST_PROXY=1`).
+- **Upgraded Next.js 14.2.35 → 16.2.6** (latest stable), which resolves the
+  entire high-severity Next.js advisory cluster (image-optimizer DoS, RSC DoS,
+  cache poisoning, request smuggling, CSP-nonce XSS, WebSocket SSRF, …). The
+  only breaking change relevant to us: `NextRequest.ip` was removed, so
+  `getClientIp()` now relies on `x-forwarded-for` / `x-real-ip` (opt-in via
+  `TRUST_PROXY=1`).
+- **Migrated ESLint 8 → 9** with flat config (`eslint.config.mjs`, required by
+  `eslint-config-next@16`); `next lint` was removed in Next 16 so the `lint`
+  script now invokes the ESLint CLI directly. Replaced an SSR-unsafe
+  `Math.random()` skeleton width (hydration mismatch) with deterministic
+  widths, and made `ThemeProvider` initialise from the `data-theme` attribute
+  instead of a `setState`-in-effect.
 - **Disabled the Next image optimizer** (`images.unoptimized: true`) — the app
   only renders plain `<img>`, so this removes the `/_next/image` endpoint and
   its attack surface entirely.
 - Light theme reworked to a legible **light-backdrop + dark-glass-panel** scheme
   so every text surface keeps full contrast.
-- Remaining `npm audit`: 2 **moderate** advisories in Next's bundled PostCSS
-  (`</style>` XSS in CSS stringify output) — build-time only, not reachable at
-  runtime because the app never stringifies untrusted CSS. Cleared only by
-  Next 16; tracked for a future, separately-verified upgrade.
+- **Residual `npm audit` (production): 2 moderate**, both the SAME advisory —
+  `postcss@8.4.31` **vendored inside the `next` package** (`</style>` XSS in CSS
+  stringify output). Our own `postcss` is 8.5.14 (patched); the flagged copy is
+  Next's internal build-time dependency, is **not reachable at runtime** (the app
+  never stringifies untrusted CSS), and is **not fixable at any current Next
+  version** — even latest 16.2.6 bundles it (`npm`'s only "fix" is a nonsensical
+  downgrade to next@9). Will clear automatically when Next ships an updated
+  bundled postcss. Dev-only `esbuild`/`vitest` advisory is not shipped to prod.
 
 ### Fixed
 - Restored the `import "./globals.css"` side-effect import in `layout.tsx` (an

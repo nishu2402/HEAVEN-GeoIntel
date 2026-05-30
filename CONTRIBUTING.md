@@ -72,7 +72,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 feat(pivots): add OSINT Industries to identity category
 fix(api): handle Hudson Rock 429 response correctly
 docs(readme): clarify Docker setup steps
-chore(deps): bump next to 14.2.36
+chore(deps): bump next to the latest patch release
 ```
 
 ## Code of conduct
