@@ -5,22 +5,25 @@ by individuals on their own time — please be patient with reviews.
 
 ## Quick start
 
+Requires **Node.js 20.9+** (Next.js 16).
+
 ```bash
 git clone https://github.com/nishu2402/HEAVEN-GeoIntel.git
 cd HEAVEN-GeoIntel
 npm install
-npm run dev        # http://localhost:3000
-npm test           # run vitest
-npm run lint       # ESLint
-node node_modules/typescript/bin/tsc --noEmit  # type-check
+npm run dev          # http://localhost:3000
+npm test             # Vitest
+npm run lint         # ESLint 9 (flat config)
+npm run typecheck    # tsc --noEmit
 ```
 
 ## Ground rules
 
 - **No fake data.** Every value rendered must come from libphonenumber,
-  a bundled dataset, or a live API. Never render "N/A" or guess a value
-  to fill a card. See [`feedback_data_quality.md`](https://github.com/nishu2402/HEAVEN-GeoIntel/blob/main/.claude/memory/feedback_data_quality.md)
-  for the full rationale.
+  a bundled dataset, or a live API. Never render "N/A" or guess a value to
+  fill a card — render nothing instead. For ambiguous results (e.g. a username
+  site that blocks our check), show an honest "UNVERIFIED" state rather than a
+  false positive.
 - **No real-time tracking.** This tool returns metadata only. Pull requests
   that add live GPS, SS7, or interception capabilities will be closed.
 - **TypeScript strict.** All new code must type-check with no `any`
@@ -41,19 +44,23 @@ Before opening a PR:
 
 ## Adding a new OSINT data source
 
-1. Add the fetch helper in `app/api/lookup/route.ts` (phone) or
-   `app/api/email-lookup/route.ts` (email).
-2. Add the response shape to `lib/types.ts`.
-3. Add a panel under `components/` if the data warrants its own card,
-   or extend `PentesterPanel` for a single signal.
-4. Update the README's data-sources table.
+1. Add the fetch helper in the relevant route under `src/app/api/`
+   (`lookup` phone · `email-lookup` · `username-lookup` · `ip-lookup` ·
+   `domain-lookup`).
+2. Add the response shape to `src/lib/types.ts`.
+3. Add a panel under `src/components/<feature>/` if the data warrants its own
+   card, or extend an existing panel for a single signal.
+4. Update the README's data-sources / tech-stack tables and the OpenAPI spec
+   in `src/app/api/docs/route.ts`.
 5. If the source needs a key, document it in `.env.example`.
 6. If the source has a free tier, add it to the OSINT Pivot Matrix
-   (`components/OsintPivots.tsx`) with the correct access badge.
+   (`src/components/osint/OsintPivots.tsx`) with the correct access badge.
+7. Validate user input **before** any outbound request and only interpolate it
+   into a fixed host (no SSRF) — follow the existing routes' pattern.
 
 ## Adding a new OSINT pivot link
 
-In `components/OsintPivots.tsx`, add an entry with:
+In `src/components/osint/OsintPivots.tsx`, add an entry with:
 
 - The exact URL that produces a result page (not a homepage)
 - `access: "free" | "captcha" | "login" | "paid"` — verify by clicking
