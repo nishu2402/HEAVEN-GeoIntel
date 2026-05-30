@@ -356,3 +356,133 @@ export interface EmailLookupResponse {
   fullContact: SourceResult<FullContactData>;           // FullContact — real name + employer
   cachedAt?: number;
 }
+
+// ── Username OSINT ──────────────────────────────────────────────────────────
+
+export type UsernameHitStatus = "found" | "notfound" | "unknown";
+
+export interface UsernameHit {
+  site: string;
+  category: string;
+  url: string;
+  status: UsernameHitStatus;
+  httpStatus?: number;
+}
+
+export interface UsernameLookupResponse {
+  username: string;
+  checked: number;
+  found: number;
+  hits: UsernameHit[];
+  /** Derived dork/search links to pivot further (no key) */
+  pivots: { label: string; url: string }[];
+  cachedAt?: number;
+}
+
+// ── IP OSINT ────────────────────────────────────────────────────────────────
+
+export interface IpLookupData {
+  ip: string;
+  type: string | null;            // IPv4 / IPv6
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  countryCode: string | null;
+  continent: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  postal: string | null;
+  timezone: string | null;
+  utcOffset: string | null;
+  asn: number | null;
+  asnOrg: string | null;          // ASN organisation
+  isp: string | null;
+  org: string | null;
+  // Risk flags (best-effort from free sources)
+  isProxy: boolean | null;
+  isVpn: boolean | null;
+  isTor: boolean | null;
+  isHosting: boolean | null;
+  isMobile: boolean | null;
+  flagEmoji: string | null;
+  reverse: string | null;         // PTR / reverse DNS if resolvable
+}
+
+export interface IpLookupResponse {
+  input: string;
+  ip: IpLookupData | null;
+  /** Curated free pivot links for deeper IP investigation */
+  pivots: { label: string; url: string; note: string }[];
+  threatScore: number;
+  threatLabel: string;
+  error?: string;
+  cachedAt?: number;
+}
+
+// ── Domain OSINT ────────────────────────────────────────────────────────────
+
+export interface DnsRecord {
+  type: string;   // A / AAAA / MX / TXT / NS / CNAME / SOA
+  value: string;
+  ttl?: number;
+  priority?: number; // MX
+}
+
+export interface DomainWhois {
+  registrar: string | null;
+  createdDate: string | null;
+  updatedDate: string | null;
+  expiresDate: string | null;
+  nameservers: string[];
+  statuses: string[];
+  registrantOrg: string | null;
+  registrantCountry: string | null;
+}
+
+export interface DomainLookupResponse {
+  domain: string;
+  isValid: boolean;
+  dns: {
+    a: DnsRecord[];
+    aaaa: DnsRecord[];
+    mx: DnsRecord[];
+    txt: DnsRecord[];
+    ns: DnsRecord[];
+    cname: DnsRecord[];
+  };
+  whois: DomainWhois | null;
+  /** Subdomains discovered via certificate transparency (crt.sh) */
+  subdomains: string[];
+  /** Email-security posture derived from TXT records */
+  emailSecurity: {
+    hasSpf: boolean;
+    spf: string | null;
+    hasDmarc: boolean;
+    dmarcPolicy: string | null;   // none / quarantine / reject
+    hasMx: boolean;
+  };
+  pivots: { label: string; url: string; note: string }[];
+  cachedAt?: number;
+}
+
+// ── Investigation cases (persistent store) ──────────────────────────────────
+
+export type EntityKind = "phone" | "email" | "username" | "ip" | "domain";
+
+export interface CaseEntity {
+  kind: EntityKind;
+  value: string;
+  addedAt: number;
+  /** optional compact label/summary captured at add-time */
+  note?: string;
+}
+
+export interface InvestigationCase {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  entities: CaseEntity[];
+  /** freeform analyst notes */
+  notes?: string;
+}

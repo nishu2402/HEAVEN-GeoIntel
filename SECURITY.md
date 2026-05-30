@@ -34,15 +34,36 @@ confirmed, we aim to ship a fix within **14 days** for critical issues and
 
 In scope:
 
-- The Next.js application itself (`app/`, `components/`, `lib/`).
+- The Next.js application itself (`src/app/`, `src/components/`, `src/lib/`).
 - The Docker image (`Dockerfile`, `docker-compose.yml`).
-- The API routes (`/api/lookup`, `/api/email-lookup`, etc.).
+- The API routes: `/api/lookup`, `/api/email-lookup`, `/api/username-lookup`,
+  `/api/ip-lookup`, `/api/domain-lookup`, `/api/bulk-lookup`, `/api/cases`,
+  `/api/docs`.
 
 Out of scope (please report these to the upstream maintainers):
 
 - Vulnerabilities in upstream npm packages (use `npm audit` / Dependabot).
 - Issues with third-party OSINT services we link out to (Truecaller, Hudson
   Rock, etc.). Report to those services directly.
+
+## Hardening notes (deployment)
+
+- **Input validation**: every lookup route validates its input before any
+  outbound request — phone via libphonenumber, IP via IPv4/IPv6 regex, domain
+  via a strict label regex, username via `[A-Za-z0-9._-]{2,40}`. User input is
+  only ever interpolated (URL-encoded) into **fixed** third-party hosts, so the
+  routes are not an SSRF vector — a caller cannot choose which host the server
+  connects to.
+- **No secrets in the client bundle**: all API keys are read from
+  `process.env` inside server route handlers only. Verify with
+  `grep -r "process.env" .next/static/` (returns nothing).
+- **Rate limiting**: lookup routes are capped at 10 requests/min/IP.
+- **Persistent cases** (`/api/cases`, file-backed at `.data/cases.json`) are
+  **unauthenticated** — the tool assumes a trusted, single-user / self-hosted
+  deployment. If you expose the app publicly, put an auth proxy
+  (e.g. Cloudflare Access, basic-auth nginx) in front of it, or disable the
+  cases route. The store performs no path interpolation from user input, so it
+  is not a path-traversal vector.
 
 ## Coordinated disclosure
 

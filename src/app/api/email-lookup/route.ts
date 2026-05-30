@@ -48,7 +48,7 @@ async function fetchGravatar(email: string): Promise<GravatarProfile> {
   };
   try {
     const res = await fetch(`https://gravatar.com/${hash}.json`, {
-      headers: { "User-Agent": "HEAVEN-GeoIntel/2.0" },
+      headers: { "User-Agent": "HEAVEN-GeoIntel/1.3" },
       signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
     });
     if (!res.ok) return empty;
@@ -96,7 +96,7 @@ async function fetchEmailRep(email: string): Promise<SourceResult<EmailRepData>>
   try {
     // Only include Key header when a key is actually configured —
     // sending an empty string causes EmailRep.io to return 401
-    const headers: Record<string, string> = { "User-Agent": "HEAVEN-GeoIntel/2.0" };
+    const headers: Record<string, string> = { "User-Agent": "HEAVEN-GeoIntel/1.3" };
     if (process.env.EMAILREP_API_KEY) headers["Key"] = process.env.EMAILREP_API_KEY;
 
     const res = await fetch(`https://emailrep.io/${encodeURIComponent(email)}`, {
@@ -312,7 +312,7 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
     const res = await fetch(
       `https://api.xposedornot.com/v1/breach-analytics?email=${encodeURIComponent(email)}`,
       {
-        headers: { "User-Agent": "HEAVEN-GeoIntel/2.0", "Accept": "application/json" },
+        headers: { "User-Agent": "HEAVEN-GeoIntel/1.3", "Accept": "application/json" },
         signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
       }
     );
@@ -398,7 +398,7 @@ async function fetchFullContact(email: string): Promise<SourceResult<FullContact
       headers: {
         "Authorization": `Bearer ${key}`,
         "Content-Type": "application/json",
-        "User-Agent": "HEAVEN-GeoIntel/2.0",
+        "User-Agent": "HEAVEN-GeoIntel/1.3",
       },
       body: JSON.stringify({ email }),
       signal: AbortSignal.timeout(8000), next: { revalidate: 0 },

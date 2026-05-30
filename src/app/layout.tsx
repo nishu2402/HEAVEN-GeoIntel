@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
-import "./globals.css";
+import "./globals.css"; // side-effect import — DO NOT remove (loads the global stylesheet)
+import { ThemeProvider } from "@/components/shared/ThemeProvider";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -10,9 +11,9 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://heaven-geointel.example"),
-  title: "HEAVEN-GeoIntel — Phone & Email OSINT Platform",
+  title: "HEAVEN-GeoIntel — Unified OSINT Platform",
   description:
-    "Defensive OSINT for phone numbers and email addresses — carrier, breach history, infostealer infections (Hudson Rock), identity enrichment, fraud signals, country intelligence. Offline-first. No tracking.",
+    "Defensive OSINT for phone, email, username, IP, and domain — carrier & breach data, infostealer infections (Hudson Rock), username enumeration across 45+ sites, IP geolocation/ASN, DNS/WHOIS/subdomains, link-analysis graph, persistent cases. Offline-first. No tracking.",
   applicationName: "HEAVEN-GeoIntel",
   keywords: [
     "phone OSINT",
@@ -33,18 +34,18 @@ export const metadata: Metadata = {
   creator: "HEAVEN",
   category: "security",
   openGraph: {
-    title: "HEAVEN-GeoIntel — Phone & Email OSINT Platform",
+    title: "HEAVEN-GeoIntel — Unified OSINT Platform",
     description:
-      "Carrier, breach history, Hudson Rock infostealer infections, identity enrichment, fraud signals. Offline-first. Zero API keys required for core features.",
+      "Phone · Email · Username · IP · Domain OSINT in one console. Breach + infostealer data, username enumeration, IP/ASN, DNS/WHOIS/subdomains, link-graph, persistent cases. Offline-first. Zero API keys for core features.",
     type: "website",
     locale: "en_US",
     siteName: "HEAVEN-GeoIntel",
   },
   twitter: {
     card: "summary_large_image",
-    title: "HEAVEN-GeoIntel — Phone & Email OSINT Platform",
+    title: "HEAVEN-GeoIntel — Unified OSINT Platform",
     description:
-      "Defensive OSINT for phones and emails. Breach data, identity enrichment, fraud score, carrier intel — offline-first, no tracking.",
+      "Phone · Email · Username · IP · Domain OSINT, link-analysis graph, persistent cases — offline-first, no tracking.",
   },
   robots: {
     index: true,
@@ -67,16 +68,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen bg-[#0a0a0a] text-[#00ff41] antialiased font-mono">
+    <html lang="en" suppressHydrationWarning className={`dark ${jetbrainsMono.variable}`}>
+      <head>
+        {/* Apply persisted theme before paint to avoid a flash of the wrong theme. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('heaven-geointel-theme');document.documentElement.setAttribute('data-theme',(t==='light'||t==='dark')?t:'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}",
+          }}
+        />
+      </head>
+      <body className="min-h-screen antialiased font-mono">
         {/* Skip link — invisible until keyboard-focused, jumps past header straight to main */}
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:bg-[#0a0a0a] focus:border focus:border-[#00ff41] focus:text-[#00ff41] focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:bg-[var(--hv-page-0)] focus:border focus:border-[var(--hv-green)] focus:text-[var(--hv-green)] focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest"
         >
           Skip to main content
         </a>
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
