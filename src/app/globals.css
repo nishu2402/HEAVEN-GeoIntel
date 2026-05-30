@@ -2,186 +2,308 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   HEAVEN-GeoIntel — design system
+   Two themes via [data-theme]. Dark = "cyberpunk matrix glass" (default).
+   Light = "daylight SOC". Both share the neon accent palette.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @layer base {
-  :root {
-    --background: 0 0% 4%;
+  :root,
+  [data-theme="dark"] {
+    /* shadcn tokens (kept for ui/* primitives) */
+    --background: 240 30% 4%;
     --foreground: 120 100% 50%;
-    --card: 0 0% 6%;
+    --card: 240 24% 7%;
     --card-foreground: 120 100% 50%;
-    --popover: 0 0% 6%;
+    --popover: 240 28% 6%;
     --popover-foreground: 120 100% 50%;
     --primary: 120 100% 50%;
     --primary-foreground: 0 0% 4%;
     --secondary: 188 100% 43%;
     --secondary-foreground: 0 0% 4%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 120 30% 50%;
-    --accent: 0 0% 10%;
+    --muted: 240 14% 12%;
+    --muted-foreground: 120 24% 56%;
+    --accent: 280 60% 14%;
     --accent-foreground: 120 100% 50%;
     --destructive: 0 85% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 120 30% 18%;
-    --input: 120 20% 12%;
+    --border: 150 40% 20%;
+    --input: 150 20% 12%;
     --ring: 120 100% 50%;
     --radius: 0rem;
+
+    /* ── HEAVEN design tokens ── */
+    --hv-page-0: #05060d;          /* deepest backdrop */
+    --hv-page-1: #080a14;          /* page base */
+    --hv-page-2: #0b0e1c;          /* raised */
+    --hv-ink:    #d6ffe6;          /* default text */
+    --hv-ink-dim:#7fae93;          /* muted text */
+    --hv-green:  #00ff85;          /* primary neon */
+    --hv-cyan:   #22d3ee;          /* secondary neon */
+    --hv-magenta:#e879f9;          /* tertiary neon */
+    --hv-amber:  #fbbf24;
+    --hv-red:    #ff4d6d;
+
+    --hv-glass-bg:     rgba(10, 16, 28, 0.55);
+    --hv-glass-bg-2:   rgba(14, 20, 36, 0.72);
+    --hv-glass-border: rgba(120, 255, 190, 0.16);
+    --hv-glass-hi:     rgba(34, 211, 238, 0.35);
+    --hv-card-shadow:  0 10px 40px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(120,255,190,0.04);
+    --hv-grid:         rgba(0, 255, 133, 0.05);
+    --hv-scan:         rgba(0, 0, 0, 0.10);
+    --hv-glow-strength: 1;
+  }
+
+  /* ── Light theme = bright ambient backdrop + dark "glass" panels ──
+     Every surface that holds text stays dark, so the neon accent palette and
+     the light ink both keep full contrast (no per-component colour rewrite).
+     shadcn tokens stay dark so Radix popovers/selects match the panels. */
+  [data-theme="light"] {
+    --background: 240 30% 4%;
+    --foreground: 150 80% 88%;
+    --card: 240 24% 7%;
+    --card-foreground: 150 80% 88%;
+    --popover: 240 28% 6%;
+    --popover-foreground: 150 80% 88%;
+    --primary: 152 100% 50%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 188 90% 53%;
+    --secondary-foreground: 0 0% 4%;
+    --muted: 240 14% 14%;
+    --muted-foreground: 150 16% 62%;
+    --accent: 280 50% 18%;
+    --accent-foreground: 150 80% 88%;
+    --destructive: 351 100% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 40% 24%;
+    --input: 150 20% 14%;
+    --ring: 152 100% 50%;
+
+    /* bright ambient page */
+    --hv-page-0: #dfe5f0;
+    --hv-page-1: #e9edf6;
+    --hv-page-2: #f4f7fc;
+    /* light ink on the dark panels */
+    --hv-ink:    #e8fff3;
+    --hv-ink-dim:#8fb6a4;
+    /* accents stay neon — they sit on dark glass */
+    --hv-green:  #00ff85;
+    --hv-cyan:   #22d3ee;
+    --hv-magenta:#e879f9;
+    --hv-amber:  #fbbf24;
+    --hv-red:    #ff5d7a;
+
+    /* dark glass panels that float on the light page */
+    --hv-glass-bg:     rgba(12, 17, 30, 0.90);
+    --hv-glass-bg-2:   rgba(8, 12, 24, 0.94);
+    --hv-glass-border: rgba(120, 255, 190, 0.22);
+    --hv-glass-hi:     rgba(34, 211, 238, 0.45);
+    --hv-card-shadow:  0 18px 48px -16px rgba(15, 23, 42, 0.45), 0 2px 8px -2px rgba(15,23,42,0.25);
+    --hv-grid:         rgba(40, 60, 100, 0.08);
+    --hv-scan:         rgba(0, 0, 0, 0.015);
+    --hv-glow-strength: 0.8;
   }
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 
 body {
-  background-color: #0a0a0a;
-  color: #00ff41;
+  background-color: var(--hv-page-1);
+  color: var(--hv-ink);
   font-family: var(--font-jetbrains-mono), 'Fira Code', 'Courier New', monospace;
   font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
+  /* layered radial neon glows + animated grid */
+  background-image:
+    radial-gradient(60rem 60rem at 12% -10%, color-mix(in srgb, var(--hv-green) 10%, transparent), transparent 60%),
+    radial-gradient(50rem 50rem at 110% 10%, color-mix(in srgb, var(--hv-cyan) 10%, transparent), transparent 55%),
+    radial-gradient(70rem 50rem at 50% 120%, color-mix(in srgb, var(--hv-magenta) 8%, transparent), transparent 60%),
+    linear-gradient(var(--hv-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hv-grid) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 44px 44px, 44px 44px;
+  background-attachment: fixed;
+  background-position: 0 0, 0 0, 0 0, center, center;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-/* Responsive base font */
-@media (max-width: 640px) {
-  body { font-size: 14px; }
-}
+@media (max-width: 640px) { body { font-size: 14px; } }
 
+/* CRT scanline overlay — subtle, theme-aware */
 body::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.07) 2px,
-    rgba(0, 0, 0, 0.07) 4px
-  );
-  animation: scanlines 10s linear infinite;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, var(--hv-scan) 2px, var(--hv-scan) 4px);
+  animation: scanlines 12s linear infinite;
 }
 
-@keyframes scanlines {
-  0% { background-position: 0 0; }
-  100% { background-position: 0 100px; }
+@keyframes scanlines { 0% { background-position: 0 0; } 100% { background-position: 0 100px; } }
+
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--hv-green), var(--hv-cyan));
+  border-radius: 6px;
 }
 
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: #0a0a0a; }
-::-webkit-scrollbar-thumb { background: #00ff41; }
-::-webkit-scrollbar-thumb:hover { background: #00ff41cc; }
+@keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+@keyframes matrix-pulse { 0%,100% { opacity: .15; } 50% { opacity: .4; } }
+@keyframes hv-sheen { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes hv-holo { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
 
-@keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
+/* ── Glow helpers (strength scales with theme) ── */
+.glow-green { text-shadow: 0 0 calc(8px * var(--hv-glow-strength)) var(--hv-green), 0 0 calc(20px * var(--hv-glow-strength)) color-mix(in srgb, var(--hv-green) 40%, transparent); }
+.glow-cyan  { text-shadow: 0 0 calc(8px * var(--hv-glow-strength)) var(--hv-cyan),  0 0 calc(20px * var(--hv-glow-strength)) color-mix(in srgb, var(--hv-cyan) 40%, transparent); }
+.glow-red   { text-shadow: 0 0 calc(8px * var(--hv-glow-strength)) var(--hv-red),   0 0 calc(20px * var(--hv-glow-strength)) color-mix(in srgb, var(--hv-red) 40%, transparent); }
 
-@keyframes matrix-pulse {
-  0%, 100% { opacity: 0.15; }
-  50% { opacity: 0.4; }
-}
-
-.glow-green { text-shadow: 0 0 8px #00ff41, 0 0 20px #00ff4150; }
-.glow-cyan  { text-shadow: 0 0 8px #00d9ff, 0 0 20px #00d9ff50; }
-.glow-red   { text-shadow: 0 0 8px #ff3e3e, 0 0 20px #ff3e3e50; }
-
-.cursor-blink::after {
-  content: '█';
-  animation: blink 1s step-end infinite;
-  color: #00ff41;
-}
+.cursor-blink::after { content: '█'; animation: blink 1s step-end infinite; color: var(--hv-green); }
 
 .skeleton-matrix {
   animation: matrix-pulse 1.8s ease-in-out infinite;
-  background-color: rgba(0, 255, 65, 0.06);
+  background-color: color-mix(in srgb, var(--hv-green) 7%, transparent);
 }
 
-.badge-valid       { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.07); }
-.badge-invalid     { border-color: #ff3e3e; color: #ff3e3e; background: rgba(255,62,62,0.07); }
-.badge-warn        { border-color: #ffaa00; color: #ffaa00; background: rgba(255,170,0,0.07); }
-.badge-info        { border-color: #00d9ff; color: #00d9ff; background: rgba(0,217,255,0.07); }
-.badge-neutral     { border-color: #555;    color: #888;    background: rgba(100,100,100,0.07); }
-.badge-unconfigured{ border-color: #333;    color: #555;    background: transparent; }
+/* ── Gradient / holographic text ── */
+.gradient-text {
+  background: linear-gradient(90deg, var(--hv-green), var(--hv-cyan), var(--hv-magenta), var(--hv-green));
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: hv-sheen 8s linear infinite;
+}
 
+/* ── Status badges (kept; now theme-aware via accents) ── */
+.badge-valid       { border-color: var(--hv-green);  color: var(--hv-green);  background: color-mix(in srgb, var(--hv-green) 9%, transparent); }
+.badge-invalid     { border-color: var(--hv-red);    color: var(--hv-red);    background: color-mix(in srgb, var(--hv-red) 9%, transparent); }
+.badge-warn        { border-color: var(--hv-amber);  color: var(--hv-amber);  background: color-mix(in srgb, var(--hv-amber) 9%, transparent); }
+.badge-info        { border-color: var(--hv-cyan);   color: var(--hv-cyan);   background: color-mix(in srgb, var(--hv-cyan) 9%, transparent); }
+.badge-neutral     { border-color: #555; color: #888; background: rgba(100,100,100,0.07); }
+.badge-unconfigured{ border-color: #333; color: #555; background: transparent; }
+
+/* ── Glass card (new) ── the workhorse surface ── */
+.glass {
+  background: var(--hv-glass-bg);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--hv-glass-border);
+  box-shadow: var(--hv-card-shadow);
+}
+
+/* ── terminal-card: re-skinned as glass while keeping the name everywhere ── */
 .terminal-card {
-  border: 1px solid rgba(0, 255, 65, 0.2);
-  background: rgba(0, 10, 0, 0.6);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+  background: var(--hv-glass-bg);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--hv-glass-border);
+  box-shadow: var(--hv-card-shadow);
+  border-radius: 10px;
+  transition: border-color .25s, box-shadow .25s, transform .25s;
 }
 .terminal-card:hover {
-  border-color: rgba(0, 255, 65, 0.45);
-  box-shadow: 0 0 14px rgba(0, 255, 65, 0.1);
+  border-color: var(--hv-glass-hi);
+  box-shadow: var(--hv-card-shadow), 0 0 26px -6px color-mix(in srgb, var(--hv-cyan) 30%, transparent);
 }
 
+/* ── Holographic animated border (opt-in via .holo) ── */
+/* Uses a moving linear-gradient (no @property / no registered angle) so the
+   production CSS minifier keeps it. The gradient slides to read as "alive". */
+.holo {
+  position: relative;
+  border-radius: 12px;
+}
+.holo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(115deg, var(--hv-green), var(--hv-cyan), var(--hv-magenta), var(--hv-cyan), var(--hv-green));
+  background-size: 300% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: hv-holo 7s linear infinite;
+  pointer-events: none;
+  opacity: .8;
+}
+
+/* ── 3D tilt card (JS sets --rx/--ry/--mx/--my) ── */
+.tilt-card {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform .12s ease-out;
+  will-change: transform;
+}
+.tilt-glare {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(40rem 40rem at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--hv-cyan) 22%, transparent), transparent 45%);
+  opacity: 0; transition: opacity .2s;
+}
+.tilt-card:hover .tilt-glare { opacity: 1; }
+
+/* ── Inputs ── */
 .terminal-input {
-  background: rgba(0, 10, 0, 0.8);
-  border: 1px solid rgba(0, 255, 65, 0.3);
-  color: #00ff41;
-  caret-color: #00ff41;
+  background: var(--hv-glass-bg-2);
+  border: 1px solid var(--hv-glass-border);
+  color: var(--hv-ink);
+  caret-color: var(--hv-green);
+  border-radius: 8px;
 }
 .terminal-input:focus {
   outline: none;
-  border-color: #00ff41;
-  box-shadow: 0 0 0 1px #00ff41, 0 0 12px rgba(0,255,65,0.2);
+  border-color: var(--hv-green);
+  box-shadow: 0 0 0 1px var(--hv-green), 0 0 16px color-mix(in srgb, var(--hv-green) 25%, transparent);
 }
-.terminal-input::placeholder {
-  color: rgba(0, 255, 65, 0.3);
+.terminal-input::placeholder { color: var(--hv-ink-dim); opacity: .7; }
+
+/* ── Neon button ── */
+.btn-neon {
+  border: 1px solid color-mix(in srgb, var(--hv-green) 55%, transparent);
+  color: var(--hv-green);
+  background: color-mix(in srgb, var(--hv-green) 8%, transparent);
+  border-radius: 8px;
+  transition: all .2s;
+}
+.btn-neon:hover {
+  background: color-mix(in srgb, var(--hv-green) 16%, transparent);
+  box-shadow: 0 0 18px -4px color-mix(in srgb, var(--hv-green) 60%, transparent);
 }
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
 }
 
-/* ── Accessibility: focus-visible ring on every interactive element ───── */
-button:focus-visible,
-a:focus-visible,
-[role="tab"]:focus-visible,
-[role="button"]:focus-visible {
-  outline: 2px solid #00ff41;
+/* ── Accessibility ── */
+button:focus-visible, a:focus-visible, [role="tab"]:focus-visible, [role="button"]:focus-visible, input:focus-visible {
+  outline: 2px solid var(--hv-cyan);
   outline-offset: 2px;
 }
 
-/* ── Respect reduced-motion (canvas rain, framer-motion) ──────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration: 0.001ms !important;
+    animation-duration: .001ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+    transition-duration: .001ms !important;
     scroll-behavior: auto !important;
   }
+  .tilt-card { transform: none !important; }
 }
 
-/* ── Print-friendly stylesheet for ReportExport HTML/screenshots ──────── */
+/* ── Print ── */
 @media print {
-  body {
-    background: #fff !important;
-    color: #000 !important;
+  body { background: #fff !important; color: #000 !important; background-image: none !important; }
+  .terminal-card, .terminal-input, .glass {
+    background: #fff !important; border: 1px solid #888 !important;
+    box-shadow: none !important; backdrop-filter: none !important;
   }
-  .terminal-card,
-  .terminal-input {
-    background: #fff !important;
-    border: 1px solid #888 !important;
-    box-shadow: none !important;
-  }
-  /* Hide the matrix-rain canvas, nav, sticky header, and tab buttons */
-  canvas,
-  header,
-  footer,
-  [role="tab"] {
-    display: none !important;
-  }
-  /* Force readable greens to dark colours */
-  .glow-green,
-  .text-\[#00ff41\],
-  .text-\[#00d9ff\] {
-    color: #000 !important;
-    text-shadow: none !important;
-  }
-  /* Break inside cards is undesirable */
+  canvas, header, footer, [role="tab"] { display: none !important; }
+  .glow-green, .glow-cyan, .gradient-text { color: #000 !important; -webkit-text-fill-color: #000 !important; text-shadow: none !important; }
   .terminal-card { page-break-inside: avoid; }
 }

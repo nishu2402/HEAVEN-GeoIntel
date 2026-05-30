@@ -18,7 +18,10 @@ export function getClientIp(req: NextRequest): string {
     const xri = req.headers.get("x-real-ip");
     if (xri) return xri;
   }
-  return req.ip ?? "127.0.0.1";
+  // Next 15 removed NextRequest.ip. When not trusting a proxy, all direct
+  // clients share one bucket — fine for local/self-host; behind a proxy set
+  // TRUST_PROXY=1 to rate-limit per real client IP.
+  return "127.0.0.1";
 }
 
 interface Bucket {

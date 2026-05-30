@@ -16,6 +16,9 @@
 # production
 /build
 
+# persistent case store (runtime data)
+/.data/
+
 # misc
 .DS_Store
 *.pem
