@@ -40,9 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   to a real carrier name offline; wired into the phone aggregation as a fallback.
 
 ### Changed
-- App version → v1.3. README + OpenAPI surface updated for the new endpoints.
+- App version → v1.3. README rewritten to document all five identifier types,
+  the 8-mode workspace, command palette, link graph, and cases; OpenAPI surface
+  updated for the new endpoints.
+- **Minimum Node bumped to 20.9** (Next.js 16 requirement); `.nvmrc` → 20,
+  `engines` updated, `requirements.txt` removed in favour of `package.json`.
 - `terminal-card` re-skinned as a glass surface (theme-aware) — every existing
   panel inherits the new look with no per-component changes.
+- Screenshots regenerated against the v1.3 UI.
 
 ### Security
 - **Upgraded Next.js 14.2.35 → 16.2.6** (latest stable), which resolves the
