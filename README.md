@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Unified+OSINT+Intelligence+Platform;Phone+%C2%B7+Email+%C2%B7+Username+%C2%B7+IP+%C2%B7+Domain+%E2%80%94+5+Identifier+Types;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;Link-Analysis+Graph+%C2%B7+Persistent+Cases+%C2%B7+%E2%8C%98K+Command+Palette;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+15+%C2%B7+TypeScript"/>
+<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Unified+OSINT+Intelligence+Platform;Phone+%C2%B7+Email+%C2%B7+Username+%C2%B7+IP+%C2%B7+Domain+%E2%80%94+5+Identifier+Types;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;Link-Analysis+Graph+%C2%B7+Persistent+Cases+%C2%B7+%E2%8C%98K+Command+Palette;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+16+%C2%B7+TypeScript"/>
 </p>
 
 <p align="center">
@@ -48,7 +48,7 @@
 
   <p>
     <img src="https://img.shields.io/badge/Node.js-18+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
-    <img src="https://img.shields.io/badge/Framework-Next.js_15-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
+    <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
     <img src="https://img.shields.io/badge/API_Keys-Zero_Required-44FF88?style=for-the-badge&logo=checkmarx&logoColor=black" alt="Zero API Keys"/>
     <img src="https://img.shields.io/badge/License-MIT-FF3333?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License"/>
@@ -144,7 +144,7 @@
 | 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs` · 8 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest · GitHub Actions on every PR · multi-arch ghcr image on every push to `main` |
-| 🏗️ **Stack** | Next.js 15 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
+| 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
 | 🎨 **UI Theme** | Matrix/terminal — Canvas katakana rain · CRT scanlines · JetBrains Mono · fully responsive |
 
 </div>
@@ -704,7 +704,7 @@ npm test              # run once (vitest)
 npm run test:watch    # watch mode
 npm run test:coverage # text + html report under coverage/
 npm run typecheck     # tsc --noEmit
-npm run lint          # next lint
+npm run lint          # ESLint 9 (flat config)
 ```
 
 Every push to `main` and every PR runs `lint → typecheck → test → build` via
@@ -818,7 +818,7 @@ HEAVEN-GeoIntel/
 │   └── freePhoneIntel.test.ts
 │
 ├── .env.example                      every supported API key, all optional
-├── .eslintrc.json · .gitignore · .nvmrc · .npmrc · .dockerignore
+├── eslint.config.mjs · .gitignore · .nvmrc · .npmrc · .dockerignore
 ├── CHANGELOG.md · CODE_OF_CONDUCT.md · CONTRIBUTING.md · SECURITY.md · LICENSE
 ├── components.json                   shadcn/ui config
 ├── Dockerfile · docker-compose.yml   multi-stage container build
@@ -842,7 +842,7 @@ HEAVEN-GeoIntel/
 
 | Layer | Technology |
 |---|---|
-| **Framework** | Next.js 15 (App Router) |
+| **Framework** | Next.js 16 (App Router) |
 | **Language** | TypeScript — full interface tree for all data types |
 | **Phone Parsing** | `libphonenumber-js` — Google's libphonenumber compiled to JS |
 | **UI** | Tailwind CSS · shadcn/ui · fully responsive (mobile · tablet · desktop) |

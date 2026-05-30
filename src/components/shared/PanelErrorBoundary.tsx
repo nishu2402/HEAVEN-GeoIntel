@@ -29,7 +29,6 @@ export default class PanelErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    // eslint-disable-next-line no-console
     console.error(`[PanelErrorBoundary] "${this.props.label}" crashed:`, error, info);
   }
 
