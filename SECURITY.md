@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.x     | :white_check_mark: |
-| < 2.0   | :x:                |
+| 1.3.x   | :white_check_mark: |
+| < 1.3   | :x:                |
 
 ## Reporting a vulnerability
 
@@ -64,6 +64,22 @@ Out of scope (please report these to the upstream maintainers):
   (e.g. Cloudflare Access, basic-auth nginx) in front of it, or disable the
   cases route. The store performs no path interpolation from user input, so it
   is not a path-traversal vector.
+
+## Known dependency advisories
+
+We track `npm audit` and keep the framework on the latest stable (Next.js 16).
+
+- **Production:** 2 *moderate* findings, both the same advisory —
+  `postcss@8.4.31` **vendored inside the `next` package** (GHSA-qx2v-qp2m-jg93,
+  `</style>` XSS in CSS stringify output). Not exploitable here: it is a
+  build-time dependency, the app never stringifies untrusted CSS, and our own
+  top-level `postcss` is already patched (8.5.x). It cannot be resolved at any
+  current Next version (latest 16.2.6 still bundles it) and clears automatically
+  when Next updates its bundled copy.
+- **Development only:** an `esbuild` / `vitest` dev-server advisory — never
+  shipped to production; affects only the local test runner.
+
+Run `npm audit --omit=dev` for the production-only picture.
 
 ## Coordinated disclosure
 

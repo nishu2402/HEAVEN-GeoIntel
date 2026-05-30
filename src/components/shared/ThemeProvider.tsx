@@ -9,12 +9,17 @@ const Ctx = createContext<ThemeCtx>({ theme: "dark", toggle: () => {}, setTheme:
 const KEY = "heaven-geointel-theme";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
-
-  useEffect(() => {
-    const stored = (typeof localStorage !== "undefined" && localStorage.getItem(KEY)) as Theme | null;
-    if (stored === "light" || stored === "dark") setThemeState(stored);
-  }, []);
+  // Initialise from the data-theme the anti-flash <head> script already set on
+  // <html> (sourced from localStorage). Reading the DOM attribute — not
+  // localStorage — in the initializer avoids a setState-in-effect and any
+  // SSR/CSR hydration mismatch (the attribute is the single source of truth).
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof document !== "undefined") {
+      const attr = document.documentElement.getAttribute("data-theme");
+      if (attr === "light" || attr === "dark") return attr;
+    }
+    return "dark";
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
