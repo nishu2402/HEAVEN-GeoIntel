@@ -68,13 +68,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`dark ${jetbrainsMono.variable}`}>
+    // data-theme="dark" rendered on the server = the default. The pre-paint
+    // script only *overrides* it to "light" when localStorage says so.
+    // suppressHydrationWarning covers that single attribute diff (expected,
+    // per Next.js theming guidance) so it never logs a hydration error.
+    <html lang="en" data-theme="dark" suppressHydrationWarning className={jetbrainsMono.variable}>
       <head>
         {/* Apply persisted theme before paint to avoid a flash of the wrong theme. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('heaven-geointel-theme');document.documentElement.setAttribute('data-theme',(t==='light'||t==='dark')?t:'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}",
+              "try{var t=localStorage.getItem('heaven-geointel-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}",
           }}
         />
       </head>
