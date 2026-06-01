@@ -265,14 +265,41 @@ npm install
 ### One-command start
 
 ```bash
-bash scripts/start.sh        # checks Node, installs deps, creates .env.local, auto-picks a port
+bash scripts/start.sh        # PRODUCTION mode: builds once, serves on your LAN, self-tests
+bash scripts/start.sh --dev  # hot-reload dev server (local only)
 # or
-npm run setup                # npm equivalent
+npm run setup                # npm equivalent of dev mode
 ```
+
+The default (production) mode builds the app and serves it bound to all
+interfaces, then **self-tests** both the Local and Network URLs and prints the
+result. Dev mode is for local hot-reload only — Next 16's dev server blocks
+cross-origin requests to its internals, so it is **not** reachable from other
+devices.
+
+### Open it on your phone (same Wi-Fi)
+
+`bash scripts/start.sh` prints a **Network** URL like `http://192.168.0.231:3000`
+and verifies it is reachable. Open **that exact URL** on your phone — **never
+`0.0.0.0`** (that is what Next's own banner prints; it means "all interfaces",
+not an address a phone can open).
+
+If your phone still can't load it, the server is fine and the block is your
+network. Diagnose it:
+
+```bash
+bash scripts/start.sh --doctor   # checks firewall, VPN, interface, AP isolation
+npm run doctor                   # same
+```
+
+The two usual causes: the phone is on a different Wi-Fi/Guest network, or the
+router has **"AP isolation" / "client isolation"** turned on (toggle it off in
+the router settings). macOS may also prompt once to allow `node` to accept
+incoming connections — click **Allow**.
 
 ### Global command
 
-After running `bash scripts/start.sh` once, a `geointel` shell function is registered in `~/.zshrc`. Open a new terminal and type `geointel`. To register it manually any time: `npm run install-global`.
+After running `bash scripts/start.sh` once, a `geointel` shell function is registered in `~/.zshrc`. Open a new terminal and type `geointel`. To register it manually any time: `npm run install-global`; to remove it: `npm run uninstall-global`.
 
 ---
 
