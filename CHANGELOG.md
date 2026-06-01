@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **Network/LAN access:** `scripts/start.sh` now defaults to **production mode**
+  (`next build` + `next start -H 0.0.0.0`) and prints the real LAN IP. Next 16's
+  `next dev` blocks cross-origin requests to dev internals (`/_next/*`), and its
+  matcher only matches DNS subdomains — never raw IP octets — so `allowedDevOrigins`
+  wildcards like `192.168.*` can never work. Production mode has no such block, so
+  the Network URL now loads fully (HTML/CSS/JS/API all 200) from phones and other
+  devices. `--dev` flag still runs hot-reload for local development.
+- **Hydration error:** `ThemeProvider` no longer reads `document`/localStorage in
+  its `useState` initializer (that made the client's first render differ from the
+  server's when a non-default theme was stored). Server + client now both render
+  `"dark"` first, then adopt the persisted theme in an effect after mount;
+  `ThemeToggle` is mount-gated. Console is clean in both themes.
+- **Boot version label:** `BootSequence` showed `v2.0`; corrected to `v1.3` and
+  refreshed the module list for the unified platform.
+- **Uninstall:** `scripts/uninstall-global.sh` rewritten to remove the binary
+  even when root-owned (auto-sudo), strip every marker + function line (including
+  legacy/duplicate installs) from all RC files via an explicit line loop (no awk
+  rule-order bug that previously ate an adjacent line), back up each RC, and
+  verify nothing remains. Added `npm run uninstall-global`.
+
 ## [1.3.0] — 2026-05-29
 
 ### Added — three new identifier types (all free, no API key)

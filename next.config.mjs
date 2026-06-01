@@ -34,22 +34,14 @@ const CSP = [
 ].join("; ");
 
 const nextConfig = {
-  // Next 16 blocks cross-origin requests to dev-server internals (HMR, /_next/*)
-  // by default. When you open the app from another device via the LAN IP, the
-  // browser's Origin is that IP — without this allow-list those dev requests are
-  // refused and the page fails to hydrate / load assets. Private LAN ranges +
-  // .local cover the "Network" URL printed by scripts/start.sh.
-  allowedDevOrigins: [
-    "localhost",
-    "127.0.0.1",
-    "*.local",
-    "10.*",
-    "172.16.*", "172.17.*", "172.18.*", "172.19.*",
-    "172.20.*", "172.21.*", "172.22.*", "172.23.*",
-    "172.24.*", "172.25.*", "172.26.*", "172.27.*",
-    "172.28.*", "172.29.*", "172.30.*", "172.31.*",
-    "192.168.*",
-  ],
+  // Next 16's `next dev` blocks cross-origin requests to dev internals (HMR,
+  // /_next/*). This ONLY affects DEV mode AND only when the browser's Origin
+  // differs from the host you loaded — i.e. it never bites when you open the
+  // exact dev URL directly. Next's matcher matches DNS subdomains, NOT raw IP
+  // octets, so "192.168.*" can't match "192.168.0.5" — wildcards on IPs are
+  // useless. For LAN access we run PRODUCTION mode (scripts/start.sh), which has
+  // no such block. This list just smooths over loopback hostnames in dev.
+  allowedDevOrigins: ["localhost", "127.0.0.1", "*.local"],
   images: {
     // The app renders plain <img> tags (never next/image), so disable the
     // built-in Image Optimizer entirely — removes the /_next/image endpoint
