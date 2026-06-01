@@ -18,6 +18,7 @@
     "setup": "npm install && node node_modules/next/dist/bin/next dev",
     "install-global": "bash scripts/install-global.sh",
     "uninstall-global": "bash scripts/uninstall-global.sh",
+    "doctor": "bash scripts/start.sh --doctor",
     "screenshots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
