@@ -36,23 +36,35 @@ if [ -e "$INSTALL_PATH" ]; then
 fi
 
 # ── 2) Strip the function block from every RC file ───────────────────────────
-# Removes: our marker line + the line right after it (the function), and also
-# any standalone `geointel()` line and any legacy "# HEAVEN-GeoIntel" comment,
-# so older/duplicate installs are cleaned too. A backup is written once.
+# Removes EVERY HEAVEN-GeoIntel marker comment, the geointel() function line
+# right after a marker, and any standalone geointel() line — covering old,
+# new, and duplicate installs. Explicit line-by-line loop (no awk rule-order
+# traps). A one-time backup is written before editing.
 for RC in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
   [ -f "$RC" ] || continue
-  if grep -q "HEAVEN-GeoIntel" "$RC" 2>/dev/null || grep -q "^[[:space:]]*geointel()" "$RC" 2>/dev/null; then
+  if grep -q "HEAVEN-GeoIntel" "$RC" 2>/dev/null || grep -Eq "^[[:space:]]*geointel\(\)" "$RC" 2>/dev/null; then
     cp "$RC" "$RC.geointel-bak" 2>/dev/null || true
     tmp="$(mktemp)"
-    awk '
-      # Drop any HEAVEN-GeoIntel comment line; if it is our marker, also drop the next line.
-      /HEAVEN-GeoIntel/      { if ($0 ~ /global command/) skip = 1; next }
-      skip == 1              { skip = 0; next }
-      # Drop any standalone geointel function definition line.
-      /^[[:space:]]*geointel\(\)/ { next }
-      { print }
-    ' "$RC" > "$tmp"
-    # Collapse 2+ consecutive blank lines into one.
+    drop_next=0
+    # Read raw lines incl. last line without trailing newline (|| [ -n "$line" ]).
+    while IFS= read -r line || [ -n "$line" ]; do
+      # If previous line was our marker, drop this (the function) line once.
+      if [ "$drop_next" = "1" ]; then
+        drop_next=0
+        case "$line" in
+          *geointel\(\)*) continue ;;   # expected function line → drop
+        esac
+        # not a function line after all → fall through and keep it
+      fi
+      case "$line" in
+        *HEAVEN-GeoIntel*)                      # any of our comment lines → drop
+          case "$line" in *"global command"*) drop_next=1 ;; esac
+          continue ;;
+        geointel\(\)*|*[[:space:]]geointel\(\)*) continue ;;  # standalone fn → drop
+      esac
+      printf '%s\n' "$line" >> "$tmp"
+    done < "$RC"
+    # Collapse 2+ consecutive blank lines into one, then write back.
     awk 'NF { blank = 0; print; next } { if (++blank <= 1) print }' "$tmp" > "$RC"
     rm -f "$tmp"
     echo "[ok] Cleaned 'geointel' entries from $RC  (backup: $RC.geointel-bak)"

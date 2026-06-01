@@ -1,10 +1,15 @@
 #!/bin/bash
 # HEAVEN-GeoIntel — one-command startup.
-# Checks Node, installs deps, seeds .env.local, picks a free port, starts dev
-# bound to 0.0.0.0 so it is reachable from other devices on the LAN.
+# Default = PRODUCTION mode (next build + next start) bound to 0.0.0.0, so the
+# app is fully reachable from other devices on the LAN with NO dev-server
+# cross-origin (CSRF) blocking — that block only exists in `next dev`.
+# Pass --dev to run the hot-reload dev server instead (local development).
 set -e
 
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+
+MODE="prod"
+[ "${1:-}" = "--dev" ] && MODE="dev"
 
 echo ""
 echo -e "${GREEN}==============================================================${NC}"
@@ -12,7 +17,7 @@ echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v1.3${NC}"
 echo -e "${GREEN}==============================================================${NC}"
 echo ""
 
-# Resolve repo root = parent of this script's dir (script lives in scripts/).
+# Repo root = parent of this script's dir (script lives in scripts/).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
@@ -51,15 +56,42 @@ while lsof -i ":$PORT" >/dev/null 2>&1; do
 done
 echo -e "${GREEN}[ok]${NC} Port $PORT available"
 
-# Detect the LAN IP so the user knows the network URL (best-effort, macOS + Linux).
+# Detect LAN IP for the Network URL (best-effort, macOS + Linux).
 LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')"
 
+if [ "$MODE" = "dev" ]; then
+  echo ""
+  echo -e "${YELLOW}[dev] Hot-reload mode — best for local development.${NC}"
+  echo -e "${CYAN}  Local:    http://localhost:$PORT${NC}"
+  echo -e "${YELLOW}  Note: open via http://localhost (not 0.0.0.0). For LAN access${NC}"
+  echo -e "${YELLOW}        use production mode: bash scripts/start.sh${NC}"
+  echo ""
+  exec node node_modules/next/dist/bin/next dev -H 0.0.0.0 -p "$PORT"
+fi
+
+# ── Production mode (default) ────────────────────────────────────────────────
+# Build if there is no prior build (or package.json changed since last build).
+NEED_BUILD=0
+if [ ! -f ".next/BUILD_ID" ]; then
+  NEED_BUILD=1
+elif [ "package.json" -nt ".next/BUILD_ID" ]; then
+  NEED_BUILD=1
+fi
+if [ "$NEED_BUILD" -eq 1 ]; then
+  echo -e "${YELLOW}[~] Building production bundle (first run / sources changed)...${NC}"
+  node node_modules/next/dist/bin/next build
+else
+  echo -e "${GREEN}[ok]${NC} Production build present"
+fi
+
 echo ""
+echo -e "${GREEN}  Reachable from this machine AND other devices on your network:${NC}"
 echo -e "${CYAN}  Local:    http://localhost:$PORT${NC}"
-[ -n "$LAN_IP" ] && echo -e "${CYAN}  Network:  http://$LAN_IP:$PORT${NC}"
+[ -n "$LAN_IP" ] && echo -e "${CYAN}  Network:  http://$LAN_IP:$PORT${NC}  (open THIS on your phone)"
+echo ""
+echo -e "${YELLOW}  Tip: hot-reload dev mode -> bash scripts/start.sh --dev${NC}"
 echo ""
 
-# Start Next.js dev bound to all interfaces (-H 0.0.0.0) so the Network URL
-# works from phones / other machines. Call the binary directly to avoid
-# broken .bin symlinks.
-exec node node_modules/next/dist/bin/next dev -H 0.0.0.0 -p "$PORT"
+# next start binds all interfaces by default; -H 0.0.0.0 is explicit. No dev
+# CSRF block here, so the Network URL works from any device.
+exec node node_modules/next/dist/bin/next start -H 0.0.0.0 -p "$PORT"
