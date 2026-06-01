@@ -3,18 +3,17 @@
 import { motion } from "framer-motion";
 
 const lines = [
-  "[+] HEAVEN-GeoIntel v2.0 — OSINT Intelligence Platform",
+  "[+] HEAVEN-GeoIntel v1.3 — Unified OSINT Platform",
   "[+] Loading libphonenumber-js database (240+ countries)...",
-  "[+] Bundled country intelligence dataset: OK",
+  "[+] Bundled datasets: country · NPA · MCC/MNC · disposable domains [ OK ]",
   "[+] Offline analysis engine: READY",
-  "[+] Phone module: NumVerify · IPQS · Abstract · Twilio [ STANDBY ]",
-  "[+] Email module: XposedOrNot · EmailRep · Gravatar     [ ACTIVE  ]",
-  "[+] Email module: Hunter · Abstract · FullContact       [ STANDBY ]",
-  "[+] Breach module: XposedOrNot (free) · BreachDirectory [ READY   ]",
-  "[*] CRT display layer initialized",
+  "[+] Phone · Email · Username · IP · Domain modules: LOADED",
+  "[+] Free no-key sources: Hudson Rock · XposedOrNot · ip-api · DoH [ ACTIVE ]",
+  "[+] Breach module: XposedOrNot (free) · BreachDirectory          [ READY  ]",
+  "[*] Link-analysis graph + persistent cases: initialized",
   "[*] Matrix rain canvas: active",
   "",
-  "[✓] SYSTEM READY — Select PHONE or EMAIL mode to begin.",
+  "[✓] SYSTEM READY — pick a mode or press ⌘K to begin.",
 ];
 
 export default function BootSequence({ onDone }: { onDone: () => void }) {
