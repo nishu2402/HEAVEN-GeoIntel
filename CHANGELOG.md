@@ -15,6 +15,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   wildcards like `192.168.*` can never work. Production mode has no such block, so
   the Network URL now loads fully (HTML/CSS/JS/API all 200) from phones and other
   devices. `--dev` flag still runs hot-reload for local development.
+- **Network URL clarity + self-test:** Next's own startup banner prints
+  `Network: http://0.0.0.0:<port>`, which is **not** an address a phone can open —
+  this was the source of the confusing `0.0.0.0` URL. `start.sh` now pipes the
+  server's output through `awk` and **rewrites every `0.0.0.0` to the real LAN IP**,
+  so the banner reads `Network: http://192.168.x.x:<port>` (it still binds
+  `0.0.0.0` internally, so localhost *and* the LAN both work). It also **actively
+  self-tests** the Local and LAN URLs with `curl` and prints an unambiguous box:
+  `http://<LAN-IP>:<port>  <-- open THIS on your phone`. If `qrencode` is installed
+  it renders a scannable QR of that URL. Dev mode now binds to `127.0.0.1`
+  (loopback only), so it never prints a misleading `0.0.0.0` line either.
+- **Network doctor:** added `scripts/start.sh --doctor` (`npm run doctor`) — checks
+  Node, the active interface/LAN IP, any active VPN tunnel, the macOS Application
+  Firewall (incl. whether the *current* `node` binary path is allowed — the allow
+  rule is path-specific and breaks on Node upgrades), and prints the exact remedies
+  for the real-world blockers: phone on a different/Guest Wi-Fi, or the router's
+  "AP isolation / client isolation" being on. Clarifies that when localhost works
+  but the phone can't connect, the server is healthy and the block is the network.
 - **Hydration error:** `ThemeProvider` no longer reads `document`/localStorage in
   its `useState` initializer (that made the client's first render differ from the
   server's when a non-default theme was stored). Server + client now both render

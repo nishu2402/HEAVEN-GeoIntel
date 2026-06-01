@@ -1,26 +1,130 @@
 #!/bin/bash
 # HEAVEN-GeoIntel — one-command startup.
+#
 # Default = PRODUCTION mode (next build + next start) bound to 0.0.0.0, so the
-# app is fully reachable from other devices on the LAN with NO dev-server
-# cross-origin (CSRF) blocking — that block only exists in `next dev`.
-# Pass --dev to run the hot-reload dev server instead (local development).
+# app is reachable from other devices on the LAN with NO dev-server cross-origin
+# (CSRF) blocking — that block ONLY exists in `next dev`. After the server is up
+# the script SELF-TESTS the Local and Network URLs and prints a clear verdict,
+# so you know exactly whether the problem is the app (it won't be) or your
+# network/router (the usual cause of "localhost works, phone doesn't").
+#
+# Flags:
+#   (none)     production mode (recommended; works on the LAN)
+#   --dev      hot-reload dev server (local development only)
+#   --doctor   diagnose why the Network URL might not reach your phone, then exit
 set -e
 
-GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 
 MODE="prod"
-[ "${1:-}" = "--dev" ] && MODE="dev"
-
-echo ""
-echo -e "${GREEN}==============================================================${NC}"
-echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v1.3${NC}"
-echo -e "${GREEN}==============================================================${NC}"
-echo ""
+case "${1:-}" in
+  --dev)    MODE="dev" ;;
+  --doctor) MODE="doctor" ;;
+esac
 
 # Repo root = parent of this script's dir (script lives in scripts/).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
+
+# ── Detect the LAN IPv4 on the interface that owns the default route ─────────
+# Prefer the active default-route interface (handles Wi-Fi en0, en1, USB-eth);
+# fall back to en0/en1, then Linux `hostname -I`.
+detect_lan_ip() {
+  local ifc ip
+  ifc="$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')"
+  if [ -n "$ifc" ]; then
+    ip="$(ipconfig getifaddr "$ifc" 2>/dev/null)"
+    [ -n "$ip" ] && { printf '%s' "$ip"; return; }
+  fi
+  ip="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')"
+  printf '%s' "$ip"
+}
+
+# ════════════════════════════════════════════════════════════════════════════
+#  --doctor : explain why a phone might not reach the Network URL
+# ════════════════════════════════════════════════════════════════════════════
+if [ "$MODE" = "doctor" ]; then
+  echo ""
+  echo -e "${GREEN}==============================================================${NC}"
+  echo -e "${GREEN}       HEAVEN-GeoIntel - Network Doctor${NC}"
+  echo -e "${GREEN}==============================================================${NC}"
+  echo ""
+
+  # 1) Node
+  if command -v node >/dev/null 2>&1; then
+    echo -e "  ${GREEN}[ok]${NC} Node $(node -v)"
+  else
+    echo -e "  ${RED}[x]${NC} Node.js not found — install Node 20.9+ from https://nodejs.org"
+  fi
+
+  # 2) Active interface + LAN IP
+  IFC="$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')"
+  GW="$(route -n get default 2>/dev/null | awk '/gateway:/{print $2}')"
+  LAN_IP="$(detect_lan_ip)"
+  if [ -n "$LAN_IP" ]; then
+    echo -e "  ${GREEN}[ok]${NC} LAN IP: ${BOLD}$LAN_IP${NC}  (interface ${IFC:-?}, gateway ${GW:-?})"
+  else
+    echo -e "  ${RED}[x]${NC} No LAN IPv4 found — are you connected to Wi-Fi/Ethernet?"
+  fi
+
+  # 3) Active VPN tunnel (can hijack the route so the phone can't reach you)
+  if ifconfig 2>/dev/null | grep -A3 '^utun' | grep -q 'inet '; then
+    echo -e "  ${YELLOW}[!]${NC} A VPN tunnel (utun) is active — VPNs often block LAN device-to-device traffic."
+    echo -e "       Try disconnecting the VPN while you test the phone."
+  else
+    echo -e "  ${GREEN}[ok]${NC} No active VPN tunnel."
+  fi
+
+  # 4) macOS Application Firewall
+  if [ -x /usr/libexec/ApplicationFirewall/socketfilterfw ]; then
+    FW_STATE="$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null)"
+    FW_STEALTH="$(/usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode 2>/dev/null)"
+    NODE_BIN="$(readlink -f "$(command -v node)" 2>/dev/null || command -v node)"
+    if echo "$FW_STATE" | grep -qi "enabled"; then
+      echo -e "  ${YELLOW}[!]${NC} macOS firewall is ON."
+      if /usr/libexec/ApplicationFirewall/socketfilterfw --listapps 2>/dev/null | grep -qF "$NODE_BIN"; then
+        echo -e "       ${GREEN}node is allowed to accept incoming connections — good.${NC}"
+        echo -e "       ${YELLOW}NOTE:${NC} the allow-rule is tied to THIS exact path:"
+        echo -e "         $NODE_BIN"
+        echo -e "       If you upgrade Node, re-allow it (the path changes):"
+        echo -e "         ${CYAN}sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add \"\$(readlink -f \$(command -v node))\" --unblockapp \"\$(readlink -f \$(command -v node))\"${NC}"
+      else
+        echo -e "       ${RED}node is NOT in the firewall allow-list — incoming LAN connections are blocked.${NC}"
+        echo -e "       Allow it (one time):"
+        echo -e "         ${CYAN}sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add \"$NODE_BIN\" --unblockapp \"$NODE_BIN\"${NC}"
+      fi
+      echo "$FW_STEALTH" | grep -qi "on" && \
+        echo -e "       ${YELLOW}Stealth mode is ON${NC} (drops probes/ping). TCP to an allowed app still works."
+    else
+      echo -e "  ${GREEN}[ok]${NC} macOS firewall is OFF — not blocking anything."
+    fi
+  fi
+
+  echo ""
+  echo -e "  ${BOLD}If localhost works but your PHONE can't load the Network URL,${NC}"
+  echo -e "  ${BOLD}the server is fine — the block is your network. Check, in order:${NC}"
+  echo -e "   1. Phone and Mac on the ${BOLD}same Wi-Fi${NC} (not cellular, not a separate"
+  echo -e "      \"Guest\" SSID). Guest networks isolate devices by design."
+  echo -e "   2. Router \"${BOLD}AP isolation${NC}\" / \"client isolation\" / \"AP+\" must be OFF."
+  echo -e "      (Common on mesh systems and ISP routers. Toggle it in router settings.)"
+  echo -e "   3. Type the IP ${BOLD}exactly${NC}: ${CYAN}http://$LAN_IP:<port>${NC} — never ${RED}0.0.0.0${NC}"
+  echo -e "      (0.0.0.0 means \"all interfaces\" to the server; it is NOT an address a"
+  echo -e "       phone can open.)"
+  echo -e "   4. Quick proof from the phone's browser: open ${CYAN}http://$LAN_IP:<port>${NC}"
+  echo -e "      while the server runs. Still nothing? It's 1 or 2 above."
+  echo ""
+  echo -e "${GREEN}==============================================================${NC}"
+  echo ""
+  exit 0
+fi
+
+# ── Banner ───────────────────────────────────────────────────────────────────
+echo ""
+echo -e "${GREEN}==============================================================${NC}"
+echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v1.3${NC}"
+echo -e "${GREEN}==============================================================${NC}"
+echo ""
 
 # Node version check (Next.js 16 needs Node 20.9+)
 if ! command -v node >/dev/null 2>&1; then
@@ -56,21 +160,26 @@ while lsof -i ":$PORT" >/dev/null 2>&1; do
 done
 echo -e "${GREEN}[ok]${NC} Port $PORT available"
 
-# Detect LAN IP for the Network URL (best-effort, macOS + Linux).
-LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')"
+LAN_IP="$(detect_lan_ip)"
 
+# ════════════════════════════════════════════════════════════════════════════
+#  DEV mode (hot reload, local only)
+# ════════════════════════════════════════════════════════════════════════════
 if [ "$MODE" = "dev" ]; then
   echo ""
-  echo -e "${YELLOW}[dev] Hot-reload mode — best for local development.${NC}"
+  echo -e "${YELLOW}[dev] Hot-reload mode — LOCAL ONLY (not reachable from other devices).${NC}"
   echo -e "${CYAN}  Local:    http://localhost:$PORT${NC}"
-  echo -e "${YELLOW}  Note: open via http://localhost (not 0.0.0.0). For LAN access${NC}"
-  echo -e "${YELLOW}        use production mode: bash scripts/start.sh${NC}"
+  echo -e "${YELLOW}  For phone/LAN access use production mode: bash scripts/start.sh${NC}"
   echo ""
-  exec node node_modules/next/dist/bin/next dev -H 0.0.0.0 -p "$PORT"
+  # Bind to loopback only: the dev server's cross-origin block makes LAN access
+  # fail anyway, and binding here keeps the banner clean (it never prints the
+  # confusing 0.0.0.0 "Network" line).
+  exec node node_modules/next/dist/bin/next dev -H 127.0.0.1 -p "$PORT"
 fi
 
-# ── Production mode (default) ────────────────────────────────────────────────
-# Build if there is no prior build (or package.json changed since last build).
+# ════════════════════════════════════════════════════════════════════════════
+#  PRODUCTION mode (default) — builds once, then serves on all interfaces
+# ════════════════════════════════════════════════════════════════════════════
 NEED_BUILD=0
 if [ ! -f ".next/BUILD_ID" ]; then
   NEED_BUILD=1
@@ -84,14 +193,78 @@ else
   echo -e "${GREEN}[ok]${NC} Production build present"
 fi
 
+URL_LOCAL="http://localhost:$PORT"
+URL_NET="http://$LAN_IP:$PORT"
+
+# Start the server in the background so we can self-test it, then hand control
+# back to it. trap forwards Ctrl-C so the server stops cleanly.
 echo ""
-echo -e "${GREEN}  Reachable from this machine AND other devices on your network:${NC}"
-echo -e "${CYAN}  Local:    http://localhost:$PORT${NC}"
-[ -n "$LAN_IP" ] && echo -e "${CYAN}  Network:  http://$LAN_IP:$PORT${NC}  (open THIS on your phone)"
+echo -e "${YELLOW}[~] Starting server...${NC}"
+# Bind to all interfaces (0.0.0.0) so BOTH localhost AND the LAN IP work. Next's
+# own banner prints "Network: http://0.0.0.0:<port>" — which is not an address a
+# phone can open and just causes confusion — so we pipe the server's output
+# through awk and rewrite every literal "0.0.0.0" to the real LAN IP. fflush()
+# keeps the log live and is portable (BSD sed has no -u). Process substitution
+# means $! is still the node PID, so kill/wait below work unchanged.
+REWRITE_IP="${LAN_IP:-localhost}"
+node node_modules/next/dist/bin/next start -H 0.0.0.0 -p "$PORT" \
+  > >(awk -v ip="$REWRITE_IP" '{ gsub(/0\.0\.0\.0/, ip); print; fflush() }') 2>&1 &
+SRV_PID=$!
+trap 'echo ""; echo "Stopping..."; kill "$SRV_PID" 2>/dev/null; exit 0' INT TERM
+
+# Wait until it actually answers on localhost (up to ~30s).
+UP=0
+for _ in $(seq 1 60); do
+  if curl -s -o /dev/null --max-time 2 "$URL_LOCAL/" 2>/dev/null; then UP=1; break; fi
+  kill -0 "$SRV_PID" 2>/dev/null || break   # server died
+  sleep 0.5
+done
+
+if [ "$UP" != "1" ]; then
+  echo -e "${RED}[x] Server did not come up. See output above.${NC}"
+  kill "$SRV_PID" 2>/dev/null || true
+  exit 1
+fi
+
+# ── Self-test: Local + Network reachability ──────────────────────────────────
+LOCAL_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 4 "$URL_LOCAL/" 2>/dev/null || echo 000)"
+NET_CODE="000"
+[ -n "$LAN_IP" ] && NET_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 4 "$URL_NET/" 2>/dev/null || echo 000)"
+
 echo ""
-echo -e "${YELLOW}  Tip: hot-reload dev mode -> bash scripts/start.sh --dev${NC}"
+echo -e "${GREEN}==============================================================${NC}"
+echo -e "${GREEN}  ${BOLD}HEAVEN-GeoIntel is running.${NC}"
+echo -e "${GREEN}==============================================================${NC}"
+if [ "$LOCAL_CODE" = "200" ]; then
+  echo -e "  ${GREEN}[ok]${NC} On this Mac:  ${CYAN}${BOLD}$URL_LOCAL${NC}"
+else
+  echo -e "  ${RED}[x]${NC} On this Mac:  $URL_LOCAL  (HTTP $LOCAL_CODE)"
+fi
+if [ -z "$LAN_IP" ]; then
+  echo -e "  ${YELLOW}[!]${NC} No LAN IP detected — connect to Wi-Fi/Ethernet for phone access."
+elif [ "$NET_CODE" = "200" ]; then
+  echo -e "  ${GREEN}[ok]${NC} From phone:   ${CYAN}${BOLD}$URL_NET${NC}   ${BOLD}<-- open THIS on your phone${NC}"
+  echo -e "       (server verified reachable on the LAN IP)"
+else
+  echo -e "  ${RED}[x]${NC} From phone:   $URL_NET  (HTTP $NET_CODE)"
+fi
+
+# Optional QR of the Network URL (only if qrencode is installed — no hard dep).
+if [ -n "$LAN_IP" ] && command -v qrencode >/dev/null 2>&1; then
+  echo ""
+  echo -e "  Scan with your phone camera:"
+  qrencode -t ANSIUTF8 -m 2 "$URL_NET" 2>/dev/null | sed 's/^/  /'
+fi
+
+echo ""
+echo -e "  ${BOLD}Phone still can't load it?${NC} The Mac is serving fine (verified above)."
+echo -e "  The block is your network. Run:  ${CYAN}bash scripts/start.sh --doctor${NC}"
+echo -e "  Most common causes: phone on a different Wi-Fi/Guest network, or the"
+echo -e "  router's \"AP isolation\" is ON. (Open the ${CYAN}$URL_NET${NC} URL above.)"
+echo ""
+echo -e "  ${YELLOW}Hot-reload dev mode (local only): bash scripts/start.sh --dev${NC}"
+echo -e "  Press Ctrl-C to stop."
 echo ""
 
-# next start binds all interfaces by default; -H 0.0.0.0 is explicit. No dev
-# CSRF block here, so the Network URL works from any device.
-exec node node_modules/next/dist/bin/next start -H 0.0.0.0 -p "$PORT"
+# Hand the terminal to the server (its logs stream here until Ctrl-C).
+wait "$SRV_PID"
