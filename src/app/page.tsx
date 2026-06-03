@@ -264,7 +264,7 @@ function PageContent() {
           {mode === "domain"   && domStatus === "done"   && domResult   && <PanelErrorBoundary label="Domain results"><DomainResultsDashboard data={domResult} /></PanelErrorBoundary>}
 
           {!isBooting && mode === "graph" && (
-            <div className="mt-6"><PanelErrorBoundary label="Graph"><LinkGraph entities={sessionEntities} title="SESSION LINK GRAPH" /></PanelErrorBoundary></div>
+            <div className="mt-6"><PanelErrorBoundary label="Graph"><LinkGraph entities={sessionEntities} title="SESSION LINK GRAPH" onChange={setSessionEntities} /></PanelErrorBoundary></div>
           )}
           {!isBooting && mode === "cases" && <PanelErrorBoundary label="Cases"><CasesPanel /></PanelErrorBoundary>}
         </main>
@@ -275,6 +275,9 @@ function PageContent() {
           </div>
           <div className="text-center text-[11px] font-mono text-[var(--hv-ink-dim)] opacity-60 mt-1 tracking-wide">
             Phone · Email · Username · IP · Domain · Link-analysis · Persistent cases · Offline-first
+          </div>
+          <div className="text-center text-[11px] font-mono text-[var(--hv-ink-dim)] mt-2 tracking-wide">
+            Created &amp; developed by <span className="text-[var(--hv-cyan)] font-bold">Nisarg Chasmawala (Shroff)</span>
           </div>
         </footer>
       </div>
