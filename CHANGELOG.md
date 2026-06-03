@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Editable link-analysis graph:** the graph is now interactive — click any node
+  to **relabel it, change its type, or remove it**, and **add new nodes** from a
+  type picker + value field (with a **CLEAR** all). It is a controlled component
+  (optional `onChange`), so edits in the **session graph** update session state and
+  edits in a **case graph persist** straight to the file-backed case store via the
+  existing `addEntity`/`removeEntity` API (a relabel = remove old + add new). PNG
+  export is unaffected (edit chrome is HTML, outside the exported SVG).
+- **Footer credit:** "Created & developed by **Nisarg Chasmawala (Shroff)**".
+
 ### Fixed
 - **Network/LAN access:** `scripts/start.sh` now defaults to **production mode**
   (`next build` + `next start -H 0.0.0.0`) and prints the real LAN IP. Next 16's
