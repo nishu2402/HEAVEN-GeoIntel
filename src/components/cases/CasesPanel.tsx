@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { InvestigationCase, EntityKind } from "@/lib/types";
 import { LOOKUP_MODES } from "@/lib/modes";
-import LinkGraph from "@/components/graph/LinkGraph";
+import LinkGraph, { type GraphEntity } from "@/components/graph/LinkGraph";
 
 const KIND_COLOR: Record<EntityKind, string> = {
   phone: "#00ff85", email: "#22d3ee", username: "#e879f9", ip: "#fb923c", domain: "#facc15",
@@ -72,6 +72,18 @@ export default function CasesPanel() {
     if (!active) return;
     await api({ action: "notes", id: active.id, notes: notesDraft });
     setNotesSaved(true); setTimeout(() => setNotesSaved(false), 1500);
+  }
+  // Editing the graph persists straight into the case: diff the next node set
+  // against the current one and fire add/remove (a relabel = remove old + add
+  // new). Sequential awaits avoid racing the file-backed store.
+  async function syncGraph(next: GraphEntity[]) {
+    if (!active) return;
+    const keyOf = (e: GraphEntity) => `${e.kind}::${e.value.toLowerCase()}`;
+    const cur: GraphEntity[] = active.entities.map((e) => ({ kind: e.kind, value: e.value }));
+    const nextKeys = new Set(next.map(keyOf));
+    const curKeys = new Set(cur.map(keyOf));
+    for (const e of cur) if (!nextKeys.has(keyOf(e))) await api({ action: "removeEntity", id: active.id, kind: e.kind, value: e.value });
+    for (const e of next) if (!curKeys.has(keyOf(e))) await api({ action: "addEntity", id: active.id, kind: e.kind, value: e.value });
   }
 
   return (
@@ -147,7 +159,7 @@ export default function CasesPanel() {
           </div>
 
           {/* Graph */}
-          <LinkGraph entities={active.entities.map((e) => ({ kind: e.kind, value: e.value }))} title={`${active.name.toUpperCase()} — LINK GRAPH`} />
+          <LinkGraph entities={active.entities.map((e) => ({ kind: e.kind, value: e.value }))} title={`${active.name.toUpperCase()} — LINK GRAPH`} onChange={syncGraph} />
 
           {/* Notes */}
           <div className="terminal-card p-4 space-y-2">
