@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import {
   Phone, Copy, Download, Activity,
 } from "lucide-react";
+import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
 import type { LookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
 import SourceTabs            from "@/components/dashboard/SourceTabs";
@@ -97,6 +98,19 @@ export default function ResultsDashboard({ data }: Props) {
     aggregated.prepaid !== null || aggregated.active !== null ||
     aggregated.mobileCountryCode || aggregated.userActivity || aggregated.carrier
   );
+
+  const srState = (r: { ok: boolean; error?: string }): SourceState =>
+    r.ok ? "ok" : r.error === "NOT_CONFIGURED" ? "off" : /not[_ ]?found/i.test(r.error ?? "") ? "empty" : "error";
+  const phoneSources: SourceStat[] = [
+    { source: "libphonenumber (offline)", state: "ok" },
+    { source: "Hudson Rock", state: srState(sources.hudsonRock) },
+    { source: "NumVerify", state: srState(sources.numverify) },
+    { source: "IPQS", state: srState(sources.ipqs) },
+    { source: "AbstractAPI", state: srState(sources.abstract) },
+    { source: "Twilio", state: srState(sources.twilio) },
+    { source: "BreachDirectory", state: srState(sources.breachDirectory) },
+    { source: "FullContact", state: srState(sources.fullContact) },
+  ];
 
   return (
     <motion.div
@@ -250,6 +264,8 @@ export default function ResultsDashboard({ data }: Props) {
         </div>
         <PanelErrorBoundary label="Raw sources"><SourceTabs sources={sources} /></PanelErrorBoundary>
       </div>
+
+      <SourceStrip sources={phoneSources} />
     </motion.div>
   );
 }

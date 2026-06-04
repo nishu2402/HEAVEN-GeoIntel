@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { analyzeEmail } from "@/lib/emailAnalysis";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { audit } from "@/lib/auditLog";
+import { parseBody, emailBody } from "@/lib/validation";
 import type {
   EmailLookupResponse,
   GravatarProfile,
@@ -543,11 +545,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let body: { email?: string };
-  try { body = (await req.json()) as { email?: string }; }
-  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const body = await parseBody(req, emailBody);
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
 
-  const raw = body.email?.trim() ?? "";
+  const raw = body.email.trim();
   if (!raw) return NextResponse.json({ error: "Missing email address" }, { status: 400, headers: rlHeaders });
 
   const analysis = analyzeEmail(raw);
@@ -556,6 +557,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const email = analysis.email; // normalized lowercase
+  void audit("email", email, ip, 200);
 
   const cached = getCachedEmail(email);
   if (cached) return NextResponse.json(cached, { headers: rlHeaders });

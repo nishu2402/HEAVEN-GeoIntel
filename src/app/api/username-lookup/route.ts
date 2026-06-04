@@ -1,7 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { audit } from "@/lib/auditLog";
 import { USERNAME_SITES, isPlausibleUsername } from "@/lib/usernameSites";
-import type { UsernameLookupResponse, UsernameHit, UsernameHitStatus } from "@/lib/types";
+import { fetchJson } from "@/lib/fetchSafe";
+import { parseBody, usernameBody } from "@/lib/validation";
+import type { UsernameLookupResponse, UsernameHit, UsernameHitStatus, GithubProfile } from "@/lib/types";
+
+interface GithubUser {
+  login?: string; name?: string | null; bio?: string | null; company?: string | null;
+  blog?: string | null; location?: string | null; followers?: number; following?: number;
+  public_repos?: number; created_at?: string | null; avatar_url?: string | null; html_url?: string;
+}
+
+async function fetchGithub(username: string): Promise<GithubProfile | null> {
+  const r = await fetchJson<GithubUser>(`https://api.github.com/users/${encodeURIComponent(username)}`, {
+    source: "GitHub API", timeoutMs: 6000,
+    init: { headers: { "User-Agent": UA, Accept: "application/vnd.github+json" } },
+  });
+  if (!r.ok || !r.data?.login) return null;
+  const d = r.data;
+  return {
+    login: d.login!, name: d.name ?? null, bio: d.bio ?? null, company: d.company ?? null,
+    location: d.location ?? null, blog: d.blog || null, followers: d.followers ?? 0,
+    following: d.following ?? 0, publicRepos: d.public_repos ?? 0, createdAt: d.created_at ?? null,
+    avatarUrl: d.avatar_url ?? null, htmlUrl: d.html_url ?? `https://github.com/${d.login}`,
+  };
+}
 
 // ── Username OSINT — free, no API key ────────────────────────────────────────
 // Checks a username against ~45 high-signal sites in parallel (server-side, so
@@ -69,16 +93,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Rate limit exceeded. Max 10/min." }, { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } });
   }
 
-  let body: { username?: string };
-  try { body = (await req.json()) as { username?: string }; }
-  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const body = await parseBody(req, usernameBody);
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
-  const username = (body.username ?? "").trim().replace(/^@/, "");
+  const username = body.username.trim().replace(/^@/, "");
   if (!username) return NextResponse.json({ error: "Missing username" }, { status: 400 });
   if (!isPlausibleUsername(username)) {
     return NextResponse.json({ error: "Username must be 2–40 chars: letters, digits, . _ -" }, { status: 400 });
   }
+  void audit("username", username, ip, 200);
 
+  const githubJob = fetchGithub(username); // rich profile in parallel with site sweep
   const settled = await Promise.allSettled(USERNAME_SITES.map((s) => checkSite(s, username)));
   const hits: UsernameHit[] = settled.map((r, i) =>
     r.status === "fulfilled"
@@ -90,11 +115,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const order: Record<UsernameHitStatus, number> = { found: 0, unknown: 1, notfound: 2 };
   hits.sort((a, b) => order[a.status] - order[b.status] || a.site.localeCompare(b.site));
 
+  const githubProfile = await githubJob;
+
   const response: UsernameLookupResponse = {
     username,
     checked: hits.length,
     found: hits.filter((h) => h.status === "found").length,
     hits,
+    githubProfile,
     pivots: buildPivots(username),
   };
 

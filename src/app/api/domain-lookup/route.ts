@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { audit } from "@/lib/auditLog";
+import { fetchJson } from "@/lib/fetchSafe";
+import { parseBody, domainBody } from "@/lib/validation";
 import type {
   DomainLookupResponse, DnsRecord, DomainWhois,
 } from "@/lib/types";
@@ -109,6 +112,27 @@ async function fetchSubdomains(domain: string): Promise<string[]> {
   }
 }
 
+// Internet Archive: oldest capture via the CDX API (free, no key).
+function waybackTs(ts: string): string {
+  const m = ts.match(/^(\d{4})(\d{2})(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : ts;
+}
+async function fetchWayback(domain: string): Promise<DomainLookupResponse["wayback"]> {
+  const r = await fetchJson<string[][]>(
+    `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}&output=json&fl=timestamp,original&limit=1`,
+    { source: "Wayback Machine", timeoutMs: 9000 },
+  );
+  if (!r.ok || !Array.isArray(r.data)) return r.status === 0 ? null : { available: false, firstSnapshot: null, snapshotUrl: null };
+  const rows = r.data.slice(1); // first row is the column header
+  if (rows.length === 0 || !rows[0]?.[0]) return { available: false, firstSnapshot: null, snapshotUrl: null };
+  const [ts, original] = rows[0];
+  return {
+    available: true,
+    firstSnapshot: waybackTs(ts),
+    snapshotUrl: `https://web.archive.org/web/${ts}/${original ?? domain}`,
+  };
+}
+
 function buildPivots(domain: string): DomainLookupResponse["pivots"] {
   const enc = encodeURIComponent(domain);
   return [
@@ -131,17 +155,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Rate limit exceeded. Max 10/min." }, { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } });
   }
 
-  let body: { domain?: string };
-  try { body = (await req.json()) as { domain?: string }; }
-  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const body = await parseBody(req, domainBody);
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
   // Accept bare domains or full URLs; strip scheme/path/port.
-  let domain = (body.domain ?? "").trim().toLowerCase();
+  let domain = body.domain.trim().toLowerCase();
   domain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/:.*$/, "").replace(/^www\./, "");
   if (!domain) return NextResponse.json({ error: "Missing domain" }, { status: 400 });
   if (!DOMAIN_RE.test(domain)) return NextResponse.json({ error: "Not a valid domain name" }, { status: 400 });
+  void audit("domain", domain, ip, 200);
 
-  const [a, aaaa, mx, txt, ns, cname, dmarcTxt, whois, subdomains] = await Promise.all([
+  const waybackJob = fetchWayback(domain);
+  const [a, aaaa, mx, txt, ns, cname, dmarcTxt, dnskey, whois, subdomains] = await Promise.all([
     doh(domain, "A"),
     doh(domain, "AAAA"),
     doh(domain, "MX"),
@@ -149,9 +174,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     doh(domain, "NS"),
     doh(domain, "CNAME"),
     doh(`_dmarc.${domain}`, "TXT"),
+    doh(domain, "DNSKEY"),
     fetchWhois(domain),
     fetchSubdomains(domain),
   ]);
+  const wayback = await waybackJob;
+  const dnssec = dnskey.length > 0;
 
   const spfRecord = txt.find((r) => r.value.toLowerCase().startsWith("v=spf1"))?.value ?? null;
   const dmarcRecord = dmarcTxt.find((r) => r.value.toLowerCase().startsWith("v=dmarc1"))?.value ?? null;
@@ -170,6 +198,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       dmarcPolicy,
       hasMx: mx.length > 0,
     },
+    dnssec,
+    wayback,
     pivots: buildPivots(domain),
   };
 

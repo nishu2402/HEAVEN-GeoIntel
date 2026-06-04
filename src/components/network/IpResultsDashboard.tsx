@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import {
   MapPin, Shield, AlertTriangle, ExternalLink, Activity, Network,
+  Server, Bug, CheckCircle2, XCircle,
 } from "lucide-react";
 import type { IpLookupResponse } from "@/lib/types";
 import Tilt3D from "@/components/shared/Tilt3D";
@@ -88,6 +89,17 @@ export default function IpResultsDashboard({ data }: Props) {
             <Flag on={ip.isHosting} label="HOSTING" />
             <Flag on={ip.isMobile} label="MOBILE" />
             {ip.isTor !== null && <Flag on={ip.isTor} label="TOR" />}
+            {ip.greyNoise && (() => {
+              const c = ip.greyNoise.classification.toLowerCase();
+              const color = c === "malicious" ? "#ff4d6d" : c === "benign" ? "#00ff85" : "#fbbf24";
+              return (
+                <span className="text-[12px] font-mono font-bold px-2 py-0.5 border rounded tracking-widest"
+                  style={{ color, borderColor: color + "70", backgroundColor: color + "16" }}
+                  title={ip.greyNoise.name ? `Actor: ${ip.greyNoise.name}` : "GreyNoise Community"}>
+                  GREYNOISE: {ip.greyNoise.classification.toUpperCase()}{ip.greyNoise.riot ? " · RIOT" : ""}{ip.greyNoise.noise ? " · SCANNER" : ""}
+                </span>
+              );
+            })()}
           </div>
         </div>
       </Tilt3D>
@@ -120,6 +132,52 @@ export default function IpResultsDashboard({ data }: Props) {
         </div>
       </div>
 
+      {(ip.ports || ip.vulns || ip.hostnames || ip.tags) && (
+        <div className="terminal-card p-4 space-y-3">
+          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
+            <Server className="w-3 h-3" /> INTERNET EXPOSURE — Shodan InternetDB
+          </div>
+          {ip.ports && (
+            <div>
+              <div className="text-[11px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-1.5">Open ports ({ip.ports.length})</div>
+              <div className="flex flex-wrap gap-1.5">
+                {ip.ports.map((p) => (
+                  <span key={p} className="font-mono text-[11px] px-2 py-0.5 rounded border border-[var(--hv-glass-border)] text-[var(--hv-cyan)]">{p}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {ip.vulns && (
+            <div>
+              <div className="text-[11px] uppercase tracking-widest text-[#ff4d6d]/80 mb-1.5 flex items-center gap-1"><Bug className="w-3 h-3" /> Known CVEs ({ip.vulns.length})</div>
+              <div className="flex flex-wrap gap-1.5">
+                {ip.vulns.slice(0, 40).map((v) => (
+                  <a key={v} href={`https://nvd.nist.gov/vuln/detail/${encodeURIComponent(v)}`} target="_blank" rel="noopener noreferrer"
+                    className="font-mono text-[11px] px-2 py-0.5 rounded border border-[#ff4d6d]/40 text-[#ff4d6d] hover:bg-[#ff4d6d]/10 transition-colors">{v}</a>
+                ))}
+              </div>
+            </div>
+          )}
+          {ip.hostnames && (
+            <div>
+              <div className="text-[11px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-1.5">Hostnames</div>
+              <div className="flex flex-wrap gap-1.5">
+                {ip.hostnames.map((h) => (
+                  <span key={h} className="font-mono text-[11px] px-2 py-0.5 rounded border border-[var(--hv-glass-border)] text-[var(--hv-magenta)] break-all">{h}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {ip.tags && (
+            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--hv-glass-border)]">
+              {ip.tags.map((t) => (
+                <span key={t} className="font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)]">{t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="terminal-card p-4 space-y-2">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Shield className="w-3 h-3" /> DEEPEN — free pivots (no key)</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -138,6 +196,20 @@ export default function IpResultsDashboard({ data }: Props) {
           <AlertTriangle className="w-3 h-3" /> IP geolocation is ISP-level, not a precise address. Hosting/VPN IPs mask the real user.
         </p>
       </div>
+
+      {data.sources && data.sources.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono text-[var(--hv-ink-dim)] px-1">
+          <span className="uppercase tracking-widest">Sources:</span>
+          {data.sources.map((s) => (
+            <span key={s.source} title={s.error || "ok"}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border"
+              style={{ borderColor: (s.ok ? "#00ff85" : "#ff4d6d") + "40", color: s.ok ? "#00ff85" : "#ff4d6d" }}>
+              {s.ok ? <CheckCircle2 className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
+              {s.source} · {s.ms}ms{s.ok ? "" : ` · ${s.error}`}
+            </span>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }

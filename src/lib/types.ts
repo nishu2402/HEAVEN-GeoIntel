@@ -369,11 +369,28 @@ export interface UsernameHit {
   httpStatus?: number;
 }
 
+export interface GithubProfile {
+  login: string;
+  name: string | null;
+  bio: string | null;
+  company: string | null;
+  location: string | null;
+  blog: string | null;
+  followers: number;
+  following: number;
+  publicRepos: number;
+  createdAt: string | null;
+  avatarUrl: string | null;
+  htmlUrl: string;
+}
+
 export interface UsernameLookupResponse {
   username: string;
   checked: number;
   found: number;
   hits: UsernameHit[];
+  /** Rich GitHub profile when the handle exists there (free, no key). */
+  githubProfile?: GithubProfile | null;
   /** Derived dork/search links to pivot further (no key) */
   pivots: { label: string; url: string }[];
   cachedAt?: number;
@@ -406,6 +423,29 @@ export interface IpLookupData {
   isMobile: boolean | null;
   flagEmoji: string | null;
   reverse: string | null;         // PTR / reverse DNS if resolvable
+  // Internet-exposure intel from Shodan InternetDB (free, no key). null means
+  // the source had nothing / was unreachable — NOT "zero" (we never fake data).
+  ports: number[] | null;         // open ports observed
+  vulns: string[] | null;         // CVE IDs
+  hostnames: string[] | null;     // hostnames mapped to the IP
+  tags: string[] | null;          // shodan classifiers: cdn, tor, vpn, compromised, …
+  // GreyNoise Community (free, no key) — internet-scanner classification.
+  greyNoise: {
+    classification: string;       // benign | malicious | unknown
+    noise: boolean;               // seen mass-scanning the internet
+    riot: boolean;                // common business service (likely benign)
+    name: string | null;          // actor/operator label
+    lastSeen: string | null;
+  } | null;
+}
+
+/** Per-source provenance for a lookup: which source, did it answer, latency. */
+export interface SourceProvenance {
+  source: string;
+  ok: boolean;
+  ms: number;
+  fetchedAt: number;
+  error?: string;
 }
 
 export interface IpLookupResponse {
@@ -415,6 +455,8 @@ export interface IpLookupResponse {
   pivots: { label: string; url: string; note: string }[];
   threatScore: number;
   threatLabel: string;
+  /** Which sources were queried, whether they answered, and how fast. */
+  sources?: SourceProvenance[];
   error?: string;
   cachedAt?: number;
 }
@@ -461,7 +503,12 @@ export interface DomainLookupResponse {
     dmarcPolicy: string | null;   // none / quarantine / reject
     hasMx: boolean;
   };
+  /** DNSSEC signed? (DNSKEY present). null = couldn't determine. */
+  dnssec: boolean | null;
+  /** Internet Archive first-snapshot evidence (free, no key). */
+  wayback: { available: boolean; firstSnapshot: string | null; snapshotUrl: string | null } | null;
   pivots: { label: string; url: string; note: string }[];
+  sources?: SourceProvenance[];
   cachedAt?: number;
 }
 

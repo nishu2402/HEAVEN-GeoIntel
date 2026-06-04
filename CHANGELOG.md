@@ -15,7 +15,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   edits in a **case graph persist** straight to the file-backed case store via the
   existing `addEntity`/`removeEntity` API (a relabel = remove old + add new). PNG
   export is unaffected (edit chrome is HTML, outside the exported SVG).
+- **Case report export + re-import (chain-of-custody):** export any case as
+  **JSON** (machine-readable, re-importable, carrying a **SHA-256 integrity hash**
+  of the payload) or as a **Markdown** report (entity table, analyst notes,
+  timestamps, integrity hash). Re-import verifies the hash and **warns on
+  tampering** before loading. `lib/caseReport.ts` (+7 unit tests).
+- **More free, no-key sources:**
+  - **Shodan InternetDB** (IP): open ports, **known CVEs**, hostnames, tags →
+    "Internet Exposure" card + clickable CVE→NVD links, folded into the risk score.
+  - **GreyNoise Community** (IP): benign/malicious/RIOT scanner classification badge.
+  - **DNSSEC** (domain): DNSKEY-based signed/unsigned check.
+  - **Wayback Machine** (domain): first-archived snapshot (Internet Archive CDX).
+  - **GitHub profile** (username): name, bio, company, followers, repos for the handle.
+- **Interop case exports:** in addition to JSON + Markdown, export a case as
+  **CSV**, **STIX 2.1 bundle** (SCOs per identifier), **Maltego** paste-table CSV,
+  or a **printable HTML → PDF** report. (+3 unit tests.)
+- **Per-source provenance strip:** every IP lookup shows which sources were
+  queried, whether each answered, and its latency — so a missing value is
+  explained ("source unreachable"), never a bare `N/A`.
+- **First-run permitted-use consent gate** (`ConsentGate`): a one-time, locally
+  remembered authorized-use acknowledgement (no stalking/harassment; metadata only).
+- **Cross-mode lookup history** (`lib/lookupHistory.ts` + `RecentLookups`): every
+  successful lookup is remembered locally; a header **RECENT** dropdown re-runs any
+  of them in one click (auto-switches mode). Clearable; live-updates across tabs.
+- **Field-source "evidence" strips** (`SourceStrip`): the phone, email and IP
+  result dashboards now show a per-source provenance row (answered / no-record /
+  unreachable / no-API-key) — making "where each value came from" explicit.
+- **End-to-end tests (Playwright):** `e2e/smoke.spec.ts` covers the consent gate,
+  the editable graph (add → remove), case creation + all interop export buttons,
+  and the recent-lookups control. `npm run test:e2e` (run `npx playwright install
+  chromium` once). 4/4 green.
+- **`/api/health`** liveness/readiness endpoint (used by the Docker healthcheck;
+  left open even when the auth gate is on).
 - **Footer credit:** "Created & developed by **Nisarg Chasmawala (Shroff)**".
+
+### Security
+- **Resilient outbound fetch (`lib/fetchSafe.ts`):** every third-party call now
+  runs through a hard-timeout `AbortController` wrapper that never throws — a
+  slow/dead source can no longer hang a lookup, and each result carries
+  provenance (source · fetchedAt · latency).
+- **Optional auth gate (`src/middleware.ts`):** set `AUTH_PASSWORD` to require
+  HTTP Basic auth on the whole app + API (constant-time compare). **Off by
+  default** (single-user self-host); `/api/health` stays open for probes.
+- **Append-only audit log (`lib/auditLog.ts`):** records that a lookup happened
+  (type · salted-SHA-256 of the target · time · status) to `.data/audit.log`.
+  Targets are **hashed by default** so the log isn't fresh PII (`AUDIT_PLAINTEXT=1`
+  to override). Wired into all six lookup routes.
+- **Data hygiene:** `.data/*` is written `0600` (owner-only); a **"WIPE ALL"**
+  control + `DELETE /api/cases?all=1` erases every case **and** the audit log
+  ("delete my data"). Case import validates kinds + de-dupes.
+- **Schema validation with zod (`lib/validation.ts`):** every lookup route now
+  parses its body against a typed schema with **length bounds** before doing any
+  work — rejecting malformed/oversized payloads (e.g. a 5 KB "IP") with a 400.
+  Domain-specific checks (libphonenumber, IP/domain regex, username charset) still
+  run afterwards.
+- **Supply chain (CI):** the GHCR publish workflow now attaches an **SBOM** +
+  **SLSA provenance** to the image and **signs it with cosign** (keyless OIDC);
+  an SPDX SBOM is also uploaded as a build artifact.
 
 ### Fixed
 - **Network/LAN access:** `scripts/start.sh` now defaults to **production mode**
