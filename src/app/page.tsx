@@ -27,6 +27,9 @@ import SimpleLookupInput from "@/components/shared/SimpleLookupInput";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 import CommandPalette from "@/components/shared/CommandPalette";
 import PanelErrorBoundary from "@/components/shared/PanelErrorBoundary";
+import ConsentGate from "@/components/shared/ConsentGate";
+import RecentLookups from "@/components/shared/RecentLookups";
+import { pushLookup } from "@/lib/lookupHistory";
 import { saveToHistory } from "@/components/dashboard/HistorySidebar";
 
 const MatrixRain = dynamic(() => import("@/components/shared/MatrixRain"), { ssr: false });
@@ -69,6 +72,7 @@ function PageContent() {
     setSessionEntities((prev) =>
       prev.some((e) => e.kind === kind && e.value === value) ? prev : [...prev, { kind, value }]
     );
+    pushLookup(kind, value); // every successful lookup → cross-mode history
   }, []);
 
   const isBooting = !booted;
@@ -147,6 +151,7 @@ function PageContent() {
 
   return (
     <>
+      <ConsentGate />
       <MatrixRain />
 
       <div className="relative z-10 min-h-screen flex flex-col">
@@ -165,6 +170,7 @@ function PageContent() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <CommandPalette onMode={setMode} onQuickLookup={onQuickLookup} />
+            <RecentLookups onRun={onQuickLookup} />
             <ThemeToggle />
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-[var(--hv-ink-dim)] font-mono">
               <Shield className="w-3 h-3" /> DEFENSIVE OSINT

@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
-import type { IpLookupResponse, IpLookupData } from "@/lib/types";
+import { fetchJson } from "@/lib/fetchSafe";
+import { audit } from "@/lib/auditLog";
+import { parseBody, ipBody } from "@/lib/validation";
+import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/types";
 
 // ── IP OSINT — free, no API key ──────────────────────────────────────────────
-// Primary source: ip-api.com (free, 45 req/min, no key). Server-side fetch over
-// HTTP is fine — keys never involved. Returns geo, ASN, ISP, reverse DNS, and
-// proxy / VPN / hosting / mobile risk flags.
+// Sources (both free, no key, fixed hosts — no SSRF surface):
+//   • ip-api.com           geo · ASN · ISP · reverse DNS · proxy/hosting/mobile
+//   • internetdb.shodan.io open ports · CVEs · hostnames · classifier tags
+// Both run in parallel through fetchJson (hard timeout); a dead source can never
+// hang the lookup and we report exactly which source answered.
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|[01]?\d?\d)(\.(25[0-5]|2[0-4]\d|[01]?\d?\d)){3}$/;
 const IPV6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::1|::|([0-9a-fA-F]{1,4}:){1,7}:|:(:[0-9a-fA-F]{1,4}){1,7})$/;
@@ -40,6 +45,25 @@ interface IpApiResponse {
   query?: string;
 }
 
+interface ShodanIDB {
+  ip?: string;
+  ports?: number[];
+  vulns?: string[];
+  hostnames?: string[];
+  tags?: string[];
+  cpes?: string[];
+}
+
+interface GreyNoiseCommunity {
+  ip?: string;
+  noise?: boolean;
+  riot?: boolean;
+  classification?: string;
+  name?: string;
+  last_seen?: string;
+  message?: string;
+}
+
 function buildPivots(ip: string): IpLookupResponse["pivots"] {
   const enc = encodeURIComponent(ip);
   return [
@@ -57,10 +81,16 @@ function buildPivots(ip: string): IpLookupResponse["pivots"] {
 
 function computeThreat(d: IpLookupData): { score: number; label: string } {
   let score = 0;
-  if (d.isTor === true)     score = Math.max(score, 80);
-  if (d.isProxy === true)   score = Math.max(score, 55);
-  if (d.isVpn === true)     score = Math.max(score, 45);
-  if (d.isHosting === true) score = Math.max(score, 35); // datacenter, not residential
+  const tags = (d.tags ?? []).map((t) => t.toLowerCase());
+  if (d.isTor === true || tags.includes("tor"))                                    score = Math.max(score, 80);
+  if (tags.includes("compromised") || tags.includes("malware") || tags.includes("honeypot")) score = Math.max(score, 85);
+  if (d.isProxy === true || tags.includes("proxy"))                                score = Math.max(score, 55);
+  if (d.isVpn === true || tags.includes("vpn"))                                    score = Math.max(score, 45);
+  if (d.isHosting === true)                                                        score = Math.max(score, 35); // datacenter, not residential
+  if (d.greyNoise?.classification === "malicious")                                 score = Math.max(score, 85);
+  // Known CVEs on exposed services are a strong, concrete risk signal.
+  const vc = d.vulns?.length ?? 0;
+  if (vc > 0) score = Math.max(score, Math.min(60 + vc * 5, 95));
   score = Math.min(score, 100);
   const label =
     score >= 70 ? "HIGH RISK" :
@@ -70,90 +100,133 @@ function computeThreat(d: IpLookupData): { score: number; label: string } {
   return { score, label };
 }
 
+function fail(target: string, error: string, rlHeaders: Record<string, string>, sources: SourceProvenance[]): NextResponse {
+  return NextResponse.json(
+    { input: target, ip: null, pivots: buildPivots(target), threatScore: 0, threatLabel: "UNKNOWN", sources, error } as IpLookupResponse,
+    { headers: rlHeaders },
+  );
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip = getClientIp(req);
-  const { allowed, remaining } = checkRateLimit(ip);
+  const clientIp = getClientIp(req);
+  const { allowed, remaining } = checkRateLimit(clientIp);
   const rlHeaders = { "X-RateLimit-Limit": "10", "X-RateLimit-Remaining": String(remaining) };
   if (!allowed) {
     return NextResponse.json({ error: "Rate limit exceeded. Max 10/min." }, { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } });
   }
 
-  let body: { ip?: string };
-  try { body = (await req.json()) as { ip?: string }; }
-  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const body = await parseBody(req, ipBody);
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
-  const target = (body.ip ?? "").trim();
+  const target = body.ip.trim();
   if (!target) return NextResponse.json({ error: "Missing IP address" }, { status: 400 });
   if (!isValidIp(target)) return NextResponse.json({ error: "Not a valid IPv4 / IPv6 address" }, { status: 400 });
 
+  // Kick off Shodan InternetDB + GreyNoise so they run alongside ip-api.
+  const shodanJob = fetchJson<ShodanIDB>(`https://internetdb.shodan.io/${encodeURIComponent(target)}`, {
+    source: "Shodan InternetDB", timeoutMs: 6000,
+  });
+  const gnJob = fetchJson<GreyNoiseCommunity>(`https://api.greynoise.io/v3/community/${encodeURIComponent(target)}`, {
+    source: "GreyNoise Community", timeoutMs: 6000, allowNon2xx: true, // 404 = "not observed", still useful
+  });
+
   const fields = "status,message,continent,country,countryCode,region,regionName,city,zip,lat,lon,timezone,offset,isp,org,as,asname,reverse,mobile,proxy,hosting,query";
+  const ipApi = await fetchJson<IpApiResponse>(`http://ip-api.com/json/${encodeURIComponent(target)}?fields=${fields}`, {
+    source: "ip-api.com", timeoutMs: 8000,
+  });
 
-  try {
-    const res = await fetch(`http://ip-api.com/json/${encodeURIComponent(target)}?fields=${fields}`, {
-      signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
-    });
-    if (!res.ok) {
-      return NextResponse.json({ input: target, ip: null, pivots: buildPivots(target), threatScore: 0, threatLabel: "UNKNOWN", error: `HTTP ${res.status}` } as IpLookupResponse, { headers: rlHeaders });
-    }
-    const raw = (await res.json()) as IpApiResponse;
-    if (raw.status !== "success") {
-      return NextResponse.json({ input: target, ip: null, pivots: buildPivots(target), threatScore: 0, threatLabel: "UNKNOWN", error: raw.message ?? "Lookup failed" } as IpLookupResponse, { headers: rlHeaders });
-    }
+  const [shodan, gn] = await Promise.all([shodanJob, gnJob]);
+  const gnObserved = gn.data?.message ? !/not observed/i.test(gn.data.message) : gn.ok;
+  const sources: SourceProvenance[] = [
+    { source: ipApi.source, ok: ipApi.ok && ipApi.data?.status === "success", ms: ipApi.ms, fetchedAt: ipApi.fetchedAt, error: ipApi.ok ? (ipApi.data?.status === "success" ? undefined : (ipApi.data?.message ?? "lookup failed")) : ipApi.error },
+    { source: shodan.source, ok: shodan.ok, ms: shodan.ms, fetchedAt: shodan.fetchedAt, error: shodan.ok ? undefined : shodan.error },
+    { source: gn.source, ok: gn.status === 200 || gn.status === 404, ms: gn.ms, fetchedAt: gn.fetchedAt, error: (gn.status === 200 || gn.status === 404) ? undefined : gn.error },
+  ];
 
-    // Parse "AS15169 Google LLC" → asn + org
-    let asn: number | null = null;
-    let asnOrg: string | null = null;
-    if (raw.as) {
-      const m = raw.as.match(/^AS(\d+)\s*(.*)$/);
-      if (m) { asn = parseInt(m[1], 10); asnOrg = m[2] || raw.asname || null; }
-      else asnOrg = raw.as;
-    }
-
-    const offsetHours = typeof raw.offset === "number" ? raw.offset / 3600 : null;
-    const utcOffset = offsetHours !== null
-      ? `UTC${offsetHours >= 0 ? "+" : ""}${offsetHours}`
-      : null;
-
-    const data: IpLookupData = {
-      ip: raw.query ?? target,
-      type: IPV6.test(target) ? "IPv6" : "IPv4",
-      city: raw.city ?? null,
-      region: raw.regionName ?? null,
-      country: raw.country ?? null,
-      countryCode: raw.countryCode ?? null,
-      continent: raw.continent ?? null,
-      latitude: raw.lat ?? null,
-      longitude: raw.lon ?? null,
-      postal: raw.zip || null,
-      timezone: raw.timezone ?? null,
-      utcOffset,
-      asn,
-      asnOrg,
-      isp: raw.isp ?? null,
-      org: raw.org || null,
-      isProxy: raw.proxy ?? null,
-      isVpn: raw.proxy ?? null,       // ip-api groups VPN under proxy
-      isTor: null,                    // not provided by ip-api free tier
-      isHosting: raw.hosting ?? null,
-      isMobile: raw.mobile ?? null,
-      flagEmoji: raw.countryCode ? countryToFlagEmoji(raw.countryCode) : null,
-      reverse: raw.reverse || null,
-    };
-
-    const { score, label } = computeThreat(data);
-
-    const response: IpLookupResponse = {
-      input: target,
-      ip: data,
-      pivots: buildPivots(target),
-      threatScore: score,
-      threatLabel: label,
-    };
-    return NextResponse.json(response, { headers: rlHeaders });
-  } catch (err) {
-    return NextResponse.json(
-      { input: target, ip: null, pivots: buildPivots(target), threatScore: 0, threatLabel: "UNKNOWN", error: String(err) } as IpLookupResponse,
-      { headers: rlHeaders }
-    );
+  if (!ipApi.ok || !ipApi.data) {
+    void audit("ip", target, clientIp, 502);
+    return fail(target, ipApi.error ?? "geo source unreachable", rlHeaders, sources);
   }
+  const raw = ipApi.data;
+  if (raw.status !== "success") {
+    void audit("ip", target, clientIp, 200);
+    return fail(target, raw.message ?? "Lookup failed", rlHeaders, sources);
+  }
+
+  // Parse "AS15169 Google LLC" → asn + org
+  let asn: number | null = null;
+  let asnOrg: string | null = null;
+  if (raw.as) {
+    const m = raw.as.match(/^AS(\d+)\s*(.*)$/);
+    if (m) { asn = parseInt(m[1], 10); asnOrg = m[2] || raw.asname || null; }
+    else asnOrg = raw.as;
+  }
+
+  const offsetHours = typeof raw.offset === "number" ? raw.offset / 3600 : null;
+  const utcOffset = offsetHours !== null ? `UTC${offsetHours >= 0 ? "+" : ""}${offsetHours}` : null;
+
+  const data: IpLookupData = {
+    ip: raw.query ?? target,
+    type: IPV6.test(target) ? "IPv6" : "IPv4",
+    city: raw.city ?? null,
+    region: raw.regionName ?? null,
+    country: raw.country ?? null,
+    countryCode: raw.countryCode ?? null,
+    continent: raw.continent ?? null,
+    latitude: raw.lat ?? null,
+    longitude: raw.lon ?? null,
+    postal: raw.zip || null,
+    timezone: raw.timezone ?? null,
+    utcOffset,
+    asn,
+    asnOrg,
+    isp: raw.isp ?? null,
+    org: raw.org || null,
+    isProxy: raw.proxy ?? null,
+    isVpn: raw.proxy ?? null,       // ip-api groups VPN under proxy
+    isTor: null,
+    isHosting: raw.hosting ?? null,
+    isMobile: raw.mobile ?? null,
+    flagEmoji: raw.countryCode ? countryToFlagEmoji(raw.countryCode) : null,
+    reverse: raw.reverse || null,
+    ports: null, vulns: null, hostnames: null, tags: null,
+    greyNoise: null,
+  };
+
+  // Merge Shodan exposure (only on a real 200 with content).
+  if (shodan.ok && shodan.data) {
+    const s = shodan.data;
+    data.ports     = s.ports?.length ? s.ports : null;
+    data.vulns     = s.vulns?.length ? s.vulns : null;
+    data.hostnames = s.hostnames?.length ? s.hostnames : null;
+    data.tags      = s.tags?.length ? s.tags : null;
+    const tags = (data.tags ?? []).map((t) => t.toLowerCase());
+    if (tags.includes("tor"))   data.isTor = true;
+    if (tags.includes("vpn"))   data.isVpn = true;
+    if (tags.includes("proxy")) data.isProxy = true;
+  }
+
+  // Merge GreyNoise community classification (200 with a classification field).
+  if (gn.data && gn.status === 200 && gn.data.classification) {
+    data.greyNoise = {
+      classification: gn.data.classification,
+      noise: Boolean(gn.data.noise),
+      riot: Boolean(gn.data.riot),
+      name: gn.data.name ?? null,
+      lastSeen: gn.data.last_seen ?? null,
+    };
+  }
+
+  const { score, label } = computeThreat(data);
+  void audit("ip", target, clientIp, 200);
+
+  const response: IpLookupResponse = {
+    input: target,
+    ip: data,
+    pivots: buildPivots(target),
+    threatScore: score,
+    threatLabel: label,
+    sources,
+  };
+  return NextResponse.json(response, { headers: rlHeaders });
 }

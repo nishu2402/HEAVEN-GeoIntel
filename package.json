@@ -14,6 +14,7 @@
     "test": "node node_modules/vitest/vitest.mjs run",
     "test:watch": "node node_modules/vitest/vitest.mjs",
     "test:coverage": "node node_modules/vitest/vitest.mjs run --coverage",
+    "test:e2e": "node node_modules/@playwright/test/cli.js test",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "setup": "npm install && node node_modules/next/dist/bin/next dev",
     "install-global": "bash scripts/install-global.sh",
@@ -41,10 +42,12 @@
     "qrcode": "^1.5.4",
     "react": "^18",
     "react-dom": "^18",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@playwright/test": "^1.60.0",
     "@types/node": "20.17.6",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18",

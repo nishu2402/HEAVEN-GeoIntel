@@ -301,6 +301,18 @@ incoming connections — click **Allow**.
 
 After running `bash scripts/start.sh` once, a `geointel` shell function is registered in `~/.zshrc`. Open a new terminal and type `geointel`. To register it manually any time: `npm run install-global`; to remove it: `npm run uninstall-global`.
 
+### Security & operations (optional)
+
+| Want to… | Do this |
+|---|---|
+| **Require a login** before the app/API (e.g. when exposing it on a LAN) | set `AUTH_PASSWORD` (and optionally `AUTH_USER`, default `analyst`) — enables HTTP Basic auth on everything except `/api/health`. Off by default. |
+| **Keep an audit trail** of lookups | automatic — `.data/audit.log` records type · **hashed** target · time · status. Set `AUDIT_PLAINTEXT=1` to store raw targets. |
+| **Health-check** the service | `GET /api/health` → `{ status: "ok", … }` (also the Docker healthcheck). |
+| **Wipe everything** (cases + audit log) | the **WIPE ALL** button in the Cases tab, or `curl -X DELETE '<host>/api/cases?all=1'`. |
+| **Export / hand off a case** | Cases tab → **JSON** (re-importable, SHA-256 integrity-hashed) or **REPORT** (Markdown). Re-import verifies the hash and warns on tampering. |
+
+Persistent data lives in `.data/` (`cases.json`, `audit.log`), written owner-only (`0600`) and git-ignored.
+
 ---
 
 <a id="docker-deployment"></a>

@@ -10,6 +10,7 @@ const IMG_ALLOWED = [
   "https://media.licdn.com",
   "https://pbs.twimg.com",
   "https://lh3.googleusercontent.com",
+  "https://avatars.githubusercontent.com",
   // FullContact serves avatars from its CDN
   "https://d2ojpxxtu63wzl.cloudfront.net",
   "https://img.fullcontact.com",

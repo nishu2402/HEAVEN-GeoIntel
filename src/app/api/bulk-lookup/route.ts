@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { getCached } from "@/lib/cache";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { audit } from "@/lib/auditLog";
+import { parseBody, bulkBody } from "@/lib/validation";
 import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
 
 // ── Bulk-lookup endpoint ──────────────────────────────────────────────────────
@@ -43,30 +45,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let body: { numbers?: unknown };
-  try {
-    body = (await req.json()) as { numbers?: unknown };
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  if (!Array.isArray(body.numbers)) {
+  const body = await parseBody(req, bulkBody);
+  if (!body) {
     return NextResponse.json(
-      { error: "Body must include a `numbers` array of phone strings." },
+      { error: `Body must include a non-empty \`numbers\` array (max ${MAX_BULK} phone strings).` },
       { status: 400 }
     );
   }
 
-  if (body.numbers.length === 0) {
-    return NextResponse.json({ error: "`numbers` is empty." }, { status: 400 });
-  }
-
-  if (body.numbers.length > MAX_BULK) {
-    return NextResponse.json(
-      { error: `Maximum ${MAX_BULK} numbers per request.` },
-      { status: 400 }
-    );
-  }
+  void audit("bulk", `${body.numbers.length} numbers`, ip, 200);
 
   const rows: BulkRow[] = body.numbers.map((raw, idx) => {
     if (typeof raw !== "string") {

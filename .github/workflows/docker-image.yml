@@ -16,7 +16,8 @@ jobs:
     permissions:
       contents: read
       packages: write
-    timeout-minutes: 20
+      id-token: write   # OIDC token for cosign keyless signing
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -49,6 +50,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -58,3 +60,27 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Attach an SBOM + SLSA provenance to the image as OCI attestations.
+          sbom: true
+          provenance: mode=max
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the image (keyless, OIDC)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+
+      - name: Generate SBOM artifact (SPDX JSON)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx
+          path: sbom.spdx.json

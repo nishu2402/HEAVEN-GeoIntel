@@ -116,6 +116,23 @@ export default function DomainResultsDashboard({ data }: Props) {
           ) : (
             <div className="text-[12px] font-mono text-[var(--hv-ink-dim)] italic">WHOIS unavailable for this TLD via RDAP.</div>
           )}
+          {data.dnssec !== null && (
+            <div className="flex items-start gap-2 py-1.5 border-t border-[var(--hv-glass-border)]">
+              <span className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] w-28 shrink-0 pt-0.5">DNSSEC</span>
+              <span className="font-mono text-xs flex-1" style={{ color: data.dnssec ? "#00ff85" : "#fb923c" }}>
+                {data.dnssec ? "Signed (DNSKEY present)" : "Not signed — DNS responses are forgeable"}
+              </span>
+            </div>
+          )}
+          {data.wayback?.available && (
+            <div className="flex items-start gap-2 py-1.5 border-t border-[var(--hv-glass-border)]">
+              <span className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] w-28 shrink-0 pt-0.5">First archived</span>
+              <span className="font-mono text-xs flex-1 text-[var(--hv-ink)]">
+                <a href={data.wayback.snapshotUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="text-[var(--hv-cyan)] hover:underline">{data.wayback.firstSnapshot}</a>
+                <span className="text-[var(--hv-ink-dim)]"> · Wayback Machine</span>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

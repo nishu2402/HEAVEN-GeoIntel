@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { AtSign, ExternalLink, CheckCircle2, HelpCircle, Search } from "lucide-react";
+import { AtSign, ExternalLink, CheckCircle2, HelpCircle, Search, Code2 } from "lucide-react";
 import type { UsernameLookupResponse, UsernameHit } from "@/lib/types";
 import { USERNAME_CATEGORY_META } from "@/lib/usernameSites";
 import Tilt3D from "@/components/shared/Tilt3D";
@@ -66,6 +66,31 @@ export default function UsernameResultsDashboard({ data }: Props) {
           </div>
         </div>
       </Tilt3D>
+
+      {data.githubProfile && (
+        <div className="terminal-card p-4">
+          <div className="flex items-start gap-3">
+            {data.githubProfile.avatarUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={data.githubProfile.avatarUrl} alt="GitHub avatar" className="w-12 h-12 rounded-md border border-[var(--hv-glass-border)] shrink-0" />
+            )}
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-1.5 text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]"><Code2 className="w-3 h-3" /> GITHUB PROFILE — verified account</div>
+              <a href={data.githubProfile.htmlUrl} target="_blank" rel="noopener noreferrer" className="font-mono font-bold text-[var(--hv-cyan)] hover:underline break-all">
+                {data.githubProfile.name || data.githubProfile.login} <span className="text-[var(--hv-ink-dim)]">@{data.githubProfile.login}</span>
+              </a>
+              {data.githubProfile.bio && <div className="text-xs font-mono text-[var(--hv-ink)]">{data.githubProfile.bio}</div>}
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-mono text-[var(--hv-ink-dim)] pt-1">
+                <span className="text-[var(--hv-green)]">{data.githubProfile.publicRepos} repos</span>
+                <span>{data.githubProfile.followers} followers</span>
+                {data.githubProfile.company && <span>{data.githubProfile.company}</span>}
+                {data.githubProfile.location && <span>{data.githubProfile.location}</span>}
+                {data.githubProfile.createdAt && <span>since {data.githubProfile.createdAt.slice(0, 4)}</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {grouped.map(([cat, hits]) => {
         const meta = USERNAME_CATEGORY_META[cat as keyof typeof USERNAME_CATEGORY_META] ?? { label: cat, color: "#00ff85" };
