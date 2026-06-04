@@ -13,17 +13,6 @@ export const ipBody = z.object({ ip: z.string().min(1).max(64) });
 export const domainBody = z.object({ domain: z.string().min(1).max(253) });
 export const bulkBody = z.object({ numbers: z.array(z.string().max(40)).min(1).max(25) });
 
-export const caseBody = z.object({
-  action: z.enum(["create", "rename", "notes", "addEntity", "removeEntity", "import"]),
-  id: z.string().max(64).optional(),
-  name: z.string().max(200).optional(),
-  notes: z.string().max(20000).optional(),
-  kind: z.enum(["phone", "email", "username", "ip", "domain"]).optional(),
-  value: z.string().max(512).optional(),
-  note: z.string().max(2000).optional(),
-  case: z.unknown().optional(),
-});
-
 /**
  * Parse a Request body against a schema. Returns the typed data or null — the
  * caller turns null into a 400. Never throws (bad JSON → null).
