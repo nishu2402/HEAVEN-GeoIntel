@@ -11,6 +11,7 @@ import type { EmailLookupResponse } from "@/lib/types";
 import EmailOsintPivots from "@/components/email/EmailOsintPivots";
 import BreachPanel      from "@/components/breach/BreachPanel";
 import { cn, copyText } from "@/lib/utils";
+import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
 
 interface Props {
   data: EmailLookupResponse;
@@ -302,6 +303,19 @@ export default function EmailResultsDashboard({ data }: Props) {
     : (fcData?.avatar ?? null);
   const platforms = repData?.profiles ?? [];
   const threatScore = calcThreatScore(data);
+
+  const srState = (r: { ok: boolean; error?: string }): SourceState =>
+    r.ok ? "ok" : r.error === "NOT_CONFIGURED" ? "off" : /not[_ ]?found/i.test(r.error ?? "") ? "empty" : "error";
+  const emailSources: SourceStat[] = [
+    { source: "Format/MX (offline)", state: "ok" },
+    { source: "Gravatar", state: gravatar.found ? "ok" : "empty" },
+    { source: "XposedOrNot", state: srState(xon) },
+    { source: "EmailRep", state: srState(emailrep) },
+    { source: "Hunter.io", state: srState(hunter) },
+    { source: "AbstractAPI", state: srState(abstract) },
+    { source: "BreachDirectory", state: srState(breachDirectory) },
+    { source: "FullContact", state: fullContact ? srState(fullContact) : "off" },
+  ];
 
   return (
     <motion.div
@@ -731,6 +745,7 @@ export default function EmailResultsDashboard({ data }: Props) {
 
       {/* ── OSINT pivots ── */}
       <EmailOsintPivots email={email} domain={analysis.domain} />
+      <SourceStrip sources={emailSources} />
     </motion.div>
   );
 }

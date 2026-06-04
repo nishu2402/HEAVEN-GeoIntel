@@ -32,7 +32,9 @@ async function readAll(): Promise<InvestigationCase[]> {
 async function writeAll(cases: InvestigationCase[]): Promise<void> {
   writeChain = writeChain.then(async () => {
     await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(FILE, JSON.stringify(cases, null, 2), "utf8");
+    // Owner-only perms: this file holds investigation targets (PII).
+    await fs.writeFile(FILE, JSON.stringify(cases, null, 2), { encoding: "utf8", mode: 0o600 });
+    await fs.chmod(FILE, 0o600).catch(() => {});
   });
   return writeChain;
 }
@@ -57,6 +59,50 @@ export async function createCase(name: string): Promise<InvestigationCase> {
     updatedAt: now,
     entities: [],
     notes: "",
+  };
+  all.push(c);
+  await writeAll(all);
+  return c;
+}
+
+/** Wipe every case (the "delete all my data" action). Irreversible. */
+export async function deleteAllCases(): Promise<void> {
+  await writeAll([]);
+}
+
+const VALID_KINDS = new Set<EntityKind>(["phone", "email", "username", "ip", "domain"]);
+
+/**
+ * Re-import a case from an exported report (always created as a NEW case with a
+ * fresh id, so importing never clobbers an existing one). Entities are validated
+ * + de-duped; notes are length-capped.
+ */
+export async function importCase(input: {
+  name?: string;
+  notes?: string;
+  entities?: Array<{ kind?: string; value?: unknown; note?: string; addedAt?: number }>;
+}): Promise<InvestigationCase> {
+  const all = await readAll();
+  const now = Date.now();
+  const entities: CaseEntity[] = [];
+  const seen = new Set<string>();
+  for (const e of input.entities ?? []) {
+    const kind = e?.kind as EntityKind;
+    if (!VALID_KINDS.has(kind)) continue;
+    const v = String(e?.value ?? "").trim();
+    if (!v) continue;
+    const key = `${kind}::${v.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entities.push({ kind, value: v, addedAt: typeof e?.addedAt === "number" ? e.addedAt : now, note: e?.note });
+  }
+  const c: InvestigationCase = {
+    id: randomUUID(),
+    name: (input.name ?? "").trim() || `Imported ${new Date(now).toISOString().split("T")[0]}`,
+    createdAt: now,
+    updatedAt: now,
+    entities,
+    notes: (input.notes ?? "").slice(0, 20000),
   };
   all.push(c);
   await writeAll(all);

@@ -35,6 +35,6 @@ COPY --from=builder /app/next.config.mjs ./next.config.mjs
 USER geointel
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3000/api/lookup -O /dev/null --post-data='{"number":"+14155552671"}' --header='Content-Type: application/json' || exit 1
+  CMD wget -qO- http://127.0.0.1:3000/api/health -O /dev/null || exit 1
 
 CMD ["node", "node_modules/next/dist/bin/next", "start", "-H", "0.0.0.0"]

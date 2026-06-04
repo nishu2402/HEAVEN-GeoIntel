@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { getCached, setCached } from "@/lib/cache";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { audit } from "@/lib/auditLog";
+import { parseBody, phoneBody } from "@/lib/validation";
 import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
 import { getCountryIntel } from "@/lib/countryIntel";
 import { deriveOfflineReputation } from "@/lib/freePhoneIntel";
@@ -451,14 +453,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let body: { number?: string };
-  try {
-    body = (await req.json()) as { number?: string };
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await parseBody(req, phoneBody);
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
-  const raw = body.number?.trim() ?? "";
+  const raw = body.number.trim();
   if (!raw) return NextResponse.json({ error: "Missing phone number" }, { status: 400 });
 
   const parsed = parsePhoneNumberFromString(raw);
@@ -467,6 +465,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const e164 = parsed.format("E.164");
+  void audit("phone", e164, ip, 200);
 
   const cached = getCached(e164);
   if (cached) return NextResponse.json(cached, { headers: rlHeaders });

@@ -1,16 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FolderPlus, Trash2, Plus, X, Save, FolderOpen, Loader2, RefreshCw,
+  Download, FileText, Upload, ShieldAlert, Printer,
 } from "lucide-react";
 import type { InvestigationCase, EntityKind } from "@/lib/types";
 import { LOOKUP_MODES } from "@/lib/modes";
 import LinkGraph, { type GraphEntity } from "@/components/graph/LinkGraph";
+import {
+  buildCaseJson, buildCaseMarkdown, verifyCaseImport,
+  buildCaseCsv, buildMaltegoCsv, buildStixBundle, buildPrintableHtml,
+} from "@/lib/caseReport";
 
 const KIND_COLOR: Record<EntityKind, string> = {
   phone: "#00ff85", email: "#22d3ee", username: "#e879f9", ip: "#fb923c", domain: "#facc15",
 };
+
+// Module-scope (not a component/hook), so Date.now()/DOM use is allowed here.
+function downloadFile(name: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+function caseFileName(name: string, ext: string): string {
+  const slug = name.replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-|-$/g, "") || "case";
+  return `case-${slug}-${Date.now()}.${ext}`;
+}
 
 export default function CasesPanel() {
   const [cases, setCases] = useState<InvestigationCase[]>([]);
@@ -86,6 +104,62 @@ export default function CasesPanel() {
     for (const e of next) if (!curKeys.has(keyOf(e))) await api({ action: "addEntity", id: active.id, kind: e.kind, value: e.value });
   }
 
+  // ── report export / import + data wipe ─────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const ping = (m: string) => { setFlash(m); setTimeout(() => setFlash(null), 2400); };
+
+  async function exportJson() {
+    if (!active) return;
+    const { json } = await buildCaseJson(active);
+    downloadFile(caseFileName(active.name, "json"), json, "application/json");
+    ping("JSON exported (integrity-hashed)");
+  }
+  async function exportMd() {
+    if (!active) return;
+    const md = await buildCaseMarkdown(active);
+    downloadFile(caseFileName(active.name, "md"), md, "text/markdown");
+    ping("Markdown report exported");
+  }
+  function exportCsv() {
+    if (!active) return;
+    downloadFile(caseFileName(active.name, "csv"), buildCaseCsv(active), "text/csv");
+    ping("CSV exported");
+  }
+  function exportStix() {
+    if (!active) return;
+    downloadFile(caseFileName(active.name, "stix.json"), buildStixBundle(active), "application/json");
+    ping("STIX 2.1 bundle exported");
+  }
+  function exportMaltego() {
+    if (!active) return;
+    downloadFile(caseFileName(active.name, "maltego.csv"), buildMaltegoCsv(active), "text/csv");
+    ping("Maltego CSV exported");
+  }
+  async function printReport() {
+    if (!active) return;
+    const html = await buildPrintableHtml(active);
+    const w = window.open("", "_blank");
+    if (!w) { ping("Pop-up blocked — allow pop-ups to print"); return; }
+    w.document.write(html); w.document.close();
+    ping("Opening printable report…");
+  }
+  async function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-importing the same filename
+    if (!file) return;
+    const check = await verifyCaseImport(await file.text());
+    if (!check.ok || !check.case) { ping(check.error || "Import failed"); return; }
+    if (check.tampered && !window.confirm("Integrity hash does NOT match — this report may have been modified. Import anyway?")) return;
+    const j = await api({ action: "import", case: check.case });
+    if (j.case) { setActiveId(j.case.id); ping(check.tampered ? "Imported — HASH MISMATCH" : "Imported — integrity verified"); }
+  }
+  async function deleteAllData() {
+    if (!window.confirm("Delete ALL cases AND the audit log? This cannot be undone.")) return;
+    await fetch("/api/cases?all=1", { method: "DELETE" });
+    setCases([]); setActiveId(null); ping("All local data wiped");
+  }
+
   return (
     <div className="space-y-4 mt-6">
       {/* Create + list */}
@@ -94,7 +168,19 @@ export default function CasesPanel() {
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
             <FolderOpen className="w-3.5 h-3.5" /> INVESTIGATION CASES — persistent across sessions
           </div>
-          <button onClick={load} className="text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)]" aria-label="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
+          <div className="flex items-center gap-2">
+            {flash && <span className="text-[11px] font-mono text-[var(--hv-green)]">{flash}</span>}
+            <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={onImportFile} className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-colors">
+              <Upload className="w-3 h-3" /> IMPORT
+            </button>
+            <button onClick={deleteAllData}
+              className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md border border-[var(--hv-red)]/40 text-[var(--hv-red)] hover:bg-[var(--hv-red)]/10 transition-colors">
+              <ShieldAlert className="w-3 h-3" /> WIPE ALL
+            </button>
+            <button onClick={load} className="text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)]" aria-label="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
+          </div>
         </div>
         <div className="flex gap-2">
           <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createCase()}
@@ -132,8 +218,25 @@ export default function CasesPanel() {
         <>
           {/* Entities + add */}
           <div className="terminal-card p-4 space-y-3">
-            <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]">
-              {active.name} — {active.entities.length} identifier{active.entities.length === 1 ? "" : "s"}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]">
+                {active.name} — {active.entities.length} identifier{active.entities.length === 1 ? "" : "s"}
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {([
+                  ["JSON", exportJson, Download],
+                  ["REPORT", exportMd, FileText],
+                  ["CSV", exportCsv, FileText],
+                  ["STIX", exportStix, FileText],
+                  ["MALTEGO", exportMaltego, FileText],
+                  ["PRINT/PDF", printReport, Printer],
+                ] as [string, () => void, typeof Download][]).map(([label, fn, Icon]) => (
+                  <button key={label} onClick={fn}
+                    className="flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest px-2 py-1 rounded-md border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-colors">
+                    <Icon className="w-3 h-3" /> {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <select value={entKind} onChange={(e) => setEntKind(e.target.value as EntityKind)}
