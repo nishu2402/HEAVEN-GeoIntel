@@ -422,7 +422,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **FullContact Enrichment** | Real name · age · gender · social profiles · linked emails & phones · employment history (optional key) |
 | **Breach Database** | XposedOrNot — 1000+ databases, no key. Per-breach: name · year · records · exposed data types · password-risk level (Plaintext / Easy-Crack / Hashed) |
 | **Credential Hashes** | BreachDirectory — real SHA-1/MD5 hashes with one-click crack buttons (CrackStation · Hashes.com · Hashkiller) — optional RapidAPI key |
-| **Email Classification** | Provider type (corporate/free/disposable/privacy/gov/edu) · disposable detection (1000+) · role-address detection |
+| **Email Classification** | Provider type (corporate/free/disposable/privacy/gov/edu) · disposable detection (1,200+ domains) · free-webmail (370+) · privacy hosts (70+) · role-address detection |
 | **Reputation** | EmailRep.io: suspicious · blacklisted · malicious · credentials leaked · spam · first/last seen · registered platforms |
 | **Validation / Deliverability** | AbstractAPI (SMTP/MX, quality, catch-all) · Hunter.io (deliverable/risky/undeliverable + confidence) |
 | **OSINT Matrix** | 26 investigation links across 4 categories |
@@ -655,7 +655,7 @@ The eight endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-look
 
 ### Email — offline analysis (zero APIs)
 
-- Disposable (1000+) · privacy · free-webmail · role-address · government/military · educational detection
+- Disposable (1,200+ domains) · privacy (70+) · free-webmail (370+) · role-address (160+ prefixes) · government/military · educational detection
 - Provider name resolution (50+) · name inference from username patterns
 
 ### Username · IP · Domain (free live sources)
