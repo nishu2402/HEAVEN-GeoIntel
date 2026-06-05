@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Bigger email-intelligence datasets** (`lib/disposableEmailDomains.ts`):
+  - **Disposable / throwaway domains: 871 → 1,224** (+353) — temp-mail, 10-minute,
+    and wegwerf service families, the **1secmail alias pool**, mailinator-style
+    sinkholes, and the ivolo/mailchecker long tail.
+  - **Free-webmail providers: 232 → 378** (+146) — ISP/regional mail and
+    Yahoo/Outlook/Live ccTLD variants (so genuine regional mail is classed
+    `free`, not left `unknown`).
+  - **Privacy providers: 53 → 70** (+17) — known privacy mail hosts.
+  - All sets are sorted, deduped (case-insensitive), with **zero cross-set
+    overlap** — no domain can be classified two ways. Pure data: `analyzeEmail()`
+    is unchanged (`Set.has`), so the bigger lists strictly widen coverage of the
+    DISPOSABLE / PRIVACY / WEBMAIL badges, the email threat score, and exports.
 - **Editable link-analysis graph:** the graph is now interactive — click any node
   to **relabel it, change its type, or remove it**, and **add new nodes** from a
   type picker + value field (with a **CLEAR** all). It is a controlled component
