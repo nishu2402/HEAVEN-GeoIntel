@@ -78,8 +78,8 @@ function buildPivots(username: string): UsernameLookupResponse["pivots"] {
   return [
     { label: "WhatsMyName (web)", url: `https://whatsmyname.app/?q=${u}` },
     { label: "Sherlock (GitHub)", url: `https://github.com/sherlock-project/sherlock` },
-    { label: "Google sweep",      url: `https://www.google.com/search?q=%22${u}%22` },
-    { label: "Google: profiles",  url: `https://www.google.com/search?q=intitle:%22${u}%22+(profile+OR+account+OR+bio)` },
+    { label: "Google sweep",      url: `https://www.google.com/search?q=${u}` },
+    { label: "Google: profiles",  url: `https://www.google.com/search?q=${u}+profile+OR+account+OR+bio` },
     { label: "Have I Been Pwned",  url: `https://haveibeenpwned.com/` },
     { label: "IntelligenceX",     url: `https://intelx.io/?s=${u}` },
   ];
