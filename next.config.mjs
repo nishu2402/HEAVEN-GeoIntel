@@ -16,23 +16,46 @@ const IMG_ALLOWED = [
   "https://img.fullcontact.com",
 ].join(" ");
 
-const CSP = [
+// CSP has to adapt to how the app is actually served. This tool runs over plain
+// HTTP by default — on localhost AND on a LAN IP (phone access via scripts/
+// start.sh). Two directives that are normally "good hardening" actively BREAK
+// that setup, each leaving the page stuck on its `[ LOADING… ]` fallback:
+//
+//  1. `connect-src 'self'` — in DEV, turbopack/Fast Refresh opens an HMR
+//     WebSocket. Safari (unlike Chrome) does NOT treat same-origin `ws://` as
+//     covered by 'self', so it blocks the socket and the client never hydrates.
+//     → In dev we widen connect-src to allow ws:/wss:.
+//
+//  2. `upgrade-insecure-requests` — only meaningful when the page is served over
+//     HTTPS. Over plain HTTP it rewrites EVERY same-origin asset from http:// to
+//     https://; with no TLS server those requests fail and the JS chunks never
+//     load. localhost gets a browser carve-out so it limps along, but a LAN IP
+//     (http://192.168.x.x:3000) does not → the phone just shows loading.
+//     → Off by default; opt in with FORCE_HTTPS=1 only behind a real TLS proxy.
+const isDev = process.env.NODE_ENV !== "production";
+const httpsDeploy = process.env.FORCE_HTTPS === "1";
+
+const cspDirectives = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   `img-src 'self' ${IMG_ALLOWED}`,
-  // Browser only calls our own origin — every third-party fetch is
-  // proxied through /api/* on the server. So 'self' is sufficient.
-  "connect-src 'self'",
+  // Browser only calls our own origin — every third-party fetch is proxied
+  // through /api/* on the server. 'self' is sufficient in production; dev also
+  // needs the HMR websocket (ws:/wss:), which Safari won't allow via 'self'.
+  isDev ? "connect-src 'self' ws: wss:" : "connect-src 'self'",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",
   "object-src 'none'",
-  // upgrade-insecure-requests forces http→https for sub-resources when
-  // the page itself is served over https.
-  "upgrade-insecure-requests",
-].join("; ");
+];
+if (httpsDeploy) {
+  // Forces http→https for sub-resources. Safe ONLY when the page itself is
+  // served over https; harmful on the default HTTP (localhost/LAN) deployment.
+  cspDirectives.push("upgrade-insecure-requests");
+}
+const CSP = cspDirectives.join("; ");
 
 const nextConfig = {
   // Next 16's `next dev` blocks cross-origin requests to dev internals (HMR,
