@@ -49,6 +49,7 @@
     --hv-glass-bg-2:   rgba(14, 20, 36, 0.72);
     --hv-glass-border: rgba(120, 255, 190, 0.16);
     --hv-glass-hi:     rgba(34, 211, 238, 0.35);
+    --hv-pop-bg:       #0a0f1c;   /* OPAQUE popover/overlay surface (no bleed-through) */
     --hv-card-shadow:  0 10px 40px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(120,255,190,0.04);
     --hv-grid:         rgba(0, 255, 133, 0.05);
     --hv-scan:         rgba(0, 0, 0, 0.10);
@@ -99,6 +100,7 @@
     --hv-glass-bg-2:   rgba(8, 12, 24, 0.94);
     --hv-glass-border: rgba(120, 255, 190, 0.22);
     --hv-glass-hi:     rgba(34, 211, 238, 0.45);
+    --hv-pop-bg:       #0c1120;   /* OPAQUE popover surface (dark even in light theme — panels stay dark) */
     --hv-card-shadow:  0 18px 48px -16px rgba(15, 23, 42, 0.45), 0 2px 8px -2px rgba(15,23,42,0.25);
     --hv-grid:         rgba(40, 60, 100, 0.08);
     --hv-scan:         rgba(0, 0, 0, 0.015);
@@ -156,6 +158,7 @@ body::after {
 @keyframes matrix-pulse { 0%,100% { opacity: .15; } 50% { opacity: .4; } }
 @keyframes hv-sheen { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 @keyframes hv-holo { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
+@keyframes hv-pop { 0% { opacity: 0; transform: translateY(-6px) scale(.98); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 
 /* ── Glow helpers (strength scales with theme) ── */
 .glow-green { text-shadow: 0 0 calc(8px * var(--hv-glow-strength)) var(--hv-green), 0 0 calc(20px * var(--hv-glow-strength)) color-mix(in srgb, var(--hv-green) 40%, transparent); }
@@ -193,6 +196,21 @@ body::after {
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   border: 1px solid var(--hv-glass-border);
   box-shadow: var(--hv-card-shadow);
+}
+
+/* ── Popover / overlay surface ── OPAQUE on purpose. ──────────────────────────
+   Menus, dropdowns and the command palette float ON TOP of page content, not
+   over the page background. A translucent glass + backdrop-filter is unreliable
+   there (Safari in particular doesn't blur sibling overlays), so the page text
+   shows through and overlaps. This surface is fully opaque so nothing bleeds
+   through, with a strong drop shadow for depth + the neon border for identity. */
+.glass-pop {
+  background: var(--hv-pop-bg);
+  border: 1px solid var(--hv-glass-border);
+  box-shadow:
+    0 24px 64px -16px rgba(0, 0, 0, .78),
+    0 4px 14px -4px rgba(0, 0, 0, .55),
+    inset 0 1px 0 0 rgba(255, 255, 255, .04);
 }
 
 /* ── terminal-card: re-skinned as glass while keeping the name everywhere ── */
