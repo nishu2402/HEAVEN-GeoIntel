@@ -94,53 +94,32 @@ function buildLinks(email: string, domain: string): PivotLink[] {
       url: `https://pipl.com/`,
       color: "#00d9ff", category: "identity",
     },
-    // ── Social media ──────────────────────────────────────────────────────────
-    {
-      label: "Google: LinkedIn",
-      description: `site:linkedin.com "${email}"`,
-      url: `https://www.google.com/search?q=site:linkedin.com+%22${enc}%22`,
-      color: "#00ff41", category: "social",
-    },
-    {
-      label: "Google: Twitter/X",
-      description: `site:twitter.com "${email}"`,
-      url: `https://www.google.com/search?q=site:twitter.com+%22${enc}%22`,
-      color: "#00ff41", category: "social",
-    },
-    {
-      label: "Google: Facebook",
-      description: `site:facebook.com "${email}"`,
-      url: `https://www.google.com/search?q=site:facebook.com+%22${enc}%22`,
-      color: "#00ff41", category: "social",
-    },
-    {
-      label: "Google: GitHub",
-      description: `site:github.com "${email}" — code, commits, gists`,
-      url: `https://www.google.com/search?q=site:github.com+%22${enc}%22`,
-      color: "#00ff41", category: "social",
-    },
+    // ── Social / open web ──────────────────────────────────────────────────────
+    // Direct searches that return real result pages. We avoid narrow Google
+    // `site:` dorks — for a specific email they almost always show Google's
+    // "did not match any documents" page.
     {
       label: "GitHub Email Search",
-      description: "Find commits with this email in author field",
+      description: "Commits authored with this email address",
       url: `https://github.com/search?q=${enc}&type=commits`,
       color: "#00ff41", category: "social",
     },
     {
-      label: "Google Broad",
-      description: `"${email}" — all indexed web results`,
-      url: `https://www.google.com/search?q=%22${enc}%22`,
+      label: "Google",
+      description: "Broad web search for the address",
+      url: `https://www.google.com/search?q=${enc}`,
       color: "#00ff41", category: "social",
     },
     {
-      label: "Bing Search",
-      description: "Bing indexes different data — cross-reference results",
-      url: `https://www.bing.com/search?q=%22${enc}%22`,
+      label: "Bing",
+      description: "Indexes content Google may miss",
+      url: `https://www.bing.com/search?q=${enc}`,
       color: "#00ff41", category: "social",
     },
     {
-      label: "Pastebin Leak",
-      description: `site:pastebin.com "${email}"`,
-      url: `https://www.google.com/search?q=site:pastebin.com+%22${enc}%22`,
+      label: "DuckDuckGo",
+      description: "Privacy-focused engine",
+      url: `https://duckduckgo.com/?q=${enc}`,
       color: "#00ff41", category: "social",
     },
     // ── Domain intelligence ───────────────────────────────────────────────────

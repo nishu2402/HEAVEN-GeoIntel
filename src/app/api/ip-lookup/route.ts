@@ -75,7 +75,7 @@ function buildPivots(ip: string): IpLookupResponse["pivots"] {
     { label: "IPinfo",        url: `https://ipinfo.io/${enc}`,                                note: "ASN, company, privacy detection" },
     { label: "Spur",          url: `https://spur.us/context/${enc}`,                          note: "VPN / proxy / anonymity context" },
     { label: "BGP.he.net",    url: `https://bgp.he.net/ip/${enc}`,                            note: "BGP routing + ASN peering" },
-    { label: "Google sweep",  url: `https://www.google.com/search?q=%22${enc}%22`,            note: "All public web mentions" },
+    { label: "Google sweep",  url: `https://www.google.com/search?q=${enc}`,                  note: "All public web mentions" },
   ];
 }
 

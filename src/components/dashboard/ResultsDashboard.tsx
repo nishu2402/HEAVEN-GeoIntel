@@ -17,7 +17,6 @@ import SimIntelPanel         from "@/components/phone/SimIntelPanel";
 import CountryPanel          from "@/components/osint/CountryPanel";
 import LocationPanel         from "@/components/osint/LocationPanel";
 import QrCodePanel           from "@/components/osint/QrCodePanel";
-import DorkGenerator         from "@/components/osint/DorkGenerator";
 import BreachPanel           from "@/components/breach/BreachPanel";
 import InfostealerPanel      from "@/components/breach/InfostealerPanel";
 import ShareButton           from "@/components/shared/ShareButton";
@@ -250,11 +249,10 @@ export default function ResultsDashboard({ data }: Props) {
         <PanelErrorBoundary label="QR code"><QrCodePanel e164={input.e164} /></PanelErrorBoundary>
       </div>
 
-      {/* ── Number permutations + Dork generator ────────────────────────────── */}
+      {/* ── Number permutations ─────────────────────────────────────────────── */}
       <PanelErrorBoundary label="Number permutations"><NumberPermutations data={data} /></PanelErrorBoundary>
-      <PanelErrorBoundary label="Dork generator"><DorkGenerator e164={input.e164} national={input.national} /></PanelErrorBoundary>
 
-      {/* ── OSINT pivots ────────────────────────────────────────────────────── */}
+      {/* ── OSINT pivots — the single, deduplicated set of external links ─────── */}
       <PanelErrorBoundary label="OSINT pivots"><OsintPivots e164={input.e164} national={input.national} country={input.country} /></PanelErrorBoundary>
 
       {/* ── Raw source data ─────────────────────────────────────────────────── */}

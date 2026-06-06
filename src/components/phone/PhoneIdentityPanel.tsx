@@ -52,25 +52,6 @@ export default function PhoneIdentityPanel({ data }: Props) {
     // No identity data was resolved — present an action center instead of an
     // empty wall.  Each link is a free, no-login lookup that genuinely accepts
     // the phone number in the URL and returns owner information.
-    const e164  = data.input.e164;
-    const enc   = encodeURIComponent(e164);
-    const digits = e164.replace(/\D/g, "");
-    const ccLc  = data.input.country.toLowerCase();
-    const nat   = data.input.national;
-    const encNat = encodeURIComponent(nat);
-
-    const lookups: { label: string; url: string; note: string }[] = [
-      // ── Free, accepts phone in URL, returns owner page (not homepage) ──
-      { label: "OSINT Industries",   url: `https://osint.industries/?q=${enc}`,                                 note: "Free · 100+ platform check by phone" },
-      { label: "Epieos",             url: `https://epieos.com/?q=${enc}&t=phone`,                               note: "Free · Gravatar + Google services" },
-      { label: "NumLookup",          url: `https://www.numlookup.com/${digits}`,                                note: "Free · carrier, CNAM, type" },
-      { label: "Truecaller",         url: `https://www.truecaller.com/search/${ccLc || "us"}/${digits}`,        note: "Login required · global community caller ID" },
-      { label: "Sync.me",            url: `https://sync.me/search/?number=${enc}`,                              note: "Free preview · social-account linking" },
-      { label: "Whitepages",         url: `https://www.whitepages.com/phone/${digits}`,                         note: "US/CA · partial info free" },
-      { label: "Spy Dialer",         url: `https://www.spydialer.com/`,                                         note: "Free · voicemail-greeting reveals name" },
-      { label: "Google Site Sweep",  url: `https://www.google.com/search?q=%22${enc}%22+OR+%22${encNat}%22`,    note: "All public web mentions" },
-    ];
-
     return (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -86,28 +67,11 @@ export default function PhoneIdentityPanel({ data }: Props) {
         </div>
 
         <p className="text-[13px] font-mono text-[#00ff41]/60 leading-snug">
-          No identity resolved through configured APIs. Each button below opens a free
-          phone-OSINT service in a new tab — most show owner name, carrier, or social
-          profile without requiring an account.
+          No identity resolved through configured APIs. Scroll down to the{" "}
+          <span className="text-[#00d9ff]/85 font-bold">OSINT PIVOT MATRIX</span> — a
+          single, deduplicated set of reverse-lookup, breach, spam and search links
+          that take this number directly (no repeated or dead links).
         </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          {lookups.map((l) => (
-            <a
-              key={l.label}
-              href={l.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 p-2 border border-[#00d9ff]/15 hover:border-[#00d9ff]/45 hover:bg-[#00d9ff]/[0.05] transition-all"
-            >
-              <ExternalLink className="w-3 h-3 text-[#00d9ff]/65 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-mono font-bold text-[#00d9ff]/85 truncate">{l.label}</div>
-                <div className="text-[11px] font-mono text-[#00ff41]/45 truncate">{l.note}</div>
-              </div>
-            </a>
-          ))}
-        </div>
 
         {!fcConfigured && (
           <p className="text-[11px] font-mono text-[#00ff41]/35 border-t border-[#00ff41]/10 pt-2">

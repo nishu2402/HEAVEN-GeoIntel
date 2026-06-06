@@ -297,18 +297,15 @@ interface BdOnlyProps {
 
 function buildFreeBreachLookups(e164: string) {
   const enc = encodeURIComponent(e164);
-  const digits = e164.replace(/\D/g, "");
+  // Direct-service breach lookups only — each opens a real results page for the
+  // value. No Google `site:`/quoted dorks (those return "did not match any
+  // documents" for a specific number) and no bare homepages.
   return [
-    { label: "HaveIBeenPwned",   url: `https://haveibeenpwned.com/`,                                    note: "Captcha-only · no key" },
-    { label: "IntelligenceX",    url: `https://intelx.io/?s=${enc}`,                                    note: "Free preview" },
-    { label: "Dehashed",         url: `https://dehashed.com/search?query=${enc}`,                       note: "First-page preview free" },
-    { label: "LeakCheck",        url: `https://leakcheck.io/?query=${enc}`,                             note: "Free web check" },
-    { label: "Snusbase",         url: `https://snusbase.com/search?term=${enc}`,                        note: "Free count, paid details" },
-    { label: "OSINT Industries", url: `https://osint.industries/?q=${enc}`,                             note: "Free phone-to-social" },
-    { label: "Epieos",           url: `https://epieos.com/?q=${enc}&t=phone`,                           note: "Free Gravatar/Google check" },
-    { label: "GhostProject",     url: `https://ghostproject.fr/`,                                       note: "Free email/phone fuzz" },
-    { label: "Pastebin search",  url: `https://www.google.com/search?q=site:pastebin.com+%22${enc}%22`, note: "Indexed leaks" },
-    { label: "DorkSearch all",   url: `https://www.google.com/search?q=%22${enc}%22+OR+%22${digits}%22+(leak+OR+breach+OR+dump+OR+credentials)`, note: "Broad web sweep" },
+    { label: "HaveIBeenPwned",   url: `https://haveibeenpwned.com/`,              note: "Captcha-only · no key" },
+    { label: "IntelligenceX",    url: `https://intelx.io/?s=${enc}`,             note: "Free preview" },
+    { label: "Dehashed",         url: `https://dehashed.com/search?query=${enc}`, note: "First-page preview free" },
+    { label: "LeakCheck",        url: `https://leakcheck.io/?query=${enc}`,       note: "Free web check" },
+    { label: "Snusbase",         url: `https://snusbase.com/search?term=${enc}`,  note: "Free count, paid details" },
   ];
 }
 
