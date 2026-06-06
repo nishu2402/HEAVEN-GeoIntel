@@ -62,10 +62,10 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
       {open && (
         <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh] px-4"
           onClick={() => setOpen(false)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />
           <Command
             label="Command palette"
-            className="holo relative w-full max-w-xl glass rounded-xl overflow-hidden"
+            className="holo relative w-full max-w-xl glass-pop rounded-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
             shouldFilter={true}
           >
