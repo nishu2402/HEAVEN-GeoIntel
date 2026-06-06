@@ -21,7 +21,7 @@ interface PivotLink {
   usOnly?: boolean;
 }
 
-type PivotCategory = "identity" | "messaging" | "intel" | "social" | "spam" | "carrier";
+type PivotCategory = "identity" | "messaging" | "spam" | "carrier" | "search";
 
 const ACCESS_META: Record<AccessTier, { label: string; color: string; bg: string }> = {
   free:    { label: "FREE",     color: "#00ff41", bg: "rgba(0,255,65,0.10)" },
@@ -30,104 +30,84 @@ const ACCESS_META: Record<AccessTier, { label: string; color: string; bg: string
   paid:    { label: "PAID",     color: "#ff6600", bg: "rgba(255,102,0,0.10)" },
 };
 
+// ── Single source of truth for phone OSINT links ──────────────────────────────
+// Curated, DEDUPLICATED, and only links that actually resolve to a results page.
+// We deliberately do NOT generate narrow Google `site:` dorks (e.g.
+// site:facebook.com "+1…"): for a specific number those almost always return
+// Google's "did not match any documents" page, which is noise. Broad web search
+// lives in the SEARCH group below using un-quoted queries that return real pages.
 function buildLinks(e164: string, national: string, country: string): PivotLink[] {
   const enc      = encodeURIComponent(e164);
   const encNat   = encodeURIComponent(national);
   const digits   = e164.replace(/\D/g, "");
   const ccLc     = (country || "us").toLowerCase();
   const noPlus   = e164.replace(/^\+/, "");
+  const C = { id: "#00d9ff", msg: "#25D366", intel: "#ff3e3e", spam: "#ff8800", carrier: "#888", search: "#00ff41" };
 
   return [
-    // ── IDENTITY (free first) ────────────────────────────────────────────────
-    { label: "OSINT Industries",       description: "Free phone-to-social account check — 100+ platforms", url: `https://osint.industries/?q=${enc}`,                                category: "identity",  color: "#00d9ff", access: "free"    },
-    { label: "Epieos",                 description: "Free phone → Gravatar + Google services correlation",  url: `https://epieos.com/?q=${enc}&t=phone`,                              category: "identity",  color: "#00d9ff", access: "free"    },
-    { label: "NumLookup",              description: "Free real-time carrier + CNAM lookup",                  url: `https://www.numlookup.com/${digits}`,                               category: "identity",  color: "#00d9ff", access: "free"    },
-    { label: "Sync.me",                description: "Free preview · global reverse phone + social linking",  url: `https://sync.me/search/?number=${enc}`,                             category: "identity",  color: "#00d9ff", access: "free"    },
-    { label: "Truecaller",             description: "Global crowd-sourced caller ID — 350M+ profiles",       url: `https://www.truecaller.com/search/${ccLc}/${digits}`,               category: "identity",  color: "#00d9ff", access: "login"   },
-    { label: "Spy Dialer",             description: "Free voicemail-greeting reveals owner name",            url: `https://www.spydialer.com/`,                                        category: "identity",  color: "#00d9ff", access: "free"    },
-    { label: "CallerSmart",            description: "Community-reported caller ID database",                 url: `https://www.callersmart.com/phone/${digits}`,                       category: "identity",  color: "#00d9ff", access: "free"    },
-    { label: "TruePeopleSearch",       description: "Free US reverse lookup — name, address, relatives",     url: `https://www.truepeoplesearch.com/results?phoneno=${digits}`,        category: "identity",  color: "#00d9ff", access: "free",   usOnly: true },
-    { label: "FastPeopleSearch",       description: "Free US reverse — name, address, age, relatives",        url: `https://www.fastpeoplesearch.com/${digits}`,                        category: "identity",  color: "#00d9ff", access: "free",   usOnly: true },
-    { label: "USPhoneBook",            description: "US landline & mobile reverse lookup",                   url: `https://www.usphonebook.com/${digits}`,                             category: "identity",  color: "#00d9ff", access: "free",   usOnly: true },
-    { label: "That's Them",            description: "US people search by phone — returns full profiles",     url: `https://thatsthem.com/phone/${digits}`,                             category: "identity",  color: "#00d9ff", access: "free",   usOnly: true },
-    { label: "AnyWho",                 description: "AT&T-backed US reverse directory",                      url: `https://www.anywho.com/phone/${digits}`,                            category: "identity",  color: "#00d9ff", access: "free",   usOnly: true },
-    { label: "ZabaSearch",             description: "US free people-search aggregator",                       url: `https://www.zabasearch.com/phone/${digits}/`,                       category: "identity",  color: "#00d9ff", access: "free",   usOnly: true },
-    { label: "PeekYou",                description: "Social identity aggregator — links phone to profiles",  url: `https://www.peekyou.com/phone/${digits}`,                           category: "identity",  color: "#00d9ff", access: "free"    },
-    { label: "Whitepages",             description: "US/CA reverse lookup — partial info free, full paid",   url: `https://www.whitepages.com/phone/${digits}`,                        category: "identity",  color: "#00d9ff", access: "paid",   usOnly: true },
-    { label: "Spokeo",                 description: "US people-search aggregator",                            url: `https://www.spokeo.com/${digits}`,                                  category: "identity",  color: "#00d9ff", access: "paid",   usOnly: true },
-    { label: "BeenVerified",           description: "US background & reverse phone — name, criminal, social",url: `https://www.beenverified.com/phone/${digits}/`,                     category: "identity",  color: "#00d9ff", access: "paid",   usOnly: true },
-    { label: "Intelius",               description: "US deep background — identity, address history",         url: `https://www.intelius.com/phone-lookup/${digits}/`,                  category: "identity",  color: "#00d9ff", access: "paid",   usOnly: true },
-    { label: "Pipl Search",            description: "Deep-web people search — premium tier",                  url: `https://pipl.com/`,                                                 category: "identity",  color: "#00d9ff", access: "paid"    },
-    { label: "Radaris",                description: "US + international background — relatives, associates",  url: `https://radaris.com/p/${digits}`,                                   category: "identity",  color: "#00d9ff", access: "free"    },
-    { label: "Infobel",                description: "International directory — 60+ countries",                 url: `https://www.infobel.com/en/world/search/?phone=${encNat}`,          category: "identity",  color: "#00d9ff", access: "free"    },
+    // ── IDENTITY / REVERSE LOOKUP (the number goes into the URL) ───────────────
+    { label: "OSINT Industries",  description: "Phone → account check across 100+ platforms",        url: `https://osint.industries/?q=${enc}`,                          category: "identity", color: C.id, access: "free"  },
+    { label: "Epieos",            description: "Phone → Gravatar + Google-services correlation",      url: `https://epieos.com/?q=${enc}&t=phone`,                         category: "identity", color: C.id, access: "free"  },
+    { label: "NumLookup",         description: "Real-time carrier + CNAM + line type",                url: `https://www.numlookup.com/${digits}`,                          category: "identity", color: C.id, access: "free"  },
+    { label: "Sync.me",           description: "Reverse phone + social-account linking (preview)",     url: `https://sync.me/search/?number=${enc}`,                        category: "identity", color: C.id, access: "free"  },
+    { label: "Spy Dialer",        description: "Voicemail-greeting + owner name lookup",               url: `https://www.spydialer.com/default.aspx?n=${digits}`,           category: "identity", color: C.id, access: "free"  },
+    { label: "CallerSmart",       description: "Community-reported caller-ID database",                url: `https://www.callersmart.com/phone/${digits}`,                  category: "identity", color: C.id, access: "free"  },
+    { label: "PeekYou",           description: "Social identity aggregator by phone",                  url: `https://www.peekyou.com/phone/${digits}`,                      category: "identity", color: C.id, access: "free"  },
+    { label: "Radaris",           description: "Background: relatives, associates, addresses",         url: `https://radaris.com/p/${digits}`,                              category: "identity", color: C.id, access: "free"  },
+    { label: "Infobel",           description: "International directory — 60+ countries",              url: `https://www.infobel.com/en/world/search/?phone=${encNat}`,     category: "identity", color: C.id, access: "free"  },
+    { label: "Truecaller",        description: "Global crowd-sourced caller ID — 350M+ profiles",      url: `https://www.truecaller.com/search/${ccLc}/${digits}`,          category: "identity", color: C.id, access: "login" },
+    { label: "TruePeopleSearch",  description: "Name, address, relatives",                             url: `https://www.truepeoplesearch.com/results?phoneno=${digits}`,   category: "identity", color: C.id, access: "free",  usOnly: true },
+    { label: "FastPeopleSearch",  description: "Name, address, age, relatives",                        url: `https://www.fastpeoplesearch.com/${digits}`,                   category: "identity", color: C.id, access: "free",  usOnly: true },
+    { label: "USPhoneBook",       description: "Landline & mobile reverse lookup",                     url: `https://www.usphonebook.com/${digits}`,                        category: "identity", color: C.id, access: "free",  usOnly: true },
+    { label: "That's Them",       description: "People search by phone — full profiles",               url: `https://thatsthem.com/phone/${digits}`,                        category: "identity", color: C.id, access: "free",  usOnly: true },
+    { label: "ZabaSearch",        description: "Free people-search aggregator",                        url: `https://www.zabasearch.com/phone/${digits}/`,                  category: "identity", color: C.id, access: "free",  usOnly: true },
+    { label: "Whitepages",        description: "Reverse lookup — partial free, full paid",             url: `https://www.whitepages.com/phone/${digits}`,                   category: "identity", color: C.id, access: "paid",  usOnly: true },
+    { label: "Spokeo",            description: "People-search aggregator",                             url: `https://www.spokeo.com/${digits}`,                             category: "identity", color: C.id, access: "paid",  usOnly: true },
+    { label: "BeenVerified",      description: "Background + reverse phone (name, social)",            url: `https://www.beenverified.com/phone/${digits}/`,                category: "identity", color: C.id, access: "paid",  usOnly: true },
 
-    // ── MESSAGING ─────────────────────────────────────────────────────────────
-    { label: "WhatsApp",               description: "Opens chat — works only if registered. 2B+ users.",      url: `https://wa.me/${digits}`,                                           category: "messaging", color: "#25D366", access: "free" },
-    { label: "Telegram",               description: "tg://resolve — opens app if registered (mobile-only)",   url: `tg://resolve?phone=${digits}`,                                      category: "messaging", color: "#2AABEE", access: "free" },
-    { label: "Signal",                 description: "Signal deep-link — requires Signal installed",            url: `https://signal.me/#p/${enc}`,                                       category: "messaging", color: "#3A76F0", access: "free" },
-    { label: "Viber",                  description: "Viber deep-link — opens chat if registered",              url: `viber://chat?number=${digits}`,                                     category: "messaging", color: "#7360f2", access: "free" },
-    { label: "iMessage Check",         description: "macOS/iOS — Messages app shows blue if registered",       url: `sms:${e164}`,                                                       category: "messaging", color: "#34C759", access: "free" },
-    { label: "Line",                   description: "Line messenger — popular in JP/TH/TW/ID",                  url: `https://line.me/R/ti/p/~${digits}`,                                 category: "messaging", color: "#00C300", access: "free" },
-    { label: "KakaoTalk web",          description: "Korean dominant chat — search by phone inside the app",   url: `https://accounts.kakao.com/`,                                       category: "messaging", color: "#FAE100", access: "login" },
-    { label: "WeChat search",          description: "WeChat — search phone number inside the installed app",   url: `https://web.wechat.com/`,                                           category: "messaging", color: "#7BB32E", access: "login" },
+    // ── MESSAGING — is the number registered? ──────────────────────────────────
+    { label: "WhatsApp",          description: "Opens chat if registered — 2B+ users",                 url: `https://wa.me/${digits}`,                                      category: "messaging", color: C.msg, access: "free" },
+    { label: "Telegram",          description: "Deep link — opens app if registered (mobile)",         url: `tg://resolve?phone=${digits}`,                                 category: "messaging", color: "#2AABEE", access: "free" },
+    { label: "Signal",            description: "Deep link — requires Signal installed",                url: `https://signal.me/#p/${enc}`,                                  category: "messaging", color: "#3A76F0", access: "free" },
+    { label: "Viber",             description: "Deep link — opens chat if registered",                 url: `viber://chat?number=${digits}`,                                category: "messaging", color: "#7360f2", access: "free" },
+    { label: "iMessage",          description: "macOS/iOS Messages shows blue if registered",          url: `sms:${e164}`,                                                  category: "messaging", color: "#34C759", access: "free" },
+    { label: "Line",              description: "Popular in JP/TH/TW/ID",                               url: `https://line.me/R/ti/p/~${digits}`,                            category: "messaging", color: "#00C300", access: "free" },
 
-    // ── INTEL / BREACH ────────────────────────────────────────────────────────
-    { label: "IntelligenceX",          description: "Free preview of deep-web hits and breach mentions",       url: `https://intelx.io/?s=${enc}`,                                       category: "intel",     color: "#ff3e3e", access: "free" },
-    { label: "LeakCheck",              description: "Free web breach count — paid for full hashes",            url: `https://leakcheck.io/?query=${enc}`,                                category: "intel",     color: "#ff3e3e", access: "free" },
-    { label: "Dehashed",               description: "First-page preview free — full results paid",              url: `https://dehashed.com/search?query=${enc}`,                          category: "intel",     color: "#ff3e3e", access: "paid" },
-    { label: "HaveIBeenPwned",         description: "Captcha-only · paste digits into the phone-search box",   url: `https://haveibeenpwned.com/`,                                       category: "intel",     color: "#ff3e3e", access: "captcha" },
-    { label: "Snusbase",               description: "Large breach DB — free count, paid full",                  url: `https://snusbase.com/search?term=${enc}`,                           category: "intel",     color: "#ff3e3e", access: "paid" },
-    { label: "BreachDirectory",        description: "Open breach search — works with free RapidAPI tier",       url: `https://breachdirectory.org/?term=${enc}`,                          category: "intel",     color: "#ff3e3e", access: "free" },
-    { label: "GhostProject",           description: "Free email/phone fuzz across credential dumps",            url: `https://ghostproject.fr/`,                                          category: "intel",     color: "#ff3e3e", access: "free" },
-    { label: "Hudson Rock",            description: "Free infostealer search — already auto-checked above",     url: `https://www.hudsonrock.com/threat-intelligence-cybercrime-tools`,   category: "intel",     color: "#ff3e3e", access: "free" },
-    { label: "SpyCloud",               description: "Enterprise breach clearinghouse",                          url: `https://spycloud.com/check-your-exposure/`,                         category: "intel",     color: "#ff3e3e", access: "login" },
+    // NOTE: breach/credential lookups (HaveIBeenPwned, IntelligenceX, LeakCheck,
+    // Dehashed, Snusbase, BreachDirectory) intentionally live ONLY in the
+    // dedicated CREDENTIAL BREACH SEARCH panel above — not duplicated here.
 
-    // ── SOCIAL / OPEN WEB (search engines + dorks) ───────────────────────────
-    { label: "Google site:linkedin",   description: `site:linkedin.com "${e164}"`,                               url: `https://www.google.com/search?q=site:linkedin.com+%22${enc}%22`,     category: "social",    color: "#00ff41", access: "free" },
-    { label: "Google site:facebook",   description: `site:facebook.com "${e164}"`,                               url: `https://www.google.com/search?q=site:facebook.com+%22${enc}%22`,     category: "social",    color: "#00ff41", access: "free" },
-    { label: "Google site:instagram",  description: `site:instagram.com "${national}"`,                          url: `https://www.google.com/search?q=site:instagram.com+%22${encNat}%22`, category: "social",    color: "#00ff41", access: "free" },
-    { label: "Google site:twitter/x",  description: `site:twitter.com OR site:x.com "${e164}"`,                  url: `https://www.google.com/search?q=(site:twitter.com+OR+site:x.com)+%22${enc}%22`, category: "social", color: "#00ff41", access: "free" },
-    { label: "Google site:github",     description: `site:github.com "${e164}" — code repos, gists, issues`,    url: `https://www.google.com/search?q=site:github.com+%22${enc}%22`,       category: "social",    color: "#00ff41", access: "free" },
-    { label: "Google site:pastebin",   description: `site:pastebin.com "${e164}" — leaked credentials`,          url: `https://www.google.com/search?q=site:pastebin.com+%22${enc}%22`,     category: "social",    color: "#00ff41", access: "free" },
-    { label: "Google broad sweep",     description: `"${e164}" OR "${national}" — all public web`,               url: `https://www.google.com/search?q=%22${enc}%22+OR+%22${encNat}%22`,    category: "social",    color: "#00ff41", access: "free" },
-    { label: "Bing",                   description: "Bing indexes different content than Google",                url: `https://www.bing.com/search?q=%22${enc}%22+OR+%22${encNat}%22`,      category: "social",    color: "#00ff41", access: "free" },
-    { label: "DuckDuckGo",             description: "Privacy-focused engine",                                    url: `https://duckduckgo.com/?q=%22${enc}%22+OR+%22${encNat}%22`,          category: "social",    color: "#00ff41", access: "free" },
-    { label: "Yandex",                 description: "Russian engine — best for E.Europe, MENA, CIS numbers",     url: `https://yandex.com/search/?text=${enc}`,                             category: "social",    color: "#00ff41", access: "free" },
-    { label: "Baidu",                  description: "China's search engine — critical for CN/HK/TW numbers",     url: `https://www.baidu.com/s?wd=${enc}`,                                  category: "social",    color: "#00ff41", access: "free" },
-    { label: "Google site:reddit",     description: `site:reddit.com "${e164}" — forum posts`,                   url: `https://www.google.com/search?q=site:reddit.com+%22${enc}%22`,       category: "social",    color: "#00ff41", access: "free" },
-    { label: "Wayback Machine",        description: "Archived web snapshots — number may appear in deleted pages",url: `https://web.archive.org/web/*/${enc}`,                              category: "social",    color: "#00ff41", access: "free" },
-    { label: "Google Maps",            description: "Find businesses or contacts linked to this number",          url: `https://www.google.com/maps/search/${encNat}`,                       category: "social",    color: "#00ff41", access: "free" },
+    // ── SPAM / ABUSE REPORTS ───────────────────────────────────────────────────
+    { label: "800notes",          description: "Community spam-call reports",                          url: `https://800notes.com/Phone.aspx/${digits}`,                    category: "spam", color: C.spam, access: "free" },
+    { label: "Should I Answer",   description: "Global spam/scam ratings + comments",                  url: `https://www.shouldianswer.com/phone-number/${digits}`,         category: "spam", color: C.spam, access: "free" },
+    { label: "Who Called Me",     description: "International spam-call database",                      url: `https://who-called.co.uk/Number/${digits}`,                    category: "spam", color: C.spam, access: "free" },
+    { label: "SpamCalls.net",     description: "European-focused spam directory",                      url: `https://www.spamcalls.net/en/number/${noPlus}`,                category: "spam", color: C.spam, access: "free" },
+    { label: "Nomorobo",          description: "Robocall / telemarketer database",                     url: `https://www.nomorobo.com/lookup/${digits}`,                    category: "spam", color: C.spam, access: "free" },
+    { label: "IPQS Phone",        description: "Free fraud-score preview (no signup)",                 url: `https://www.ipqualityscore.com/free-phone-number-lookup/${enc}`,category: "spam", color: C.spam, access: "free" },
 
-    // ── SPAM / ABUSE ──────────────────────────────────────────────────────────
-    { label: "800notes",               description: "Community spam call reports — US focused",                  url: `https://800notes.com/Phone.aspx/${digits}`,                          category: "spam",      color: "#ff8800", access: "free" },
-    { label: "Should I Answer",        description: "Global spam & scam call ratings with comments",             url: `https://www.shouldianswer.com/phone-number/${digits}`,               category: "spam",      color: "#ff8800", access: "free" },
-    { label: "Who Called Me",          description: "International spam call database",                           url: `https://www.whocalledme.com/Phone-Number.aspx/${digits}`,            category: "spam",      color: "#ff8800", access: "free" },
-    { label: "SpamCalls.net",          description: "European-focused spam call directory",                       url: `https://www.spamcalls.net/en/number/${noPlus}`,                      category: "spam",      color: "#ff8800", access: "free" },
-    { label: "Nomorobo",               description: "Robocall / telemarketer database",                            url: `https://www.nomorobo.com/lookup/${digits}`,                          category: "spam",      color: "#ff8800", access: "free" },
-    { label: "IPQS public",            description: "IPQS free fraud-score preview (no signup needed)",            url: `https://www.ipqualityscore.com/free-phone-number-lookup/${enc}`,     category: "spam",      color: "#ff8800", access: "free" },
-    { label: "CallTruth",              description: "US number reputation — spam score, complaint history",        url: `https://www.calltruth.com/call/${digits}`,                           category: "spam",      color: "#ff8800", access: "free" },
+    // ── CARRIER / HLR / TELECOM ────────────────────────────────────────────────
+    { label: "PhoneValidator",    description: "Line type + carrier validator",                        url: `https://www.phonevalidator.com/results.aspx?phone=${digits}`,  category: "carrier", color: C.carrier, access: "free" },
+    { label: "FreeCarrierLookup", description: "Confirms current carrier (paste the number)",          url: `https://freecarrierlookup.com/`,                               category: "carrier", color: C.carrier, access: "captcha" },
+    { label: "HLR-Lookups",       description: "Real-time HLR — active? roaming? (trial)",             url: `https://www.hlr-lookups.com/`,                                 category: "carrier", color: C.carrier, access: "paid" },
 
-    // ── CARRIER / HLR ─────────────────────────────────────────────────────────
-    { label: "FreeCarrierLookup",      description: "Free carrier lookup — confirms current carrier",             url: `https://freecarrierlookup.com/`,                                     category: "carrier",   color: "#888",    access: "captcha" },
-    { label: "PhoneValidator",         description: "Free line type + carrier validator",                          url: `https://www.phonevalidator.com/results.aspx?phone=${digits}`,        category: "carrier",   color: "#888",    access: "free" },
-    { label: "TextMagic Validator",    description: "Free online validator — line type, carrier, country",         url: `https://www.textmagic.com/free-tools/phone-validator`,               category: "carrier",   color: "#888",    access: "free" },
-    { label: "OpenCNAM",               description: "CNAM lookup API — caller name from PSTN DB",                   url: `https://www.opencnam.com/`,                                          category: "carrier",   color: "#888",    access: "login" },
-    { label: "HLR-Lookups",            description: "Real-time HLR — active? roaming? (paid, trial avail.)",        url: `https://www.hlr-lookups.com/`,                                       category: "carrier",   color: "#888",    access: "paid" },
-    { label: "Twilio Lookup demo",     description: "Twilio Lookup API demo — line type, carrier, CNAM",            url: `https://www.twilio.com/lookup`,                                      category: "carrier",   color: "#888",    access: "login" },
-    { label: "MNP portability check",  description: "Has the number been ported to another carrier?",                url: `https://www.mnpchecker.com/`,                                        category: "carrier",   color: "#888",    access: "login" },
+    // ── SEARCH ENGINES — broad, un-quoted (returns real result pages) ──────────
+    { label: "Google",            description: "Broad web search for the number",                      url: `https://www.google.com/search?q=${enc}`,                       category: "search", color: C.search, access: "free" },
+    { label: "Bing",              description: "Indexes content Google may miss",                      url: `https://www.bing.com/search?q=${enc}`,                         category: "search", color: C.search, access: "free" },
+    { label: "DuckDuckGo",        description: "Privacy-focused engine",                               url: `https://duckduckgo.com/?q=${enc}`,                             category: "search", color: C.search, access: "free" },
+    { label: "Yandex",            description: "Best for E.Europe / MENA / CIS numbers",               url: `https://yandex.com/search/?text=${enc}`,                       category: "search", color: C.search, access: "free" },
+    { label: "Wayback Machine",   description: "Archived pages that may mention the number",           url: `https://web.archive.org/web/*/${enc}`,                         category: "search", color: C.search, access: "free" },
   ];
 }
 
 const CATEGORY_META: Record<PivotCategory, { label: string; color: string }> = {
   identity:  { label: "IDENTITY / REVERSE LOOKUP",     color: "#00d9ff" },
   messaging: { label: "MESSAGING — IS IT REGISTERED?", color: "#25D366" },
-  intel:     { label: "INTELLIGENCE / BREACH DATA",     color: "#ff3e3e" },
-  social:    { label: "SOCIAL / OPEN WEB DORKS",        color: "#00ff41" },
   spam:      { label: "SPAM / ABUSE REPORTS",           color: "#ff8800" },
   carrier:   { label: "CARRIER / HLR / TELECOM",        color: "#888"    },
+  search:    { label: "SEARCH ENGINES (BROAD)",         color: "#00ff41" },
 };
 
-const CATEGORY_ORDER: PivotCategory[] = ["identity", "messaging", "intel", "social", "spam", "carrier"];
+const CATEGORY_ORDER: PivotCategory[] = ["identity", "messaging", "spam", "carrier", "search"];
 const TIER_ORDER: Record<AccessTier, number> = { free: 0, captcha: 1, login: 2, paid: 3 };
 
 export default function OsintPivots({ e164, national, country = "us" }: Props) {
