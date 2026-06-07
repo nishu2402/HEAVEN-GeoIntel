@@ -35,8 +35,8 @@
 <td width="50%"><img src="./docs/screenshots/bulk-mode.png" alt="Bulk lookup mode" width="100%"/></td>
 </tr>
 <tr>
-<td width="50%"><img src="./docs/screenshots/dork-generator.png" alt="Dork generator with category groups and engine selector" width="100%"/></td>
-<td width="50%"><img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix with access-tier filter chips" width="100%"/></td>
+<td width="50%"><img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix — deduplicated reverse-lookup, messaging, spam, carrier and search links" width="100%"/></td>
+<td width="50%"><img src="./docs/screenshots/breach-intel.png" alt="Credential breach search — one-click free breach-database lookups" width="100%"/></td>
 </tr>
 </table>
 
