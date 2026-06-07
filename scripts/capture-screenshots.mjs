@@ -30,8 +30,17 @@ const browser = await puppeteer.launch({
   args: ["--hide-scrollbars", "--no-sandbox", "--disable-gpu"],
 });
 
+// Pre-seed the permitted-use consent so the modal never overlays the shot.
+// Runs before any page script, so ConsentGate reads "accepted" and stays hidden.
+async function primePage(page) {
+  await page.evaluateOnNewDocument(() => {
+    try { localStorage.setItem("hv-consent-v1", "1"); } catch { /* ignore */ }
+  });
+}
+
 async function capture(url, file, opts = {}) {
   const page = await browser.newPage();
+  await primePage(page);
   await page.setViewport({ width: WIDTH, height: HEIGHT, deviceScaleFactor: DPR });
   console.log(`→ ${url}  (${file})`);
   await page.goto(BASE + url, { waitUntil: "networkidle2", timeout: 30000 });
@@ -64,27 +73,14 @@ await capture("/?q=%2B14155552671", "phone-results.png", {
   },
 });
 
-// 2. Dork Generator — find the panel and screenshot just it
-await capture("/?q=%2B14155552671", "dork-generator.png", {
-  selector: "section, [data-testid='dork-generator'], div.terminal-card", // fallback chain
-  action: async (page) => {
-    // Locate the Dork Generator card by its header text
-    await page.evaluate(() => {
-      const el = Array.from(document.querySelectorAll("div.terminal-card"))
-        .find((d) => /DORK GENERATOR/.test(d.textContent || ""));
-      if (el) el.setAttribute("data-shot", "1");
-    });
-  },
-  // override selector to use our marker
-  // (puppeteer takes the most recent opts.selector, so set it below in a second pass)
-});
-
-// 3. OSINT Pivots — screenshot the pivot card
+// 2. OSINT Pivots — screenshot the pivot card
 await capture("/?q=%2B14155552671", "osint-pivots.png", {
   action: async (page) => {
     await page.evaluate(() => {
+      // Match the bracketed header of the real matrix card — NOT the
+      // PhoneIdentityPanel prose that merely mentions "OSINT PIVOT MATRIX".
       const el = Array.from(document.querySelectorAll("div.terminal-card"))
-        .find((d) => /OSINT PIVOT MATRIX/.test(d.textContent || ""));
+        .find((d) => (d.textContent || "").includes("[ OSINT PIVOT MATRIX ]"));
       if (el) {
         el.setAttribute("data-shot", "2");
         el.scrollIntoView({ behavior: "instant", block: "start" });
@@ -95,7 +91,7 @@ await capture("/?q=%2B14155552671", "osint-pivots.png", {
   },
 });
 
-// 4. Bulk mode — click the BULK tab in TARGET ACQUISITION
+// 3. Bulk mode — click the BULK tab in TARGET ACQUISITION
 await capture("/", "bulk-mode.png", {
   action: async (page) => {
     await page.evaluate(() => {
@@ -116,7 +112,7 @@ await capture("/", "bulk-mode.png", {
 
 await browser.close();
 
-// Replace screenshots #2 and #3 with element-only crops via a second pass
+// Replace the card screenshots with element-only crops via a second pass
 const browser2 = await puppeteer.launch({
   executablePath: CHROME,
   headless: "new",
@@ -126,6 +122,7 @@ const browser2 = await puppeteer.launch({
 
 async function captureCardByText(text, file) {
   const page = await browser2.newPage();
+  await primePage(page);
   await page.setViewport({ width: WIDTH, height: 3000, deviceScaleFactor: DPR });
   await page.goto(BASE + "/?q=%2B14155552671", { waitUntil: "networkidle2", timeout: 30000 });
   await new Promise((r) => setTimeout(r, 2000));
@@ -142,8 +139,8 @@ async function captureCardByText(text, file) {
   console.log(`  ✓ ${file} (element crop)`);
 }
 
-await captureCardByText("DORK GENERATOR", "dork-generator.png");
-await captureCardByText("OSINT PIVOT MATRIX", "osint-pivots.png");
+await captureCardByText("[ OSINT PIVOT MATRIX ]", "osint-pivots.png");
+await captureCardByText("CREDENTIAL BREACH SEARCH", "breach-intel.png");
 
 await browser2.close();
 console.log("\nAll done. Output in", OUT);
