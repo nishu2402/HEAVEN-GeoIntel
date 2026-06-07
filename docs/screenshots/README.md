@@ -5,8 +5,8 @@ The main README references the four PNGs in this folder:
 | Filename | What it shows |
 |----------|---------------|
 | `phone-results.png`  | Top of the phone-results dashboard — header, threat score, data-source strip |
-| `dork-generator.png` | The Dork Generator card — categories, hit-rate badges, engine selector |
 | `osint-pivots.png`   | The OSINT Pivot Matrix — filter chips + categorised links with access badges |
+| `breach-intel.png`   | The credential-breach card — one-click free breach-database lookups |
 | `bulk-mode.png`      | The BULK tab with sample phone numbers pasted in |
 
 ## Regenerate
