@@ -33,7 +33,11 @@ function toCsv(rows: BulkRow[]): string {
   ];
   const esc = (v: unknown): string => {
     if (v === null || v === undefined) return "";
-    const s = String(v);
+    let s = String(v);
+    // CSV formula-injection guard: a cell starting with = + - @ (or tab/CR) is
+    // run as a formula by Excel/Sheets. Phone numbers begin with "+", so prefix
+    // a single quote (Excel hides it, value reads as text).
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     if (s.includes(",") || s.includes("\"") || s.includes("\n")) {
       return `"${s.replace(/"/g, "\"\"")}"`;
     }

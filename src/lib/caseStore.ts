@@ -16,6 +16,13 @@ import type { InvestigationCase, CaseEntity, EntityKind } from "./types";
 const DATA_DIR = path.join(process.cwd(), ".data");
 const FILE = path.join(DATA_DIR, "cases.json");
 
+// Length caps so a malformed/abusive request can't bloat the on-disk store.
+const MAX_NAME = 200;
+const MAX_VALUE = 512;
+const MAX_ENTITY_NOTE = 2000;
+const MAX_NOTES = 20000;
+const cap = (s: string, n: number) => (s.length > n ? s.slice(0, n) : s);
+
 // Serialise writes so concurrent requests can't corrupt the file.
 let writeChain: Promise<void> = Promise.resolve();
 
@@ -54,7 +61,7 @@ export async function createCase(name: string): Promise<InvestigationCase> {
   const now = Date.now();
   const c: InvestigationCase = {
     id: randomUUID(),
-    name: name.trim() || `Case ${new Date(now).toISOString().split("T")[0]}`,
+    name: cap(name.trim(), MAX_NAME) || `Case ${new Date(now).toISOString().split("T")[0]}`,
     createdAt: now,
     updatedAt: now,
     entities: [],
@@ -94,15 +101,20 @@ export async function importCase(input: {
     const key = `${kind}::${v.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    entities.push({ kind, value: v, addedAt: typeof e?.addedAt === "number" ? e.addedAt : now, note: e?.note });
+    entities.push({
+      kind,
+      value: cap(v, MAX_VALUE),
+      addedAt: typeof e?.addedAt === "number" ? e.addedAt : now,
+      note: e?.note ? cap(String(e.note), MAX_ENTITY_NOTE) : undefined,
+    });
   }
   const c: InvestigationCase = {
     id: randomUUID(),
-    name: (input.name ?? "").trim() || `Imported ${new Date(now).toISOString().split("T")[0]}`,
+    name: cap((input.name ?? "").trim(), MAX_NAME) || `Imported ${new Date(now).toISOString().split("T")[0]}`,
     createdAt: now,
     updatedAt: now,
     entities,
-    notes: (input.notes ?? "").slice(0, 20000),
+    notes: cap(input.notes ?? "", MAX_NOTES),
   };
   all.push(c);
   await writeAll(all);
@@ -121,7 +133,7 @@ export async function renameCase(id: string, name: string): Promise<Investigatio
   const all = await readAll();
   const c = all.find((x) => x.id === id);
   if (!c) return null;
-  c.name = name.trim() || c.name;
+  c.name = cap(name.trim(), MAX_NAME) || c.name;
   c.updatedAt = Date.now();
   await writeAll(all);
   return c;
@@ -131,7 +143,7 @@ export async function setCaseNotes(id: string, notes: string): Promise<Investiga
   const all = await readAll();
   const c = all.find((x) => x.id === id);
   if (!c) return null;
-  c.notes = notes.slice(0, 20000);
+  c.notes = cap(notes, MAX_NOTES);
   c.updatedAt = Date.now();
   await writeAll(all);
   return c;
@@ -141,11 +153,11 @@ export async function addEntity(id: string, kind: EntityKind, value: string, not
   const all = await readAll();
   const c = all.find((x) => x.id === id);
   if (!c) return null;
-  const v = value.trim();
+  const v = cap(value.trim(), MAX_VALUE);
   if (!v) return c;
   // de-dupe by kind+value
   if (!c.entities.some((e) => e.kind === kind && e.value === v)) {
-    const entity: CaseEntity = { kind, value: v, addedAt: Date.now(), note };
+    const entity: CaseEntity = { kind, value: v, addedAt: Date.now(), note: note ? cap(note, MAX_ENTITY_NOTE) : undefined };
     c.entities.push(entity);
     c.updatedAt = Date.now();
     await writeAll(all);
