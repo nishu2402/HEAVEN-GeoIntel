@@ -81,6 +81,25 @@ describe("caseReport — interop exports", () => {
     expect(csv).toContain('"sender@evil.example"');
   });
 
+  it("neutralises CSV formula injection in values and notes", () => {
+    const evilCase: InvestigationCase = {
+      ...baseCase,
+      entities: [
+        { kind: "phone", value: "+14155550000", addedAt: 1_700 },
+        { kind: "username", value: "=cmd|'/c calc'!A1", addedAt: 1_800, note: "@SUM(1+1)" },
+      ],
+    };
+    const csv = buildCaseCsv(evilCase);
+    // Leading formula triggers (= + - @) get a defensive single-quote prefix.
+    expect(csv).toContain(`"'+14155550000"`);
+    expect(csv).toContain(`"'=cmd|'/c calc'!A1"`);
+    expect(csv).toContain(`"'@SUM(1+1)"`);
+    // A benign value (does not start with a trigger char) is left untouched.
+    const benign = buildCaseCsv(baseCase);
+    expect(benign).toContain('"sender@evil.example"');
+    expect(benign).not.toContain(`"'sender@evil.example"`);
+  });
+
   it("Maltego CSV maps kinds to Maltego entity types", () => {
     const csv = buildMaltegoCsv(baseCase);
     expect(csv).toContain('"maltego.Domain","evil.example"');

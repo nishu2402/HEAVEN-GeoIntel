@@ -101,7 +101,15 @@ export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
 }
 
 // ── Interop exports ──────────────────────────────────────────────────────────
-const csvEsc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+// Quote every field AND neutralise CSV formula-injection: a cell beginning with
+// = + - @ (or a tab/CR) is executed as a formula by Excel / Google Sheets. OSINT
+// values are attacker-influenced (a phone is "+1…", a note is free text), so we
+// prefix those with a single quote — the standard, lossless mitigation.
+const csvEsc = (s: unknown) => {
+  let v = String(s ?? "");
+  if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
+  return `"${v.replace(/"/g, '""')}"`;
+};
 
 /** Plain CSV of the case's identifiers. */
 export function buildCaseCsv(c: InvestigationCase): string {
