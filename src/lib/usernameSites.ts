@@ -30,7 +30,11 @@ export const USERNAME_SITES: UsernameSite[] = [
   { name: "PyPI",          category: "developer",    url: "https://pypi.org/user/{u}/",             check: "status" },
   { name: "npm",           category: "developer",    url: "https://www.npmjs.com/~{u}",             check: "status" },
   { name: "Hacker News",   category: "forum",        url: "https://news.ycombinator.com/user?id={u}", check: "body", absence: "No such user." },
-  { name: "Stack Overflow",category: "developer",    url: "https://stackoverflow.com/users/filter?search={u}", check: "status" },
+  // NOTE: Stack Overflow has no clean username→profile URL (profiles are keyed by
+  // numeric id). Its /users/filter?search= page returns HTTP 200 for ANY query,
+  // which a status-check would misreport as "found" for every username — a false
+  // positive. Codeberg (a Gitea forge) returns a real 404 for non-existent users.
+  { name: "Codeberg",      category: "developer",    url: "https://codeberg.org/{u}",               check: "status" },
   { name: "CodePen",       category: "developer",    url: "https://codepen.io/{u}",                 check: "status" },
   { name: "Kaggle",        category: "developer",    url: "https://www.kaggle.com/{u}",             check: "status" },
 
