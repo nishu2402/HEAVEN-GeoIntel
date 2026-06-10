@@ -220,7 +220,7 @@ function PageContent() {
                 <EmailInput onLookup={runEmail} onClear={emailStatus !== "idle" || emailResult ? () => { setEmailStatus("idle"); setEmailResult(null); setEmailErr(""); } : undefined} loading={emailStatus === "loading"} />
               )}
               {mode === "username" && (
-                <SimpleLookupInput placeholder="username / handle (no @)" hint="Checks ~45 sites for a registered account — found / unverified."
+                <SimpleLookupInput placeholder="username / handle (no @)" hint="Auto-verifies 29 sites server-side + 15 bot-walled sites to open yourself — never a false positive."
                   icon={<AtSign className="w-4 h-4" />} loading={userStatus === "loading"} onLookup={runUsername}
                   onClear={userStatus !== "idle" ? () => { setUserStatus("idle"); setUserResult(null); setUserErr(""); } : undefined}
                   validate={(v) => /^[a-zA-Z0-9._-]{2,40}$/.test(v.replace(/^@/, "")) ? null : "2–40 chars: letters, digits, . _ -"} />
