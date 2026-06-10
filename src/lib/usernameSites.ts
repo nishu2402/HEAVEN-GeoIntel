@@ -5,7 +5,13 @@
 //                     `absence` (a string only present on "user not found" pages).
 // Server-side fetch (no CORS limits). High-signal, scrape-tolerant sites only.
 
-export type CheckMethod = "status" | "body";
+// "status" — exists if the profile URL returns 200, free if 404.
+// "body"   — exists if 200 AND the response body lacks an `absence` marker.
+// "manual" — existence CANNOT be determined server-side (JS-rendered SPA or a
+//            bot-wall that returns 200 for everyone). NEVER auto-claimed; shown
+//            as an "open to verify" link. Empirically verified: these sites
+//            return HTTP 200 for both real and nonexistent usernames.
+export type CheckMethod = "status" | "body" | "manual";
 export type UsernameCategory =
   | "developer" | "social" | "creative" | "gaming" | "forum" | "professional" | "crypto";
 
@@ -25,9 +31,9 @@ export const USERNAME_SITES: UsernameSite[] = [
   // ── Developer ──
   { name: "GitHub",        category: "developer",    url: "https://github.com/{u}",                 check: "status" },
   { name: "GitLab",        category: "developer",    url: "https://gitlab.com/{u}",                 check: "status" },
-  { name: "Replit",        category: "developer",    url: "https://replit.com/@{u}",                check: "status" },
+  { name: "Replit",        category: "developer",    url: "https://replit.com/@{u}",                check: "manual" },
   { name: "Docker Hub",    category: "developer",    url: "https://hub.docker.com/u/{u}",           check: "status" },
-  { name: "PyPI",          category: "developer",    url: "https://pypi.org/user/{u}/",             check: "status" },
+  { name: "PyPI",          category: "developer",    url: "https://pypi.org/user/{u}/",             check: "manual" },
   { name: "npm",           category: "developer",    url: "https://www.npmjs.com/~{u}",             check: "status" },
   { name: "Hacker News",   category: "forum",        url: "https://news.ycombinator.com/user?id={u}", check: "body", absence: "No such user." },
   // NOTE: Stack Overflow has no clean username→profile URL (profiles are keyed by
@@ -36,25 +42,25 @@ export const USERNAME_SITES: UsernameSite[] = [
   // positive. Codeberg (a Gitea forge) returns a real 404 for non-existent users.
   { name: "Codeberg",      category: "developer",    url: "https://codeberg.org/{u}",               check: "status" },
   { name: "CodePen",       category: "developer",    url: "https://codepen.io/{u}",                 check: "status" },
-  { name: "Kaggle",        category: "developer",    url: "https://www.kaggle.com/{u}",             check: "status" },
+  { name: "Kaggle",        category: "developer",    url: "https://www.kaggle.com/{u}",             check: "manual" },
 
   // ── Social ──
-  { name: "Instagram",     category: "social",       url: "https://www.instagram.com/{u}/",         check: "status" },
-  { name: "X / Twitter",   category: "social",       url: "https://twitter.com/{u}",                check: "status" },
-  { name: "TikTok",        category: "social",       url: "https://www.tiktok.com/@{u}",            check: "status" },
-  { name: "Reddit",        category: "forum",        url: "https://www.reddit.com/user/{u}",        check: "body", absence: "Sorry, nobody on Reddit goes by that name." },
-  { name: "Telegram",      category: "social",       url: "https://t.me/{u}",                       check: "body", absence: "If you have Telegram, you can contact" },
-  { name: "Threads",       category: "social",       url: "https://www.threads.net/@{u}",           check: "status" },
+  { name: "Instagram",     category: "social",       url: "https://www.instagram.com/{u}/",         check: "manual" },
+  { name: "X / Twitter",   category: "social",       url: "https://twitter.com/{u}",                check: "manual" },
+  { name: "TikTok",        category: "social",       url: "https://www.tiktok.com/@{u}",            check: "manual" },
+  { name: "Reddit",        category: "forum",        url: "https://www.reddit.com/user/{u}",        check: "manual" },
+  { name: "Telegram",      category: "social",       url: "https://t.me/{u}",                       check: "manual" },
+  { name: "Threads",       category: "social",       url: "https://www.threads.net/@{u}",           check: "manual" },
   { name: "Mastodon (.social)", category: "social",  url: "https://mastodon.social/@{u}",           check: "status" },
-  { name: "Bluesky",       category: "social",       url: "https://bsky.app/profile/{u}.bsky.social", check: "status" },
+  { name: "Bluesky",       category: "social",       url: "https://bsky.app/profile/{u}.bsky.social", check: "manual" },
   { name: "VK",            category: "social",       url: "https://vk.com/{u}",                     check: "status" },
-  { name: "Pinterest",     category: "social",       url: "https://www.pinterest.com/{u}/",         check: "status" },
+  { name: "Pinterest",     category: "social",       url: "https://www.pinterest.com/{u}/",         check: "manual" },
 
   // ── Creative / media ──
   { name: "YouTube",       category: "creative",     url: "https://www.youtube.com/@{u}",           check: "status" },
-  { name: "Twitch",        category: "gaming",       url: "https://www.twitch.tv/{u}",              check: "status" },
+  { name: "Twitch",        category: "gaming",       url: "https://www.twitch.tv/{u}",              check: "manual" },
   { name: "SoundCloud",    category: "creative",     url: "https://soundcloud.com/{u}",             check: "status" },
-  { name: "Spotify",       category: "creative",     url: "https://open.spotify.com/user/{u}",      check: "status" },
+  { name: "Spotify",       category: "creative",     url: "https://open.spotify.com/user/{u}",      check: "manual" },
   { name: "Behance",       category: "creative",     url: "https://www.behance.net/{u}",            check: "status" },
   { name: "Dribbble",      category: "creative",     url: "https://dribbble.com/{u}",               check: "status" },
   { name: "DeviantArt",    category: "creative",     url: "https://www.deviantart.com/{u}",         check: "status" },
@@ -65,7 +71,7 @@ export const USERNAME_SITES: UsernameSite[] = [
 
   // ── Gaming ──
   { name: "Steam",         category: "gaming",       url: "https://steamcommunity.com/id/{u}",      check: "body", absence: "The specified profile could not be found." },
-  { name: "Xbox Gamertag", category: "gaming",       url: "https://account.xbox.com/en-us/profile?gamertag={u}", check: "status" },
+  { name: "Xbox Gamertag", category: "gaming",       url: "https://account.xbox.com/en-us/profile?gamertag={u}", check: "manual" },
   { name: "Chess.com",     category: "gaming",       url: "https://www.chess.com/member/{u}",       check: "status" },
   { name: "Roblox",        category: "gaming",       url: "https://www.roblox.com/user.aspx?username={u}", check: "status" },
 
@@ -77,7 +83,7 @@ export const USERNAME_SITES: UsernameSite[] = [
   { name: "Product Hunt",  category: "professional", url: "https://www.producthunt.com/@{u}",       check: "status" },
   { name: "Wattpad",       category: "forum",        url: "https://www.wattpad.com/user/{u}",       check: "status" },
   { name: "Last.fm",       category: "creative",     url: "https://www.last.fm/user/{u}",           check: "status" },
-  { name: "Trello",        category: "professional", url: "https://trello.com/{u}",                 check: "status" },
+  { name: "Trello",        category: "professional", url: "https://trello.com/{u}",                 check: "manual" },
 
   // ── Crypto ──
   { name: "GitHub Sponsors", category: "crypto",     url: "https://github.com/sponsors/{u}",        check: "status" },

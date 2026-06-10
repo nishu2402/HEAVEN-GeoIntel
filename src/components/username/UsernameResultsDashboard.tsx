@@ -41,7 +41,8 @@ export default function UsernameResultsDashboard({ data }: Props) {
               <div>
                 <div className="text-2xl font-bold gradient-text tracking-wider font-mono">@{data.username}</div>
                 <div className="text-sm text-[var(--hv-ink-dim)] font-mono mt-0.5">
-                  Found on <span className="text-[var(--hv-green)] font-bold">{data.found}</span> of {data.checked} sites
+                  Found on <span className="text-[var(--hv-green)] font-bold">{data.found}</span> of {data.checked} auto-checked sites
+                  {data.manual ? <span className="text-[var(--hv-cyan)]"> · {data.manual} to verify manually</span> : null}
                 </div>
               </div>
             </div>
@@ -60,7 +61,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
                 className={`text-[11px] font-mono font-bold uppercase tracking-widest px-3 py-1 rounded border transition-all ${
                   filter === f ? "border-[var(--hv-green)] text-[var(--hv-green)] bg-[var(--hv-green)]/10" : "border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:border-[var(--hv-glass-hi)]"
                 }`}>
-                {f === "found" ? `FOUND (${data.found})` : `INCLUDE UNKNOWN`}
+                {f === "found" ? `FOUND (${data.found})` : `INCLUDE TO-VERIFY`}
               </button>
             ))}
           </div>
@@ -104,9 +105,12 @@ export default function UsernameResultsDashboard({ data }: Props) {
                   style={{ borderColor: h.status === "found" ? "var(--hv-green)" : "var(--hv-glass-border)", background: h.status === "found" ? "color-mix(in srgb, var(--hv-green) 7%, transparent)" : "transparent" }}>
                   {h.status === "found"
                     ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-[var(--hv-green)]" />
+                    : h.status === "manual"
+                    ? <Search className="w-3.5 h-3.5 shrink-0 text-[var(--hv-cyan)]" />
                     : <HelpCircle className="w-3.5 h-3.5 shrink-0 text-[var(--hv-ink-dim)]" />}
                   <span className="text-xs font-mono font-bold flex-1" style={{ color: h.status === "found" ? "var(--hv-ink)" : "var(--hv-ink-dim)" }}>{h.site}</span>
                   {h.status === "unknown" && <span className="text-[10px] font-mono text-[var(--hv-amber)]">UNVERIFIED</span>}
+                  {h.status === "manual" && <span className="text-[10px] font-mono text-[var(--hv-cyan)]">VERIFY →</span>}
                   <ExternalLink className="w-3 h-3 text-[var(--hv-ink-dim)]" />
                 </a>
               ))}
@@ -117,7 +121,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
 
       {shown.length === 0 && (
         <div className="terminal-card p-5 text-center text-[var(--hv-ink-dim)] font-mono text-sm">
-          No confirmed accounts. Switch to &ldquo;INCLUDE UNKNOWN&rdquo; or use the pivots below.
+          No confirmed accounts. Switch to &ldquo;INCLUDE TO-VERIFY&rdquo; or use the pivots below.
         </div>
       )}
 
@@ -133,7 +137,8 @@ export default function UsernameResultsDashboard({ data }: Props) {
           ))}
         </div>
         <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] pt-1">
-          &ldquo;UNVERIFIED&rdquo; = the site blocked our check or returned ambiguous results — open it manually to confirm.
+          <span className="text-[var(--hv-cyan)]">VERIFY →</span> = sites that can&rsquo;t be checked server-side (JS apps / bot-walls that answer 200 for everyone), so we never guess — open the link to confirm.
+          &nbsp;<span className="text-[var(--hv-amber)]">UNVERIFIED</span> = the site blocked our check or returned an ambiguous response.
         </p>
       </div>
     </motion.div>

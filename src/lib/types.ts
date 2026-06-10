@@ -359,7 +359,10 @@ export interface EmailLookupResponse {
 
 // ── Username OSINT ──────────────────────────────────────────────────────────
 
-export type UsernameHitStatus = "found" | "notfound" | "unknown";
+// "manual" = a site whose existence CANNOT be determined by a server-side probe
+// (JS-rendered SPA or bot-wall that returns HTTP 200 for everyone). We never claim
+// found/notfound for these — the UI surfaces them as "open to verify" links.
+export type UsernameHitStatus = "found" | "notfound" | "unknown" | "manual";
 
 export interface UsernameHit {
   site: string;
@@ -386,8 +389,11 @@ export interface GithubProfile {
 
 export interface UsernameLookupResponse {
   username: string;
+  /** Sites we could actually auto-verify (excludes `manual` sites). */
   checked: number;
   found: number;
+  /** Sites that can't be verified server-side — shown as "open to verify" links. */
+  manual?: number;
   hits: UsernameHit[];
   /** Rich GitHub profile when the handle exists there (free, no key). */
   githubProfile?: GithubProfile | null;

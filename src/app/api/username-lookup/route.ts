@@ -43,6 +43,13 @@ async function checkSite(
   const profile = (site.profile ?? site.url).replace("{u}", username);
   const base: UsernameHit = { site: site.name, category: site.category, url: profile, status: "unknown" };
 
+  // "manual" sites can't be verified by a server-side probe (JS-rendered SPA or
+  // a bot-wall that returns HTTP 200 for everyone). Don't fetch — never claim
+  // found/notfound, just hand the analyst a link. Also skips 15 dead requests.
+  if (site.check === "manual") {
+    return { ...base, status: "manual" };
+  }
+
   try {
     const res = await fetch(url, {
       method: "GET",
@@ -111,16 +118,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       : { site: USERNAME_SITES[i].name, category: USERNAME_SITES[i].category, url: USERNAME_SITES[i].url.replace("{u}", username), status: "unknown" as const }
   );
 
-  // Sort: found first, then unknown, then notfound; alpha within group.
-  const order: Record<UsernameHitStatus, number> = { found: 0, unknown: 1, notfound: 2 };
+  // Sort: confirmed first, then the "open to verify" buckets, then notfound.
+  const order: Record<UsernameHitStatus, number> = { found: 0, unknown: 1, manual: 2, notfound: 3 };
   hits.sort((a, b) => order[a.status] - order[b.status] || a.site.localeCompare(b.site));
 
   const githubProfile = await githubJob;
 
+  // `checked` counts only sites we could actually auto-verify — manual sites are
+  // excluded from the denominator so the presence percentage isn't diluted by
+  // sites we never claimed to check. They're reported separately as `manual`.
+  const manual = hits.filter((h) => h.status === "manual").length;
   const response: UsernameLookupResponse = {
     username,
-    checked: hits.length,
+    checked: hits.length - manual,
     found: hits.filter((h) => h.status === "found").length,
+    manual,
     hits,
     githubProfile,
     pivots: buildPivots(username),

@@ -62,8 +62,8 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Phone_Pivots-66_(FREE%2FCAPTCHA%2FLOGIN%2FPAID)-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
-    <img src="https://img.shields.io/badge/Username-45_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/>
+    <img src="https://img.shields.io/badge/Phone_Pivots-38_(FREE%2FCAPTCHA%2FLOGIN%2FPAID)-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
+    <img src="https://img.shields.io/badge/Username-44_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/>
     <img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/>
     <img src="https://img.shields.io/badge/NPA_Database-400%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
     <img src="https://img.shields.io/badge/Rate_Limit-10_req%2Fmin%2FIP-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
@@ -140,15 +140,14 @@
 | 🎯 **Scope** | Phone · Email · Username · IP · Domain · Bulk · Link-graph · Persistent cases |
 | 🧭 **Workspace** | 8-mode unified console · ⌘K command palette · light/dark themes · 3D glass UI |
 | 🔑 **Core Requirement** | Zero API keys — offline + free-source enrichment works out of the box |
-| 📞 **Phone OSINT** | Carrier · type · NPA geo · fraud/threat score · pivots · dorks · QR · report export |
+| 📞 **Phone OSINT** | Carrier · type · NPA geo · fraud/threat score · pivots · QR · report export |
 | 📧 **Email OSINT** | Breach (XposedOrNot) · reputation · identity · validation · credential hashes |
-| 🧑‍💻 **Username OSINT** | ~45 sites checked in parallel, grouped by category, presence-scored |
+| 🧑‍💻 **Username OSINT** | 44 sites checked in parallel, grouped by category, presence-scored |
 | 🌐 **IP / Domain OSINT** | IP geo + ASN + VPN/proxy flags · domain DNS + WHOIS + SPF/DMARC + cert-transparency subdomains |
 | 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier** — free, no key, always-on |
-| 💥 **Breach Intelligence** | XposedOrNot (free) + BreachDirectory (RapidAPI) + 10 free fallback breach-search buttons |
+| 💥 **Breach Intelligence** | XposedOrNot (free) + BreachDirectory (RapidAPI) + 5 one-click free breach lookups |
 | 🕸️ **Link-Analysis Graph** | Interactive SVG node graph of every identifier in a session/case · PNG export |
 | 🗂️ **Persistent Cases** | File-backed investigation cases — group identifiers, notes, graph; survive restarts |
-| 🔍 **Phone Dork Generator** | 58 dorks · 8 categories · hit-rate badges · 5-engine selector |
 | 🗺️ **NPA Database** | 400+ US/CA area codes → state · metro · timezone (offline) |
 | 🌍 **Country Dataset** | 100 countries — capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache / Persistence** | 24 h in-memory LRU (phone/email) · file-backed cases |
@@ -177,10 +176,9 @@ Target  ─►  phone │ email │ username │ IP │ domain
         │
         ├─ Instant offline analysis    (libphonenumber-js · MCC/MNC · NPA · bundled datasets)
         ├─ Free no-key source fan-out   (Hudson Rock · XposedOrNot · Gravatar · EmailRep ·
-        │                                ip-api · Cloudflare DoH · RDAP · crt.sh · 45 username sites)
+        │                                ip-api · Cloudflare DoH · RDAP · crt.sh · 44 username sites)
         ├─ Optional API enrichment      (IPQualityScore · Twilio · Hunter.io · FullContact · BreachDirectory)
-        ├─ OSINT pivot matrix           (66 phone links · 26 email links · all tier-tagged)
-        ├─ Google dork generator        (58 dorks · 8 categories · 5 engines)
+        ├─ OSINT pivot matrix           (38 phone links · 26 email links · tier-tagged · deduplicated)
         ├─ Link-analysis graph          (connect phone ⇄ email ⇄ username ⇄ IP ⇄ domain)
         ├─ Persistent cases             (group identifiers across sessions · analyst notes)
         └─ Export                       (.txt · .html report · CSV · graph PNG)
@@ -203,9 +201,9 @@ One unified console with an **8-mode switcher**. The first five are live lookups
 
 | Mode | What it does |
 |---|---|
-| 📡 **Phone** | Full phone OSINT — carrier, breach, infostealer, identity, pivots, dorks |
+| 📡 **Phone** | Full phone OSINT — carrier, breach, infostealer, identity, pivots |
 | ✉ **Email** | Full email OSINT — breach, reputation, identity, validation, pivots |
-| @ **Username** | Check a handle across ~45 sites in parallel (found / unverified) |
+| @ **Username** | Check a handle across 44 sites in parallel (found / unverified) |
 | ⦿ **IP** | Geo · ASN · ISP · reverse DNS · VPN/proxy/hosting flags · risk score |
 | 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · cert-transparency subdomains |
 | ≡ **Bulk** | Triage up to 25 phone numbers → CSV export |
@@ -362,8 +360,8 @@ Every phone lookup returns real data derived from the number structure and bundl
 | Panel | What It Shows |
 |---|---|
 | **Result Header** | E.164 · country flag · validity · unified **Threat Score (0–100)** with colour-coded label |
-| **Identity — Owner Profile** | Real name · employer · social profiles (FullContact). With no key, becomes an **action centre** of 8 free phone-OSINT services that accept the number in their URL. |
-| **Credential Breach Search** | BreachDirectory password-hash hits (with key) + an always-on **free-lookup action centre** (HaveIBeenPwned · IntelligenceX · LeakCheck · Dehashed · Snusbase · OSINT Industries · Epieos · Google sweep). |
+| **Identity — Owner Profile** | Real name · employer · social profiles (FullContact). With no key, it points you to the **OSINT Pivot Matrix** — one deduplicated set of reverse-lookup links (no repeated or dead links). |
+| **Credential Breach Search** | BreachDirectory password-hash hits (with key) + 5 always-on **one-click free breach lookups** (HaveIBeenPwned · IntelligenceX · Dehashed · LeakCheck · Snusbase). |
 | **Infostealer Malware Exposure** | Hudson Rock — **no key**. Every infected device that captured the number, paired credential samples, captured sites, malware family, OS, capture date. |
 | **Phone OSINT Intelligence** | Intelligence Score · Target Profile classifier · Attack-Vector grid (Vishing/Smishing/SIM-Swap/Spoofing/Pretexting/Location) · live local time · call window · NPA intel · offline signals |
 | **Location Intelligence** | Country · state/province · metro · city · area code · timezone + UTC offset |
@@ -371,8 +369,7 @@ Every phone lookup returns real data derived from the number structure and bundl
 | **Number Anatomy** | One consolidated panel — visual digit breakdown · line type + description · libphonenumber validity checks · all four formats (E.164 / International / National / RFC 3966) |
 | **SIM & Carrier Intel** | Owner/CNAM · carrier (incl. offline MCC/MNC → operator) · prepaid · active status · MCC/MNC/PLMN · associated emails |
 | **Number Permutations** | 12 format variants for OSINT/database searching |
-| **Dork Generator** | 58 dorks · 8 colour-coded categories · HIGH/MED/LOW hit-rate badges · 5-engine selector (Google · DuckDuckGo · Bing · Yandex · Brave) · "open all" batch actions |
-| **OSINT Pivots** | 66 links across 6 categories, each tagged **FREE / CAPTCHA / LOGIN / PAID**; filter chips default to FREE + CAPTCHA |
+| **OSINT Pivots** | 38 links across 5 categories, each tagged **FREE / CAPTCHA / LOGIN / PAID**; filter chips default to FREE + CAPTCHA. Every link takes the number directly — no dead "did not match any documents" results |
 | **QR Code** | Canvas-rendered QR for the `tel:` URI · downloadable as PNG |
 | **Report Export** | Full intelligence report as `.txt` or `.html` |
 | **History Drawer** | Last 20 lookups (browser localStorage) |
@@ -380,18 +377,19 @@ Every phone lookup returns real data derived from the number structure and bundl
 
 </div>
 
-### Phone OSINT Pivots — 66 links, 6 categories
+### Phone OSINT Pivots — 38 links, 5 categories
+
+One **single, deduplicated** link matrix — every service appears exactly once, every link takes the number directly to a results page. Breach lookups live in the dedicated Breach panel, not here.
 
 <div align="center">
 
 | Category | Count | Default tier |
 |---|---|---|
-| **Identity / Reverse Lookup** | 21 | FREE first, login/paid hidden |
-| **Messaging — Is it Registered?** | 8 | all FREE |
-| **Intelligence / Breach Data** | 9 | FREE first |
-| **Social / Open Web** | 14 | all FREE |
-| **Spam / Abuse Reports** | 7 | all FREE |
-| **Carrier / HLR / Telecom** | 7 | mix of FREE / LOGIN / PAID |
+| **Identity / Reverse Lookup** | 18 | FREE first, login/paid behind filter chips |
+| **Messaging — Is it Registered?** | 6 | all FREE |
+| **Spam / Abuse Reports** | 6 | all FREE |
+| **Carrier / HLR / Telecom** | 3 | mix of FREE / CAPTCHA / PAID |
+| **Search Engines (broad)** | 5 | all FREE |
 
 </div>
 
@@ -421,7 +419,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **Threat Score** | 0–100 — breach count · password-risk level · recency · reputation signals |
 | **FullContact Enrichment** | Real name · age · gender · social profiles · linked emails & phones · employment history (optional key) |
 | **Breach Database** | XposedOrNot — 1000+ databases, no key. Per-breach: name · year · records · exposed data types · password-risk level (Plaintext / Easy-Crack / Hashed) |
-| **Credential Hashes** | BreachDirectory — real SHA-1/MD5 hashes with one-click crack buttons (CrackStation · Hashes.com · Hashkiller) — optional RapidAPI key |
+| **Credential Hashes** | BreachDirectory — real SHA-1/MD5 hashes with one-click crack buttons (CrackStation · Hashes.com) — optional RapidAPI key |
 | **Email Classification** | Provider type (corporate/free/disposable/privacy/gov/edu) · disposable detection (1,200+ domains) · free-webmail (370+) · privacy hosts (70+) · role-address detection |
 | **Reputation** | EmailRep.io: suspicious · blacklisted · malicious · credentials leaked · spam · first/last seen · registered platforms |
 | **Validation / Deliverability** | AbstractAPI (SMTP/MX, quality, catch-all) · Hunter.io (deliverable/risky/undeliverable + confidence) |
@@ -445,13 +443,13 @@ user@domain.com   ·   first.last@corporate.org   ·   user+tag@provider.net
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:BF5FFF,50:44FF88,100:00D9D9"/>
 </p>
 
-Enter a handle and HEAVEN-GeoIntel checks **~45 high-signal sites in parallel** (server-side, so no CORS limits) to see where that username is registered. Results are grouped by category and each is marked **FOUND** or **UNVERIFIED** (the site blocked the check or returned an ambiguous response — open it manually to confirm).
+Enter a handle and HEAVEN-GeoIntel checks **44 sites** for it. **29 are auto-verified server-side** (so no CORS limits) and marked **FOUND** or **UNVERIFIED**. The other **15 are JS apps or bot-walls that return HTTP 200 for *every* username** (Instagram, TikTok, X, Reddit, Telegram, …) — a server probe genuinely can't tell if the handle exists there, so the tool **never guesses**: it flags them **VERIFY →** as one-click links you open to confirm. That's the difference between this and tools that proudly report "found on 40 sites" — most of those are false positives.
 
 <div align="center">
 
 | Category | Example sites |
 |---|---|
-| **Developer** | GitHub · GitLab · Replit · Docker Hub · PyPI · npm · CodePen · Kaggle · Stack Overflow |
+| **Developer** | GitHub · GitLab · Replit · Docker Hub · PyPI · npm · CodePen · Kaggle · Codeberg |
 | **Social** | Instagram · X/Twitter · TikTok · Reddit · Telegram · Threads · Mastodon · Bluesky · VK · Pinterest |
 | **Creative / Media** | YouTube · SoundCloud · Spotify · Behance · Dribbble · DeviantArt · Flickr · Vimeo · Medium · Patreon |
 | **Gaming** | Twitch · Steam · Xbox · Chess.com · Roblox |
@@ -474,14 +472,15 @@ Enter a handle and HEAVEN-GeoIntel checks **~45 high-signal sites in parallel** 
 
 Both are **free, no-key**, and validate input before any outbound request.
 
-### ⦿ IP intelligence (`ip-api`)
+### ⦿ IP intelligence (`ip-api` · Shodan InternetDB · GreyNoise)
 
 | Section | Fields |
 |---|---|
 | **Geolocation** | City · region · country · continent · postal · lat/lon · timezone + UTC offset · OpenStreetMap link |
 | **Network / ASN** | ASN · AS org · ISP · organisation · reverse DNS (PTR) |
-| **Risk flags** | VPN/proxy · hosting/datacenter · mobile carrier — folded into a 0–100 IP-risk score |
-| **Pivots** | Shodan · Censys · AbuseIPDB · VirusTotal · GreyNoise · IPinfo · Spur · BGP.he.net |
+| **Internet exposure** | Open ports · known CVEs (linked to NVD) · hostnames · classifier tags — Shodan InternetDB, free |
+| **Risk flags** | VPN/proxy · hosting/datacenter · mobile · Tor · GreyNoise classification — folded into a 0–100 IP-risk score |
+| **Pivots** | Shodan · Censys · AbuseIPDB · VirusTotal · GreyNoise · IPinfo · Spur · BGP.he.net · Google sweep |
 
 Accepts IPv4 and IPv6.
 
@@ -601,7 +600,7 @@ POST /api/email-lookup  { email }    → offline classification + name inference
                                        ‖ Gravatar · XposedOrNot · EmailRep (free) ‖ optional:
                                          FullContact · BreachDirectory · Abstract · Hunter.io
 
-POST /api/username-lookup { username } → ~45 site checks in parallel → found / notfound / unverified
+POST /api/username-lookup { username } → 29 auto-verified + 15 manual → found / notfound / unverified / manual
 POST /api/ip-lookup     { ip }       → ip-api: geo · ASN · ISP · reverse DNS · proxy/hosting/mobile + risk
 POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT) ‖ RDAP whois ‖
                                        crt.sh subdomains ‖ SPF/DMARC posture
@@ -633,7 +632,7 @@ curl -s localhost:3000/api/cases | jq '.cases'
 curl -s localhost:3000/api/docs  | jq .info
 ```
 
-The eight endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/docs`. Lookup routes return `X-RateLimit-*` headers and `X-Robots-Tag: noindex`.
+The nine endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/health` · `/api/docs`. Lookup routes return `X-RateLimit-*` headers and `X-Robots-Tag: noindex`.
 
 ---
 
@@ -660,7 +659,7 @@ The eight endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-look
 
 ### Username · IP · Domain (free live sources)
 
-- **Username** — **FOUND** only on a confirmed 200 / known profile marker; anything ambiguous is **UNVERIFIED** rather than a false positive. Sites that block bots land in UNVERIFIED, never silently dropped.
+- **Username** — **FOUND** only on a confirmed 200 / known profile marker. The 15 sites that return HTTP 200 for *every* handle (Instagram, TikTok, X, Reddit, …) are **never auto-claimed** — they're flagged **VERIFY →** so you open them yourself. A nonexistent handle yields **zero** false positives (regression-tested). Sites that block bots land in UNVERIFIED, never silently dropped.
 - **IP** — geolocation is **ISP-level, not a precise address** (stated in the UI). Hosting / VPN / proxy IPs mask the real user; we surface those flags instead of pretending the location is the person.
 - **Domain** — DNS / WHOIS / subdomain data is reported exactly as upstream resolvers return it. Empty sections mean "not resolved," never fabricated. WHOIS depends on the TLD's RDAP support.
 - **Offline carrier (MCC/MNC)** — resolved from a bundled operator table only when network codes are known; otherwise left blank.
@@ -734,7 +733,7 @@ HEAVEN-GeoIntel/
 │   │   ├── api/
 │   │   │   ├── lookup/route.ts          phone
 │   │   │   ├── email-lookup/route.ts    email
-│   │   │   ├── username-lookup/route.ts username enumeration (~45 sites)
+│   │   │   ├── username-lookup/route.ts username enumeration (44 sites)
 │   │   │   ├── ip-lookup/route.ts       IP geo/ASN/risk
 │   │   │   ├── domain-lookup/route.ts   DNS · WHOIS · subdomains
 │   │   │   ├── bulk-lookup/route.ts     bulk phone (max 25)
@@ -753,7 +752,7 @@ HEAVEN-GeoIntel/
 │   │   ├── cases/        CasesPanel (CRUD · entities · notes · per-case graph)
 │   │   ├── dashboard/    ResultsDashboard · BulkLookup · HistorySidebar ·
 │   │   │                 LoadingSkeletons · SourceTabs
-│   │   ├── osint/        OsintPivots · DorkGenerator · LocationPanel ·
+│   │   ├── osint/        OsintPivots · LocationPanel ·
 │   │   │                 CountryPanel · QrCodePanel
 │   │   ├── shared/       ThemeProvider · ThemeToggle · CommandPalette ·
 │   │   │                 SimpleLookupInput · Tilt3D · MatrixRain · BootSequence ·
@@ -763,7 +762,7 @@ HEAVEN-GeoIntel/
 │   └── lib/
 │       ├── phoneAnalysis.ts · emailAnalysis.ts · freePhoneIntel.ts
 │       ├── mccMnc.ts            MCC/MNC → operator database (offline)
-│       ├── usernameSites.ts     ~45-site enumeration catalog
+│       ├── usernameSites.ts     44-site enumeration catalog
 │       ├── caseStore.ts         file-backed cases (.data/cases.json)
 │       ├── modes.ts             8-mode registry + identifier auto-detection
 │       ├── countryIntel.ts · usNpaDatabase.ts · disposableEmailDomains.ts
@@ -796,7 +795,7 @@ HEAVEN-GeoIntel/
 | **UX** | `cmdk` ⌘K command palette · 3D tilt cards · holographic borders · glassmorphism |
 | **Animation / Viz** | Framer Motion · Canvas API (katakana rain · QR) · hand-rolled SVG link graph |
 | **Breach / Infostealer** | Hudson Rock Cavalier (free) · XposedOrNot (free) · BreachDirectory via RapidAPI |
-| **Username OSINT** | ~45-site parallel existence checks (server-side, no key) |
+| **Username OSINT** | 44-site parallel existence checks (server-side, no key) |
 | **IP / Domain OSINT** | ip-api · Cloudflare DNS-over-HTTPS · RDAP · crt.sh (all free · no key) |
 | **Identity / Reputation** | FullContact · Gravatar · EmailRep.io · Hunter.io |
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
@@ -820,8 +819,8 @@ HEAVEN-GeoIntel/
 
 | Command | What It Does |
 |---|---|
-| `bash scripts/start.sh` | One-step: install deps · register global command · start dev server |
-| `npm run setup` | Same as above, npm version |
+| `bash scripts/start.sh` | One-step **production** start: build · serve on your LAN · self-test (add `--dev` for hot reload) |
+| `npm run setup` | Install deps + start the hot-reload dev server (local only) |
 | `npm run install-global` | Register the `geointel` shell command in `~/.zshrc` |
 | `npm run dev` | Start dev server |
 | `npm run build` | Production build |
