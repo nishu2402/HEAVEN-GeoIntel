@@ -68,18 +68,20 @@ Out of scope (please report these to the upstream maintainers):
 ## Known dependency advisories
 
 We track `npm audit` and keep the framework on the latest stable (Next.js 16).
+**Current status: `npm audit` reports 0 vulnerabilities.**
 
-- **Production:** 2 *moderate* findings, both the same advisory —
-  `postcss@8.4.31` **vendored inside the `next` package** (GHSA-qx2v-qp2m-jg93,
-  `</style>` XSS in CSS stringify output). Not exploitable here: it is a
-  build-time dependency, the app never stringifies untrusted CSS, and our own
-  top-level `postcss` is already patched (8.5.x). It cannot be resolved at any
-  current Next version (latest 16.2.6 still bundles it) and clears automatically
-  when Next updates its bundled copy.
-- **Development only:** an `esbuild` / `vitest` dev-server advisory — never
-  shipped to production; affects only the local test runner.
+Two advisories were resolved and are documented here for the record:
 
-Run `npm audit --omit=dev` for the production-only picture.
+- **`postcss` `</style>` XSS** (GHSA-qx2v-qp2m-jg93) — Next pins an older
+  `postcss@8.4.31` as a nested dependency. We pin it forward to the patched
+  `8.5.x` line with an npm `overrides` entry (`"postcss": "$postcss"`), which
+  dedupes it to the already-patched top-level copy. Build-time only; the app
+  never stringifies untrusted CSS.
+- **`esbuild` / `vitest` dev-server advisory** — cleared by upgrading the test
+  runner to `vitest@4`. Dev-only; never shipped to production.
+
+Run `npm audit` (or `npm audit --omit=dev` for the production-only picture) to
+confirm.
 
 ## Coordinated disclosure
 
