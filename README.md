@@ -788,7 +788,7 @@ HEAVEN-GeoIntel/
 
 | Layer | Technology |
 |---|---|
-| **Framework** | Next.js 16 (App Router) · React 18 |
+| **Framework** | Next.js 16 (App Router) · React 19 |
 | **Language** | TypeScript (strict) — full interface tree for all data types |
 | **Phone Parsing** | `libphonenumber-js` (Google's libphonenumber compiled to JS) |
 | **UI** | Tailwind CSS · shadcn/ui (Radix) · CSS design tokens · light + dark themes · fully responsive |
