@@ -183,14 +183,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   its attack surface entirely.
 - Light theme reworked to a legible **light-backdrop + dark-glass-panel** scheme
   so every text surface keeps full contrast.
-- **Residual `npm audit` (production): 2 moderate**, both the SAME advisory —
-  `postcss@8.4.31` **vendored inside the `next` package** (`</style>` XSS in CSS
-  stringify output). Our own `postcss` is 8.5.14 (patched); the flagged copy is
-  Next's internal build-time dependency, is **not reachable at runtime** (the app
-  never stringifies untrusted CSS), and is **not fixable at any current Next
-  version** — even latest 16.2.6 bundles it (`npm`'s only "fix" is a nonsensical
-  downgrade to next@9). Will clear automatically when Next ships an updated
-  bundled postcss. Dev-only `esbuild`/`vitest` advisory is not shipped to prod.
+- **`npm audit`: 0 vulnerabilities.** The `postcss@8.4.31` advisory
+  (`</style>` XSS in CSS stringify) that Next pins as a nested dependency is now
+  pinned forward to the patched `8.5.x` line via an npm `overrides` entry
+  (`"postcss": "$postcss"`), deduping it to the already-patched top-level copy.
+  The earlier dev-only `esbuild`/`vitest` advisory was cleared by upgrading to
+  `vitest@4`.
 
 ### Fixed
 - Restored the `import "./globals.css"` side-effect import in `layout.tsx` (an
