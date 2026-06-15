@@ -22,6 +22,7 @@ import InfostealerPanel      from "@/components/breach/InfostealerPanel";
 import ShareButton           from "@/components/shared/ShareButton";
 import ReportExport          from "@/components/shared/ReportExport";
 import PanelErrorBoundary    from "@/components/shared/PanelErrorBoundary";
+import Term                  from "@/components/shared/Term";
 import { cn, copyText } from "@/lib/utils";
 
 interface Props {
@@ -109,6 +110,34 @@ export default function ResultsDashboard({ data }: Props) {
     { source: "Twilio", state: srState(sources.twilio) },
     { source: "BreachDirectory", state: srState(sources.breachDirectory) },
     { source: "FullContact", state: srState(sources.fullContact) },
+  ];
+
+  // ── At-a-glance quick answers (the facts otherwise buried across ~12 panels) ──
+  const bd = sources.breachDirectory;
+  const bdFound = bd.ok && bd.data ? bd.data.found : null;
+  const hr = sources.hudsonRock;
+  const hrTotal = hr.ok && hr.data ? hr.data.total : null;
+  const npa = data.analysis.npaInfo;
+  const summary = {
+    lineType: aggregated.lineType || aggregated.typeDescription || "Unknown",
+    carrier: aggregated.carrier ?? "—",
+    location: npa?.region ? `${npa.region}${npa.stateAbbr ? `, ${npa.stateAbbr}` : ""}` : aggregated.countryName,
+    breach: bdFound != null ? (bdFound > 0 ? `${bdFound} found` : "None") : "Needs key",
+    breachHit: !!bdFound && bdFound > 0,
+    stealer: hrTotal != null ? (hrTotal > 0 ? `${hrTotal} device${hrTotal > 1 ? "s" : ""}` : "None") : "—",
+    stealerHit: !!hrTotal && hrTotal > 0,
+  };
+  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const JUMP: { id: string; label: string }[] = [
+    { id: "sec-identity", label: "Identity" },
+    { id: "sec-breach", label: "Breach" },
+    { id: "sec-infostealer", label: "Infostealer" },
+    { id: "sec-pentest", label: "Pentest" },
+    { id: "sec-location", label: "Location" },
+    { id: "sec-anatomy", label: "Anatomy" },
+    { id: "sec-sim", label: "SIM" },
+    { id: "sec-pivots", label: "Pivots" },
+    { id: "sec-raw", label: "Raw" },
   ];
 
   return (
@@ -209,37 +238,58 @@ export default function ResultsDashboard({ data }: Props) {
         </div>
       </div>
 
+      {/* ── AT A GLANCE — quick answers + jump nav ──────────────────────────── */}
+      <div className="terminal-card p-4 space-y-3">
+        <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/10 pb-2">[ AT A GLANCE ]</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <SummaryTile label="Line type" value={summary.lineType} />
+          <SummaryTile label="Carrier" value={summary.carrier} />
+          <SummaryTile label="Location" value={summary.location} />
+          <SummaryTile label="Breach" value={summary.breach} accent={summary.breachHit ? "#ff3e3e" : undefined} />
+          <SummaryTile label={<Term k="infostealer">Infostealer</Term>} value={summary.stealer} accent={summary.stealerHit ? "#ff3e3e" : undefined} />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-[#00ff41]/10 pt-2">
+          <span className="text-[11px] font-mono text-[#00ff41]/40 uppercase tracking-widest">Jump to</span>
+          {JUMP.map((j) => (
+            <button key={j.id} onClick={() => jump(j.id)}
+              className="text-[11px] font-mono px-2 py-0.5 rounded border border-[#00ff41]/15 text-[#00ff41]/60 hover:text-[#00ff41] hover:border-[#00ff41]/40 transition-colors">
+              {j.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ── IDENTITY (FullContact + CNAM + free-lookup action center) ───────── */}
-      <PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} /></PanelErrorBoundary>
+      <section id="sec-identity" className="scroll-mt-24"><PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} /></PanelErrorBoundary></section>
 
       {/* ── BREACH DATA (BreachDirectory + free-lookup action center) ──────── */}
-      <PanelErrorBoundary label="Breach search">
+      <section id="sec-breach" className="scroll-mt-24"><PanelErrorBoundary label="Breach search">
         <BreachPanel
           breachDirectory={sources.breachDirectory}
           subjectLabel="this phone number"
           e164={input.e164}
         />
-      </PanelErrorBoundary>
+      </PanelErrorBoundary></section>
 
       {/* ── INFOSTEALER MALWARE (Hudson Rock — free, always-on) ─────────────── */}
-      <PanelErrorBoundary label="Hudson Rock infostealer"><InfostealerPanel data={data} /></PanelErrorBoundary>
+      <section id="sec-infostealer" className="scroll-mt-24"><PanelErrorBoundary label="Hudson Rock infostealer"><InfostealerPanel data={data} /></PanelErrorBoundary></section>
 
       {/* ── Pentester intelligence — core value of the tool ─────────────────── */}
-      <PanelErrorBoundary label="Pentester intelligence"><PentesterPanel data={data} /></PanelErrorBoundary>
+      <section id="sec-pentest" className="scroll-mt-24"><PanelErrorBoundary label="Pentester intelligence"><PentesterPanel data={data} /></PanelErrorBoundary></section>
 
       {/* ── Consolidated metadata: location + anatomy ───────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <section id="sec-location" className="grid grid-cols-1 lg:grid-cols-2 gap-4 scroll-mt-24">
         <PanelErrorBoundary label="Location"><LocationPanel data={data} /></PanelErrorBoundary>
         {countryIntel
           ? <PanelErrorBoundary label="Country intel"><CountryPanel intel={countryIntel} /></PanelErrorBoundary>
           : <div />}
-      </div>
+      </section>
 
       {/* ── Number anatomy (replaces 3 old duplicate panels) ────────────────── */}
-      <PanelErrorBoundary label="Number anatomy"><NumberAnatomyPanel data={data} /></PanelErrorBoundary>
+      <section id="sec-anatomy" className="scroll-mt-24"><PanelErrorBoundary label="Number anatomy"><NumberAnatomyPanel data={data} /></PanelErrorBoundary></section>
 
       {/* ── SIM intelligence + QR code ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <section id="sec-sim" className="grid grid-cols-1 lg:grid-cols-2 gap-4 scroll-mt-24">
         {hasSimData
           ? <PanelErrorBoundary label="SIM & carrier"><SimIntelPanel aggregated={aggregated} /></PanelErrorBoundary>
           : <PlaceholderCard
@@ -247,24 +297,33 @@ export default function ResultsDashboard({ data }: Props) {
               title="SIM & CARRIER INTELLIGENCE"
               note="Add IPQS or Twilio API keys to .env.local for live carrier, prepaid, and SIM activity data." />}
         <PanelErrorBoundary label="QR code"><QrCodePanel e164={input.e164} /></PanelErrorBoundary>
-      </div>
+      </section>
 
       {/* ── Number permutations ─────────────────────────────────────────────── */}
       <PanelErrorBoundary label="Number permutations"><NumberPermutations data={data} /></PanelErrorBoundary>
 
       {/* ── OSINT pivots — the single, deduplicated set of external links ─────── */}
-      <PanelErrorBoundary label="OSINT pivots"><OsintPivots e164={input.e164} national={input.national} country={input.country} /></PanelErrorBoundary>
+      <section id="sec-pivots" className="scroll-mt-24"><PanelErrorBoundary label="OSINT pivots"><OsintPivots e164={input.e164} national={input.national} country={input.country} /></PanelErrorBoundary></section>
 
       {/* ── Raw source data ─────────────────────────────────────────────────── */}
-      <div className="space-y-2">
+      <section id="sec-raw" className="space-y-2 scroll-mt-24">
         <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">
           [ RAW SOURCE DATA ] — API responses
         </div>
         <PanelErrorBoundary label="Raw sources"><SourceTabs sources={sources} /></PanelErrorBoundary>
-      </div>
+      </section>
 
       <SourceStrip sources={phoneSources} />
     </motion.div>
+  );
+}
+
+function SummaryTile({ label, value, accent }: { label: React.ReactNode; value: string; accent?: string }) {
+  return (
+    <div className="border border-[#00ff41]/10 rounded px-2.5 py-2 bg-[#00ff41]/[0.02]">
+      <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40 font-mono">{label}</div>
+      <div className="text-[13px] font-mono font-bold truncate mt-0.5" style={{ color: accent ?? "#00ff41" }} title={value}>{value}</div>
+    </div>
   );
 }
 

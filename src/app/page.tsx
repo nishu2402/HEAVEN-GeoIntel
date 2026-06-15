@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Shield, Terminal, AtSign, Network, Globe } from "lucide-react";
@@ -22,9 +22,13 @@ import DomainResultsDashboard from "@/components/network/DomainResultsDashboard"
 import CasesPanel from "@/components/cases/CasesPanel";
 import LinkGraph from "@/components/graph/LinkGraph";
 import LoadingSkeletons from "@/components/dashboard/LoadingSkeletons";
+import ScanProgress from "@/components/dashboard/ScanProgress";
 import BootSequence from "@/components/shared/BootSequence";
 import SimpleLookupInput from "@/components/shared/SimpleLookupInput";
 import ThemeToggle from "@/components/shared/ThemeToggle";
+import EffectsToggle from "@/components/shared/EffectsToggle";
+import SourcesPanel from "@/components/shared/SourcesPanel";
+import HelpPopover from "@/components/shared/HelpPopover";
 import CommandPalette from "@/components/shared/CommandPalette";
 import PanelErrorBoundary from "@/components/shared/PanelErrorBoundary";
 import ConsentGate from "@/components/shared/ConsentGate";
@@ -38,11 +42,38 @@ const HistorySidebar = dynamic(() => import("@/components/dashboard/HistorySideb
 type Status = "idle" | "loading" | "done" | "error";
 interface ApiErrorResponse { error?: string }
 
+const BOOTED_KEY = "hv-booted-v1";
+
+// One-click sample values so a first-time user is never staring at a blank box.
+function ExampleChips({ items, onPick }: { items: string[]; onPick: (v: string) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[11px] font-mono text-[var(--hv-ink-dim)] uppercase tracking-widest">Try</span>
+      {items.map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onPick(v)}
+          className="text-[11px] font-mono px-2 py-0.5 rounded-md border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-colors"
+        >
+          {v}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("phone");
-  const [booted, setBooted] = useState(false);
+  // Returning visitors start already-booted (flag set on first run) so the boot
+  // animation never replays. Lazy initialiser → no flash. This view is always
+  // client-rendered (CSR bailout via useSearchParams), so reading storage here
+  // can't cause a hydration mismatch.
+  const [booted, setBooted] = useState<boolean>(() => {
+    try { return typeof window !== "undefined" && localStorage.getItem(BOOTED_KEY) === "1"; } catch { return false; }
+  });
 
   // Per-mode state
   const [phoneStatus, setPhoneStatus] = useState<Status>("idle");
@@ -77,11 +108,17 @@ function PageContent() {
 
   const isBooting = !booted;
 
+  // Reflect the active lookup in the URL (?mode=…&q=…) so EVERY result — not just
+  // phone — is bookmarkable and shareable by copying the address bar.
+  const syncUrl = useCallback((m: Mode, value: string) => {
+    const p = new URLSearchParams(); p.set("mode", m); p.set("q", value);
+    router.replace(`?${p.toString()}`, { scroll: false });
+  }, [router]);
+
   // ── Lookup runners ──────────────────────────────────────────────────────
   const runLookup = useCallback(async (number: string) => {
     setPhoneStatus("loading"); setPhoneResult(null); setPhoneErr(""); setCurrentE164(number);
-    const params = new URLSearchParams(); params.set("q", number);
-    router.replace(`?${params.toString()}`, { scroll: false });
+    syncUrl("phone", number);
     try {
       const res = await fetch("/api/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number }) });
       const json = (await res.json()) as LookupResponse | ApiErrorResponse;
@@ -90,54 +127,81 @@ function PageContent() {
       setPhoneResult(data); setPhoneStatus("done");
       addEntity("phone", data.input.e164);
       saveToHistory({ e164: data.input.e164, country: data.input.country, countryCallingCode: data.input.countryCallingCode, timestamp: Date.now(), flagEmoji: countryToFlagEmoji(data.input.country) });
-    } catch { setPhoneErr("Network error — is the dev server running?"); setPhoneStatus("error"); }
-  }, [router, addEntity]);
+    } catch { setPhoneErr("Couldn't reach the server. Check your connection and try again."); setPhoneStatus("error"); }
+  }, [syncUrl, addEntity]);
 
   const runEmail = useCallback(async (email: string) => {
-    setEmailStatus("loading"); setEmailResult(null); setEmailErr("");
+    setEmailStatus("loading"); setEmailResult(null); setEmailErr(""); syncUrl("email", email);
     try {
       const res = await fetch("/api/email-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
       const json = (await res.json()) as EmailLookupResponse | ApiErrorResponse;
       if (!res.ok) { setEmailErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setEmailStatus("error"); return; }
       setEmailResult(json as EmailLookupResponse); setEmailStatus("done"); addEntity("email", (json as EmailLookupResponse).email);
-    } catch { setEmailErr("Network error — is the dev server running?"); setEmailStatus("error"); }
-  }, [addEntity]);
+    } catch { setEmailErr("Couldn't reach the server. Check your connection and try again."); setEmailStatus("error"); }
+  }, [syncUrl, addEntity]);
 
   const runUsername = useCallback(async (username: string) => {
-    setUserStatus("loading"); setUserResult(null); setUserErr("");
+    setUserStatus("loading"); setUserResult(null); setUserErr(""); syncUrl("username", username);
     try {
       const res = await fetch("/api/username-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username }) });
       const json = (await res.json()) as UsernameLookupResponse | ApiErrorResponse;
       if (!res.ok) { setUserErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setUserStatus("error"); return; }
       setUserResult(json as UsernameLookupResponse); setUserStatus("done"); addEntity("username", (json as UsernameLookupResponse).username);
-    } catch { setUserErr("Network error — is the dev server running?"); setUserStatus("error"); }
-  }, [addEntity]);
+    } catch { setUserErr("Couldn't reach the server. Check your connection and try again."); setUserStatus("error"); }
+  }, [syncUrl, addEntity]);
 
   const runIp = useCallback(async (ipAddr: string) => {
-    setIpStatus("loading"); setIpResult(null); setIpErr("");
+    setIpStatus("loading"); setIpResult(null); setIpErr(""); syncUrl("ip", ipAddr);
     try {
       const res = await fetch("/api/ip-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ip: ipAddr }) });
       const json = (await res.json()) as IpLookupResponse | ApiErrorResponse;
       if (!res.ok) { setIpErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setIpStatus("error"); return; }
       setIpResult(json as IpLookupResponse); setIpStatus("done"); addEntity("ip", (json as IpLookupResponse).input);
-    } catch { setIpErr("Network error — is the dev server running?"); setIpStatus("error"); }
-  }, [addEntity]);
+    } catch { setIpErr("Couldn't reach the server. Check your connection and try again."); setIpStatus("error"); }
+  }, [syncUrl, addEntity]);
 
   const runDomain = useCallback(async (domain: string) => {
-    setDomStatus("loading"); setDomResult(null); setDomErr("");
+    setDomStatus("loading"); setDomResult(null); setDomErr(""); syncUrl("domain", domain);
     try {
       const res = await fetch("/api/domain-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain }) });
       const json = (await res.json()) as DomainLookupResponse | ApiErrorResponse;
       if (!res.ok) { setDomErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setDomStatus("error"); return; }
       setDomResult(json as DomainLookupResponse); setDomStatus("done"); addEntity("domain", (json as DomainLookupResponse).domain);
-    } catch { setDomErr("Network error — is the dev server running?"); setDomStatus("error"); }
-  }, [addEntity]);
+    } catch { setDomErr("Couldn't reach the server. Check your connection and try again."); setDomStatus("error"); }
+  }, [syncUrl, addEntity]);
+
+  // Run whatever a shared/bookmarked URL points at: ?mode=…&q=… (defaults to phone
+  // for a bare ?q= so older phone share links still work).
+  const runDeep = useCallback(() => {
+    const q = searchParams.get("q");
+    if (!q) return;
+    switch (searchParams.get("mode")) {
+      case "email":    setMode("email");    void runEmail(q);    break;
+      case "username": setMode("username"); void runUsername(q); break;
+      case "ip":       setMode("ip");       void runIp(q);       break;
+      case "domain":   setMode("domain");   void runDomain(q);   break;
+      default:         void runLookup(q);
+    }
+  }, [searchParams, runLookup, runEmail, runUsername, runIp, runDomain]);
 
   const handleBootDone = useCallback(() => {
     setBooted(true);
-    const q = searchParams.get("q");
-    if (q) void runLookup(q);
-  }, [searchParams, runLookup]);
+    try { localStorage.setItem(BOOTED_KEY, "1"); } catch { /* ignore */ }
+    runDeep();
+  }, [runDeep]);
+
+  // Returning visitor: skip the boot animation entirely (it already played once).
+  // Still honours a ?mode=&q= deep link so a shared result URL runs immediately.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(BOOTED_KEY) === "1") {
+        setBooted(true);
+        runDeep();
+      }
+    } catch { /* ignore */ }
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Command palette smart-run
   const onQuickLookup = useCallback((m: Mode, value: string) => {
@@ -148,6 +212,25 @@ function PageContent() {
     else if (m === "ip") void runIp(value);
     else if (m === "domain") void runDomain(value);
   }, [runLookup, runEmail, runUsername, runIp, runDomain]);
+
+  // Keyboard shortcuts: 1–8 switch mode, "/" focuses the input. Ignored while the
+  // user is typing or holding a modifier (so ⌘K and normal input still work).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
+      if (e.key >= "1" && e.key <= "8") {
+        const m = MODES[Number(e.key) - 1];
+        if (m) { e.preventDefault(); setMode(m.id); }
+      } else if (e.key === "/") {
+        const input = document.querySelector<HTMLElement>("main input, main textarea");
+        if (input) { e.preventDefault(); input.focus(); }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <>
@@ -171,6 +254,9 @@ function PageContent() {
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <CommandPalette onMode={setMode} onQuickLookup={onQuickLookup} />
             <RecentLookups onRun={onQuickLookup} />
+            <SourcesPanel />
+            <HelpPopover />
+            <EffectsToggle />
             <ThemeToggle />
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-[var(--hv-ink-dim)] font-mono">
               <Shield className="w-3 h-3" /> DEFENSIVE OSINT
@@ -214,26 +300,41 @@ function PageContent() {
               </div>
 
               {mode === "phone" && (
-                <PhoneInput onLookup={runLookup} onClear={phoneStatus !== "idle" || phoneResult ? () => { setPhoneStatus("idle"); setPhoneResult(null); setPhoneErr(""); setCurrentE164(""); router.replace("/", { scroll: false }); } : undefined} loading={phoneStatus === "loading"} />
+                <>
+                  <PhoneInput onLookup={runLookup} onClear={phoneStatus !== "idle" || phoneResult ? () => { setPhoneStatus("idle"); setPhoneResult(null); setPhoneErr(""); setCurrentE164(""); router.replace("/", { scroll: false }); } : undefined} loading={phoneStatus === "loading"} />
+                  {phoneStatus === "idle" && !phoneResult && <ExampleChips items={["+1 415 555 2671", "+44 7911 123456", "+91 98765 43210"]} onPick={runLookup} />}
+                </>
               )}
               {mode === "email" && (
-                <EmailInput onLookup={runEmail} onClear={emailStatus !== "idle" || emailResult ? () => { setEmailStatus("idle"); setEmailResult(null); setEmailErr(""); } : undefined} loading={emailStatus === "loading"} />
+                <>
+                  <EmailInput onLookup={runEmail} onClear={emailStatus !== "idle" || emailResult ? () => { setEmailStatus("idle"); setEmailResult(null); setEmailErr(""); router.replace("/", { scroll: false }); } : undefined} loading={emailStatus === "loading"} />
+                  {emailStatus === "idle" && !emailResult && <ExampleChips items={["test@example.com", "john.doe@gmail.com"]} onPick={runEmail} />}
+                </>
               )}
               {mode === "username" && (
-                <SimpleLookupInput placeholder="username / handle (no @)" hint="Auto-verifies 29 sites server-side + 15 bot-walled sites to open yourself — never a false positive."
-                  icon={<AtSign className="w-4 h-4" />} loading={userStatus === "loading"} onLookup={runUsername}
-                  onClear={userStatus !== "idle" ? () => { setUserStatus("idle"); setUserResult(null); setUserErr(""); } : undefined}
-                  validate={(v) => /^[a-zA-Z0-9._-]{2,40}$/.test(v.replace(/^@/, "")) ? null : "2–40 chars: letters, digits, . _ -"} />
+                <>
+                  <SimpleLookupInput placeholder="username / handle (no @)" hint="Auto-verifies 29 sites server-side + 15 bot-walled sites to open yourself — never a false positive."
+                    icon={<AtSign className="w-4 h-4" />} loading={userStatus === "loading"} onLookup={runUsername}
+                    onClear={userStatus !== "idle" ? () => { setUserStatus("idle"); setUserResult(null); setUserErr(""); router.replace("/", { scroll: false }); } : undefined}
+                    validate={(v) => /^[a-zA-Z0-9._-]{2,40}$/.test(v.replace(/^@/, "")) ? null : "2–40 chars: letters, digits, . _ -"} />
+                  {userStatus === "idle" && <ExampleChips items={["torvalds", "octocat"]} onPick={runUsername} />}
+                </>
               )}
               {mode === "ip" && (
-                <SimpleLookupInput placeholder="8.8.8.8 or 2606:4700:4700::1111" hint="Geo, ASN, ISP, reverse DNS + VPN/proxy/hosting flags. Free, no key."
-                  icon={<Network className="w-4 h-4" />} loading={ipStatus === "loading"} onLookup={runIp}
-                  onClear={ipStatus !== "idle" ? () => { setIpStatus("idle"); setIpResult(null); setIpErr(""); } : undefined} />
+                <>
+                  <SimpleLookupInput placeholder="8.8.8.8 or 2606:4700:4700::1111" hint="Geo, ASN, ISP, reverse DNS + VPN/proxy/hosting flags. Free, no key."
+                    icon={<Network className="w-4 h-4" />} loading={ipStatus === "loading"} onLookup={runIp}
+                    onClear={ipStatus !== "idle" ? () => { setIpStatus("idle"); setIpResult(null); setIpErr(""); router.replace("/", { scroll: false }); } : undefined} />
+                  {ipStatus === "idle" && <ExampleChips items={["8.8.8.8", "1.1.1.1"]} onPick={runIp} />}
+                </>
               )}
               {mode === "domain" && (
-                <SimpleLookupInput placeholder="example.com" hint="DNS, WHOIS, SPF/DMARC, subdomains (cert transparency). Free, no key."
-                  icon={<Globe className="w-4 h-4" />} loading={domStatus === "loading"} onLookup={runDomain}
-                  onClear={domStatus !== "idle" ? () => { setDomStatus("idle"); setDomResult(null); setDomErr(""); } : undefined} />
+                <>
+                  <SimpleLookupInput placeholder="example.com" hint="DNS, WHOIS, SPF/DMARC, subdomains (cert transparency). Free, no key."
+                    icon={<Globe className="w-4 h-4" />} loading={domStatus === "loading"} onLookup={runDomain}
+                    onClear={domStatus !== "idle" ? () => { setDomStatus("idle"); setDomResult(null); setDomErr(""); router.replace("/", { scroll: false }); } : undefined} />
+                  {domStatus === "idle" && <ExampleChips items={["github.com", "cloudflare.com"]} onPick={runDomain} />}
+                </>
               )}
               {mode === "bulk" && <BulkLookup />}
             </div>
@@ -247,7 +348,7 @@ function PageContent() {
           {/* Loading states */}
           {((mode === "phone" && phoneStatus === "loading") || (mode === "email" && emailStatus === "loading")
             || (mode === "username" && userStatus === "loading") || (mode === "ip" && ipStatus === "loading")
-            || (mode === "domain" && domStatus === "loading")) && <LoadingSkeletons />}
+            || (mode === "domain" && domStatus === "loading")) && <><ScanProgress mode={mode} /><LoadingSkeletons /></>}
 
           {/* Errors */}
           {((mode === "phone" && phoneStatus === "error" && phoneErr) || (mode === "email" && emailStatus === "error" && emailErr)

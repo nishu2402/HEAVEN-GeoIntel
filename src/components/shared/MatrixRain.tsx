@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { effectsEnabled, FX_EVENT } from "@/lib/effects";
 
 export default function MatrixRain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,10 +44,30 @@ export default function MatrixRain() {
       }
     };
 
-    const interval = setInterval(draw, 55);
+    // Start/stop the animation in response to the effects setting + reduced-motion.
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const clearCanvas = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const apply = () => {
+      const on = effectsEnabled();
+      if (on && interval === null) {
+        interval = setInterval(draw, 55);
+      } else if (!on && interval !== null) {
+        clearInterval(interval);
+        interval = null;
+        clearCanvas();
+      }
+    };
+    apply();
+
+    window.addEventListener(FX_EVENT, apply);
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    mq.addEventListener?.("change", apply);
+
     return () => {
-      clearInterval(interval);
+      if (interval !== null) clearInterval(interval);
       window.removeEventListener("resize", resize);
+      window.removeEventListener(FX_EVENT, apply);
+      mq.removeEventListener?.("change", apply);
     };
   }, []);
 
