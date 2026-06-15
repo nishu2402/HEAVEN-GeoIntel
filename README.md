@@ -213,7 +213,11 @@ One unified console with an **8-mode switcher**. The first five are live lookups
 </div>
 
 - **⌘K / Ctrl+K command palette** — type any identifier and it auto-detects the type and runs the lookup; jump between modes; toggle the theme. Powered by [`cmdk`](https://github.com/pacocoursey/cmdk).
-- **Light + dark themes** — a persisted toggle with an anti-flash boot script. The UI is a hybrid "cyberpunk glass" design: 3D parallax-tilt cards, neon glow, holographic borders, an animated grid backdrop, and the signature Canvas katakana rain.
+- **Keyboard-first** — press `1`–`8` to switch mode, `/` to focus the input, `⌘K` for the palette. A `?` help button lists every mode and shortcut.
+- **Example chips** under each empty input ("Try `+1 415 555 2671`…") so you're never staring at a blank box, and every lookup gets a shareable URL (`?mode=…&q=…`) — bookmark or hand off any result, in any mode.
+- **At-a-glance summary** at the top of a phone result (line type · carrier · location · breach · infostealer) plus a "jump to" nav, so you find the answer without scrolling 12 panels. Hover any acronym (E.164, NPA, CNAM…) for a plain-language tooltip.
+- **Sources & keys panel** — one click shows which data sources are live and which optional API keys are configured (booleans only; keys never leave the server), so an empty field is self-explanatory.
+- **Light + dark themes** + a **visual-effects toggle** that honours `prefers-reduced-motion` — a persisted toggle with an anti-flash boot script. The UI is a hybrid "cyberpunk glass" design: 3D parallax-tilt cards, neon glow, holographic borders, an animated grid backdrop, and the signature Canvas katakana rain (which respects reduced-motion and the toggle).
 - **Session graph** — every successful lookup adds a node, so by the end of an investigation you have a visual map of how the identifiers connect (exportable as PNG).
 
 ---
@@ -632,7 +636,7 @@ curl -s localhost:3000/api/cases | jq '.cases'
 curl -s localhost:3000/api/docs  | jq .info
 ```
 
-The nine endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/health` · `/api/docs`. Lookup routes return `X-RateLimit-*` headers and `X-Robots-Tag: noindex`.
+The ten endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/health` · `/api/docs`. Lookup routes return `X-RateLimit-*` headers and `X-Robots-Tag: noindex`. `/api/sources` reports which optional API keys are configured (booleans only — never the values).
 
 ---
 
