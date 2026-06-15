@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **User-friendliness overhaul** (no data/accuracy logic touched):
+  - **Boot animation plays only on the first visit** — persisted flag + lazy init,
+    so returning visitors land straight on the console (no replay, no flash).
+  - **Example chips** under every empty input (`Try +1 415 555 2671`, `torvalds`,
+    `8.8.8.8`, `github.com`…) that fill + run in one click.
+  - **Shareable / bookmarkable results in every mode** — each lookup writes
+    `?mode=…&q=…`; opening that URL re-runs it (older bare `?q=` phone links still work).
+  - **"At a glance" summary card + jump nav** on phone results — line type · carrier ·
+    location · breach · infostealer up top, with a section jump past the ~12 panels.
+  - **Plain-language tooltips** (`components/shared/Term.tsx`) for E.164, NPA, CNAM,
+    MCC/MNC, infostealer, etc.
+  - **Sources & keys panel** + **`/api/sources`** — shows which sources are live and
+    which optional keys are configured (**booleans only — values never leave the server**).
+  - **Keyboard shortcuts** — `1`–`8` switch mode, `/` focuses the input; a **`?` help
+    popover** lists modes + shortcuts.
+  - **Visual-effects toggle** honouring **`prefers-reduced-motion`** — the Canvas
+    matrix-rain stops for reduced-motion users and via the header toggle.
+  - **Honest scan progress** (`ScanProgress`) for slow lookups — label + elapsed timer
+    + indeterminate bar (no fabricated "X of N").
+  - **Friendlier error copy** replacing the dev-oriented "is the dev server running?".
 - **Bigger email-intelligence datasets** (`lib/disposableEmailDomains.ts`):
   - **Disposable / throwaway domains: 871 → 1,224** (+353) — temp-mail, 10-minute,
     and wegwerf service families, the **1secmail alias pool**, mailinator-style
@@ -62,6 +82,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Footer credit:** "Created & developed by **Nisarg Chasmawala (Shroff)**".
 
 ### Security
+- **`npm audit`: 0 vulnerabilities.** Next's nested `postcss@8.4.31`
+  (GHSA-qx2v-qp2m-jg93, `</style>` XSS in CSS stringify) is pinned forward to the
+  patched `8.5.x` line via an npm `overrides` (`"postcss": "$postcss"`) that dedupes
+  it to the already-patched top-level copy. The earlier `esbuild`/`vitest`
+  dev-server advisory was cleared by upgrading to **Vitest 4**.
+- **Upgraded React 18 → 19.2 and Vitest 2 → 4** — current, supported, advisory-free.
+  No code changes were required (no `defaultProps`, string refs, `findDOMNode`, or
+  legacy context in the tree).
+- **CSV formula-injection guard** on every CSV export (case + bulk): a cell starting
+  with `= + - @` (or tab/CR) is prefixed with a single quote so it can't run as a
+  formula in Excel / Sheets. (+ regression test.)
+- **Case-store length caps** — file-backed case `name` / entity `value` / `note` are
+  length-bounded so a malformed request can't bloat `.data/cases.json`.
 - **Resilient outbound fetch (`lib/fetchSafe.ts`):** every third-party call now
   runs through a hard-timeout `AbortController` wrapper that never throws — a
   slow/dead source can no longer hang a lookup, and each result carries
@@ -86,6 +119,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   an SPDX SBOM is also uploaded as a build artifact.
 
 ### Fixed
+- **Username search no longer reports false positives.** 15 JS-app / bot-walled
+  sites (Instagram, TikTok, X, Reddit, Telegram, Spotify, …) return HTTP 200 for
+  *every* handle, so a status check wrongly marked them "found" (a nonexistent
+  username produced 14 false hits). They are now a `manual` check — never
+  auto-claimed, shown as **"VERIFY →"** links, and excluded from the presence
+  count. A nonexistent handle now yields **0** false positives (regression-tested).
+  The structurally-broken **Stack Overflow** entry (`/users/filter?search=` always
+  returns 200) was replaced with **Codeberg** (real 404).
+- **Removed all dead Google "dork" links** (`site:` / quoted queries that returned
+  "did not match any documents") project-wide and **deduplicated** the phone OSINT
+  links into a single matrix — every link now lands on a real results page.
 - **Network/LAN access:** `scripts/start.sh` now defaults to **production mode**
   (`next build` + `next start -H 0.0.0.0`) and prints the real LAN IP. Next 16's
   `next dev` blocks cross-origin requests to dev internals (`/_next/*`), and its
