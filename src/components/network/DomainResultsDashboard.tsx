@@ -6,6 +6,9 @@ import {
 } from "lucide-react";
 import type { DomainLookupResponse, DnsRecord } from "@/lib/types";
 import Tilt3D from "@/components/shared/Tilt3D";
+import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
+import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import Term from "@/components/shared/Term";
 
 interface Props { data: DomainLookupResponse; }
 
@@ -36,24 +39,44 @@ export default function DomainResultsDashboard({ data }: Props) {
   const { dns, whois, emailSecurity: es, subdomains } = data;
   const dmarcColor = es.dmarcPolicy === "reject" ? "#00ff85" : es.dmarcPolicy === "quarantine" ? "#fbbf24" : es.hasDmarc ? "#fb923c" : "#ff4d6d";
 
+  const glanceTiles = [
+    { label: "A records", value: String(dns.a.length), accent: "var(--hv-green)" },
+    { label: "MX", value: es.hasMx ? "Yes" : "No", accent: es.hasMx ? undefined : "#fb923c" },
+    { label: <Term k="SPF">SPF</Term>, value: es.hasSpf ? "Yes" : "No", accent: es.hasSpf ? undefined : "#ff4d6d" },
+    { label: <Term k="DMARC">DMARC</Term>, value: es.dmarcPolicy ?? (es.hasDmarc ? "set" : "None"), accent: dmarcColor },
+    { label: "Subdomains", value: String(subdomains.length), accent: "var(--hv-cyan)" },
+  ];
+  const jump: JumpItem[] = [
+    { id: "sec-email", label: "Email sec" },
+    { id: "sec-dns", label: "DNS" },
+    { id: "sec-whois", label: "WHOIS" },
+    ...(subdomains.length > 0 ? [{ id: "sec-subs", label: "Subdomains" }] : []),
+    { id: "sec-pivots", label: "Pivots" },
+  ];
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-4 mt-6">
       <Tilt3D max={5}>
         <div className="terminal-card p-5 space-y-3">
-          <div className="flex items-center gap-3">
-            <Globe className="w-8 h-8 text-[var(--hv-cyan)]" />
-            <div>
-              <div className="text-2xl font-bold gradient-text tracking-wider font-mono">{data.domain}</div>
-              <div className="text-sm text-[var(--hv-ink-dim)] font-mono mt-0.5">
-                {dns.a.length} A · {dns.mx.length} MX · {dns.ns.length} NS · {subdomains.length} subdomains
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <Globe className="w-8 h-8 text-[var(--hv-cyan)]" />
+              <div>
+                <div className="text-2xl font-bold gradient-text tracking-wider font-mono">{data.domain}</div>
+                <div className="text-sm text-[var(--hv-ink-dim)] font-mono mt-0.5">
+                  {dns.a.length} A · {dns.mx.length} MX · {dns.ns.length} NS · {subdomains.length} subdomains
+                </div>
               </div>
             </div>
+            <CopyLinkButton />
           </div>
         </div>
       </Tilt3D>
 
+      <GlanceCard tiles={glanceTiles} jump={jump} />
+
       {/* Email security posture */}
-      <div className="terminal-card p-4 space-y-3">
+      <div id="sec-email" className="terminal-card p-4 space-y-3 scroll-mt-24">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Mail className="w-3 h-3" /> EMAIL SECURITY POSTURE</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {[
@@ -64,7 +87,7 @@ export default function DomainResultsDashboard({ data }: Props) {
             <div key={c.label} className="rounded-md border p-3 space-y-1"
               style={{ borderColor: (c.color ?? (c.ok ? "#00ff85" : "#ff4d6d")) + "50", background: (c.color ?? (c.ok ? "#00ff85" : "#ff4d6d")) + "0d" }}>
               <div className="flex items-center gap-1.5 text-sm font-mono font-bold" style={{ color: c.color ?? (c.ok ? "#00ff85" : "#ff4d6d") }}>
-                {c.ok ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />} {c.label}
+                {c.ok ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />} <Term k={c.label}>{c.label}</Term>
               </div>
               <div className="text-[11px] font-mono text-[var(--hv-ink-dim)]">{c.detail}</div>
             </div>
@@ -75,7 +98,7 @@ export default function DomainResultsDashboard({ data }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* DNS records */}
-        <div className="terminal-card p-4 space-y-3">
+        <div id="sec-dns" className="terminal-card p-4 space-y-3 scroll-mt-24">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Server className="w-3 h-3" /> DNS RECORDS</div>
           <RecordBlock title="A" records={dns.a} accent="var(--hv-green)" />
           <RecordBlock title="AAAA" records={dns.aaaa} accent="var(--hv-green)" />
@@ -89,8 +112,8 @@ export default function DomainResultsDashboard({ data }: Props) {
         </div>
 
         {/* WHOIS */}
-        <div className="terminal-card p-4 space-y-1">
-          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" /> WHOIS / RDAP</div>
+        <div id="sec-whois" className="terminal-card p-4 space-y-1 scroll-mt-24">
+          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" /> WHOIS / <Term k="RDAP">RDAP</Term></div>
           {whois ? (
             <>
               {([
@@ -138,7 +161,7 @@ export default function DomainResultsDashboard({ data }: Props) {
 
       {/* Subdomains */}
       {subdomains.length > 0 && (
-        <div className="terminal-card p-4 space-y-2">
+        <div id="sec-subs" className="terminal-card p-4 space-y-2 scroll-mt-24">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
             <Layers className="w-3 h-3" /> SUBDOMAINS — {subdomains.length} via certificate transparency
           </div>
@@ -154,7 +177,7 @@ export default function DomainResultsDashboard({ data }: Props) {
       )}
 
       {/* Pivots */}
-      <div className="terminal-card p-4 space-y-2">
+      <div id="sec-pivots" className="terminal-card p-4 space-y-2 scroll-mt-24">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Network className="w-3 h-3" /> DEEPEN — free pivots (no key)</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {data.pivots.map((p) => (
