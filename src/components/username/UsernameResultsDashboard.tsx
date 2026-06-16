@@ -6,6 +6,7 @@ import { AtSign, ExternalLink, CheckCircle2, HelpCircle, Search, Code2 } from "l
 import type { UsernameLookupResponse, UsernameHit } from "@/lib/types";
 import { USERNAME_CATEGORY_META } from "@/lib/usernameSites";
 import Tilt3D from "@/components/shared/Tilt3D";
+import CopyLinkButton from "@/components/shared/CopyLinkButton";
 
 interface Props { data: UsernameLookupResponse; }
 
@@ -55,7 +56,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
             <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8 }}
               className="h-full rounded" style={{ background: "linear-gradient(90deg,var(--hv-green),var(--hv-cyan))", boxShadow: "0 0 8px var(--hv-green)" }} />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap items-center">
             {(["found", "all"] as Filter[]).map((f) => (
               <button key={f} onClick={() => setFilter(f)}
                 className={`text-[11px] font-mono font-bold uppercase tracking-widest px-3 py-1 rounded border transition-all ${
@@ -64,6 +65,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
                 {f === "found" ? `FOUND (${data.found})` : `INCLUDE TO-VERIFY`}
               </button>
             ))}
+            <CopyLinkButton className="text-[11px] font-mono uppercase tracking-widest px-3 py-1 rounded border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-all flex items-center gap-1.5" />
           </div>
         </div>
       </Tilt3D>

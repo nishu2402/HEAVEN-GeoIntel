@@ -67,13 +67,11 @@ function PageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("phone");
-  // Returning visitors start already-booted (flag set on first run) so the boot
-  // animation never replays. Lazy initialiser → no flash. This view is always
-  // client-rendered (CSR bailout via useSearchParams), so reading storage here
-  // can't cause a hydration mismatch.
-  const [booted, setBooted] = useState<boolean>(() => {
-    try { return typeof window !== "undefined" && localStorage.getItem(BOOTED_KEY) === "1"; } catch { return false; }
-  });
+  // MUST start false on BOTH server and first client render (the server has no
+  // localStorage) — reading the flag here would cause a hydration mismatch. The
+  // mount effect below flips it to true immediately for returning visitors, so
+  // the boot animation is skipped after the first run (no full replay).
+  const [booted, setBooted] = useState(false);
 
   // Per-mode state
   const [phoneStatus, setPhoneStatus] = useState<Status>("idle");
