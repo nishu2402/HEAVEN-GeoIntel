@@ -10,6 +10,8 @@ import {
 import type { EmailLookupResponse } from "@/lib/types";
 import EmailOsintPivots from "@/components/email/EmailOsintPivots";
 import BreachPanel      from "@/components/breach/BreachPanel";
+import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
+import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import { cn, copyText } from "@/lib/utils";
 import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
 
@@ -317,6 +319,25 @@ export default function EmailResultsDashboard({ data }: Props) {
     { source: "FullContact", state: fullContact ? srState(fullContact) : "off" },
   ];
 
+  // ── At-a-glance summary + section jump ──
+  const xonData = xon?.ok ? xon.data : null;
+  const breachCount = xonData ? xonData.breachCount : null;
+  const threatColor = threatScore >= 70 ? "#ff1a1a" : threatScore >= 40 ? "#ff6600" : threatScore >= 20 ? "#ffaa00" : "#00ff41";
+  const glanceTiles = [
+    { label: "Provider", value: analysis.providerType.toUpperCase(), accent: provColor },
+    { label: "Disposable", value: analysis.isDisposable ? "Yes" : "No", accent: analysis.isDisposable ? "#ff3e3e" : undefined },
+    { label: "Breaches", value: breachCount != null ? (breachCount > 0 ? String(breachCount) : "None") : "—", accent: breachCount && breachCount > 0 ? "#ff3e3e" : undefined },
+    { label: "Reputation", value: repData ? repData.reputation.toUpperCase() : "—" },
+    { label: "Threat", value: `${threatScore}/100`, accent: threatColor },
+  ];
+  const jump: JumpItem[] = [
+    ...(fcData ? [{ id: "sec-identity", label: "Identity" }] : []),
+    { id: "sec-breach", label: "Breach" },
+    { id: "sec-class", label: "Classification" },
+    { id: "sec-rep", label: "Reputation" },
+    { id: "sec-pivots", label: "Pivots" },
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -426,8 +447,11 @@ export default function EmailResultsDashboard({ data }: Props) {
           >
             <Download className="w-3 h-3" /> EXPORT REPORT
           </button>
+          <CopyLinkButton />
         </div>
       </div>
+
+      <GlanceCard tiles={glanceTiles} jump={jump} />
 
       {/* ── FullContact Enrichment Panel — unique data only (name/location/bio already in header) ── */}
       {fcData && (
@@ -442,7 +466,8 @@ export default function EmailResultsDashboard({ data }: Props) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40"
+          id="sec-identity"
+          className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40 scroll-mt-24"
         >
           <div className="flex items-center justify-between">
             <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
@@ -538,7 +563,7 @@ export default function EmailResultsDashboard({ data }: Props) {
       )}
 
       {/* ── BREACH DATABASE — Primary intelligence ── */}
-      <BreachPanel xon={xon} breachDirectory={breachDirectory} />
+      <section id="sec-breach" className="scroll-mt-24"><BreachPanel xon={xon} breachDirectory={breachDirectory} /></section>
 
       {/* ── Risk indicators (EmailRep critical flags) ── */}
       {repData && (repData.credentialsLeaked || repData.dataBreach || repData.suspicious || repData.maliciousActivity) && (
@@ -581,7 +606,7 @@ export default function EmailResultsDashboard({ data }: Props) {
       )}
 
       {/* ── Two-column: Classification + Gravatar ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div id="sec-class" className="grid grid-cols-1 lg:grid-cols-2 gap-4 scroll-mt-24">
 
         {/* Offline classification */}
         <div className="terminal-card p-4 space-y-1">
@@ -645,7 +670,7 @@ export default function EmailResultsDashboard({ data }: Props) {
       </div>
 
       {/* ── Reputation + Validation ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div id="sec-rep" className="grid grid-cols-1 lg:grid-cols-2 gap-4 scroll-mt-24">
 
         {/* EmailRep.io */}
         <div className="terminal-card p-4 space-y-1">
@@ -744,7 +769,7 @@ export default function EmailResultsDashboard({ data }: Props) {
       </div>
 
       {/* ── OSINT pivots ── */}
-      <EmailOsintPivots email={email} domain={analysis.domain} />
+      <section id="sec-pivots" className="scroll-mt-24"><EmailOsintPivots email={email} domain={analysis.domain} /></section>
       <SourceStrip sources={emailSources} />
     </motion.div>
   );

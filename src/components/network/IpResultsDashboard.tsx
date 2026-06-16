@@ -7,6 +7,9 @@ import {
 } from "lucide-react";
 import type { IpLookupResponse } from "@/lib/types";
 import Tilt3D from "@/components/shared/Tilt3D";
+import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
+import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import Term from "@/components/shared/Term";
 
 interface Props { data: IpLookupResponse; }
 
@@ -33,7 +36,7 @@ function ThreatBar({ score, label }: { score: number; label: string }) {
   );
 }
 
-function Row({ label, value, accent }: { label: string; value: React.ReactNode; accent?: string }) {
+function Row({ label, value, accent }: { label: React.ReactNode; value: React.ReactNode; accent?: string }) {
   if (value === null || value === undefined || value === "") return null;
   return (
     <div className="flex items-start gap-2 py-1.5 border-b border-[var(--hv-glass-border)] last:border-b-0">
@@ -68,6 +71,22 @@ export default function IpResultsDashboard({ data }: Props) {
     ? `https://www.openstreetmap.org/?mlat=${ip.latitude}&mlon=${ip.longitude}#map=11/${ip.latitude}/${ip.longitude}`
     : null;
 
+  const hasExposure = !!(ip.ports || ip.vulns || ip.hostnames || ip.tags);
+  const riskColor = data.threatScore >= 70 ? "#ff4d6d" : data.threatScore >= 40 ? "#fb923c" : data.threatScore >= 20 ? "#fbbf24" : "#00ff85";
+  const glanceTiles = [
+    { label: "Country", value: ip.country ?? "—" },
+    { label: <Term k="ASN">ASN</Term>, value: ip.asnOrg ?? (ip.asn ? `AS${ip.asn}` : "—"), accent: "var(--hv-cyan)" },
+    { label: "Risk", value: `${data.threatScore} · ${data.threatLabel}`, accent: riskColor },
+    { label: "VPN / proxy", value: ip.isVpn === true ? "Yes" : ip.isVpn === false ? "No" : "—", accent: ip.isVpn ? "#ff4d6d" : undefined },
+    { label: "Hosting", value: ip.isHosting === true ? "Yes" : ip.isHosting === false ? "No" : "—", accent: ip.isHosting ? "#fbbf24" : undefined },
+  ];
+  const jump: JumpItem[] = [
+    { id: "sec-geo", label: "Geo" },
+    { id: "sec-net", label: "Network" },
+    ...(hasExposure ? [{ id: "sec-exposure", label: "Exposure" }] : []),
+    { id: "sec-pivots", label: "Pivots" },
+  ];
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-4 mt-6">
       <Tilt3D max={5}>
@@ -82,6 +101,7 @@ export default function IpResultsDashboard({ data }: Props) {
                 </div>
               </div>
             </div>
+            <CopyLinkButton />
           </div>
           <div className="border-t border-[var(--hv-glass-border)] pt-3"><ThreatBar score={data.threatScore} label={data.threatLabel} /></div>
           <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--hv-glass-border)]">
@@ -104,8 +124,10 @@ export default function IpResultsDashboard({ data }: Props) {
         </div>
       </Tilt3D>
 
+      <GlanceCard tiles={glanceTiles} jump={jump} />
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="terminal-card p-4 space-y-1">
+        <div id="sec-geo" className="terminal-card p-4 space-y-1 scroll-mt-24">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-3 flex items-center gap-1.5"><MapPin className="w-3 h-3" /> GEOLOCATION</div>
           <Row label="City" value={ip.city} accent="var(--hv-cyan)" />
           <Row label="Region" value={ip.region} accent="var(--hv-cyan)" />
@@ -122,9 +144,9 @@ export default function IpResultsDashboard({ data }: Props) {
           )}
         </div>
 
-        <div className="terminal-card p-4 space-y-1">
-          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-3 flex items-center gap-1.5"><Network className="w-3 h-3" /> NETWORK / ASN</div>
-          <Row label="ASN" value={ip.asn ? `AS${ip.asn}` : null} accent="var(--hv-green)" />
+        <div id="sec-net" className="terminal-card p-4 space-y-1 scroll-mt-24">
+          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-3 flex items-center gap-1.5"><Network className="w-3 h-3" /> NETWORK / <Term k="ASN">ASN</Term></div>
+          <Row label={<Term k="ASN">ASN</Term>} value={ip.asn ? `AS${ip.asn}` : null} accent="var(--hv-green)" />
           <Row label="AS Org" value={ip.asnOrg} accent="var(--hv-green)" />
           <Row label="ISP" value={ip.isp} accent="var(--hv-cyan)" />
           <Row label="Organization" value={ip.org} />
@@ -132,8 +154,8 @@ export default function IpResultsDashboard({ data }: Props) {
         </div>
       </div>
 
-      {(ip.ports || ip.vulns || ip.hostnames || ip.tags) && (
-        <div className="terminal-card p-4 space-y-3">
+      {hasExposure && (
+        <div id="sec-exposure" className="terminal-card p-4 space-y-3 scroll-mt-24">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
             <Server className="w-3 h-3" /> INTERNET EXPOSURE — Shodan InternetDB
           </div>
@@ -178,7 +200,7 @@ export default function IpResultsDashboard({ data }: Props) {
         </div>
       )}
 
-      <div className="terminal-card p-4 space-y-2">
+      <div id="sec-pivots" className="terminal-card p-4 space-y-2 scroll-mt-24">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Shield className="w-3 h-3" /> DEEPEN — free pivots (no key)</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {data.pivots.map((p) => (
