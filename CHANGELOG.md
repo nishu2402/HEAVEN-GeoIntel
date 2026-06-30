@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Manage API keys in the web app** — a new **Sources & keys** panel (🗄 header
+  icon) lets you paste your optional provider keys (IPQS, NumVerify, Twilio,
+  Hunter, FullContact, …) directly in the UI instead of editing `.env.local`.
+  Keys are stored server-side in `.data/keys.json` (mode `0600`, git-ignored) via
+  an allow-listed `/api/keys` endpoint, are **never returned to the browser**
+  (the UI sees only a configured/source flag), and a UI key takes precedence over
+  the matching env var. All lookup routes now resolve keys through `lib/keyStore`
+  (UI → env → none), so existing `.env.local` setups keep working unchanged.
+- **"At a glance" + jump nav on every result** — the summary card (extracted into
+  a shared `GlanceCard`) now appears on **IP, Domain and Email** results too, not
+  just phone, and every non-phone result gained a **Copy link** button.
 - **User-friendliness overhaul** (no data/accuracy logic touched):
   - **Boot animation plays only on the first visit** — persisted flag + lazy init,
     so returning visitors land straight on the console (no replay, no flash).
@@ -82,6 +93,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Footer credit:** "Created & developed by **Nisarg Chasmawala (Shroff)**".
 
 ### Security
+- **Full security audit + hardening.** From a fresh review of the whole codebase
+  (SSRF, injection, XSS, CSRF, path traversal, ReDoS, prototype pollution, secrets,
+  headers):
+  - **CSRF guard** in middleware — cross-site `POST/PUT/PATCH/DELETE` are rejected
+    (`Sec-Fetch-Site` + `Origin`/`Host` fallback), so a malicious page can't drive
+    `/api/keys` or `/api/cases`. Verified: a cross-site write returns 403 and
+    persists nothing; same-origin and curl are unaffected.
+  - **`unsafe-eval` removed from the production CSP** (dev-only now) — the prod
+    bundle contains zero `eval()` / `new Function()`, verified in-browser with no
+    CSP violations.
+  - **Request-body cap** (512 KB, HTTP 413) against memory-exhaustion DoS.
+  - **Generic 500s** on `/api/cases` (no internal paths/stack in responses).
+  - Confirmed safe (no change needed): no SSRF (every outbound host is fixed;
+    input is validated + URL-encoded), no XSS (React + escaped HTML/print exports
+    + static inline script), no path traversal (fixed file paths), no prototype
+    pollution (allow-listed keys + fresh-object construction), no secrets in the
+    client bundle (only public env-var *names* for setup hints).
 - **`npm audit`: 0 vulnerabilities.** Next's nested `postcss@8.4.31`
   (GHSA-qx2v-qp2m-jg93, `</style>` XSS in CSS stringify) is pinned forward to the
   patched `8.5.x` line via an npm `overrides` (`"postcss": "$postcss"`) that dedupes

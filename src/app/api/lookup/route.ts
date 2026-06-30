@@ -8,6 +8,7 @@ import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
 import { getCountryIntel } from "@/lib/countryIntel";
 import { deriveOfflineReputation } from "@/lib/freePhoneIntel";
 import { lookupMccMnc } from "@/lib/mccMnc";
+import { resolveKey } from "@/lib/keyStore";
 import type { CountryIntel } from "@/lib/countryIntel";
 import type {
   LookupResponse,
@@ -26,7 +27,7 @@ import type {
 import type { PhoneAnalysis } from "@/lib/phoneAnalysis";
 
 async function fetchNumVerify(e164: string): Promise<SourceResult<NumVerifyData>> {
-  const key = process.env.NUMVERIFY_API_KEY;
+  const key = await resolveKey("NUMVERIFY_API_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const number = e164.replace("+", "");
@@ -44,7 +45,7 @@ async function fetchNumVerify(e164: string): Promise<SourceResult<NumVerifyData>
 }
 
 async function fetchIpqs(e164: string): Promise<SourceResult<IpqsData>> {
-  const key = process.env.IPQS_API_KEY;
+  const key = await resolveKey("IPQS_API_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const encoded = encodeURIComponent(e164);
@@ -62,7 +63,7 @@ async function fetchIpqs(e164: string): Promise<SourceResult<IpqsData>> {
 }
 
 async function fetchAbstract(e164: string): Promise<SourceResult<AbstractData>> {
-  const key = process.env.ABSTRACT_API_KEY;
+  const key = await resolveKey("ABSTRACT_API_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const res = await fetch(
@@ -81,7 +82,7 @@ async function fetchAbstract(e164: string): Promise<SourceResult<AbstractData>> 
 // ── BreachDirectory — credential hash lookup for phone numbers (RapidAPI) ──
 // The same endpoint that searches email also accepts phone numbers via func=auto.
 async function fetchBreachDirectoryPhone(e164: string): Promise<SourceResult<BreachDirectoryData>> {
-  const key = process.env.RAPIDAPI_KEY;
+  const key = await resolveKey("RAPIDAPI_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     // Use the digit-only form (+ stripped) — BreachDirectory matches phone records by digits
@@ -134,7 +135,7 @@ async function fetchBreachDirectoryPhone(e164: string): Promise<SourceResult<Bre
 // ── FullContact — person enrichment from phone number ──
 // person.enrich accepts a phone field; returns name, employer, social profiles.
 async function fetchFullContactPhone(e164: string): Promise<SourceResult<FullContactData>> {
-  const key = process.env.FULLCONTACT_API_KEY;
+  const key = await resolveKey("FULLCONTACT_API_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const res = await fetch("https://api.fullcontact.com/v3/person.enrich", {
@@ -288,8 +289,8 @@ function extractMalwareFamily(malwarePath: string): string {
 }
 
 async function fetchTwilio(e164: string): Promise<SourceResult<TwilioData>> {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
+  const sid = await resolveKey("TWILIO_ACCOUNT_SID");
+  const token = await resolveKey("TWILIO_AUTH_TOKEN");
   if (!sid || !token) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const encoded = encodeURIComponent(e164);
