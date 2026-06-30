@@ -37,7 +37,12 @@ const httpsDeploy = process.env.FORCE_HTTPS === "1";
 
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // 'unsafe-eval' is only needed by the dev server (HMR / fast refresh). The
+  // production bundle never eval()s, so we drop it there to shrink the XSS
+  // surface. 'unsafe-inline' stays for the tiny anti-flash theme script in
+  // <head> and Next's inline bootstrap (a nonce-based CSP would remove it, but
+  // that's a larger change for a self-hosted tool).
+  isDev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   `img-src 'self' ${IMG_ALLOWED}`,

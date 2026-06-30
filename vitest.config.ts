@@ -8,8 +8,10 @@ export default defineConfig({
     },
   },
   test: {
+    // Default env is node (lib + route logic tests). Component render tests opt
+    // into jsdom per-file via a `// @vitest-environment jsdom` comment.
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.{ts,tsx}"],
     exclude: ["node_modules", ".next", ".claude"],
     coverage: {
       provider: "v8",

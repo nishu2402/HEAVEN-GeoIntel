@@ -136,7 +136,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
 
   const [shodan, gn] = await Promise.all([shodanJob, gnJob]);
-  const gnObserved = gn.data?.message ? !/not observed/i.test(gn.data.message) : gn.ok;
   const sources: SourceProvenance[] = [
     { source: ipApi.source, ok: ipApi.ok && ipApi.data?.status === "success", ms: ipApi.ms, fetchedAt: ipApi.fetchedAt, error: ipApi.ok ? (ipApi.data?.status === "success" ? undefined : (ipApi.data?.message ?? "lookup failed")) : ipApi.error },
     { source: shodan.source, ok: shodan.ok, ms: shodan.ms, fetchedAt: shodan.fetchedAt, error: shodan.ok ? undefined : shodan.error },
