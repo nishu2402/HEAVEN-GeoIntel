@@ -23,6 +23,7 @@ import ShareButton           from "@/components/shared/ShareButton";
 import ReportExport          from "@/components/shared/ReportExport";
 import PanelErrorBoundary    from "@/components/shared/PanelErrorBoundary";
 import Term                  from "@/components/shared/Term";
+import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import { cn, copyText } from "@/lib/utils";
 
 interface Props {
@@ -118,17 +119,14 @@ export default function ResultsDashboard({ data }: Props) {
   const hr = sources.hudsonRock;
   const hrTotal = hr.ok && hr.data ? hr.data.total : null;
   const npa = data.analysis.npaInfo;
-  const summary = {
-    lineType: aggregated.lineType || aggregated.typeDescription || "Unknown",
-    carrier: aggregated.carrier ?? "—",
-    location: npa?.region ? `${npa.region}${npa.stateAbbr ? `, ${npa.stateAbbr}` : ""}` : aggregated.countryName,
-    breach: bdFound != null ? (bdFound > 0 ? `${bdFound} found` : "None") : "Needs key",
-    breachHit: !!bdFound && bdFound > 0,
-    stealer: hrTotal != null ? (hrTotal > 0 ? `${hrTotal} device${hrTotal > 1 ? "s" : ""}` : "None") : "—",
-    stealerHit: !!hrTotal && hrTotal > 0,
-  };
-  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const JUMP: { id: string; label: string }[] = [
+  const glanceTiles = [
+    { label: "Line type", value: aggregated.lineType || aggregated.typeDescription || "Unknown" },
+    { label: "Carrier", value: aggregated.carrier ?? "—" },
+    { label: "Location", value: npa?.region ? `${npa.region}${npa.stateAbbr ? `, ${npa.stateAbbr}` : ""}` : aggregated.countryName },
+    { label: "Breach", value: bdFound != null ? (bdFound > 0 ? `${bdFound} found` : "None") : "Needs key", accent: bdFound && bdFound > 0 ? "#ff3e3e" : undefined },
+    { label: <Term k="infostealer">Infostealer</Term>, value: hrTotal != null ? (hrTotal > 0 ? `${hrTotal} device${hrTotal > 1 ? "s" : ""}` : "None") : "—", accent: hrTotal && hrTotal > 0 ? "#ff3e3e" : undefined },
+  ];
+  const JUMP: JumpItem[] = [
     { id: "sec-identity", label: "Identity" },
     { id: "sec-breach", label: "Breach" },
     { id: "sec-infostealer", label: "Infostealer" },
@@ -239,25 +237,7 @@ export default function ResultsDashboard({ data }: Props) {
       </div>
 
       {/* ── AT A GLANCE — quick answers + jump nav ──────────────────────────── */}
-      <div className="terminal-card p-4 space-y-3">
-        <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/10 pb-2">[ AT A GLANCE ]</div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          <SummaryTile label="Line type" value={summary.lineType} />
-          <SummaryTile label="Carrier" value={summary.carrier} />
-          <SummaryTile label="Location" value={summary.location} />
-          <SummaryTile label="Breach" value={summary.breach} accent={summary.breachHit ? "#ff3e3e" : undefined} />
-          <SummaryTile label={<Term k="infostealer">Infostealer</Term>} value={summary.stealer} accent={summary.stealerHit ? "#ff3e3e" : undefined} />
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-[#00ff41]/10 pt-2">
-          <span className="text-[11px] font-mono text-[#00ff41]/40 uppercase tracking-widest">Jump to</span>
-          {JUMP.map((j) => (
-            <button key={j.id} onClick={() => jump(j.id)}
-              className="text-[11px] font-mono px-2 py-0.5 rounded border border-[#00ff41]/15 text-[#00ff41]/60 hover:text-[#00ff41] hover:border-[#00ff41]/40 transition-colors">
-              {j.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <GlanceCard tiles={glanceTiles} jump={JUMP} />
 
       {/* ── IDENTITY (FullContact + CNAM + free-lookup action center) ───────── */}
       <section id="sec-identity" className="scroll-mt-24"><PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} /></PanelErrorBoundary></section>
@@ -315,15 +295,6 @@ export default function ResultsDashboard({ data }: Props) {
 
       <SourceStrip sources={phoneSources} />
     </motion.div>
-  );
-}
-
-function SummaryTile({ label, value, accent }: { label: React.ReactNode; value: string; accent?: string }) {
-  return (
-    <div className="border border-[#00ff41]/10 rounded px-2.5 py-2 bg-[#00ff41]/[0.02]">
-      <div className="text-[10px] uppercase tracking-widest text-[#00ff41]/40 font-mono">{label}</div>
-      <div className="text-[13px] font-mono font-bold truncate mt-0.5" style={{ color: accent ?? "#00ff41" }} title={value}>{value}</div>
-    </div>
   );
 }
 

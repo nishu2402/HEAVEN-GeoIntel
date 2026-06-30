@@ -216,7 +216,7 @@ One unified console with an **8-mode switcher**. The first five are live lookups
 - **Keyboard-first** — press `1`–`8` to switch mode, `/` to focus the input, `⌘K` for the palette. A `?` help button lists every mode and shortcut.
 - **Example chips** under each empty input ("Try `+1 415 555 2671`…") so you're never staring at a blank box, and every lookup gets a shareable URL (`?mode=…&q=…`) — bookmark or hand off any result, in any mode.
 - **At-a-glance summary** at the top of a phone result (line type · carrier · location · breach · infostealer) plus a "jump to" nav, so you find the answer without scrolling 12 panels. Hover any acronym (E.164, NPA, CNAM…) for a plain-language tooltip.
-- **Sources & keys panel** — one click shows which data sources are live and which optional API keys are configured (booleans only; keys never leave the server), so an empty field is self-explanatory.
+- **Sources & keys panel** — one click shows which data sources are live, and lets you **add your optional API keys right in the app** (no editing `.env.local`). Keys are stored server-side (`.data/keys.json`, owner-only, git-ignored) and **never sent back to the browser** — the UI only ever sees a configured/not flag, so an empty field is self-explanatory.
 - **Light + dark themes** + a **visual-effects toggle** that honours `prefers-reduced-motion` — a persisted toggle with an anti-flash boot script. The UI is a hybrid "cyberpunk glass" design: 3D parallax-tilt cards, neon glow, holographic borders, an animated grid backdrop, and the signature Canvas katakana rain (which respects reduced-motion and the toggle).
 - **Session graph** — every successful lookup adds a node, so by the end of an investigation you have a visual map of how the identifiers connect (exportable as PNG).
 
@@ -552,7 +552,7 @@ Returns `{ count, rows: [{ input, ok, e164, country, type, carrier, timezone, ut
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:44FF88,50:FFAA00,100:BF5FFF"/>
 </p>
 
-The app works fully without API keys (offline analysis + free no-key sources). Add keys to `.env.local` for deeper intelligence.
+The app works fully without API keys (offline analysis + free no-key sources). Add keys for deeper intelligence — either **right in the app** (the **Sources & keys** panel, 🗄 icon in the header) or in `.env.local`. Keys added in the app are stored server-side (`.data/keys.json`, owner-only, git-ignored) and never sent back to the browser; a key set in the app takes precedence over the matching env var.
 
 <div align="center">
 
@@ -636,7 +636,7 @@ curl -s localhost:3000/api/cases | jq '.cases'
 curl -s localhost:3000/api/docs  | jq .info
 ```
 
-The ten endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/health` · `/api/docs`. Lookup routes return `X-RateLimit-*` headers and `X-Robots-Tag: noindex`. `/api/sources` reports which optional API keys are configured (booleans only — never the values).
+The eleven endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/keys` · `/api/health` · `/api/docs`. Lookup routes return `X-RateLimit-*` headers and `X-Robots-Tag: noindex`. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (booleans only — key **values are never returned**).
 
 ---
 

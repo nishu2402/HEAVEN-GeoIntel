@@ -54,6 +54,17 @@ Out of scope (please report these to the upstream maintainers):
   only ever interpolated (URL-encoded) into **fixed** third-party hosts, so the
   routes are not an SSRF vector — a caller cannot choose which host the server
   connects to.
+- **CSRF protection**: the middleware rejects cross-site state-changing requests
+  (POST/PUT/PATCH/DELETE) using `Sec-Fetch-Site` with an `Origin`-vs-`Host`
+  fallback, so a malicious page in the user's browser can't drive `/api/keys` or
+  `/api/cases`. Same-origin app calls and non-browser clients (curl) are
+  unaffected; reads (GET) are not blocked (and have no `Access-Control-Allow-Origin`).
+- **Request-body cap**: state-changing API requests over 512 KB are rejected
+  (HTTP 413) before the body is buffered — defense-in-depth against memory DoS.
+- **Content-Security-Policy**: production `script-src` is `'self' 'unsafe-inline'`
+  — `'unsafe-eval'` is dev-only (HMR); the production bundle uses no `eval()` /
+  `new Function()`. Plus `object-src 'none'`, `frame-ancestors 'none'`,
+  `base-uri 'self'`, `form-action 'self'`.
 - **No secrets in the client bundle**: all API keys are read from
   `process.env` inside server route handlers only. Verify with
   `grep -r "process.env" .next/static/` (returns nothing).
@@ -64,6 +75,14 @@ Out of scope (please report these to the upstream maintainers):
   (e.g. Cloudflare Access, basic-auth nginx) in front of it, or disable the
   cases route. The store performs no path interpolation from user input, so it
   is not a path-traversal vector.
+- **In-app API keys** (`/api/keys`, file-backed at `.data/keys.json`): optional
+  provider keys added from the UI are stored server-side with mode `0600`,
+  git-ignored, behind an **allow-listed** name set (the endpoint cannot write
+  arbitrary values). Keys are **never returned to the browser** — `/api/keys` and
+  `/api/sources` expose only a configured/source flag, never the value. Values
+  are stored in plaintext (same trust level as `.env.local`), so on a shared or
+  exposed deployment set `AUTH_PASSWORD` (or an auth proxy) so the key endpoints
+  aren't world-reachable.
 
 ## Known dependency advisories
 

@@ -76,7 +76,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    // Log server-side; return a generic message so internal details (paths,
+    // stack) never reach the client.
+    console.error("[cases] request failed:", err);
+    return NextResponse.json({ error: "Request failed" }, { status: 500 });
   }
 }
 

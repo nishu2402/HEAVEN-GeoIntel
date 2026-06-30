@@ -4,6 +4,7 @@ import { analyzeEmail } from "@/lib/emailAnalysis";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { audit } from "@/lib/auditLog";
 import { parseBody, emailBody } from "@/lib/validation";
+import { resolveKey } from "@/lib/keyStore";
 import type {
   EmailLookupResponse,
   GravatarProfile,
@@ -99,7 +100,8 @@ async function fetchEmailRep(email: string): Promise<SourceResult<EmailRepData>>
     // Only include Key header when a key is actually configured —
     // sending an empty string causes EmailRep.io to return 401
     const headers: Record<string, string> = { "User-Agent": "HEAVEN-GeoIntel/1.3" };
-    if (process.env.EMAILREP_API_KEY) headers["Key"] = process.env.EMAILREP_API_KEY;
+    const emailRepKey = await resolveKey("EMAILREP_API_KEY");
+    if (emailRepKey) headers["Key"] = emailRepKey;
 
     const res = await fetch(`https://emailrep.io/${encodeURIComponent(email)}`, {
       headers,
@@ -171,7 +173,7 @@ async function fetchEmailRep(email: string): Promise<SourceResult<EmailRepData>>
 
 // ── Abstract API — email validation ──────────────────────────────────────────
 async function fetchAbstractEmail(email: string): Promise<SourceResult<AbstractEmailData>> {
-  const key = process.env.ABSTRACT_API_KEY;
+  const key = await resolveKey("ABSTRACT_API_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const res = await fetch(
@@ -219,7 +221,7 @@ async function fetchAbstractEmail(email: string): Promise<SourceResult<AbstractE
 
 // ── Hunter.io — email verification ──────────────────────────────────────────
 async function fetchHunter(email: string): Promise<SourceResult<HunterData>> {
-  const key = process.env.HUNTER_API_KEY;
+  const key = await resolveKey("HUNTER_API_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const res = await fetch(
@@ -391,7 +393,7 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
 
 // ── FullContact — real name, employer, social profiles (optional) ─────────────
 async function fetchFullContact(email: string): Promise<SourceResult<FullContactData>> {
-  const key = process.env.FULLCONTACT_API_KEY;
+  const key = await resolveKey("FULLCONTACT_API_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
 
   try {
@@ -469,7 +471,7 @@ async function fetchFullContact(email: string): Promise<SourceResult<FullContact
 
 // ── BreachDirectory — credential hash lookup (RapidAPI, optional) ─────────────
 async function fetchBreachDirectory(email: string): Promise<SourceResult<BreachDirectoryData>> {
-  const key = process.env.RAPIDAPI_KEY;
+  const key = await resolveKey("RAPIDAPI_KEY");
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
 
   try {
