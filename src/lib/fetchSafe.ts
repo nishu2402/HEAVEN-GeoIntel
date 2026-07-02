@@ -48,6 +48,18 @@ function reason(status: number, err?: unknown): string {
 }
 
 /**
+ * Map a caught exception to a short, user-safe reason string. Used by route
+ * handlers that fetch providers directly (with the API key embedded in the URL)
+ * so a network/parse error is surfaced WITHOUT ever stringifying the raw Error
+ * — a raw `String(err)` can carry request URLs or internal detail to the client.
+ */
+export function describeError(err: unknown): string {
+  if (err instanceof DOMException && err.name === "TimeoutError") return "timed out";
+  if (err instanceof DOMException && err.name === "AbortError") return "aborted";
+  return "request failed";
+}
+
+/**
  * Fetch + JSON-parse with a hard timeout and structured provenance. Never
  * throws — failures come back as { ok:false, error, source, fetchedAt, ms }.
  */

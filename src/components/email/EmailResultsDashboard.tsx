@@ -12,7 +12,7 @@ import EmailOsintPivots from "@/components/email/EmailOsintPivots";
 import BreachPanel      from "@/components/breach/BreachPanel";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
-import { cn, copyText } from "@/lib/utils";
+import { cn, copyText, safeExternalUrl } from "@/lib/utils";
 import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
 
 interface Props {
@@ -431,9 +431,9 @@ export default function EmailResultsDashboard({ data }: Props) {
         <div className="flex gap-2 flex-wrap border-t border-[#00ff41]/10 pt-3">
           <CopyBtn text={email} />
           <CopyBtn text={analysis.domain} />
-          {gravatar.found && gravatar.profileUrl && (
+          {gravatar.found && safeExternalUrl(gravatar.profileUrl) && (
             <a
-              href={gravatar.profileUrl}
+              href={safeExternalUrl(gravatar.profileUrl)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-xs border border-[#00d9ff]/30 px-2 py-1 text-[#00d9ff]/60 hover:text-[#00d9ff] hover:border-[#00d9ff]/60 transition-colors font-mono"
@@ -493,7 +493,7 @@ export default function EmailResultsDashboard({ data }: Props) {
                 {fcData.profiles.map((p) => (
                   <a
                     key={p.platform + p.username}
-                    href={p.url || "#"}
+                    href={safeExternalUrl(p.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 hover:bg-[#00d9ff]/10 transition-colors"
@@ -648,7 +648,7 @@ export default function EmailResultsDashboard({ data }: Props) {
                     {gravatar.accounts.map((acc) => (
                       <a
                         key={acc.shortname + acc.username}
-                        href={acc.url || "#"}
+                        href={safeExternalUrl(acc.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 transition-colors"

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// ── CSRF guard + optional auth gate ──────────────────────────────────────────
+// ── CSRF guard + optional auth gate (Next 16 `proxy` convention) ─────────────
+// This is the file formerly known as `middleware.ts`; Next 16 renamed the
+// convention to `proxy.ts` with a `proxy()` export (same request-interception
+// semantics, same `config.matcher`).
+//
 // The auth gate is DISABLED by default (self-hosted single-user). Set
 // AUTH_PASSWORD (and optionally AUTH_USER, default "analyst") to require HTTP
 // Basic auth on the whole app + API. /api/health is left open for probes.
@@ -37,7 +41,7 @@ function safeEqual(a: string, b: string): boolean {
   return r === 0;
 }
 
-export function middleware(req: NextRequest): NextResponse {
+export function proxy(req: NextRequest): NextResponse {
   if (isCrossSiteWrite(req)) {
     return NextResponse.json({ error: "Cross-site request blocked" }, { status: 403 });
   }

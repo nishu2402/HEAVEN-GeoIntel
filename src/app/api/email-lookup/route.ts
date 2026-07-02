@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { audit } from "@/lib/auditLog";
 import { parseBody, emailBody } from "@/lib/validation";
 import { resolveKey } from "@/lib/keyStore";
+import { describeError } from "@/lib/fetchSafe";
 import type {
   EmailLookupResponse,
   GravatarProfile,
@@ -167,7 +168,7 @@ async function fetchEmailRep(email: string): Promise<SourceResult<EmailRepData>>
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -215,7 +216,7 @@ async function fetchAbstractEmail(email: string): Promise<SourceResult<AbstractE
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -267,7 +268,7 @@ async function fetchHunter(email: string): Promise<SourceResult<HunterData>> {
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -387,7 +388,7 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -465,7 +466,7 @@ async function fetchFullContact(email: string): Promise<SourceResult<FullContact
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -527,7 +528,7 @@ async function fetchBreachDirectory(email: string): Promise<SourceResult<BreachD
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -585,22 +586,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     },
     emailrep: emailrepResult.status === "fulfilled"
       ? emailrepResult.value
-      : { ok: false, error: String((emailrepResult as PromiseRejectedResult).reason) },
+      : { ok: false, error: describeError((emailrepResult as PromiseRejectedResult).reason) },
     abstract: abstractResult.status === "fulfilled"
       ? abstractResult.value
-      : { ok: false, error: String((abstractResult as PromiseRejectedResult).reason) },
+      : { ok: false, error: describeError((abstractResult as PromiseRejectedResult).reason) },
     hunter: hunterResult.status === "fulfilled"
       ? hunterResult.value
-      : { ok: false, error: String((hunterResult as PromiseRejectedResult).reason) },
+      : { ok: false, error: describeError((hunterResult as PromiseRejectedResult).reason) },
     xon: xonResult.status === "fulfilled"
       ? xonResult.value
-      : { ok: false, error: String((xonResult as PromiseRejectedResult).reason) },
+      : { ok: false, error: describeError((xonResult as PromiseRejectedResult).reason) },
     breachDirectory: bdResult.status === "fulfilled"
       ? bdResult.value
-      : { ok: false, error: String((bdResult as PromiseRejectedResult).reason) },
+      : { ok: false, error: describeError((bdResult as PromiseRejectedResult).reason) },
     fullContact: fcResult.status === "fulfilled"
       ? fcResult.value
-      : { ok: false, error: String((fcResult as PromiseRejectedResult).reason) },
+      : { ok: false, error: describeError((fcResult as PromiseRejectedResult).reason) },
   };
 
   setCachedEmail(email, response);
