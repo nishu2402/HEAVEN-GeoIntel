@@ -9,6 +9,7 @@ import { getCountryIntel } from "@/lib/countryIntel";
 import { deriveOfflineReputation } from "@/lib/freePhoneIntel";
 import { lookupMccMnc } from "@/lib/mccMnc";
 import { resolveKey } from "@/lib/keyStore";
+import { describeError } from "@/lib/fetchSafe";
 import type { CountryIntel } from "@/lib/countryIntel";
 import type {
   LookupResponse,
@@ -31,6 +32,10 @@ async function fetchNumVerify(e164: string): Promise<SourceResult<NumVerifyData>
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const number = e164.replace("+", "");
+    // NOTE: apilayer/NumVerify only serves HTTPS on PAID plans — the free tier is
+    // HTTP-only, so on the free tier this request (with the access_key in the
+    // query string) travels in cleartext. Documented as a known limitation in
+    // SECURITY.md; for sensitive work use a paid HTTPS plan or omit NumVerify.
     const res = await fetch(
       `http://apilayer.net/api/validate?access_key=${key}&number=${number}&format=1`,
       { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
@@ -40,7 +45,7 @@ async function fetchNumVerify(e164: string): Promise<SourceResult<NumVerifyData>
     if ("error" in data && data.error) return { ok: false, error: (data.error as { info: string }).info };
     return { ok: true, data: data as NumVerifyData };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -58,7 +63,7 @@ async function fetchIpqs(e164: string): Promise<SourceResult<IpqsData>> {
     if (!data.success) return { ok: false, error: data.message ?? "IPQS error" };
     return { ok: true, data };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -75,7 +80,7 @@ async function fetchAbstract(e164: string): Promise<SourceResult<AbstractData>> 
     if ("error" in data && data.error) return { ok: false, error: (data.error as { message: string }).message };
     return { ok: true, data: data as AbstractData };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -128,7 +133,7 @@ async function fetchBreachDirectoryPhone(e164: string): Promise<SourceResult<Bre
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -208,7 +213,7 @@ async function fetchFullContactPhone(e164: string): Promise<SourceResult<FullCon
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -271,7 +276,7 @@ async function fetchHudsonRock(e164: string): Promise<SourceResult<HudsonRockDat
       },
     };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -310,7 +315,7 @@ async function fetchTwilio(e164: string): Promise<SourceResult<TwilioData>> {
     const data = (await res.json()) as TwilioData;
     return { ok: true, data };
   } catch (err) {
-    return { ok: false, error: String(err) };
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -508,31 +513,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     numverify:
       numverifyResult.status === "fulfilled"
         ? numverifyResult.value
-        : { ok: false, error: String(numverifyResult.reason) },
+        : { ok: false, error: describeError(numverifyResult.reason) },
     ipqs:
       ipqsResult.status === "fulfilled"
         ? ipqsResult.value
-        : { ok: false, error: String(ipqsResult.reason) },
+        : { ok: false, error: describeError(ipqsResult.reason) },
     abstract:
       abstractResult.status === "fulfilled"
         ? abstractResult.value
-        : { ok: false, error: String(abstractResult.reason) },
+        : { ok: false, error: describeError(abstractResult.reason) },
     twilio:
       twilioResult.status === "fulfilled"
         ? twilioResult.value
-        : { ok: false, error: String(twilioResult.reason) },
+        : { ok: false, error: describeError(twilioResult.reason) },
     breachDirectory:
       breachResult.status === "fulfilled"
         ? breachResult.value
-        : { ok: false, error: String(breachResult.reason) },
+        : { ok: false, error: describeError(breachResult.reason) },
     fullContact:
       fcResult.status === "fulfilled"
         ? fcResult.value
-        : { ok: false, error: String(fcResult.reason) },
+        : { ok: false, error: describeError(fcResult.reason) },
     hudsonRock:
       hrResult.status === "fulfilled"
         ? hrResult.value
-        : { ok: false, error: String(hrResult.reason) },
+        : { ok: false, error: describeError(hrResult.reason) },
   };
 
   const aggregated = buildAggregated(

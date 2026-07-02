@@ -38,7 +38,7 @@ In scope:
 - The Docker image (`Dockerfile`, `docker-compose.yml`).
 - The API routes: `/api/lookup`, `/api/email-lookup`, `/api/username-lookup`,
   `/api/ip-lookup`, `/api/domain-lookup`, `/api/bulk-lookup`, `/api/cases`,
-  `/api/docs`.
+  `/api/keys`, `/api/sources`, `/api/docs`.
 
 Out of scope (please report these to the upstream maintainers):
 
@@ -54,7 +54,8 @@ Out of scope (please report these to the upstream maintainers):
   only ever interpolated (URL-encoded) into **fixed** third-party hosts, so the
   routes are not an SSRF vector — a caller cannot choose which host the server
   connects to.
-- **CSRF protection**: the middleware rejects cross-site state-changing requests
+- **CSRF protection**: the proxy middleware (`src/proxy.ts`) rejects cross-site
+  state-changing requests
   (POST/PUT/PATCH/DELETE) using `Sec-Fetch-Site` with an `Origin`-vs-`Host`
   fallback, so a malicious page in the user's browser can't drive `/api/keys` or
   `/api/cases`. Same-origin app calls and non-browser clients (curl) are
@@ -65,6 +66,18 @@ Out of scope (please report these to the upstream maintainers):
   — `'unsafe-eval'` is dev-only (HMR); the production bundle uses no `eval()` /
   `new Function()`. Plus `object-src 'none'`, `frame-ancestors 'none'`,
   `base-uri 'self'`, `form-action 'self'`.
+- **Rendered-link safety (no `javascript:` hrefs)**: results include URLs that a
+  *target* can control (a Gravatar profile/linked-account URL, a FullContact
+  "social profile" URL). React does not block `javascript:`/`data:` URLs in an
+  `href`, and CSP keeps `script-src 'unsafe-inline'` for the anti-flash theme
+  script, so such a URL would be click-to-XSS on our own origin. Every
+  remote-supplied `href` is therefore passed through `safeExternalUrl()`
+  (`src/lib/utils.ts`), which admits only absolute `http(s)` URLs and renders
+  anything else inert. Text is React-escaped; HTML/CSV exports are entity-escaped
+  and CSV-formula-guarded.
+- **Minimal probe disclosure**: `/api/health` stays reachable even with the auth
+  gate on (for liveness probes) and deliberately reports no runtime/interpreter
+  version — only status, app version, uptime, and whether the auth gate is set.
 - **No secrets in the client bundle**: all API keys are read from
   `process.env` inside server route handlers only. Verify with
   `grep -r "process.env" .next/static/` (returns nothing).
@@ -101,6 +114,23 @@ Two advisories were resolved and are documented here for the record:
 
 Run `npm audit` (or `npm audit --omit=dev` for the production-only picture) to
 confirm.
+
+## Known limitations (accepted risk)
+
+- **Two free-tier upstreams are HTTP-only.** NumVerify (`apilayer.net`) and
+  `ip-api.com` serve HTTPS only on their **paid** plans; their free tiers are
+  plain HTTP. That means, on the free tier, the NumVerify request carries your
+  `access_key` in the query string in **cleartext**, and the ip-api request
+  carries the looked-up IP in cleartext, on the wire between the server and the
+  provider. All other providers (IPQualityScore, Twilio, AbstractAPI, Hunter,
+  FullContact, RapidAPI, Gravatar, XposedOrNot, Hudson Rock, RDAP, crt.sh,
+  Cloudflare DoH) use HTTPS. For sensitive work, use a paid HTTPS plan for those
+  two providers or simply don't configure them. This is a provider constraint,
+  not something the app can fix without breaking free-tier users.
+- **Provider error strings** shown per-source in the UI are normalised to a small
+  set of safe reasons (`timed out`, `aborted`, `request failed`, `NOT_CONFIGURED`,
+  `RATE_LIMITED`, `NOT_FOUND`, `HTTP <code>`) — raw exception text is never
+  returned to the browser.
 
 ## Coordinated disclosure
 
