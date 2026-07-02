@@ -7,6 +7,7 @@ import type { UsernameLookupResponse, UsernameHit } from "@/lib/types";
 import { USERNAME_CATEGORY_META } from "@/lib/usernameSites";
 import Tilt3D from "@/components/shared/Tilt3D";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import { safeExternalUrl } from "@/lib/utils";
 
 interface Props { data: UsernameLookupResponse; }
 
@@ -79,7 +80,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
             )}
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center gap-1.5 text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]"><Code2 className="w-3 h-3" /> GITHUB PROFILE — verified account</div>
-              <a href={data.githubProfile.htmlUrl} target="_blank" rel="noopener noreferrer" className="font-mono font-bold text-[var(--hv-cyan)] hover:underline break-all">
+              <a href={safeExternalUrl(data.githubProfile.htmlUrl)} target="_blank" rel="noopener noreferrer" className="font-mono font-bold text-[var(--hv-cyan)] hover:underline break-all">
                 {data.githubProfile.name || data.githubProfile.login} <span className="text-[var(--hv-ink-dim)]">@{data.githubProfile.login}</span>
               </a>
               {data.githubProfile.bio && <div className="text-xs font-mono text-[var(--hv-ink)]">{data.githubProfile.bio}</div>}

@@ -5,6 +5,7 @@ import {
   User, Briefcase, ExternalLink, Mail, Phone, Building2,
 } from "lucide-react";
 import type { LookupResponse, FullContactData } from "@/lib/types";
+import { safeExternalUrl } from "@/lib/utils";
 
 interface Props {
   data: LookupResponse;
@@ -157,7 +158,7 @@ export default function PhoneIdentityPanel({ data }: Props) {
             {profiles.map((p) => (
               <a
                 key={p.platform + p.username}
-                href={p.url || "#"}
+                href={safeExternalUrl(p.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 hover:bg-[#00d9ff]/10 transition-colors"

@@ -105,11 +105,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     CSP violations.
   - **Request-body cap** (512 KB, HTTP 413) against memory-exhaustion DoS.
   - **Generic 500s** on `/api/cases` (no internal paths/stack in responses).
+  - **DOM-XSS via third-party links closed** — results include URLs a *target*
+    can control (Gravatar profile / linked-account URLs, FullContact "social
+    profile" URLs). React does not block `javascript:`/`data:` hrefs and the prod
+    CSP keeps `script-src 'unsafe-inline'`, so such a URL was a click-to-XSS on our
+    origin (which could then drive same-origin `/api/keys` / `/api/cases`). Every
+    remote-supplied `href` now goes through `safeExternalUrl()` (`lib/utils.ts`),
+    which admits only absolute `http(s)` URLs and renders anything else inert.
+    (+ regression tests, `tests/safeUrl.test.ts`.)
+  - **No runtime fingerprinting** — `/api/health` (reachable even with the auth
+    gate on) no longer reports the Node interpreter version.
+  - **Normalised source errors** — per-source failures shown in the UI are mapped
+    to a small safe set (`timed out` / `aborted` / `request failed` / …) via
+    `describeError()`; a raw exception string is never returned to the browser.
   - Confirmed safe (no change needed): no SSRF (every outbound host is fixed;
-    input is validated + URL-encoded), no XSS (React + escaped HTML/print exports
-    + static inline script), no path traversal (fixed file paths), no prototype
-    pollution (allow-listed keys + fresh-object construction), no secrets in the
-    client bundle (only public env-var *names* for setup hints).
+    input is validated + URL-encoded), no path traversal (fixed file paths), no
+    prototype pollution (allow-listed keys + fresh-object construction), no secrets
+    in the client bundle (only public env-var *names* for setup hints). Remaining
+    XSS surface (text nodes, HTML/CSV/print exports) is React-escaped /
+    entity-escaped / formula-guarded.
+  - Documented accepted risk: NumVerify (`apilayer.net`) and `ip-api.com` are
+    HTTP-only on their free tiers, so on the free tier the NumVerify `access_key`
+    travels in cleartext — noted in `SECURITY.md` (use a paid HTTPS plan or omit).
+  - **Migrated the CSRF/auth interceptor to Next 16's `proxy` convention** —
+    `src/middleware.ts` → `src/proxy.ts` (`middleware()` → `proxy()`), clearing the
+    deprecation warning. Same matcher, same behaviour; CSRF re-verified after the move.
 - **`npm audit`: 0 vulnerabilities.** Next's nested `postcss@8.4.31`
   (GHSA-qx2v-qp2m-jg93, `</style>` XSS in CSS stringify) is pinned forward to the
   patched `8.5.x` line via an npm `overrides` (`"postcss": "$postcss"`) that dedupes
@@ -127,7 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   runs through a hard-timeout `AbortController` wrapper that never throws — a
   slow/dead source can no longer hang a lookup, and each result carries
   provenance (source · fetchedAt · latency).
-- **Optional auth gate (`src/middleware.ts`):** set `AUTH_PASSWORD` to require
+- **Optional auth gate (`src/proxy.ts`):** set `AUTH_PASSWORD` to require
   HTTP Basic auth on the whole app + API (constant-time compare). **Off by
   default** (single-user self-host); `/api/health` stays open for probes.
 - **Append-only audit log (`lib/auditLog.ts`):** records that a lookup happened
