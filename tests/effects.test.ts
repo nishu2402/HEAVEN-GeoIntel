@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { effectsEnabled, setEffects, prefersReducedMotion, FX_KEY } from "@/lib/effects";
+import { effectsEnabled, setEffects, prefersReducedMotion, FX_KEY } from "@/lib/client/effects";
 
 // The effects setting reads localStorage + matchMedia, neither of which exists in
 // the node test env — stub the minimum so we can unit-test the pure decision logic.

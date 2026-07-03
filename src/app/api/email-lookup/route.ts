@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
-import { analyzeEmail } from "@/lib/emailAnalysis";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { audit } from "@/lib/auditLog";
-import { parseBody, emailBody } from "@/lib/validation";
-import { resolveKey } from "@/lib/keyStore";
-import { describeError } from "@/lib/fetchSafe";
+import { analyzeEmail } from "@/lib/analysis/emailAnalysis";
+import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { audit } from "@/lib/server/auditLog";
+import { parseBody, emailBody } from "@/lib/server/validation";
+import { resolveKey } from "@/lib/server/keyStore";
+import { describeError } from "@/lib/server/fetchSafe";
 import type {
   EmailLookupResponse,
   GravatarProfile,

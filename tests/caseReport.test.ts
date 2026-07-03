@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildCaseJson, buildCaseMarkdown, verifyCaseImport, REPORT_SCHEMA,
   buildCaseCsv, buildMaltegoCsv, buildStixBundle,
-} from "@/lib/caseReport";
+} from "@/lib/analysis/caseReport";
 import type { InvestigationCase } from "@/lib/types";
 
 const baseCase: InvestigationCase = {

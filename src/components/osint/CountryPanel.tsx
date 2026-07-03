@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { CountryIntel } from "@/lib/countryIntel";
+import type { CountryIntel } from "@/lib/data/countryIntel";
 
 interface Props {
   intel: CountryIntel;

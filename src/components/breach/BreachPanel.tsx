@@ -11,7 +11,7 @@ import {
   detectHash,
   CRACK_DIFFICULTY_LABEL,
   CRACK_DIFFICULTY_COLOR,
-} from "@/lib/hashDetect";
+} from "@/lib/analysis/hashDetect";
 import { copyText } from "@/lib/utils";
 
 interface Props {

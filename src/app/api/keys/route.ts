@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { configuredMap, setKey, clearKey, clearAllKeys, KEY_NAMES } from "@/lib/keyStore";
+import { configuredMap, setKey, clearKey, clearAllKeys, KEY_NAMES } from "@/lib/server/keyStore";
 
 // Manage optional provider API keys from the web UI. The store keeps values in
 // .data/keys.json (0600, git-ignored); this endpoint ONLY ever returns a

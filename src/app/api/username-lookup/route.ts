@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { audit } from "@/lib/auditLog";
-import { USERNAME_SITES, isPlausibleUsername } from "@/lib/usernameSites";
-import { fetchJson } from "@/lib/fetchSafe";
-import { parseBody, usernameBody } from "@/lib/validation";
+import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { audit } from "@/lib/server/auditLog";
+import { USERNAME_SITES, isPlausibleUsername } from "@/lib/data/usernameSites";
+import { fetchJson } from "@/lib/server/fetchSafe";
+import { parseBody, usernameBody } from "@/lib/server/validation";
 import type { UsernameLookupResponse, UsernameHit, UsernameHitStatus, GithubProfile } from "@/lib/types";
 
 interface GithubUser {

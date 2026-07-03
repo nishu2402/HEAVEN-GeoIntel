@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { audit } from "@/lib/auditLog";
-import { fetchJson } from "@/lib/fetchSafe";
-import { parseBody, domainBody } from "@/lib/validation";
+import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { audit } from "@/lib/server/auditLog";
+import { fetchJson } from "@/lib/server/fetchSafe";
+import { parseBody, domainBody } from "@/lib/server/validation";
 import type {
   DomainLookupResponse, DnsRecord, DomainWhois,
 } from "@/lib/types";

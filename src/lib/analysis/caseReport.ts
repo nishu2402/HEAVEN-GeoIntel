@@ -6,7 +6,7 @@
 //   • Markdown — human-readable report (entities table, notes, provenance).
 // Pure functions + Web Crypto; runs entirely client-side.
 
-import type { InvestigationCase, CaseEntity } from "./types";
+import type { InvestigationCase, CaseEntity } from "../types";
 
 export const REPORT_SCHEMA = "heaven-geointel/case-report@1";
 const APP_VERSION = "1.3.0";

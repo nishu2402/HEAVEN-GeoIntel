@@ -1,7 +1,7 @@
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
-import { getNpaInfo } from "./usNpaDatabase";
-import type { NpaInfo } from "./usNpaDatabase";
+import { getNpaInfo } from "../data/usNpaDatabase";
+import type { NpaInfo } from "../data/usNpaDatabase";
 
 export interface PhoneAnalysis {
   e164: string;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { History, Trash2, Smartphone, Mail, AtSign, Network, Globe } from "lucide-react";
-import { getLookups, clearLookups, LOOKUPS_EVENT, type LookupItem, type LookupKind } from "@/lib/lookupHistory";
+import { getLookups, clearLookups, LOOKUPS_EVENT, type LookupItem, type LookupKind } from "@/lib/client/lookupHistory";
 
 const ICON: Record<LookupKind, typeof Smartphone> = {
   phone: Smartphone, email: Mail, username: AtSign, ip: Network, domain: Globe,

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { getCached } from "@/lib/cache";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { audit } from "@/lib/auditLog";
-import { parseBody, bulkBody } from "@/lib/validation";
-import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
+import { getCached } from "@/lib/server/cache";
+import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { audit } from "@/lib/server/auditLog";
+import { parseBody, bulkBody } from "@/lib/server/validation";
+import { analyzePhoneNumber } from "@/lib/analysis/phoneAnalysis";
 
 // ── Bulk-lookup endpoint ──────────────────────────────────────────────────────
 // Accepts up to MAX_BULK numbers in one POST and returns a flat array suitable
