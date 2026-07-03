@@ -3,8 +3,8 @@ import {
   FREE_WEBMAIL_DOMAINS,
   PRIVACY_DOMAINS,
   ROLE_PREFIXES,
-} from "./disposableEmailDomains";
-import type { EmailAnalysis, EmailProviderType } from "./types";
+} from "../data/disposableEmailDomains";
+import type { EmailAnalysis, EmailProviderType } from "../types";
 
 const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 

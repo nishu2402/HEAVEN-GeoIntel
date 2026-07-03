@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { AtSign, ExternalLink, CheckCircle2, HelpCircle, Search, Code2 } from "lucide-react";
 import type { UsernameLookupResponse, UsernameHit } from "@/lib/types";
-import { USERNAME_CATEGORY_META } from "@/lib/usernameSites";
+import { USERNAME_CATEGORY_META } from "@/lib/data/usernameSites";
 import Tilt3D from "@/components/shared/Tilt3D";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import { safeExternalUrl } from "@/lib/utils";

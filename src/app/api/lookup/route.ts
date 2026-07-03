@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { getCached, setCached } from "@/lib/cache";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { audit } from "@/lib/auditLog";
-import { parseBody, phoneBody } from "@/lib/validation";
-import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
-import { getCountryIntel } from "@/lib/countryIntel";
-import { deriveOfflineReputation } from "@/lib/freePhoneIntel";
-import { lookupMccMnc } from "@/lib/mccMnc";
-import { resolveKey } from "@/lib/keyStore";
-import { describeError } from "@/lib/fetchSafe";
-import type { CountryIntel } from "@/lib/countryIntel";
+import { getCached, setCached } from "@/lib/server/cache";
+import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { audit } from "@/lib/server/auditLog";
+import { parseBody, phoneBody } from "@/lib/server/validation";
+import { analyzePhoneNumber } from "@/lib/analysis/phoneAnalysis";
+import { getCountryIntel } from "@/lib/data/countryIntel";
+import { deriveOfflineReputation } from "@/lib/analysis/freePhoneIntel";
+import { lookupMccMnc } from "@/lib/data/mccMnc";
+import { resolveKey } from "@/lib/server/keyStore";
+import { describeError } from "@/lib/server/fetchSafe";
+import type { CountryIntel } from "@/lib/data/countryIntel";
 import type {
   LookupResponse,
   NumVerifyData,
@@ -25,7 +25,7 @@ import type {
   HudsonRockData,
   HudsonRockStealer,
 } from "@/lib/types";
-import type { PhoneAnalysis } from "@/lib/phoneAnalysis";
+import type { PhoneAnalysis } from "@/lib/analysis/phoneAnalysis";
 
 async function fetchNumVerify(e164: string): Promise<SourceResult<NumVerifyData>> {
   const key = await resolveKey("NUMVERIFY_API_KEY");

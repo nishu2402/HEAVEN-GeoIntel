@@ -6,12 +6,12 @@ import {
   Download, FileText, Upload, ShieldAlert, Printer,
 } from "lucide-react";
 import type { InvestigationCase, EntityKind } from "@/lib/types";
-import { LOOKUP_MODES } from "@/lib/modes";
+import { LOOKUP_MODES } from "@/lib/client/modes";
 import LinkGraph, { type GraphEntity } from "@/components/graph/LinkGraph";
 import {
   buildCaseJson, buildCaseMarkdown, verifyCaseImport,
   buildCaseCsv, buildMaltegoCsv, buildStixBundle, buildPrintableHtml,
-} from "@/lib/caseReport";
+} from "@/lib/analysis/caseReport";
 
 const KIND_COLOR: Record<EntityKind, string> = {
   phone: "#00ff85", email: "#22d3ee", username: "#e879f9", ip: "#fb923c", domain: "#facc15",

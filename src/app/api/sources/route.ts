@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { configuredMap } from "@/lib/keyStore";
+import { configuredMap } from "@/lib/server/keyStore";
 
 // Reports which data sources are active and which optional API keys are
 // configured — and HOW (added in the app vs. via .env). Never returns key

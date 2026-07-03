@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
 import type { LookupResponse } from "@/lib/types";
-import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
+import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 import SourceTabs            from "@/components/dashboard/SourceTabs";
 import OsintPivots           from "@/components/osint/OsintPivots";
 import NumberAnatomyPanel    from "@/components/phone/NumberAnatomyPanel";
