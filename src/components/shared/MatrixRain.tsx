@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { effectsEnabled, FX_EVENT } from "@/lib/effects";
+import { effectsEnabled, FX_EVENT } from "@/lib/client/effects";
 
 export default function MatrixRain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

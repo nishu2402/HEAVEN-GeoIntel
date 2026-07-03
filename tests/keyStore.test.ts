@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { setKey, clearKey, KEY_NAMES } from "@/lib/keyStore";
+import { setKey, clearKey, KEY_NAMES } from "@/lib/server/keyStore";
 
 // These assertions deliberately exercise only the reject paths, which return
 // BEFORE any file write — so the test never touches a real .data/keys.json.

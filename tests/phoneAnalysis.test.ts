@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { analyzePhoneNumber, countryToFlagEmoji } from "@/lib/phoneAnalysis";
+import { analyzePhoneNumber, countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 
 describe("analyzePhoneNumber", () => {
   it("parses a US E.164 number into all four formats", () => {

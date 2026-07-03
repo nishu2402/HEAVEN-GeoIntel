@@ -7,8 +7,8 @@ import { Shield, Terminal, AtSign, Network, Globe } from "lucide-react";
 import type {
   LookupResponse, EmailLookupResponse, UsernameLookupResponse, IpLookupResponse, DomainLookupResponse,
 } from "@/lib/types";
-import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
-import { MODES, type Mode } from "@/lib/modes";
+import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
+import { MODES, type Mode } from "@/lib/client/modes";
 import type { GraphEntity } from "@/components/graph/LinkGraph";
 
 import PhoneInput from "@/components/phone/PhoneInput";
@@ -33,7 +33,7 @@ import CommandPalette from "@/components/shared/CommandPalette";
 import PanelErrorBoundary from "@/components/shared/PanelErrorBoundary";
 import ConsentGate from "@/components/shared/ConsentGate";
 import RecentLookups from "@/components/shared/RecentLookups";
-import { pushLookup } from "@/lib/lookupHistory";
+import { pushLookup } from "@/lib/client/lookupHistory";
 import { saveToHistory } from "@/components/dashboard/HistorySidebar";
 
 const MatrixRain = dynamic(() => import("@/components/shared/MatrixRain"), { ssr: false });

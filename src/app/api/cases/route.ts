@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   listCases, createCase, deleteCase, deleteAllCases, renameCase, setCaseNotes,
   addEntity, removeEntity, importCase,
-} from "@/lib/caseStore";
-import { clearAudit } from "@/lib/auditLog";
+} from "@/lib/server/caseStore";
+import { clearAudit } from "@/lib/server/auditLog";
 import type { EntityKind, InvestigationCase } from "@/lib/types";
 
 // ── Investigation cases API (persistent, file-backed) ───────────────────────

@@ -1,4 +1,4 @@
-import type { LookupResponse } from "./types";
+import type { LookupResponse } from "../types";
 
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_SIZE = 1000; // cap memory — evict oldest entry when full

@@ -1,6 +1,6 @@
-import type { PhoneAnalysis } from "./phoneAnalysis";
-import type { CountryIntel } from "./countryIntel";
-import type { OfflineReputation } from "./freePhoneIntel";
+import type { PhoneAnalysis } from "./analysis/phoneAnalysis";
+import type { CountryIntel } from "./data/countryIntel";
+import type { OfflineReputation } from "./analysis/freePhoneIntel";
 
 export type { PhoneAnalysis, CountryIntel, OfflineReputation };
 

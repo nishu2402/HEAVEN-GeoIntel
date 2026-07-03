@@ -6,7 +6,7 @@ import {
   Search, Smartphone, Mail, AtSign, Network, Globe, Layers, Share2, FolderOpen,
   Sun, Moon, CornerDownLeft,
 } from "lucide-react";
-import { MODES, detectMode, type Mode } from "@/lib/modes";
+import { MODES, detectMode, type Mode } from "@/lib/client/modes";
 import { useTheme } from "./ThemeProvider";
 
 interface Props {

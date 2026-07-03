@@ -11,7 +11,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { InvestigationCase, CaseEntity, EntityKind } from "./types";
+import type { InvestigationCase, CaseEntity, EntityKind } from "../types";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const FILE = path.join(DATA_DIR, "cases.json");

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { USERNAME_SITES, isPlausibleUsername } from "@/lib/usernameSites";
+import { USERNAME_SITES, isPlausibleUsername } from "@/lib/data/usernameSites";
 
 describe("usernameSites catalog", () => {
   it("every site has a {u} placeholder and a valid check method", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { analyzePhoneNumber } from "@/lib/phoneAnalysis";
-import { deriveOfflineReputation } from "@/lib/freePhoneIntel";
+import { analyzePhoneNumber } from "@/lib/analysis/phoneAnalysis";
+import { deriveOfflineReputation } from "@/lib/analysis/freePhoneIntel";
 
 describe("deriveOfflineReputation", () => {
   it("flags US toll-free numbers", () => {

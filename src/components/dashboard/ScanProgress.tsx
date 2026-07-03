@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { Mode } from "@/lib/modes";
+import type { Mode } from "@/lib/client/modes";
 
 // Honest progress for a running lookup. The client can't know per-source progress
 // (the server fans out in parallel), so we DON'T fake an "X of N" counter — we

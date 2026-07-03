@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { countryToFlagEmoji } from "@/lib/phoneAnalysis";
-import { fetchJson } from "@/lib/fetchSafe";
-import { audit } from "@/lib/auditLog";
-import { parseBody, ipBody } from "@/lib/validation";
+import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
+import { fetchJson } from "@/lib/server/fetchSafe";
+import { audit } from "@/lib/server/auditLog";
+import { parseBody, ipBody } from "@/lib/server/validation";
 import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/types";
 
 // ── IP OSINT — free, no API key ──────────────────────────────────────────────

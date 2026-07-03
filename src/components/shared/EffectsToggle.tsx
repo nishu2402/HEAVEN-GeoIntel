@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sparkles, SparkleIcon } from "lucide-react";
-import { effectsEnabled, setEffects, FX_EVENT } from "@/lib/effects";
+import { effectsEnabled, setEffects, FX_EVENT } from "@/lib/client/effects";
 
 // Header toggle for the decorative animations (matrix rain, etc.). Starts
 // unmounted-safe: renders a stable icon on first paint, then syncs to the real
