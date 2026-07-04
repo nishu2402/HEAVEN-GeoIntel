@@ -167,6 +167,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   an SPDX SBOM is also uploaded as a build artifact.
 
 ### Fixed
+- **IPv6 lookups were rejected for the most common address form.** The hand-rolled
+  IPv6 regex in `/api/ip-lookup` only matched full 8-group addresses and pure `::`
+  forms — it rejected any compressed address with hex groups on **both** sides of
+  `::`, which is how nearly every real IPv6 address is written. That included the
+  app's **own placeholder** `2606:4700:4700::1111`, Google/Cloudflare public DNS
+  (`2001:4860:4860::8888`), and link-local `fe80::1` — all returned
+  *"Not a valid IPv4 / IPv6 address"* (HTTP 400). Validation now uses Node's built-in
+  `net.isIP()` (fully RFC-correct, returns 4/6/0), so every standard IPv6 form is
+  accepted and the IPv4/IPv6 type flag is derived from the same source of truth.
+- **File-backed stores: lost-update race + write-queue poisoning** (`lib/server/caseStore.ts`,
+  `lib/server/keyStore.ts`). Each mutation did `read → modify → write` with only the
+  *write* half serialised, so two overlapping requests (e.g. a notes auto-save racing
+  an `addEntity`, or two open tabs) both read the same snapshot and the later write
+  clobbered the earlier one's change — silent data loss. Separately, the write queue
+  used `chain = chain.then(op)`: a **single** failed write (disk full, `EACCES`, a
+  transient FS error) left the chain permanently rejected, so **every** later write was
+  silently skipped for the life of the process. Both stores now run each mutation as a
+  **serialised read-modify-write** whose queue self-heals (the op runs whether the prior
+  op resolved or rejected, and the retained tail is always resolved). Writes are now
+  **atomic** (stage to a temp file, then `rename()` over the target), so a reader never
+  sees a half-written file and a mid-write crash keeps the previous good copy. Verified
+  at runtime: 12 concurrent `addEntity` calls to one case now persist all 12 (previously
+  some were lost). Also hardened `importCase` to reject a non-finite `addedAt` (`NaN`).
 - **Username search no longer reports false positives.** 15 JS-app / bot-walled
   sites (Instagram, TikTok, X, Reddit, Telegram, Spotify, …) return HTTP 200 for
   *every* handle, so a status check wrongly marked them "found" (a nonexistent

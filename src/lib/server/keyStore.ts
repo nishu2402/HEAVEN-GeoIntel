@@ -9,6 +9,7 @@
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const FILE = path.join(DATA_DIR, "keys.json");
@@ -33,7 +34,16 @@ export type KeySource = "ui" | "env" | null;
 
 // Single-process in-memory cache; writes update it so reads stay consistent.
 let cache: Record<string, string> | null = null;
-let writeChain: Promise<void> = Promise.resolve();
+
+// Serialise every mutation so a read-modify-write is atomic (no lost updates
+// when two writes race) and a failed write never poisons the queue for later
+// writers. The retained tail is always resolved, so the queue self-heals.
+let chain: Promise<unknown> = Promise.resolve();
+function serialize<T>(op: () => Promise<T>): Promise<T> {
+  const run = chain.then(op, op);
+  chain = run.then(() => {}, () => {});
+  return run;
+}
 
 async function load(): Promise<Record<string, string>> {
   if (cache) return cache;
@@ -63,33 +73,48 @@ export async function configuredMap(): Promise<Record<KeyName, KeySource>> {
   return out;
 }
 
-async function persist(next: Record<string, string>): Promise<void> {
-  cache = next;
-  writeChain = writeChain.then(async () => {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(FILE, JSON.stringify(next, null, 2), { encoding: "utf8", mode: 0o600 });
-    await fs.chmod(FILE, 0o600).catch(() => {});
-  });
-  return writeChain;
+// Atomic write: stage to a temp file, then rename over the target so a reader
+// never sees a half-written file and a mid-write crash keeps the old one.
+async function writeAtomic(next: Record<string, string>): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  const tmp = `${FILE}.${randomUUID()}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(next, null, 2), { encoding: "utf8", mode: 0o600 });
+  try {
+    await fs.rename(tmp, FILE);
+  } catch (err) {
+    await fs.rm(tmp, { force: true }).catch(() => {});
+    throw err;
+  }
+  await fs.chmod(FILE, 0o600).catch(() => {});
 }
 
 export async function setKey(name: string, value: string): Promise<boolean> {
   if (!ALLOWED.has(name)) return false;
   const v = value.trim().slice(0, 512);
   if (!v) return false;
-  await persist({ ...(await load()), [name]: v });
+  await serialize(async () => {
+    const next = { ...(await load()), [name]: v };
+    cache = next;
+    await writeAtomic(next);
+  });
   return true;
 }
 
 export async function clearKey(name: string): Promise<boolean> {
   if (!ALLOWED.has(name)) return false;
-  const all = { ...(await load()) };
-  if (!(name in all)) return true;
-  delete all[name];
-  await persist(all);
+  await serialize(async () => {
+    const all = { ...(await load()) };
+    if (!(name in all)) return;
+    delete all[name];
+    cache = all;
+    await writeAtomic(all);
+  });
   return true;
 }
 
 export async function clearAllKeys(): Promise<void> {
-  await persist({});
+  await serialize(async () => {
+    cache = {};
+    await writeAtomic({});
+  });
 }
