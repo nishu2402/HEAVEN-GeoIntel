@@ -11,8 +11,10 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const FILE = path.join(DATA_DIR, "keys.json");
+// Resolved lazily so HV_DATA_DIR can redirect state (hermetic temp dir in tests,
+// or a deploy that keeps data outside the app dir). Defaults to ./.data.
+const dataDir = () => process.env.HV_DATA_DIR || path.join(process.cwd(), ".data");
+const keysFile = () => path.join(dataDir(), "keys.json");
 
 // Allow-list — only these names may be stored or read, so the endpoint can never
 // be used to inject arbitrary environment-like values.
@@ -48,7 +50,7 @@ function serialize<T>(op: () => Promise<T>): Promise<T> {
 async function load(): Promise<Record<string, string>> {
   if (cache) return cache;
   try {
-    const raw = await fs.readFile(FILE, "utf8");
+    const raw = await fs.readFile(keysFile(), "utf8");
     const parsed = JSON.parse(raw) as unknown;
     cache = parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
   } catch {
@@ -76,16 +78,17 @@ export async function configuredMap(): Promise<Record<KeyName, KeySource>> {
 // Atomic write: stage to a temp file, then rename over the target so a reader
 // never sees a half-written file and a mid-write crash keeps the old one.
 async function writeAtomic(next: Record<string, string>): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const tmp = `${FILE}.${randomUUID()}.tmp`;
+  const file = keysFile();
+  await fs.mkdir(dataDir(), { recursive: true });
+  const tmp = `${file}.${randomUUID()}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(next, null, 2), { encoding: "utf8", mode: 0o600 });
   try {
-    await fs.rename(tmp, FILE);
+    await fs.rename(tmp, file);
   } catch (err) {
     await fs.rm(tmp, { force: true }).catch(() => {});
     throw err;
   }
-  await fs.chmod(FILE, 0o600).catch(() => {});
+  await fs.chmod(file, 0o600).catch(() => {});
 }
 
 export async function setKey(name: string, value: string): Promise<boolean> {
