@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isIP } from "node:net";
 import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
 import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 import { fetchJson } from "@/lib/server/fetchSafe";
@@ -13,11 +14,12 @@ import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/typ
 // Both run in parallel through fetchJson (hard timeout); a dead source can never
 // hang the lookup and we report exactly which source answered.
 
-const IPV4 = /^(25[0-5]|2[0-4]\d|[01]?\d?\d)(\.(25[0-5]|2[0-4]\d|[01]?\d?\d)){3}$/;
-const IPV6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::1|::|([0-9a-fA-F]{1,4}:){1,7}:|:(:[0-9a-fA-F]{1,4}){1,7})$/;
-
+// Validate with Node's built-in resolver instead of a hand-rolled regex: the
+// previous IPv6 pattern rejected the most common compressed forms (hex groups on
+// BOTH sides of "::", e.g. 2606:4700:4700::1111 — our own placeholder — and
+// fe80::1). net.isIP returns 4, 6, or 0 and is fully RFC-correct.
 function isValidIp(ip: string): boolean {
-  return IPV4.test(ip) || IPV6.test(ip);
+  return isIP(ip) !== 0;
 }
 
 interface IpApiResponse {
@@ -166,7 +168,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const data: IpLookupData = {
     ip: raw.query ?? target,
-    type: IPV6.test(target) ? "IPv6" : "IPv4",
+    type: isIP(target) === 6 ? "IPv6" : "IPv4",
     city: raw.city ?? null,
     region: raw.regionName ?? null,
     country: raw.country ?? null,
