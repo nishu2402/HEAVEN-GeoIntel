@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isIP } from "node:net";
 
 // ── Request-body schemas (defense in depth) ──────────────────────────────────
 // These enforce SHAPE + sane length bounds before any work happens, so a
@@ -22,4 +23,19 @@ export async function parseBody<T>(req: Request, schema: z.ZodType<T>): Promise<
   try { json = await req.json(); } catch { return null; }
   const r = schema.safeParse(json);
   return r.success ? r.data : null;
+}
+
+// ── IP validation ────────────────────────────────────────────────────────────
+// Node's built-in resolver is fully RFC-correct — it accepts compressed IPv6
+// (hex groups on BOTH sides of "::", e.g. 2606:4700:4700::1111) that a naive
+// regex misses, and rejects malformed input. Returns 4, 6, or 0.
+
+/** 4 for IPv4, 6 for IPv6, 0 for neither. */
+export function ipVersion(ip: string): 0 | 4 | 6 {
+  return isIP(ip) as 0 | 4 | 6;
+}
+
+/** True for any valid IPv4 or IPv6 literal. */
+export function isValidIp(ip: string): boolean {
+  return isIP(ip) !== 0;
 }

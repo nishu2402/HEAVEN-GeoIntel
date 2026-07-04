@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isIP } from "node:net";
 import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
 import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 import { fetchJson } from "@/lib/server/fetchSafe";
 import { audit } from "@/lib/server/auditLog";
-import { parseBody, ipBody } from "@/lib/server/validation";
+import { parseBody, ipBody, isValidIp, ipVersion } from "@/lib/server/validation";
 import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/types";
 
 // ── IP OSINT — free, no API key ──────────────────────────────────────────────
@@ -13,14 +12,6 @@ import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/typ
 //   • internetdb.shodan.io open ports · CVEs · hostnames · classifier tags
 // Both run in parallel through fetchJson (hard timeout); a dead source can never
 // hang the lookup and we report exactly which source answered.
-
-// Validate with Node's built-in resolver instead of a hand-rolled regex: the
-// previous IPv6 pattern rejected the most common compressed forms (hex groups on
-// BOTH sides of "::", e.g. 2606:4700:4700::1111 — our own placeholder — and
-// fe80::1). net.isIP returns 4, 6, or 0 and is fully RFC-correct.
-function isValidIp(ip: string): boolean {
-  return isIP(ip) !== 0;
-}
 
 interface IpApiResponse {
   status: string;
@@ -168,7 +159,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const data: IpLookupData = {
     ip: raw.query ?? target,
-    type: isIP(target) === 6 ? "IPv6" : "IPv4",
+    type: ipVersion(target) === 6 ? "IPv6" : "IPv4",
     city: raw.city ?? null,
     region: raw.regionName ?? null,
     country: raw.country ?? null,

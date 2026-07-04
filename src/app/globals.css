@@ -1,6 +1,21 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4: single import replaces the v3 @tailwind directives. The classic
+   JS config (darkMode/content/theme.extend colors, fonts, radius) is loaded via
+   @config so the design tokens and utility mapping stay byte-identical to v3. */
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+/* v4 changed the default border/divide colour from gray-200 to currentColor.
+   Restore the v3 default so any bare `border`/`divide` utility renders exactly
+   as before (colour-annotated borders keep their own colour and are unaffected). */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    HEAVEN-GeoIntel — design system
