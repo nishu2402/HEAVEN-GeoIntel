@@ -16,10 +16,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node 20
+      - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Install dependencies
@@ -36,5 +36,36 @@ jobs:
 
       - name: Build
         run: node node_modules/next/dist/bin/next build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  e2e:
+    name: E2E (Playwright smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: node node_modules/next/dist/bin/next build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Run E2E smoke tests
+        run: npm run test:e2e
         env:
           NEXT_TELEMETRY_DISABLED: "1"

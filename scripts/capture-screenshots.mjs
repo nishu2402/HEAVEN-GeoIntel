@@ -25,7 +25,7 @@ await mkdir(OUT, { recursive: true });
 
 const browser = await puppeteer.launch({
   executablePath: CHROME,
-  headless: "new",
+  headless: true, // puppeteer 23+ dropped the "new" string; `true` is now the new headless mode
   defaultViewport: { width: WIDTH, height: HEIGHT, deviceScaleFactor: DPR },
   args: ["--hide-scrollbars", "--no-sandbox", "--disable-gpu"],
 });
@@ -115,7 +115,7 @@ await browser.close();
 // Replace the card screenshots with element-only crops via a second pass
 const browser2 = await puppeteer.launch({
   executablePath: CHROME,
-  headless: "new",
+  headless: true,
   defaultViewport: { width: WIDTH, height: HEIGHT, deviceScaleFactor: DPR },
   args: ["--hide-scrollbars", "--no-sandbox", "--disable-gpu"],
 });

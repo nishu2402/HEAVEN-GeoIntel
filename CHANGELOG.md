@@ -92,6 +92,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   left open even when the auth gate is on).
 - **Footer credit:** "Created & developed by **Nisarg Chasmawala (Shroff)**".
 
+### Changed
+- **Regression tests for the recent fixes** (56 tests, up from 47): `ipValidation`
+  guards the compressed-IPv6 acceptance; `caseStore` covers CRUD + a 20-way
+  concurrent-write race (proving no lost updates); `keyStore` gained write-path +
+  concurrency coverage (previously only reject paths were tested). The file-backed
+  stores now honour an **`HV_DATA_DIR`** override (default `./.data`) so they can be
+  tested against a hermetic temp dir — and so deploys can keep state outside the app
+  directory. The `/api/ip-lookup` IP validation moved into a shared, tested
+  `isValidIp`/`ipVersion` helper in `lib/server/validation`.
+- **CI now runs the Playwright e2e smoke suite** as a parallel job (build + typecheck
+  + lint + unit already ran); the 4 smoke tests gate every push/PR to `main`.
+- **Runtime bumped Node 20 → 22 (active LTS)** across `.nvmrc`, the Dockerfile (all
+  three stages) and CI, with `@types/node` aligned to `^22` to match. The `engines`
+  floor stays `>=20.9.0` so existing setups aren't locked out.
+- **Dependencies refreshed to latest in-range**: Next `16.2.10`,
+  `libphonenumber-js 1.13.8` (fresher carrier/numbering metadata → better accuracy),
+  `framer-motion`, `lucide-react`, `postcss`, `vitest`, Playwright, radix-tabs.
+  `npm audit` remains at **0 vulnerabilities**.
+- **Major-version upgrades:**
+  - **Tailwind CSS 3 → 4** — moved to the `@tailwindcss/postcss` plugin and the
+    single `@import "tailwindcss"` entry, keeping the existing design tokens via
+    `@config` (the classic `tailwind.config.ts` stays authoritative, so colours,
+    fonts and the zero-radius scale are byte-identical). Added the v4 border-colour
+    compatibility layer so bare `border` utilities keep their v3 default. Verified
+    with a before/after visual pass (home dark+light, phone results, breach/OSINT
+    cards) — no visual drift; the lockfile carries all Linux/macOS/Windows native
+    `oxide`/`lightningcss` binaries so CI and the Alpine image build unchanged.
+  - **TypeScript 5.8 → 6** — clean upgrade (in `typescript-eslint`'s supported
+    `<6.1.0` range); typecheck, lint, build and all 56 tests pass unchanged.
+  - **puppeteer-core 22 → 25** (screenshot tooling) — updated the dropped
+    `headless: "new"` option to `headless: true`; smoke-tested a real launch.
+  - **ESLint 10 held back on 9** — `eslint-config-next`'s bundled
+    `eslint-plugin-react` still calls the `context.getFilename()` API that ESLint 10
+    removed (hard crash), so ESLint stays on 9 until Next ships v10-compatible
+    plugins. (`typescript-eslint` already supports ESLint 10; the Next plugin set
+    does not yet.)
+
 ### Security
 - **Full security audit + hardening.** From a fresh review of the whole codebase
   (SSRF, injection, XSS, CSRF, path traversal, ReDoS, prototype pollution, secrets,

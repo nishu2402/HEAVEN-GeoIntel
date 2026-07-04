@@ -13,8 +13,11 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { InvestigationCase, CaseEntity, EntityKind } from "../types";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const FILE = path.join(DATA_DIR, "cases.json");
+// Resolved lazily so HV_DATA_DIR can redirect state (used by tests for a
+// hermetic temp dir, and by deploys that keep data outside the app directory).
+// Defaults to ./.data under the process cwd — unchanged behaviour when unset.
+const dataDir = () => process.env.HV_DATA_DIR || path.join(process.cwd(), ".data");
+const casesFile = () => path.join(dataDir(), "cases.json");
 
 // Length caps so a malformed/abusive request can't bloat the on-disk store.
 const MAX_NAME = 200;
@@ -40,7 +43,7 @@ function serialize<T>(op: () => Promise<T>): Promise<T> {
 
 async function readAll(): Promise<InvestigationCase[]> {
   try {
-    const raw = await fs.readFile(FILE, "utf8");
+    const raw = await fs.readFile(casesFile(), "utf8");
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? (parsed as InvestigationCase[]) : [];
   } catch {
@@ -52,17 +55,18 @@ async function readAll(): Promise<InvestigationCase[]> {
 // atomic on POSIX, so a concurrent reader never observes a half-written file,
 // and a mid-write crash leaves the previous good file intact.
 async function persist(cases: InvestigationCase[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const tmp = `${FILE}.${randomUUID()}.tmp`;
+  const file = casesFile();
+  await fs.mkdir(dataDir(), { recursive: true });
+  const tmp = `${file}.${randomUUID()}.tmp`;
   // Owner-only perms: this file holds investigation targets (PII).
   await fs.writeFile(tmp, JSON.stringify(cases, null, 2), { encoding: "utf8", mode: 0o600 });
   try {
-    await fs.rename(tmp, FILE);
+    await fs.rename(tmp, file);
   } catch (err) {
     await fs.rm(tmp, { force: true }).catch(() => {});
     throw err;
   }
-  await fs.chmod(FILE, 0o600).catch(() => {});
+  await fs.chmod(file, 0o600).catch(() => {});
 }
 
 export async function listCases(): Promise<InvestigationCase[]> {
