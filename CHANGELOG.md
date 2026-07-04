@@ -128,6 +128,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     removed (hard crash), so ESLint stays on 9 until Next ships v10-compatible
     plugins. (`typescript-eslint` already supports ESLint 10; the Next plugin set
     does not yet.)
+- **Test coverage expanded 56 → 105** — added hermetic suites for the previously
+  untested pure logic that gates user-facing verdicts: `emailAnalysis` (disposable/
+  privacy/webmail/gov/edu classification + the conservative name-guesser),
+  `hashDetect` (every scheme + hex length), the `validation` request-body gate
+  (`parseBody` + all schema bounds), and the `modes` registry / `detectMode`
+  classifier. This is what surfaced the two `Fixed` bugs below.
 
 ### Security
 - **Full security audit + hardening.** From a fresh review of the whole codebase
@@ -204,6 +210,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   an SPDX SBOM is also uploaded as a build artifact.
 
 ### Fixed
+- **Hash identifier mislabelled MySQL 4.1 hashes as "Partial Plaintext"**
+  (`lib/analysis/hashDetect.ts`). A MySQL 4.1+ hash is `*` followed by 40 hex
+  chars, but the generic "contains `*` → masked password" branch ran first and
+  swallowed it, so the dedicated MySQL detection was **unreachable dead code** and
+  the algorithm was reported wrongly. The specific `*`+40-hex pattern is now
+  matched before the generic `*` check (regression-tested).
+- **Smart-run misrouted IP addresses to a phone lookup** (`lib/client/modes.ts`).
+  `detectMode` checked the (very permissive) phone pattern before the IP pattern,
+  and a dotted IPv4 like `8.8.8.8` also matches the phone regex (`8` + `.8.8.8`),
+  so the command-palette "smart run" sent Google/Cloudflare-style IPs to the phone
+  API. IP (and email) are now classified before phone (regression-tested).
 - **IPv6 lookups were rejected for the most common address form.** The hand-rolled
   IPv6 regex in `/api/ip-lookup` only matched full 8-group addresses and pure `::`
   forms — it rejected any compressed address with hex groups on **both** sides of
