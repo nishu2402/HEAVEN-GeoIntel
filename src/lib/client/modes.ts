@@ -31,9 +31,12 @@ export const LOOKUP_MODES = MODES.filter((m) => m.lookup);
  */
 export function detectMode(raw: string): Mode {
   const s = raw.trim();
-  if (/^\+?\d[\d\s().-]{6,}$/.test(s)) return "phone";
+  // Order matters. Email (has "@") and IP (dotted-quad or hex:colon) are checked
+  // before phone: the permissive phone pattern also matches a dotted IPv4 like
+  // "8.8.8.8" ("8" + ".8.8.8"), so IP must win first or IPs misroute to phone.
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "email";
-  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s) || /:/.test(s) && /^[0-9a-fA-F:]+$/.test(s)) return "ip";
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(s) || (/:/.test(s) && /^[0-9a-fA-F:]+$/.test(s))) return "ip";
+  if (/^\+?\d[\d\s().-]{6,}$/.test(s)) return "phone";
   if (/^(?!-)[a-zA-Z0-9-]{1,63}(\.[a-zA-Z0-9-]{2,})+$/.test(s)) return "domain";
   return "username";
 }

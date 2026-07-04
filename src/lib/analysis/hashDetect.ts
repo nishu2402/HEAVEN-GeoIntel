@@ -35,6 +35,20 @@ export function detectHash(hash: string): HashInfo {
 
   const h = hash.trim();
 
+  // MySQL 4.1+  *<40 uppercase hex>  — must be checked BEFORE the generic "*"
+  // partial-plaintext test below, which would otherwise swallow it (a leading
+  // "*" + 40 hex is an unambiguous MySQL hash, not a masked password).
+  if (/^\*[0-9A-F]{40}$/.test(h)) {
+    return {
+      algorithm: "MySQL 4.1+",
+      bits: 160,
+      crackable: "easy",
+      color: "#ff6600",
+      note: "MySQL SHA-1 double hash — crackable with specialized wordlists.",
+      bestTool: HASHKILLER,
+    };
+  }
+
   // Partial password (e.g. "p****d") — not a hash at all
   if (h.includes("*")) {
     return {
@@ -192,18 +206,6 @@ export function detectHash(hash: string): HashInfo {
           bestTool: HASHES_COM,
         };
     }
-  }
-
-  // Base64-encoded hash (MySQL 4.1, WordPress, etc.)
-  if (/^\*[0-9A-F]{40}$/.test(h)) {
-    return {
-      algorithm: "MySQL 4.1+",
-      bits: 160,
-      crackable: "easy",
-      color: "#ff6600",
-      note: "MySQL SHA-1 double hash — crackable with specialized wordlists.",
-      bestTool: HASHKILLER,
-    };
   }
 
   // Looks like a DES crypt  (2-char salt + 11-char result)
