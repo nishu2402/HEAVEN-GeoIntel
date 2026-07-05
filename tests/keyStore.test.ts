@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
+import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setKey, clearKey, clearAllKeys, resolveKey, configuredMap, KEY_NAMES } from "@/lib/server/keyStore";
@@ -55,5 +56,16 @@ describe("keyStore write path", () => {
     await Promise.all(names.map((n, i) => setKey(n, `value-${i}`)));
     const map = await configuredMap();
     for (const n of names) expect(map[n], n).toBe("ui");
+  });
+
+  it("propagates a write failure when the atomic rename fails", async () => {
+    const spy = vi.spyOn(fs, "rename").mockRejectedValueOnce(new Error("ENOSPC: no space"));
+    await expect(setKey("IPQS_API_KEY", "value")).rejects.toThrow(/ENOSPC/);
+    spy.mockRestore();
+  });
+
+  it("resolveKey returns undefined for a valid-but-unset key; clearKey on an unset key is a no-op", async () => {
+    expect(await resolveKey("RAPIDAPI_KEY")).toBeUndefined(); // not set in UI or env
+    expect(await clearKey("RAPIDAPI_KEY")).toBe(true);        // valid name, absent → early return
   });
 });

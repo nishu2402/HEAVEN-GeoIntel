@@ -53,4 +53,11 @@ describe("effects setting", () => {
     expect(() => effectsEnabled()).not.toThrow();
     expect(() => setEffects(true)).not.toThrow();
   });
+
+  it("prefersReducedMotion returns false when matchMedia throws (unsupported)", () => {
+    (globalThis as unknown as { window: unknown }).window = {
+      matchMedia: () => { throw new Error("not implemented"); },
+    };
+    expect(prefersReducedMotion()).toBe(false);
+  });
 });

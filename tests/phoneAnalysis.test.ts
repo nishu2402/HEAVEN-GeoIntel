@@ -46,6 +46,29 @@ describe("analyzePhoneNumber", () => {
     const a = analyzePhoneNumber("+14155552671");
     expect(a!.expectedLengths).toEqual([10]);
   });
+
+  it("handles a valid but country-less number (international freephone) without guessing", () => {
+    const a = analyzePhoneNumber("+80012345678"); // UIFN — no country
+    expect(a).not.toBeNull();
+    expect(a!.country).toBeNull();
+    expect(a!.countryName).toBe("Unknown");
+    expect(a!.flagEmoji).toBe("🌐");
+    expect(a!.isValidForRegion).toBe(false);
+    expect(a!.npaInfo).toBeNull();
+    expect(a!.timezones).toEqual([]);
+    expect(a!.numberPlanArea).toBeNull();
+    expect(a!.expectedLengths).toEqual([]);
+  });
+
+  it("derives a 2-digit carrier prefix for a 5–6 digit subscriber, none for <5", () => {
+    const fo = analyzePhoneNumber("+298123456"); // Faroe Islands, 6 national digits
+    expect(fo!.country).toBe("FO");
+    expect(fo!.carrierPrefix).toHaveLength(2);
+    expect(fo!.timezones).toEqual([]); // FO not in the bundled TZ map — no fabricated tz
+
+    const short = analyzePhoneNumber("+35924"); // too few subscriber digits
+    expect(short!.carrierPrefix).toBeNull();
+  });
 });
 
 describe("countryToFlagEmoji", () => {

@@ -53,6 +53,14 @@ describe("detectHash — MySQL 4.1 regression (was swallowed by '*' branch)", ()
   });
 });
 
+describe("detectHash — DES crypt", () => {
+  it("identifies exactly 13 chars from the DES alphabet as DES crypt", () => {
+    expect("Kk7oULU.Ql3.6").toHaveLength(13);
+    expect(detectHash("Kk7oULU.Ql3.6").algorithm).toBe("DES crypt");
+    expect(detectHash("Kk7oULU.Ql3.6X").algorithm).not.toBe("DES crypt"); // 14 chars
+  });
+});
+
 describe("detectHash — non-matches", () => {
   it("returns Unknown for empty/whitespace/garbage", () => {
     for (const s of ["", "   ", "not a hash", "xyz@definitely-not"]) {

@@ -21,10 +21,10 @@ export function getCached(e164: string): LookupResponse | null {
 }
 
 export function setCached(e164: string, data: LookupResponse): void {
-  // Evict the oldest inserted entry when at capacity
+  // Evict the oldest inserted entry when at capacity. size >= MAX_SIZE (≥1)
+  // guarantees at least one key, so the iterator always yields one.
   if (cache.size >= MAX_SIZE && !cache.has(e164)) {
-    const oldestKey = cache.keys().next().value;
-    if (oldestKey !== undefined) cache.delete(oldestKey);
+    cache.delete(cache.keys().next().value!);
   }
   cache.set(e164, {
     data: { ...data, cachedAt: Date.now() },

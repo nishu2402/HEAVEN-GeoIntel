@@ -128,12 +128,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     removed (hard crash), so ESLint stays on 9 until Next ships v10-compatible
     plugins. (`typescript-eslint` already supports ESLint 10; the Next plugin set
     does not yet.)
-- **Test coverage expanded 56 → 105** — added hermetic suites for the previously
-  untested pure logic that gates user-facing verdicts: `emailAnalysis` (disposable/
-  privacy/webmail/gov/edu classification + the conservative name-guesser),
-  `hashDetect` (every scheme + hex length), the `validation` request-body gate
-  (`parseBody` + all schema bounds), and the `modes` registry / `detectMode`
-  classifier. This is what surfaced the two `Fixed` bugs below.
+- **Test coverage: 56 → 194 tests, now 100% of `src/lib`** — statements, branches,
+  functions and lines are all 100%, enforced by a vitest coverage `threshold` so it
+  can't silently regress (new lib code must ship with tests or an explicit
+  `/* v8 ignore */` for genuinely-defensive branches). Reaching 100% surfaced the
+  MTN carrier fix above and let two redundant/defensive spots be simplified
+  (`rateLimit`'s cleanup timer body extracted to a testable `purgeExpired`;
+  `freePhoneIntel`'s always-true VOIP-carrier guard removed). Highlights of the
+  added suites:
+  - **Verdict logic:** `emailAnalysis` (disposable/privacy/webmail/gov/edu
+    classification + the conservative name-guesser), `hashDetect` (every scheme +
+    hex length), the `validation` request-body gate (`parseBody` + schema bounds),
+    and the `modes` registry / `detectMode` classifier.
+  - **Server layer:** `fetchSafe` (timeout/reason mapping, never-throws contract),
+    `rateLimit` (fixed-window + no-trust-of-proxy-headers), `cache` (TTL + eviction),
+    and `auditLog` (default hashing, `HV_DATA_DIR`, plaintext override).
+  - **API route integration:** end-to-end `POST /api/ip-lookup` (rate-limit → parse
+    → validate → mocked upstreams → threat/merge/provenance) and
+    `POST /api/username-lookup` (locks the "no false positives" rule — a nonexistent
+    handle yields 0 found and bot-walled sites are never auto-claimed).
+  - **Client + data + import paths:** `lookupHistory` (dedupe/cap/event, 0 → 100%),
+    `caseStore.importCase` (the untrusted re-import: kind allow-list, dedupe,
+    non-finite `addedAt` guard, length caps, fresh-id/no-clobber), and data-integrity
+    invariants over `countryIntel` + `mccMnc` (which caught the MTN fix above).
+  - **Remaining lib to 100%:** `utils` (`cn`, `copyText` secure + legacy paths),
+    `effects` (reduced-motion + unavailable-`matchMedia`), `phoneAnalysis`
+    (country-less/short-subscriber edge numbers), `caseReport` (STIX for every
+    entity kind, printable HTML, minimal/tampered import envelopes), `usNpaDatabase`,
+    and the file-store error paths (corrupt file, failed atomic rename).
+  This coverage is what surfaced the `hashDetect`, `detectMode`, `proxy`, `auditLog`
+  and MTN-carrier fixes above.
+- **Server-layer robustness:** the `rateLimit` cleanup timer is now `unref()`'d so a
+  background housekeeping interval can't by itself keep the process alive; and a
+  full security review of the app's surfaces (SSRF, injection, XSS, secret leakage,
+  CSRF, auth) found no critical/high issues — every outbound `fetch` uses a fixed
+  host with `encodeURIComponent`'d input, so there is no user-controlled-host SSRF.
+- **Docs:** README now reflects the Node 22 `.nvmrc` pin (was still documented as v20).
 
 ### Security
 - **Full security audit + hardening.** From a fresh review of the whole codebase
@@ -210,6 +240,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   an SPDX SBOM is also uploaded as a build artifact.
 
 ### Fixed
+- **Carrier lookup returned the wrong operator for MTN South Africa**
+  (`lib/data/mccMnc.ts`). PLMN `655-10` was mapped to *Vodacom* (Vodacom is
+  `655-01`, which was also present), and the intended MTN row had been added under
+  a malformed key `655-10-mtn` that `lookupMccMnc` can never build — so it was dead
+  data. `655-10` now correctly resolves to *MTN South Africa* and the malformed
+  duplicate is removed. Surfaced by a new data-integrity test that asserts every
+  `MCC-MNC` key matches `MCC(3)-MNC(2–3 digits)`.
+- **Basic-auth check was not fully constant-time** (`proxy.ts`). The gate used
+  `safeEqual(user) && safeEqual(pass)`; the `&&` short-circuits, so a wrong
+  username skipped the password comparison and response timing could reveal that
+  the username alone was correct. Both comparisons are now evaluated before being
+  combined. (Low severity — only relevant when the optional `AUTH_PASSWORD` gate
+  is enabled — but free to fix.)
+- **Audit log ignored `HV_DATA_DIR`** (`lib/server/auditLog.ts`). Its data-dir was
+  resolved once at module load, unlike `caseStore`/`keyStore`, so an operator who
+  relocated state via `HV_DATA_DIR` would silently keep writing `audit.log` to
+  `./.data`. It now resolves the path lazily like the other file-backed stores.
 - **Hash identifier mislabelled MySQL 4.1 hashes as "Partial Plaintext"**
   (`lib/analysis/hashDetect.ts`). A MySQL 4.1+ hash is `*` followed by 40 hex
   chars, but the generic "contains `*` → masked password" branch ran first and

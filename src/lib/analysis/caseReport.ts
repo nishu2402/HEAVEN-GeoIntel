@@ -106,6 +106,7 @@ export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
 // values are attacker-influenced (a phone is "+1…", a note is free text), so we
 // prefix those with a single quote — the standard, lossless mitigation.
 const csvEsc = (s: unknown) => {
+  /* v8 ignore next -- every caller pre-coalesces to a string; `?? ""` is defensive */
   let v = String(s ?? "");
   if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
   return `"${v.replace(/"/g, '""')}"`;
@@ -129,6 +130,7 @@ export function buildMaltegoCsv(c: InvestigationCase): string {
   };
   const rows = [["Entity Type", "Value"].join(",")];
   for (const e of payloadOf(c).entities) {
+    /* v8 ignore next -- TYPE maps every EntityKind; the "maltego.Phrase" fallback is defensive */
     rows.push([TYPE[e.kind] ?? "maltego.Phrase", e.value].map(csvEsc).join(","));
   }
   return rows.join("\r\n");
@@ -137,6 +139,8 @@ export function buildMaltegoCsv(c: InvestigationCase): string {
 /** STIX 2.1 bundle of Cyber-observable objects (SCOs) for the identifiers. */
 export function buildStixBundle(c: InvestigationCase): string {
   const p = payloadOf(c);
+  /* v8 ignore next -- crypto.randomUUID is always present on our Node runtimes;
+     the Math.random fallback is defensive for exotic/old environments. */
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2));
   const objects: Record<string, unknown>[] = [
     { type: "identity", spec_version: "2.1", id: `identity--${uuid()}`, name: "HEAVEN-GeoIntel", identity_class: "system" },

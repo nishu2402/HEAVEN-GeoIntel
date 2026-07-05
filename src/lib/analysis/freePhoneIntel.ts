@@ -55,7 +55,7 @@ export function deriveOfflineReputation(analysis: PhoneAnalysis): OfflineReputat
   for (const hint of VOIP_HINTS) {
     if (hint.match(digits)) {
       signals.push(hint.provider);
-      if (!inferredCarrier) inferredCarrier = hint.provider;
+      inferredCarrier = hint.provider; // first match wins — we break immediately
       break;
     }
   }
