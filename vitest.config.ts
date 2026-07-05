@@ -18,6 +18,9 @@ export default defineConfig({
       reporter: ["text", "html"],
       include: ["src/lib/**/*.ts"],
       exclude: ["src/lib/types.ts"],
+      // The pure logic layer is fully covered; keep it that way. New lib code must
+      // ship with tests (or an explicit `/* v8 ignore */` for defensive branches).
+      thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
     },
   },
 });

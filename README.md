@@ -243,7 +243,7 @@ docker run -d --name geointel -p 3000:3000 ghcr.io/nishu2402/heaven-geointel:lat
 
 ### Requirements
 
-- **Node.js 20.9 or higher** — [nodejs.org](https://nodejs.org) (Next.js 16 requires Node 20.9+; the bundled [`.nvmrc`](./.nvmrc) pins v20)
+- **Node.js 20.9 or higher** — [nodejs.org](https://nodejs.org) (Next.js 16 requires Node 20.9+; the bundled [`.nvmrc`](./.nvmrc) pins v22, the active LTS the project is tested on)
 - **npm 10 or higher** — included with Node.js 20+
 - No database, no Redis, no cloud account required. Docker is **optional** — see the [Docker section](#docker-deployment) if you prefer a container.
 
@@ -858,7 +858,7 @@ HEAVEN-GeoIntel/
 
 **`npm run dev` fails with MODULE_NOT_FOUND** — use `bash scripts/start.sh` or `npm run setup`; both invoke Next via `node node_modules/next/dist/bin/next` to bypass symlink issues.
 
-**`npm install` / `npm run build` fails on another PC** — almost always an outdated Node. Run `node -v` — it must be **v20.9.0+** (Next 16 requires it). Install the LTS from [nodejs.org](https://nodejs.org) or `nvm install 20 && nvm use 20`. An `EBADENGINE` error means exactly this. If you copied the folder, delete `node_modules` and run `npm install` fresh.
+**`npm install` / `npm run build` fails on another PC** — almost always an outdated Node. Run `node -v` — it must be **v20.9.0+** (Next 16 requires it). Install the LTS from [nodejs.org](https://nodejs.org) or `nvm install 22 && nvm use 22` (matches [`.nvmrc`](./.nvmrc)). An `EBADENGINE` error means exactly this. If you copied the folder, delete `node_modules` and run `npm install` fresh.
 
 ---
 

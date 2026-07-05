@@ -31,15 +31,17 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>();
 
-// Purge IP entries whose window has long since expired to prevent unbounded growth
-setInterval(() => {
-  const now = Date.now();
+// Purge IP entries whose window has long since expired to prevent unbounded growth.
+export function purgeExpired(now: number = Date.now()): void {
   Array.from(buckets.entries()).forEach(([ip, bucket]) => {
     if (now - bucket.windowStart > WINDOW_MS * 2) {
       buckets.delete(ip);
     }
   });
-}, CLEANUP_INTERVAL_MS);
+}
+const cleanupTimer = setInterval(purgeExpired, CLEANUP_INTERVAL_MS);
+// A background housekeeping timer must not, by itself, keep the process alive.
+cleanupTimer.unref?.();
 
 export function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const now = Date.now();

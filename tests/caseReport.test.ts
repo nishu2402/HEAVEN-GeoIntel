@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildCaseJson, buildCaseMarkdown, verifyCaseImport, REPORT_SCHEMA,
-  buildCaseCsv, buildMaltegoCsv, buildStixBundle,
+  buildCaseCsv, buildMaltegoCsv, buildStixBundle, buildPrintableHtml,
 } from "@/lib/analysis/caseReport";
 import type { InvestigationCase } from "@/lib/types";
 
@@ -126,5 +126,76 @@ describe("caseReport — Markdown report", () => {
     expect(md).toContain("Acme phishing 2026");
     expect(md).toContain("evil.example");
     expect(md).toMatch(/Integrity \(SHA-256 of case payload\): `[0-9a-f]{64}`/);
+  });
+});
+
+describe("caseReport — STIX covers every entity kind", () => {
+  it("emits ipv4-addr, user-account and x-phone-number objects", () => {
+    const c: InvestigationCase = {
+      ...baseCase,
+      entities: [
+        { kind: "ip", value: "8.8.8.8", addedAt: 1 },
+        { kind: "username", value: "torvalds", addedAt: 2 },
+        { kind: "phone", value: "+14155552671", addedAt: 3 },
+      ],
+    };
+    const bundle = JSON.parse(buildStixBundle(c));
+    const byType = Object.fromEntries(bundle.objects.map((o: { type: string }) => [o.type, o]));
+    expect(byType["ipv4-addr"].value).toBe("8.8.8.8");
+    expect(byType["user-account"].account_login).toBe("torvalds");
+    expect(byType["x-phone-number"].value).toBe("+14155552671");
+  });
+});
+
+describe("caseReport — printable HTML", () => {
+  it("produces a self-contained HTML doc with the (escaped) case name", async () => {
+    const c: InvestigationCase = { ...baseCase, name: "A&B <script>" };
+    const html = await buildPrintableHtml(c);
+    expect(html).toMatch(/^<!doctype html>/i);
+    expect(html).toContain("A&amp;B &lt;script&gt;"); // escaped, no raw injection
+    expect(html).not.toContain("<script>A"); // the raw name is not injected as markup
+  });
+});
+
+describe("caseReport — empty / minimal edge cases", () => {
+  const emptyCase = {
+    id: "e", name: "Empty", createdAt: 1, updatedAt: 2, entities: [],
+    notes: undefined as unknown as string,
+  } as InvestigationCase;
+
+  it("renders the placeholder row and 'None' notes for an empty case", async () => {
+    const md = await buildCaseMarkdown(emptyCase);
+    expect(md).toContain("_no identifiers_");
+    expect(md).toContain("_None._");
+  });
+
+  it("sorts entities of the same kind by value, and CSV-escapes nullish notes", () => {
+    const sameKind = {
+      ...baseCase,
+      entities: [
+        { kind: "email", value: "z@x.com", addedAt: 1 },              // note undefined
+        { kind: "email", value: "a@x.com", addedAt: 2, note: "=cmd" }, // formula-injection
+      ],
+    } as InvestigationCase;
+    const csv = buildCaseCsv(sameKind);
+    expect(csv.indexOf("a@x.com")).toBeLessThan(csv.indexOf("z@x.com")); // sorted by value
+    expect(csv).toContain("\"'=cmd\""); // formula neutralised
+  });
+});
+
+describe("caseReport — verifyCaseImport envelopes", () => {
+  it("rejects non-JSON and non-report envelopes", async () => {
+    expect((await verifyCaseImport("{bad")).ok).toBe(false);
+    expect((await verifyCaseImport("null")).ok).toBe(false);
+    expect((await verifyCaseImport(JSON.stringify({ schema: "wrong" }))).ok).toBe(false);
+    expect((await verifyCaseImport(JSON.stringify({ schema: REPORT_SCHEMA }))).ok).toBe(false); // no case
+  });
+
+  it("accepts a minimal report, filling defaults for missing case fields", async () => {
+    const res = await verifyCaseImport(JSON.stringify({ schema: REPORT_SCHEMA, case: {} }));
+    expect(res.ok).toBe(true);
+    expect(res.case?.name).toBe("");
+    expect(res.case?.entities).toEqual([]);
+    expect(res.tampered).toBe(false); // no integrity hash present
   });
 });

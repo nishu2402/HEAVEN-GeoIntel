@@ -10,8 +10,10 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const FILE = path.join(DATA_DIR, "audit.log");
+// Resolved lazily per call (like caseStore/keyStore) so an operator can relocate
+// all file-backed state with HV_DATA_DIR, and so tests can point at a temp dir.
+const dataDir = () => process.env.HV_DATA_DIR || path.join(process.cwd(), ".data");
+const auditFile = () => path.join(dataDir(), "audit.log");
 
 // Per-process random salt so hashes aren't trivially reversible via a rainbow
 // table of common phone/email values, while equal targets still collide within
@@ -34,10 +36,12 @@ export interface AuditEntry {
 export async function audit(kind: string, target: string, ip: string, status: number): Promise<void> {
   try {
     const entry: AuditEntry = { ts: new Date().toISOString(), kind, target: tag(target), ip, status };
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.appendFile(FILE, JSON.stringify(entry) + "\n", { encoding: "utf8", mode: 0o600 });
+    const file = auditFile();
+    await fs.mkdir(dataDir(), { recursive: true });
+    await fs.appendFile(file, JSON.stringify(entry) + "\n", { encoding: "utf8", mode: 0o600 });
     // Make sure perms are tight even if the file pre-existed with looser bits.
-    await fs.chmod(FILE, 0o600).catch(() => {});
+    /* v8 ignore next -- chmod is best-effort hardening; ignoring failure is intentional */
+    await fs.chmod(file, 0o600).catch(() => {});
   } catch {
     /* never let auditing break a lookup */
   }
@@ -46,7 +50,7 @@ export async function audit(kind: string, target: string, ip: string, status: nu
 /** Read the most recent N entries (newest last). Returns [] if no log yet. */
 export async function readAudit(limit = 200): Promise<AuditEntry[]> {
   try {
-    const raw = await fs.readFile(FILE, "utf8");
+    const raw = await fs.readFile(auditFile(), "utf8");
     const lines = raw.split("\n").filter(Boolean);
     return lines.slice(-limit).map((l) => JSON.parse(l) as AuditEntry);
   } catch {
@@ -55,5 +59,5 @@ export async function readAudit(limit = 200): Promise<AuditEntry[]> {
 }
 
 export async function clearAudit(): Promise<void> {
-  try { await fs.rm(FILE, { force: true }); } catch { /* ignore */ }
+  try { await fs.rm(auditFile(), { force: true }); } catch { /* ignore */ }
 }

@@ -134,11 +134,10 @@ export const MCC_MNC: Record<string, MccMncEntry> = {
   "621-30": { operator: "MTN Nigeria", country: "Nigeria", iso: "NG" },
   "621-20": { operator: "Airtel Nigeria", country: "Nigeria", iso: "NG" },
   "621-50": { operator: "Glo Mobile", country: "Nigeria", iso: "NG" },
-  "655-10": { operator: "Vodacom", country: "South Africa", iso: "ZA" },
+  "655-10": { operator: "MTN South Africa", country: "South Africa", iso: "ZA" },
   "655-01": { operator: "Vodacom", country: "South Africa", iso: "ZA" },
   "655-07": { operator: "Cell C", country: "South Africa", iso: "ZA" },
   "655-02": { operator: "Telkom Mobile", country: "South Africa", iso: "ZA" },
-  "655-10-mtn": { operator: "MTN South Africa", country: "South Africa", iso: "ZA" },
 
   // ── Indonesia / Pakistan / Bangladesh ──
   "510-10": { operator: "Telkomsel", country: "Indonesia", iso: "ID" },
