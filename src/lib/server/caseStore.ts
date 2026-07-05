@@ -63,9 +63,11 @@ async function persist(cases: InvestigationCase[]): Promise<void> {
   try {
     await fs.rename(tmp, file);
   } catch (err) {
+    /* v8 ignore next -- best-effort tmp cleanup; the no-op catch is defensive */
     await fs.rm(tmp, { force: true }).catch(() => {});
     throw err;
   }
+  /* v8 ignore next -- chmod is best-effort hardening; ignoring failure is intentional */
   await fs.chmod(file, 0o600).catch(() => {});
 }
 

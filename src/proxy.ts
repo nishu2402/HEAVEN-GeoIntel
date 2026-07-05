@@ -68,7 +68,12 @@ export function proxy(req: NextRequest): NextResponse {
       if (idx !== -1) {
         const u = decoded.slice(0, idx);
         const p = decoded.slice(idx + 1);
-        if (safeEqual(u, user) && safeEqual(p, pass)) return NextResponse.next();
+        // Evaluate BOTH comparisons before combining — a plain `&&` short-circuits,
+        // so a wrong username would skip the password check and response timing
+        // could reveal that the username alone was correct.
+        const okUser = safeEqual(u, user);
+        const okPass = safeEqual(p, pass);
+        if (okUser && okPass) return NextResponse.next();
       }
     } catch { /* malformed header → fall through to 401 */ }
   }

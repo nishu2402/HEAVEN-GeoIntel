@@ -52,6 +52,8 @@ async function load(): Promise<Record<string, string>> {
   try {
     const raw = await fs.readFile(keysFile(), "utf8");
     const parsed = JSON.parse(raw) as unknown;
+    /* v8 ignore next -- keys.json is always written by us as an object; the {}
+       fallback only guards a hand-corrupted non-object file. */
     cache = parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
   } catch {
     cache = {};
@@ -85,9 +87,11 @@ async function writeAtomic(next: Record<string, string>): Promise<void> {
   try {
     await fs.rename(tmp, file);
   } catch (err) {
+    /* v8 ignore next -- best-effort tmp cleanup; the no-op catch is defensive */
     await fs.rm(tmp, { force: true }).catch(() => {});
     throw err;
   }
+  /* v8 ignore next -- chmod is best-effort hardening; ignoring failure is intentional */
   await fs.chmod(file, 0o600).catch(() => {});
 }
 

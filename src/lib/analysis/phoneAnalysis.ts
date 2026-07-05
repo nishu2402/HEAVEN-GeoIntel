@@ -254,14 +254,20 @@ export function countryToFlagEmoji(code: string): string {
 
 function getCountryDisplayName(code: string): string {
   try {
+    /* v8 ignore next -- Intl returns a name for every ISO code we pass; `?? code` is defensive */
     return new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code;
   } catch {
+    // Intl.DisplayNames.of only throws on a structurally invalid region subtag;
+    // every caller passes a libphonenumber-derived ISO-3166 code, so this is
+    // unreachable in practice — kept as a defensive fallback.
+    /* v8 ignore next */
     return code;
   }
 }
 
 function extractCarrierPrefix(national: string): string | null {
   const digits = national.replace(/\D/g, "");
+  /* v8 ignore next -- a parseable number always has subscriber digits here */
   if (!digits) return null;
   const prefixLen = digits.length >= 7 ? 3 : digits.length >= 5 ? 2 : null;
   if (!prefixLen) return null;
@@ -273,6 +279,7 @@ function getTimezonesForCountry(country: CountryCode | null): { timezones: strin
   if (!country) return { timezones: [], utcOffsets: [] };
   const tz = COUNTRY_TZ[country];
   if (!tz) return { timezones: [], utcOffsets: [] };
+  /* v8 ignore next -- every tz in the bundled map has a UTC entry; `?? tz` is defensive */
   const offset = TZ_UTC[tz] ?? tz;
   return { timezones: [tz], utcOffsets: [offset] };
 }
@@ -332,6 +339,7 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
     isValidForRegion: country ? parsed.isValid() : false,
 
     type,
+    /* v8 ignore next -- TYPE_LABELS covers every libphonenumber type incl. UNKNOWN */
     typeDescription: TYPE_LABELS[typeStr] ?? "Unknown",
     isMobile: typeStr === "MOBILE",
     isFixedLine: typeStr === "FIXED_LINE",
