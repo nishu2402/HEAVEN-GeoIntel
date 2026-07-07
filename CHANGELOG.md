@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Cross-case entity correlation.** The Cases panel now surfaces a **"CROSS-CASE
+  LINKS"** section listing every identifier that appears in more than one
+  investigation — the "have I seen this before?" signal that turns a pile of cases
+  into an investigation graph. Each row shows the identifier, how many cases it
+  spans, and clickable chips that jump straight to those cases. Matching is
+  kind-aware and case-insensitive (a value counts each case once), and it's a pure
+  offline derivation of the case store (`lib/analysis/caseCorrelation`, fully
+  tested, 100% covered). Verified end-to-end: a phone shared by two cases renders
+  with both case chips.
+- **Offline IP scope classification (IANA special-purpose registries).** A new
+  `lib/analysis/ipClassify` classifies any IPv4/IPv6 against the IANA
+  special-purpose address registries — **private (RFC 1918), loopback, CGNAT
+  (RFC 6598), link-local, documentation (TEST-NET), benchmarking, multicast,
+  reserved, IPv6 ULA/link-local, …** — with zero APIs (pure RFC ranges → no false
+  data). The IP lookup now **short-circuits a non-routable address entirely
+  offline**: instead of firing three geolocation upstreams that can never resolve a
+  `10.x`/`127.x`/`100.64.x` address and returning a confusing "lookup failed", it
+  returns an instant, precise **"NON-ROUTABLE ADDRESS"** card naming the scope + RFC
+  (measured ~0.09s vs. multi-second upstream timeouts, and 3 fewer wasted calls).
+  Routable public IPs carry a `global` classification and geolocate as before.
+  Deterministic and fully tested (43 classifier cases, both IP versions + edge
+  parsing), 100% covered, and verified end-to-end.
 - **Manage API keys in the web app** — a new **Sources & keys** panel (🗄 header
   icon) lets you paste your optional provider keys (IPQS, NumVerify, Twilio,
   Hunter, FullContact, …) directly in the UI instead of editing `.env.local`.
@@ -187,9 +209,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `eslint-disable`** each. Behaviour verified end-to-end in a browser: theme + effects
   toggles flip and persist across reload, the consent gate shows/dismisses/persists,
   a lookup lands in Recent Queries instantly — with **zero console hydration warnings**.
+- **Accessibility + first real component tests.** The UI now carries the same
+  standard as the logic layer. A11y fixes: added the page's single `<h1>` (the app
+  had **no headings at all** — a WCAG/screen-reader gap), and made the command
+  palette a properly-named **modal dialog** (`role="dialog"` + `aria-modal` +
+  accessible name) that **returns focus to its trigger on close** so keyboard users
+  aren't dumped at the top of the document. A scripted audit of the live DOM
+  confirmed all buttons/inputs/links already have accessible names, images have alt,
+  and the 8 mode tabs sit in a labelled `tablist` with `aria-selected`. New
+  interaction tests (React Testing Library, jsdom) lock in the four
+  `useSyncExternalStore` refactors — `ConsentGate` show/dismiss/persist,
+  `ThemeProvider`+`ThemeToggle` flip/persist/reflect-to-`<html>`, `EffectsToggle`
+  persist, `HistorySidebar` live-update/clear — plus `CommandPalette` routing
+  (smart-run classifies a typed IP as IP, mode switch, the new dialog a11y). Verified
+  end-to-end in a browser; the header is visually unchanged.
 - **Docs:** README now reflects the Node 22 `.nvmrc` pin (was still documented as v20).
 
 ### Security
+- **HSTS on HTTPS deployments.** When the app is served over TLS
+  (`FORCE_HTTPS=1`), responses now carry
+  `Strict-Transport-Security: max-age=63072000; includeSubDomains`. It is gated on
+  the exact same condition as `upgrade-insecure-requests` so it is **never** sent on
+  the default HTTP (localhost/LAN) deployment — where a cached HSTS entry would
+  otherwise make the browser refuse the very origin serving it. Verified live: the
+  header is present on an `FORCE_HTTPS=1` build and absent on the default build.
+  (Note: Next bakes `headers()` into the build, so `FORCE_HTTPS` must be set at
+  **build** time, not just at `next start`.)
 - **Full security audit + hardening.** From a fresh review of the whole codebase
   (SSRF, injection, XSS, CSRF, path traversal, ReDoS, prototype pollution, secrets,
   headers):

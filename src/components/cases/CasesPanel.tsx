@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FolderPlus, Trash2, Plus, X, Save, FolderOpen, Loader2, RefreshCw,
-  Download, FileText, Upload, ShieldAlert, Printer,
+  Download, FileText, Upload, ShieldAlert, Printer, Link2,
 } from "lucide-react";
 import type { InvestigationCase, EntityKind } from "@/lib/types";
+import { correlateCases } from "@/lib/analysis/caseCorrelation";
 import { LOOKUP_MODES } from "@/lib/client/modes";
 import LinkGraph, { type GraphEntity } from "@/components/graph/LinkGraph";
 import {
@@ -42,6 +43,8 @@ export default function CasesPanel() {
   const [draftForId, setDraftForId] = useState<string | null>(null);
 
   const active = cases.find((c) => c.id === activeId) ?? null;
+  // Cross-case correlation is a pure derivation of the loaded cases.
+  const correlations = useMemo(() => correlateCases(cases), [cases]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -226,6 +229,34 @@ export default function CasesPanel() {
           </div>
         )}
       </div>
+
+      {/* Cross-case links — identifiers appearing in more than one case */}
+      {correlations.length > 0 && (
+        <div className="terminal-card p-4 space-y-2">
+          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-cyan)] flex items-center gap-1.5">
+            <Link2 className="w-3.5 h-3.5" /> CROSS-CASE LINKS — identifiers shared across investigations
+          </div>
+          <div className="space-y-1.5">
+            {correlations.map((corr) => (
+              <div key={`${corr.kind}:${corr.value}`}
+                className="flex items-center gap-2 flex-wrap text-xs font-mono py-1.5 border-b border-[var(--hv-glass-border)] last:border-b-0">
+                <span className="px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider border"
+                  style={{ color: KIND_COLOR[corr.kind], borderColor: KIND_COLOR[corr.kind] + "60" }}>{corr.kind}</span>
+                <span className="text-[var(--hv-ink)] break-all font-bold">{corr.value}</span>
+                <span className="text-[var(--hv-ink-dim)]">in {corr.count} cases:</span>
+                <span className="flex flex-wrap gap-1">
+                  {corr.cases.map((cr) => (
+                    <button key={cr.id} onClick={() => setActiveId(cr.id)}
+                      className="px-1.5 py-0.5 rounded border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:border-[var(--hv-cyan)] hover:text-[var(--hv-cyan)] transition-colors">
+                      {cr.name}
+                    </button>
+                  ))}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {active && (
         <>

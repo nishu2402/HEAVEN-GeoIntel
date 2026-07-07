@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Command } from "cmdk";
 import {
   Search, Smartphone, Mail, AtSign, Network, Globe, Layers, Share2, FolderOpen,
@@ -29,6 +29,8 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const { theme, toggle } = useTheme();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,6 +44,13 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // a11y: return focus to the trigger when the dialog closes, so keyboard users
+  // land back where they were instead of at the top of the document.
+  useEffect(() => {
+    if (wasOpen.current && !open) triggerRef.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
+
   const detected = query.trim() ? detectMode(query.trim()) : null;
 
   function run(fn: () => void) { fn(); setOpen(false); setQuery(""); }
@@ -50,6 +59,7 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
     <>
       {/* Trigger pill (visible in header) */}
       <button
+        ref={triggerRef}
         onClick={() => setOpen(true)}
         className="flex items-center gap-2 text-[11px] font-mono px-2.5 py-1.5 rounded-md border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-colors"
         aria-label="Open command palette"
@@ -65,6 +75,9 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
           <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />
           <Command
             label="Command palette"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Command palette"
             className="holo relative w-full max-w-xl glass-pop rounded-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
             shouldFilter={true}
