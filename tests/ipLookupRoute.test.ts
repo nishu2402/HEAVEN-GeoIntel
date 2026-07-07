@@ -112,6 +112,45 @@ describe("POST /api/ip-lookup — degraded upstreams", () => {
   });
 });
 
+describe("POST /api/ip-lookup — offline scope classification", () => {
+  it("short-circuits a private (RFC 1918) address with NO upstream calls", async () => {
+    // fetch is left un-stubbed: any upstream call would throw. A non-routable
+    // address must be answered entirely offline.
+    const fetchSpy = vi.fn(async () => { throw new Error("should not fetch"); });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const res = await post({ ip: "10.0.0.1" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.ip).toBeNull();
+    expect(json.classification.scope).toBe("private");
+    expect(json.classification.rfc).toBe("RFC 1918");
+    expect(json.classification.isGloballyRoutable).toBe(false);
+    expect(json.threatLabel).toBe("NOT ROUTABLE");
+    expect(json.sources).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled(); // zero wasted upstream calls
+    expect(json.pivots.length).toBeGreaterThan(0);
+  });
+
+  it("classifies loopback and CGNAT offline too", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("no fetch"); }));
+    expect((await (await post({ ip: "127.0.0.1" })).json()).classification.scope).toBe("loopback");
+    expect((await (await post({ ip: "100.64.0.1" })).json()).classification.scope).toBe("cgnat");
+  });
+
+  it("attaches a global classification to a routable public IP and still geolocates", async () => {
+    stubFetch([
+      ["ip-api.com", resp(200, { status: "success", country: "United States", countryCode: "US", query: "8.8.8.8", as: "AS15169 Google LLC" })],
+      ["internetdb.shodan.io", resp(404, {})],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "8.8.8.8" })).json();
+    expect(json.ip).not.toBeNull();
+    expect(json.classification.scope).toBe("global");
+    expect(json.classification.isGloballyRoutable).toBe(true);
+  });
+});
+
 describe("POST /api/ip-lookup — rate limiting", () => {
   it("returns 429 after 10 requests from the same client IP", async () => {
     stubFetch([

@@ -59,6 +59,30 @@ function Flag({ on, label }: { on: boolean | null; label: string }) {
 
 export default function IpResultsDashboard({ data }: Props) {
   if (!data.ip) {
+    // Non-routable address (private/loopback/CGNAT/documentation/…): show the
+    // offline classification as information, not an error.
+    if (data.classification && !data.classification.isGloballyRoutable) {
+      const c = data.classification;
+      return (
+        <div className="terminal-card p-5 border mt-6" style={{ borderColor: "var(--hv-glass-hi)" }}>
+          <div className="text-[13px] uppercase tracking-widest text-[var(--hv-cyan)] mb-2 flex items-center gap-2">
+            <Network className="w-4 h-4" /> [ NON-ROUTABLE ADDRESS ]
+          </div>
+          <div className="flex items-center gap-2 flex-wrap mb-2">
+            <span className="text-xl font-mono font-bold gradient-text">{data.input}</span>
+            <span className="text-[11px] font-mono font-bold px-2 py-0.5 border rounded tracking-widest text-[var(--hv-amber)]"
+              style={{ borderColor: "#fbbf2470", backgroundColor: "#fbbf2416" }}>
+              {c.label.toUpperCase()}
+            </span>
+            {c.rfc && <span className="text-[11px] font-mono text-[var(--hv-ink-dim)]">{c.rfc}</span>}
+          </div>
+          <div className="font-mono text-sm text-[var(--hv-ink-dim)]">{c.description}</div>
+          <div className="font-mono text-[11px] text-[var(--hv-ink-dim)] mt-2 opacity-70">
+            No geolocation attempted — this address is not a unique public host.
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="terminal-card p-5 border" style={{ borderColor: "#ff4d6d50" }}>
         <div className="text-[13px] uppercase tracking-widest text-[#ff4d6d]/70 mb-2">[ IP LOOKUP FAILED ]</div>

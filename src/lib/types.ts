@@ -1,8 +1,9 @@
 import type { PhoneAnalysis } from "./analysis/phoneAnalysis";
 import type { CountryIntel } from "./data/countryIntel";
 import type { OfflineReputation } from "./analysis/freePhoneIntel";
+import type { IpClassification } from "./analysis/ipClassify";
 
-export type { PhoneAnalysis, CountryIntel, OfflineReputation };
+export type { PhoneAnalysis, CountryIntel, OfflineReputation, IpClassification };
 
 export interface PhoneInputData {
   raw: string;
@@ -457,6 +458,8 @@ export interface SourceProvenance {
 export interface IpLookupResponse {
   input: string;
   ip: IpLookupData | null;
+  /** Offline IANA scope classification (private/loopback/CGNAT/documentation/…/global). */
+  classification?: IpClassification;
   /** Curated free pivot links for deeper IP investigation */
   pivots: { label: string; url: string; note: string }[];
   threatScore: number;
