@@ -4,6 +4,7 @@ import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 import { fetchJson } from "@/lib/server/fetchSafe";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, ipBody, isValidIp, ipVersion } from "@/lib/server/validation";
+import { classifyIp } from "@/lib/analysis/ipClassify";
 import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/types";
 
 // ── IP OSINT — free, no API key ──────────────────────────────────────────────
@@ -115,6 +116,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!target) return NextResponse.json({ error: "Missing IP address" }, { status: 400 });
   if (!isValidIp(target)) return NextResponse.json({ error: "Not a valid IPv4 / IPv6 address" }, { status: 400 });
 
+  // Offline IANA scope classification. A non-routable address (private, loopback,
+  // CGNAT, documentation, …) can never be geolocated, so short-circuit here with a
+  // precise answer instead of firing three upstreams that would only fail.
+  const classification = classifyIp(target);
+  if (classification && !classification.isGloballyRoutable) {
+    void audit("ip", target, clientIp, 200);
+    return NextResponse.json(
+      {
+        input: target,
+        ip: null,
+        classification,
+        pivots: buildPivots(target),
+        threatScore: 0,
+        threatLabel: "NOT ROUTABLE",
+        sources: [],
+      } as IpLookupResponse,
+      { headers: rlHeaders },
+    );
+  }
+
   // Kick off Shodan InternetDB + GreyNoise so they run alongside ip-api.
   const shodanJob = fetchJson<ShodanIDB>(`https://internetdb.shodan.io/${encodeURIComponent(target)}`, {
     source: "Shodan InternetDB", timeoutMs: 6000,
@@ -215,6 +236,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const response: IpLookupResponse = {
     input: target,
     ip: data,
+    classification: classification ?? undefined,
     pivots: buildPivots(target),
     threatScore: score,
     threatLabel: label,

@@ -244,11 +244,11 @@ function PageContent() {
         <header className="border-b border-[var(--hv-glass-border)] px-4 sm:px-6 py-3 flex items-center justify-between glass sticky top-0 z-20">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Terminal className="w-5 h-5 text-[var(--hv-green)] shrink-0" />
-            <span className="font-mono font-bold text-sm sm:text-base tracking-widest">
+            <h1 className="font-mono font-bold text-sm sm:text-base tracking-widest m-0">
               <span className="glow-green">HEAVEN</span>
               <span className="text-[var(--hv-ink-dim)]">-</span>
               <span className="gradient-text">GeoIntel</span>
-            </span>
+            </h1>
             <span className="text-[11px] text-[var(--hv-ink-dim)] uppercase tracking-widest hidden md:block">
               {"//"} unified osint platform
             </span>

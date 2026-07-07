@@ -95,6 +95,13 @@ const nextConfig = {
           { key: "Cross-Origin-Opener-Policy",  value: "same-origin" },
           { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           { key: "Content-Security-Policy",  value: CSP },
+          // HSTS is gated on the SAME condition as upgrade-insecure-requests: only
+          // when the app is actually served over HTTPS (FORCE_HTTPS=1 behind a TLS
+          // proxy). Sending it on the default HTTP (localhost/LAN) deployment would
+          // teach the browser to refuse the very origin it's being served from.
+          ...(httpsDeploy
+            ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]
+            : []),
         ],
       },
       {
