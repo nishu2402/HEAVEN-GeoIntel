@@ -1,25 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { ShieldAlert } from "lucide-react";
 
-// First-run permitted-use gate. Renders nothing on the server and on the first
-// client paint (state starts false → no hydration mismatch); an effect reveals
-// it only if the user hasn't accepted before. Acceptance is remembered locally.
+// First-run permitted-use gate. Acceptance lives in localStorage (an external
+// store), read via useSyncExternalStore: getServerSnapshot returns false so the
+// server + first client paint render nothing (no hydration mismatch), then React
+// reads the real value after hydration and reveals the gate only if the user
+// hasn't accepted before.
 const KEY = "hv-consent-v1";
+const EVENT = "hv-consent-changed";
+
+// True while the user still needs to see the gate (hasn't accepted yet).
+function needsConsent(): boolean {
+  try { return localStorage.getItem(KEY) !== "1"; } catch { return false; }
+}
+function subscribe(cb: () => void): () => void {
+  window.addEventListener(EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
 
 export default function ConsentGate() {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    try { if (localStorage.getItem(KEY) !== "1") setShow(true); } catch { /* ignore */ }
-  }, []);
+  const show = useSyncExternalStore(subscribe, needsConsent, () => false);
 
   if (!show) return null;
 
   function accept() {
     try { localStorage.setItem(KEY, "1"); } catch { /* ignore */ }
-    setShow(false);
+    window.dispatchEvent(new CustomEvent(EVENT)); // re-read the store → hide
   }
 
   return (

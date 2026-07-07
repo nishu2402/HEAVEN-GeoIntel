@@ -11,12 +11,16 @@ interface Props {
 
 export default function QrCodePanel({ e164 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [ready, setReady] = useState(false);
-  const [err, setErr] = useState(false);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const ready = status === "ready";
+  const err = status === "error";
 
   useEffect(() => {
-    setReady(false);
-    setErr(false);
+    // Reset to "loading" when e164 changes, then kick off async QR generation.
+    // This is a genuine side effect (drawing to a canvas), not derivable state;
+    // the synchronous reset is what the rule flags, but it's the correct pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStatus("loading");
     const canvas = canvasRef.current;
     if (!canvas) return;
     let cancelled = false;
@@ -26,8 +30,8 @@ export default function QrCodePanel({ e164 }: Props) {
       color: { dark: "#00ff41", light: "#0a0a0a" },
       errorCorrectionLevel: "M",
     })
-      .then(() => { if (!cancelled) setReady(true); })
-      .catch(() => { if (!cancelled) setErr(true); });
+      .then(() => { if (!cancelled) setStatus("ready"); })
+      .catch(() => { if (!cancelled) setStatus("error"); });
     return () => { cancelled = true; };
   }, [e164]);
 

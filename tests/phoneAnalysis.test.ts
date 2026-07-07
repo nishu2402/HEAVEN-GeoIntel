@@ -42,6 +42,29 @@ describe("analyzePhoneNumber", () => {
     expect(india!.utcOffsets[0]).toContain("UTC+5:30");
   });
 
+  it("uses the NPA-specific timezone, not the US country default, for a Pacific area code", () => {
+    // 415 is San Francisco — Pacific. The old code showed the US default (Eastern),
+    // which is wrong data for ~half the country. The NPA zone must win.
+    const sf = analyzePhoneNumber("+14155552671")!;
+    expect(sf.npaInfo!.timezone).toBe("America/Los_Angeles");
+    expect(sf.timezones).toEqual(["America/Los_Angeles"]);
+    expect(sf.utcOffsets[0]).toContain("UTC-8");
+    expect(sf.utcOffsets[0]).not.toContain("UTC-5"); // never Eastern for SF
+  });
+
+  it("renders a correct DST-free offset for a no-DST area code (Arizona 602)", () => {
+    const az = analyzePhoneNumber("+16025551234")!;
+    expect(az.timezones).toEqual(["America/Phoenix"]);
+    expect(az.utcOffsets[0]).toBe("UTC-7"); // Arizona keeps MST year-round
+  });
+
+  it("prefers the NPA zone for Canada too (Vancouver 604 → Pacific, not Toronto)", () => {
+    const van = analyzePhoneNumber("+16045551234")!;
+    expect(van.country).toBe("CA");
+    expect(van.timezones).toEqual(["America/Vancouver"]);
+    expect(van.utcOffsets[0]).toContain("UTC-8");
+  });
+
   it("expectedLengths uses bundled country lengths", () => {
     const a = analyzePhoneNumber("+14155552671");
     expect(a!.expectedLengths).toEqual([10]);

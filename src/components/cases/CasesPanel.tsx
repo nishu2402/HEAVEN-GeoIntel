@@ -39,6 +39,7 @@ export default function CasesPanel() {
   const [entVal, setEntVal] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
   const [notesSaved, setNotesSaved] = useState(false);
+  const [draftForId, setDraftForId] = useState<string | null>(null);
 
   const active = cases.find((c) => c.id === activeId) ?? null;
 
@@ -53,8 +54,20 @@ export default function CasesPanel() {
     finally { setLoading(false); }
   }, []);
 
+  // Fetch the case list once on mount — a genuine data-fetching side effect. The
+  // rule flags the setLoading(true) inside load(), but fetching on mount is
+  // exactly what an effect is for (there is no external store to subscribe to).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { setNotesDraft(active?.notes ?? ""); }, [active?.id, active?.notes]);
+
+  // Reset the editable notes draft when the active case changes. Done during
+  // render (React's recommended "adjust state when a prop changes" pattern)
+  // rather than in an effect — no extra render pass, no set-state-in-effect.
+  const activeIdForDraft = active?.id ?? null;
+  if (activeIdForDraft !== draftForId) {
+    setDraftForId(activeIdForDraft);
+    setNotesDraft(active?.notes ?? "");
+  }
 
   async function api(body: Record<string, unknown>) {
     const res = await fetch("/api/cases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

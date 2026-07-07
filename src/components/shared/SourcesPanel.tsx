@@ -59,6 +59,10 @@ export default function SourcesPanel() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Lazy-load the sources/keys snapshot the first time the panel opens — a
+  // data-fetching side effect. refresh() sets loading synchronously (what the
+  // rule flags), but fetch-on-open is precisely what an effect is for.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (open && !data) refresh(); }, [open, data, refresh]);
 
   const saveSource = useCallback(async (s: SourceInfo) => {

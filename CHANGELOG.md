@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     removed (hard crash), so ESLint stays on 9 until Next ships v10-compatible
     plugins. (`typescript-eslint` already supports ESLint 10; the Next plugin set
     does not yet.)
-- **Test coverage: 56 → 194 tests, now 100% of `src/lib`** — statements, branches,
+- **Test coverage: 56 → 244 tests, now 100% of `src/lib`** — statements, branches,
   functions and lines are all 100%, enforced by a vitest coverage `threshold` so it
   can't silently regress (new lib code must ship with tests or an explicit
   `/* v8 ignore */` for genuinely-defensive branches). Reaching 100% surfaced the
@@ -143,10 +143,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - **Server layer:** `fetchSafe` (timeout/reason mapping, never-throws contract),
     `rateLimit` (fixed-window + no-trust-of-proxy-headers), `cache` (TTL + eviction),
     and `auditLog` (default hashing, `HV_DATA_DIR`, plaintext override).
-  - **API route integration:** end-to-end `POST /api/ip-lookup` (rate-limit → parse
-    → validate → mocked upstreams → threat/merge/provenance) and
-    `POST /api/username-lookup` (locks the "no false positives" rule — a nonexistent
-    handle yields 0 found and bot-walled sites are never auto-claimed).
+  - **API route integration — now every one of the 11 routes:** end-to-end handler
+    tests driving the real POST/GET/DELETE through the shared middleware with all
+    upstreams mocked. Beyond the earlier `ip-lookup` / `username-lookup` / `sources`:
+    the core `POST /api/lookup` (offline happy path, the full IPQS+breach+Hudson-Rock
+    enrichment merge → CRITICAL threat, caching short-circuit, rate-limit), the
+    609-line `POST /api/email-lookup` (Gravatar/EmailRep/XposedOrNot merge + breach
+    parsing), `domain-lookup` (DoH/RDAP/crt.sh/Wayback recon merge + URL
+    normalization), `bulk-lookup` (offline triage rows), `cases` (full CRUD dispatch
+    + error mapping), `keys` (secrets **never** echoed back), and the `health` /
+    `docs` metadata endpoints. These live in `src/app` (outside the `src/lib`
+    coverage gate) — pure behavioural value, not coverage-chasing. The `lookup` +
+    `bulk` suites also lock in the timezone fix above (`415 → America/Los_Angeles`).
   - **Client + data + import paths:** `lookupHistory` (dedupe/cap/event, 0 → 100%),
     `caseStore.importCase` (the untrusted re-import: kind allow-list, dedupe,
     non-finite `addedAt` guard, length caps, fresh-id/no-clobber), and data-integrity
@@ -163,6 +171,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   full security review of the app's surfaces (SSRF, injection, XSS, secret leakage,
   CSRF, auth) found no critical/high issues — every outbound `fetch` uses a fixed
   host with `encodeURIComponent`'d input, so there is no user-controlled-host SSRF.
+- **Client hydration hardening — lint clean, 9 → 0 warnings.** The
+  `react-hooks/set-state-in-effect` warnings across 8 client components were resolved
+  on their merits, not silenced. The four that read **external client state**
+  (localStorage / the `data-theme` DOM attribute) — `ThemeProvider`, `ConsentGate`,
+  `EffectsToggle`, `HistorySidebar` — now use React's purpose-built
+  **`useSyncExternalStore`** with a `getServerSnapshot`, which removes the mount
+  effect entirely *and* is SSR-safe by construction (first client render always
+  matches the server, then React swaps in the real value). `HistorySidebar` also
+  gained an instant same-tab refresh event (was previously only picked up on window
+  focus). The `CasesPanel` notes-draft reset moved to React's "adjust state during
+  render" pattern. The three genuinely-correct side-effecting cases (mount data-fetch
+  in `CasesPanel`/`SourcesPanel`, the boot/deep-link runner in `page.tsx`, the async
+  QR-canvas draw in `QrCodePanel`) keep their effects with a **one-line justified
+  `eslint-disable`** each. Behaviour verified end-to-end in a browser: theme + effects
+  toggles flip and persist across reload, the consent gate shows/dismisses/persists,
+  a lookup lands in Recent Queries instantly — with **zero console hydration warnings**.
 - **Docs:** README now reflects the Node 22 `.nvmrc` pin (was still documented as v20).
 
 ### Security
@@ -240,6 +264,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   an SPDX SBOM is also uploaded as a build artifact.
 
 ### Fixed
+- **US/Canada phone numbers showed the wrong timezone for ~half the country**
+  (`lib/analysis/phoneAnalysis.ts`). Timezone/UTC-offset were derived from a single
+  country default (`COUNTRY_TZ["US"] = America/New_York`), so a `415` (San Francisco)
+  number reported **Eastern** instead of Pacific — even though the bundled NPA
+  database already knew the correct per-area-code zone (`415 → America/Los_Angeles`).
+  The analyzer now prefers the NPA-specific zone whenever it has one, for both the US
+  and Canada (a Vancouver `604` number is now Pacific, not the Toronto default). The
+  offset map (`TZ_UTC`) was also completed with the **28 NANP zones** the NPA DB uses
+  but the map lacked (Arizona/Phoenix has no DST, Yukon/Whitehorse is permanent UTC-7
+  since 2020, Turks & Caicos/Grand Turk observes EST/EDT since 2018, the
+  Eastern-Caribbean AST islands, Guam/Saipan/Pago Pago, …) so every area code renders
+  a correct offset instead of falling back to the country default. Verified end-to-end
+  against the live API and regression-tested. This is a direct application of the
+  no-false-data rule: we already had the accurate value and were showing a wrong one.
 - **Carrier lookup returned the wrong operator for MTN South Africa**
   (`lib/data/mccMnc.ts`). PLMN `655-10` was mapped to *Vodacom* (Vodacom is
   `655-01`, which was also present), and the intended MTN row had been added under

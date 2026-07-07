@@ -193,6 +193,10 @@ function PageContent() {
   useEffect(() => {
     try {
       if (localStorage.getItem(BOOTED_KEY) === "1") {
+        // Returning visitor: skip the boot animation and run any deep link. This
+        // is a one-shot mount side effect, not derivable state — the rule flags
+        // the setBooted here, but the effect is the correct tool.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setBooted(true);
         runDeep();
       }
