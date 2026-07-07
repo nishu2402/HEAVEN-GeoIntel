@@ -241,6 +241,39 @@ const TZ_UTC: Record<string, string> = {
   "Asia/Thimphu": "UTC+6",
   "Asia/Pyongyang": "UTC+9",
   "Africa/Djibouti": "UTC+3",
+  // NPA-database area-code zones (US/CA + NANP territories) not covered above.
+  // These make the per-area-code timezone render a correct offset instead of
+  // falling back to the country default. Verified against current IANA rules.
+  "America/Detroit": "UTC-5 / UTC-4 (EDT)",
+  "America/Indiana/Indianapolis": "UTC-5 / UTC-4 (EDT)",
+  "America/Phoenix": "UTC-7",                    // Arizona — no DST
+  "America/Edmonton": "UTC-7 / UTC-6 (MDT)",
+  "America/Winnipeg": "UTC-6 / UTC-5 (CDT)",
+  "America/Regina": "UTC-6",                     // Saskatchewan — no DST
+  "America/Halifax": "UTC-4 / UTC-3 (ADT)",
+  "America/Moncton": "UTC-4 / UTC-3 (ADT)",
+  "America/St_Johns": "UTC-3:30 / UTC-2:30 (NDT)",
+  "America/Whitehorse": "UTC-7",                 // Yukon — permanent MST since 2020
+  "Atlantic/Bermuda": "UTC-4 / UTC-3 (ADT)",
+  "America/Nassau": "UTC-5 / UTC-4 (EDT)",       // Bahamas
+  "America/Grand_Turk": "UTC-5 / UTC-4 (EDT)",   // Turks & Caicos — EST/EDT since 2018
+  "America/Cayman": "UTC-5",
+  // Eastern-Caribbean AST zones — no DST
+  "America/Anguilla": "UTC-4",
+  "America/Antigua": "UTC-4",
+  "America/Dominica": "UTC-4",
+  "America/Grenada": "UTC-4",
+  "America/Montserrat": "UTC-4",
+  "America/St_Kitts": "UTC-4",
+  "America/St_Lucia": "UTC-4",
+  "America/St_Vincent": "UTC-4",
+  "America/St_Thomas": "UTC-4",                  // US Virgin Islands
+  "America/Tortola": "UTC-4",                    // British Virgin Islands
+  "America/Lower_Princes": "UTC-4",              // Sint Maarten
+  // Pacific NANP territories — no DST
+  "Pacific/Guam": "UTC+10",
+  "Pacific/Saipan": "UTC+10",                    // Northern Mariana Islands
+  "Pacific/Pago_Pago": "UTC-11",                 // American Samoa
 };
 
 export function countryToFlagEmoji(code: string): string {
@@ -284,6 +317,17 @@ function getTimezonesForCountry(country: CountryCode | null): { timezones: strin
   return { timezones: [tz], utcOffsets: [offset] };
 }
 
+// Prefer the NPA-specific timezone when we have one. The US and Canada each span
+// multiple zones, so the country default (COUNTRY_TZ) is wrong for ~half of them
+// (e.g. a 415 number is Pacific, not the US-default Eastern). The NPA database
+// carries the correct per-area-code zone, so it wins whenever present.
+function npaTimezone(npa: NpaInfo | null): { timezones: string[]; utcOffsets: string[] } | null {
+  if (!npa?.timezone) return null;
+  const offset = TZ_UTC[npa.timezone];
+  /* v8 ignore next -- every NPA-DB timezone has a TZ_UTC entry; `?? npa.timezone` is defensive */
+  return { timezones: [npa.timezone], utcOffsets: [offset ?? npa.timezone] };
+}
+
 // Typical national number lengths per country (subscriber digits)
 const COUNTRY_NUMBER_LENGTHS: Partial<Record<CountryCode, number[]>> = {
   US: [10], CA: [10], GB: [10], DE: [10, 11], FR: [9], IN: [10],
@@ -308,9 +352,14 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
   const type = parsed.getType() ?? null;
   const typeStr = type ?? "UNKNOWN";
 
-  const { timezones, utcOffsets } = getTimezonesForCountry(country);
-
   const nationalDigits = national.replace(/\D/g, "");
+
+  // US/CA: offline area code intelligence from the NPA database (works with zero APIs)
+  const npaInfo = (country === "US" || country === "CA") ? getNpaInfo(nationalDigits) : null;
+
+  // Timezone: the NPA-specific zone (e.g. 415 → America/Los_Angeles) beats the
+  // country default, which would otherwise show Eastern for the whole US/CA.
+  const { timezones, utcOffsets } = npaTimezone(npaInfo) ?? getTimezonesForCountry(country);
 
   // Area code extraction — US/CA ONLY, backed by the real NPA database.
   // Other countries use variable-length area codes (DE: 2-5 digits, GB
@@ -371,7 +420,6 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
     // For US/CA: NXX (central office code, digits 4-6) — NOT the area code (digits 1-3)
     carrierPrefix: extractCarrierPrefix(subscriberNumber),
     numberPlanArea: country ? getCountryDisplayName(country) : null,
-    // US/CA: offline area code intelligence from the NPA database (works with zero APIs)
-    npaInfo: (country === "US" || country === "CA") ? getNpaInfo(nationalDigits) : null,
+    npaInfo,
   };
 }

@@ -1,16 +1,52 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import type { HistoryEntry } from "@/lib/types";
 
 const STORAGE_KEY = "heaven-geointel-history";
+const HISTORY_EVENT = "hv-history-changed";
 const MAX_ENTRIES = 20;
+const EMPTY: HistoryEntry[] = [];
 
 interface Props {
   onSelect: (e164: string) => void;
   currentE164?: string;
+}
+
+// ── External-store plumbing ──────────────────────────────────────────────────
+// History is persisted in localStorage; the sidebar reads it via
+// useSyncExternalStore. getSnapshot must return a STABLE reference when the raw
+// string is unchanged (React compares with Object.is), so we memoise the parsed
+// array against the raw JSON — re-parsing on every render would loop forever.
+let snapRaw: string | null = null;
+let snapParsed: HistoryEntry[] = EMPTY;
+function readHistory(): HistoryEntry[] {
+  let raw: string | null = null;
+  try { raw = localStorage.getItem(STORAGE_KEY); } catch { raw = null; }
+  if (raw === snapRaw) return snapParsed;
+  snapRaw = raw;
+  try {
+    const parsed = raw ? JSON.parse(raw) : [];
+    snapParsed = Array.isArray(parsed) ? parsed : EMPTY;
+  } catch {
+    snapParsed = EMPTY;
+  }
+  return snapParsed;
+}
+function subscribeHistory(cb: () => void): () => void {
+  window.addEventListener("storage", cb);       // cross-tab writes
+  window.addEventListener("focus", cb);          // returning to the tab
+  window.addEventListener(HISTORY_EVENT, cb);    // same-tab writes (instant)
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener("focus", cb);
+    window.removeEventListener(HISTORY_EVENT, cb);
+  };
+}
+function notifyHistoryChanged(): void {
+  window.dispatchEvent(new CustomEvent(HISTORY_EVENT));
 }
 
 export function saveToHistory(entry: HistoryEntry): void {
@@ -22,6 +58,7 @@ export function saveToHistory(entry: HistoryEntry): void {
     const filtered = existing.filter((e) => e.e164 !== entry.e164);
     const updated = [entry, ...filtered].slice(0, MAX_ENTRIES);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    notifyHistoryChanged(); // refresh any open sidebar in this tab immediately
   } catch {
     // localStorage unavailable
   }
@@ -39,40 +76,18 @@ function formatRelativeTime(ts: number): string {
 }
 
 export default function HistorySidebar({ onSelect, currentE164 }: Props) {
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  // getServerSnapshot → EMPTY so SSR + first paint match; the real persisted
+  // history is read after hydration and on every storage/focus/same-tab change.
+  const history = useSyncExternalStore(subscribeHistory, readHistory, () => EMPTY);
   const [open, setOpen] = useState(true);
-
-  const loadHistory = useCallback(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      setHistory(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setHistory([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadHistory();
-    const handler = () => loadHistory();
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, [loadHistory]);
-
-  // Re-read on focus to pick up same-window updates
-  useEffect(() => {
-    const handler = () => loadHistory();
-    window.addEventListener("focus", handler);
-    return () => window.removeEventListener("focus", handler);
-  }, [loadHistory]);
 
   const clearHistory = () => {
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
-      // localStorage unavailable — clear in-memory state regardless
+      // localStorage unavailable — the store re-read below still empties the view
     }
-    setHistory([]);
+    notifyHistoryChanged();
   };
 
   if (history.length === 0) return null;
