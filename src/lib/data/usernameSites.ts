@@ -27,15 +27,16 @@ export interface UsernameSite {
   absence?: string;
 }
 
+// NOTE: GitHub, GitLab, Hacker News and Reddit are NOT in this sweep catalog —
+// they each expose a keyless public JSON API, so the route verifies them as rich
+// "SocialProfile" providers (real name / karma / repos / join date) instead of a
+// bare found/notfound probe. See src/lib/analysis/usernameProfiles.ts.
 export const USERNAME_SITES: UsernameSite[] = [
   // ── Developer ──
-  { name: "GitHub",        category: "developer",    url: "https://github.com/{u}",                 check: "status" },
-  { name: "GitLab",        category: "developer",    url: "https://gitlab.com/{u}",                 check: "status" },
   { name: "Replit",        category: "developer",    url: "https://replit.com/@{u}",                check: "manual" },
   { name: "Docker Hub",    category: "developer",    url: "https://hub.docker.com/u/{u}",           check: "status" },
   { name: "PyPI",          category: "developer",    url: "https://pypi.org/user/{u}/",             check: "manual" },
   { name: "npm",           category: "developer",    url: "https://www.npmjs.com/~{u}",             check: "status" },
-  { name: "Hacker News",   category: "forum",        url: "https://news.ycombinator.com/user?id={u}", check: "body", absence: "No such user." },
   // NOTE: Stack Overflow has no clean username→profile URL (profiles are keyed by
   // numeric id). Its /users/filter?search= page returns HTTP 200 for ANY query,
   // which a status-check would misreport as "found" for every username — a false
@@ -48,7 +49,6 @@ export const USERNAME_SITES: UsernameSite[] = [
   { name: "Instagram",     category: "social",       url: "https://www.instagram.com/{u}/",         check: "manual" },
   { name: "X / Twitter",   category: "social",       url: "https://twitter.com/{u}",                check: "manual" },
   { name: "TikTok",        category: "social",       url: "https://www.tiktok.com/@{u}",            check: "manual" },
-  { name: "Reddit",        category: "forum",        url: "https://www.reddit.com/user/{u}",        check: "manual" },
   { name: "Telegram",      category: "social",       url: "https://t.me/{u}",                       check: "manual" },
   { name: "Threads",       category: "social",       url: "https://www.threads.net/@{u}",           check: "manual" },
   { name: "Mastodon (.social)", category: "social",  url: "https://mastodon.social/@{u}",           check: "status" },
@@ -102,4 +102,16 @@ export const USERNAME_CATEGORY_META: Record<UsernameCategory, { label: string; c
 /** Validate a username is plausibly real before we hammer 45 sites with it. */
 export function isPlausibleUsername(u: string): boolean {
   return /^[a-zA-Z0-9._-]{2,40}$/.test(u);
+}
+
+/**
+ * Best-effort username candidate from an email's local-part, for the
+ * email → username cross-tool pivot. Strips a `+tag` sub-address and returns the
+ * local-part only when it's a plausible handle (so `jdoe@x.com` → "jdoe" but
+ * `a@x.com` or a quoted/odd local-part → null). Case is preserved.
+ */
+export function emailToUsernameCandidate(email: string): string | null {
+  const at = email.lastIndexOf("@");
+  const local = (at === -1 ? email : email.slice(0, at)).split("+")[0].trim();
+  return isPlausibleUsername(local) ? local : null;
 }

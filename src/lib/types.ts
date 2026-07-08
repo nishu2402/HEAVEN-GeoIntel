@@ -373,19 +373,45 @@ export interface UsernameHit {
   httpStatus?: number;
 }
 
-export interface GithubProfile {
-  login: string;
-  name: string | null;
-  bio: string | null;
-  company: string | null;
-  location: string | null;
-  blog: string | null;
-  followers: number;
-  following: number;
-  publicRepos: number;
-  createdAt: string | null;
+/** A single labelled metric on a rich profile card (e.g. "repos" → "42"). */
+export interface ProfileStat {
+  label: string;
+  value: string;
+}
+
+/**
+ * A confirmed account pulled from a keyless public API (GitHub, GitLab, Hacker
+ * News, Reddit). Unlike a bare `UsernameHit` (which only knows found/notfound),
+ * a SocialProfile carries the account's real data — the difference between "an
+ * account exists here" and "here is who it is". Every field except platform/
+ * handle/url is best-effort; the UI hides what's null.
+ */
+export interface SocialProfile {
+  platform: string;              // "GitHub", "GitLab", "Hacker News", "Reddit"
+  /** UsernameCategory string, used only to pick the badge colour. */
+  category: string;
+  handle: string;                // the account's own login/id (may differ in case)
+  url: string;                   // public profile URL
   avatarUrl: string | null;
-  htmlUrl: string;
+  displayName: string | null;
+  bio: string | null;
+  stats: ProfileStat[];          // karma / repos / followers …
+  joinedYear: string | null;     // 4-digit year the account was created
+  location: string | null;
+  /** Extra one-liner: company, org, or a status flag like "account suspended". */
+  extra: string | null;
+}
+
+/**
+ * Cross-profile identity synthesis: the distinct real-name / location / avatar /
+ * bio candidates gathered from every confirmed profile, each tagged with the
+ * platform it came from. Pure derivation — no new network calls, no guessing.
+ */
+export interface IdentitySignals {
+  names: { value: string; source: string }[];
+  locations: { value: string; source: string }[];
+  avatars: { url: string; source: string }[];
+  bios: { value: string; source: string }[];
 }
 
 export interface UsernameLookupResponse {
@@ -396,8 +422,10 @@ export interface UsernameLookupResponse {
   /** Sites that can't be verified server-side — shown as "open to verify" links. */
   manual?: number;
   hits: UsernameHit[];
-  /** Rich GitHub profile when the handle exists there (free, no key). */
-  githubProfile?: GithubProfile | null;
+  /** Rich, API-verified accounts (GitHub / GitLab / Hacker News / Reddit). */
+  profiles: SocialProfile[];
+  /** Real-name / location / avatar candidates synthesised from `profiles`. */
+  identity: IdentitySignals;
   /** Derived dork/search links to pivot further (no key) */
   pivots: { label: string; url: string }[];
   cachedAt?: number;

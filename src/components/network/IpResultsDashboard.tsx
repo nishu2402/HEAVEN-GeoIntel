@@ -3,15 +3,20 @@
 import { motion } from "framer-motion";
 import {
   MapPin, Shield, AlertTriangle, ExternalLink, Activity, Network,
-  Server, Bug, CheckCircle2, XCircle,
+  Server, Bug, CheckCircle2, XCircle, Globe,
 } from "lucide-react";
 import type { IpLookupResponse } from "@/lib/types";
+import { ipToDomainPivot } from "@/lib/analysis/crossPivots";
 import Tilt3D from "@/components/shared/Tilt3D";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import Term from "@/components/shared/Term";
 
-interface Props { data: IpLookupResponse; }
+interface Props {
+  data: IpLookupResponse;
+  /** Cross-tool pivot: run a domain lookup on the IP's reverse-DNS hostname. */
+  onDomainLookup?: (domain: string) => void;
+}
 
 function ThreatBar({ score, label }: { score: number; label: string }) {
   const color = score >= 70 ? "#ff4d6d" : score >= 40 ? "#fb923c" : score >= 20 ? "#fbbf24" : "#00ff85";
@@ -57,7 +62,7 @@ function Flag({ on, label }: { on: boolean | null; label: string }) {
   );
 }
 
-export default function IpResultsDashboard({ data }: Props) {
+export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
   if (!data.ip) {
     // Non-routable address (private/loopback/CGNAT/documentation/…): show the
     // offline classification as information, not an error.
@@ -91,6 +96,7 @@ export default function IpResultsDashboard({ data }: Props) {
     );
   }
   const ip = data.ip;
+  const domainPivot = ipToDomainPivot(ip.reverse);
   const mapUrl = ip.latitude != null && ip.longitude != null
     ? `https://www.openstreetmap.org/?mlat=${ip.latitude}&mlon=${ip.longitude}#map=11/${ip.latitude}/${ip.longitude}`
     : null;
@@ -123,6 +129,15 @@ export default function IpResultsDashboard({ data }: Props) {
                 <div className="text-sm text-[var(--hv-ink-dim)] mt-0.5 font-mono">
                   {ip.type} · {[ip.city, ip.region, ip.country].filter(Boolean).join(", ") || "Location unknown"}
                 </div>
+                {domainPivot && onDomainLookup && (
+                  <button
+                    type="button"
+                    onClick={() => onDomainLookup(domainPivot)}
+                    className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded border border-[var(--hv-amber)]/40 text-[var(--hv-amber)] hover:bg-[var(--hv-amber)]/10 hover:border-[var(--hv-amber)] transition-all"
+                  >
+                    <Globe className="w-3 h-3" /> Investigate &ldquo;{domainPivot}&rdquo; as domain →
+                  </button>
+                )}
               </div>
             </div>
             <CopyLinkButton />

@@ -28,6 +28,9 @@ import { cn, copyText } from "@/lib/utils";
 
 interface Props {
   data: LookupResponse;
+  /** Cross-tool pivots on FullContact-discovered identities. */
+  onUsernameSweep?: (handle: string) => void;
+  onEmailLookup?: (email: string) => void;
 }
 
 function copyToClipboard(text: string) {
@@ -80,7 +83,7 @@ function ThreatScoreBar({ score, label }: { score: number; label: string }) {
   );
 }
 
-export default function ResultsDashboard({ data }: Props) {
+export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup }: Props) {
   const { input, aggregated, sources, countryIntel, threatScore, threatLabel } = data;
   const flag = countryToFlagEmoji(input.country);
 
@@ -240,7 +243,7 @@ export default function ResultsDashboard({ data }: Props) {
       <GlanceCard tiles={glanceTiles} jump={JUMP} />
 
       {/* ── IDENTITY (FullContact + CNAM + free-lookup action center) ───────── */}
-      <section id="sec-identity" className="scroll-mt-24"><PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} /></PanelErrorBoundary></section>
+      <section id="sec-identity" className="scroll-mt-24"><PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} onUsernameSweep={onUsernameSweep} onEmailLookup={onEmailLookup} /></PanelErrorBoundary></section>
 
       {/* ── BREACH DATA (BreachDirectory + free-lookup action center) ──────── */}
       <section id="sec-breach" className="scroll-mt-24"><PanelErrorBoundary label="Breach search">

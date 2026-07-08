@@ -11,6 +11,9 @@ const IMG_ALLOWED = [
   "https://pbs.twimg.com",
   "https://lh3.googleusercontent.com",
   "https://avatars.githubusercontent.com",
+  // GitLab avatars (username-lookup rich profiles) — Gravatar-backed or self-hosted
+  "https://gitlab.com",
+  "https://assets.gitlab-static.net",
   // FullContact serves avatars from its CDN
   "https://d2ojpxxtu63wzl.cloudfront.net",
   "https://img.fullcontact.com",

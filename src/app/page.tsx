@@ -20,6 +20,10 @@ import UsernameResultsDashboard from "@/components/username/UsernameResultsDashb
 import IpResultsDashboard from "@/components/network/IpResultsDashboard";
 import DomainResultsDashboard from "@/components/network/DomainResultsDashboard";
 import CasesPanel from "@/components/cases/CasesPanel";
+import AddToCase from "@/components/shared/AddToCase";
+import {
+  entitiesFromPhone, entitiesFromEmail, entitiesFromUsername, entitiesFromIp, entitiesFromDomain,
+} from "@/lib/analysis/entityExtract";
 import LinkGraph from "@/components/graph/LinkGraph";
 import LoadingSkeletons from "@/components/dashboard/LoadingSkeletons";
 import ScanProgress from "@/components/dashboard/ScanProgress";
@@ -95,13 +99,22 @@ function PageContent() {
   const [domResult, setDomResult] = useState<DomainLookupResponse | null>(null);
   const [domErr, setDomErr] = useState("");
 
-  // Session graph — every successful lookup adds a node
+  // Session graph — every successful lookup seeds it with the primary identifier
+  // AND the identifiers that result derived (a domain's IPs, an IP's reverse host,
+  // an email's domain, …), so the graph fills with real relationships as you work.
   const [sessionEntities, setSessionEntities] = useState<GraphEntity[]>([]);
-  const addEntity = useCallback((kind: GraphEntity["kind"], value: string) => {
-    setSessionEntities((prev) =>
-      prev.some((e) => e.kind === kind && e.value === value) ? prev : [...prev, { kind, value }]
-    );
-    pushLookup(kind, value); // every successful lookup → cross-mode history
+  const addEntities = useCallback((list: { kind: GraphEntity["kind"]; value: string }[]) => {
+    if (list.length === 0) return;
+    setSessionEntities((prev) => {
+      const seen = new Set(prev.map((e) => `${e.kind}:${e.value.toLowerCase()}`));
+      const merged = [...prev];
+      for (const e of list) {
+        const k = `${e.kind}:${e.value.toLowerCase()}`;
+        if (!seen.has(k)) { seen.add(k); merged.push({ kind: e.kind, value: e.value }); }
+      }
+      return merged;
+    });
+    pushLookup(list[0].kind, list[0].value); // primary only → cross-mode history
   }, []);
 
   const isBooting = !booted;
@@ -123,10 +136,10 @@ function PageContent() {
       if (!res.ok) { setPhoneErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setPhoneStatus("error"); return; }
       const data = json as LookupResponse;
       setPhoneResult(data); setPhoneStatus("done");
-      addEntity("phone", data.input.e164);
+      addEntities(entitiesFromPhone(data));
       saveToHistory({ e164: data.input.e164, country: data.input.country, countryCallingCode: data.input.countryCallingCode, timestamp: Date.now(), flagEmoji: countryToFlagEmoji(data.input.country) });
     } catch { setPhoneErr("Couldn't reach the server. Check your connection and try again."); setPhoneStatus("error"); }
-  }, [syncUrl, addEntity]);
+  }, [syncUrl, addEntities]);
 
   const runEmail = useCallback(async (email: string) => {
     setEmailStatus("loading"); setEmailResult(null); setEmailErr(""); syncUrl("email", email);
@@ -134,9 +147,9 @@ function PageContent() {
       const res = await fetch("/api/email-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
       const json = (await res.json()) as EmailLookupResponse | ApiErrorResponse;
       if (!res.ok) { setEmailErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setEmailStatus("error"); return; }
-      setEmailResult(json as EmailLookupResponse); setEmailStatus("done"); addEntity("email", (json as EmailLookupResponse).email);
+      setEmailResult(json as EmailLookupResponse); setEmailStatus("done"); addEntities(entitiesFromEmail(json as EmailLookupResponse));
     } catch { setEmailErr("Couldn't reach the server. Check your connection and try again."); setEmailStatus("error"); }
-  }, [syncUrl, addEntity]);
+  }, [syncUrl, addEntities]);
 
   const runUsername = useCallback(async (username: string) => {
     setUserStatus("loading"); setUserResult(null); setUserErr(""); syncUrl("username", username);
@@ -144,9 +157,9 @@ function PageContent() {
       const res = await fetch("/api/username-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username }) });
       const json = (await res.json()) as UsernameLookupResponse | ApiErrorResponse;
       if (!res.ok) { setUserErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setUserStatus("error"); return; }
-      setUserResult(json as UsernameLookupResponse); setUserStatus("done"); addEntity("username", (json as UsernameLookupResponse).username);
+      setUserResult(json as UsernameLookupResponse); setUserStatus("done"); addEntities(entitiesFromUsername(json as UsernameLookupResponse));
     } catch { setUserErr("Couldn't reach the server. Check your connection and try again."); setUserStatus("error"); }
-  }, [syncUrl, addEntity]);
+  }, [syncUrl, addEntities]);
 
   const runIp = useCallback(async (ipAddr: string) => {
     setIpStatus("loading"); setIpResult(null); setIpErr(""); syncUrl("ip", ipAddr);
@@ -154,9 +167,9 @@ function PageContent() {
       const res = await fetch("/api/ip-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ip: ipAddr }) });
       const json = (await res.json()) as IpLookupResponse | ApiErrorResponse;
       if (!res.ok) { setIpErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setIpStatus("error"); return; }
-      setIpResult(json as IpLookupResponse); setIpStatus("done"); addEntity("ip", (json as IpLookupResponse).input);
+      setIpResult(json as IpLookupResponse); setIpStatus("done"); addEntities(entitiesFromIp(json as IpLookupResponse));
     } catch { setIpErr("Couldn't reach the server. Check your connection and try again."); setIpStatus("error"); }
-  }, [syncUrl, addEntity]);
+  }, [syncUrl, addEntities]);
 
   const runDomain = useCallback(async (domain: string) => {
     setDomStatus("loading"); setDomResult(null); setDomErr(""); syncUrl("domain", domain);
@@ -164,9 +177,9 @@ function PageContent() {
       const res = await fetch("/api/domain-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain }) });
       const json = (await res.json()) as DomainLookupResponse | ApiErrorResponse;
       if (!res.ok) { setDomErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setDomStatus("error"); return; }
-      setDomResult(json as DomainLookupResponse); setDomStatus("done"); addEntity("domain", (json as DomainLookupResponse).domain);
+      setDomResult(json as DomainLookupResponse); setDomStatus("done"); addEntities(entitiesFromDomain(json as DomainLookupResponse));
     } catch { setDomErr("Couldn't reach the server. Check your connection and try again."); setDomStatus("error"); }
-  }, [syncUrl, addEntity]);
+  }, [syncUrl, addEntities]);
 
   // Run whatever a shared/bookmarked URL points at: ?mode=…&q=… (defaults to phone
   // for a bare ?q= so older phone share links still work).
@@ -315,7 +328,7 @@ function PageContent() {
               )}
               {mode === "username" && (
                 <>
-                  <SimpleLookupInput placeholder="username / handle (no @)" hint="Auto-verifies 29 sites server-side + 15 bot-walled sites to open yourself — never a false positive."
+                  <SimpleLookupInput placeholder="username / handle (no @)" hint="Pulls rich profiles from GitHub, GitLab, Hacker News & Reddit + sweeps dozens more sites — never a false positive."
                     icon={<AtSign className="w-4 h-4" />} loading={userStatus === "loading"} onLookup={runUsername}
                     onClear={userStatus !== "idle" ? () => { setUserStatus("idle"); setUserResult(null); setUserErr(""); router.replace("/", { scroll: false }); } : undefined}
                     validate={(v) => /^[a-zA-Z0-9._-]{2,40}$/.test(v.replace(/^@/, "")) ? null : "2–40 chars: letters, digits, . _ -"} />
@@ -365,12 +378,12 @@ function PageContent() {
             </div>
           )}
 
-          {/* Results */}
-          {mode === "phone"    && phoneStatus === "done" && phoneResult && <PanelErrorBoundary label="Phone results"><ResultsDashboard data={phoneResult} /></PanelErrorBoundary>}
-          {mode === "email"    && emailStatus === "done" && emailResult && <PanelErrorBoundary label="Email results"><EmailResultsDashboard data={emailResult} /></PanelErrorBoundary>}
-          {mode === "username" && userStatus === "done"  && userResult  && <PanelErrorBoundary label="Username results"><UsernameResultsDashboard data={userResult} /></PanelErrorBoundary>}
-          {mode === "ip"       && ipStatus === "done"    && ipResult    && <PanelErrorBoundary label="IP results"><IpResultsDashboard data={ipResult} /></PanelErrorBoundary>}
-          {mode === "domain"   && domStatus === "done"   && domResult   && <PanelErrorBoundary label="Domain results"><DomainResultsDashboard data={domResult} /></PanelErrorBoundary>}
+          {/* Results — each can pin its primary + derived identifiers to a case in one click */}
+          {mode === "phone"    && phoneStatus === "done" && phoneResult && <PanelErrorBoundary label="Phone results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromPhone(phoneResult)} /></div><ResultsDashboard data={phoneResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} onEmailLookup={(e) => { setMode("email"); void runEmail(e); }} /></PanelErrorBoundary>}
+          {mode === "email"    && emailStatus === "done" && emailResult && <PanelErrorBoundary label="Email results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromEmail(emailResult)} /></div><EmailResultsDashboard data={emailResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} /></PanelErrorBoundary>}
+          {mode === "username" && userStatus === "done"  && userResult  && <PanelErrorBoundary label="Username results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromUsername(userResult)} /></div><UsernameResultsDashboard data={userResult} /></PanelErrorBoundary>}
+          {mode === "ip"       && ipStatus === "done"    && ipResult    && <PanelErrorBoundary label="IP results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromIp(ipResult)} /></div><IpResultsDashboard data={ipResult} onDomainLookup={(d) => { setMode("domain"); void runDomain(d); }} /></PanelErrorBoundary>}
+          {mode === "domain"   && domStatus === "done"   && domResult   && <PanelErrorBoundary label="Domain results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromDomain(domResult)} /></div><DomainResultsDashboard data={domResult} onIpLookup={(v) => { setMode("ip"); void runIp(v); }} /></PanelErrorBoundary>}
 
           {!isBooting && mode === "graph" && (
             <div className="mt-6"><PanelErrorBoundary label="Graph"><LinkGraph entities={sessionEntities} title="SESSION LINK GRAPH" onChange={setSessionEntities} /></PanelErrorBoundary></div>
