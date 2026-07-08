@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FolderPlus, Trash2, Plus, X, Save, FolderOpen, Loader2, RefreshCw,
-  Download, FileText, Upload, ShieldAlert, Printer, Link2,
+  Download, FileText, Upload, ShieldAlert, Printer, Link2, Clock,
 } from "lucide-react";
 import type { InvestigationCase, EntityKind } from "@/lib/types";
 import { correlateCases } from "@/lib/analysis/caseCorrelation";
+import { caseTimeline } from "@/lib/analysis/caseTimeline";
 import { LOOKUP_MODES } from "@/lib/client/modes";
 import LinkGraph, { type GraphEntity } from "@/components/graph/LinkGraph";
 import {
@@ -29,6 +30,13 @@ function downloadFile(name: string, content: string, type: string) {
 function caseFileName(name: string, ext: string): string {
   const slug = name.replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-|-$/g, "") || "case";
   return `case-${slug}-${Date.now()}.${ext}`;
+}
+function fmtTime(at: number): string {
+  try {
+    return new Date(at).toLocaleString(undefined, {
+      year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+  } catch { return String(at); }
 }
 
 export default function CasesPanel() {
@@ -307,6 +315,26 @@ export default function CasesPanel() {
 
           {/* Graph */}
           <LinkGraph entities={active.entities.map((e) => ({ kind: e.kind, value: e.value }))} title={`${active.name.toUpperCase()} — LINK GRAPH`} onChange={syncGraph} />
+
+          {/* Timeline — when the case was opened and each identifier pinned */}
+          <div className="terminal-card p-4 space-y-2">
+            <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" /> TIMELINE — {active.entities.length + 1} event{active.entities.length === 0 ? "" : "s"}
+            </div>
+            <div className="space-y-0">
+              {caseTimeline(active).map((ev, i) => (
+                <div key={`${ev.at}-${i}`} className="flex items-baseline gap-2.5 py-1 text-xs font-mono">
+                  <span className="w-2 h-2 rounded-full shrink-0 self-center"
+                    style={{ background: ev.type === "entity" && ev.entityKind ? KIND_COLOR[ev.entityKind] : "var(--hv-ink-dim)" }} />
+                  <span className="text-[var(--hv-ink-dim)] shrink-0 tabular-nums">{fmtTime(ev.at)}</span>
+                  {ev.type === "entity" && ev.entityKind && (
+                    <span className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: KIND_COLOR[ev.entityKind] }}>{ev.entityKind}</span>
+                  )}
+                  <span className={ev.type === "created" ? "text-[var(--hv-ink-dim)] italic" : "text-[var(--hv-ink)] break-all"}>{ev.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Notes */}
           <div className="terminal-card p-4 space-y-2">

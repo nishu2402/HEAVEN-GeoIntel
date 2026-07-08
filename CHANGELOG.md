@@ -8,6 +8,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **The session graph now draws itself.** Every lookup seeds the **Session Link
+  Graph** with its primary identifier *and* the identifiers the result derived (a
+  domain's resolved IPs, an IP's reverse host, an email's domain, a username's
+  confirmed profile handles) — reusing the same pure `entityExtract` logic. One
+  `dns.google` lookup renders a 5-node graph (domain + 4 A/AAAA IPs) with zero
+  manual entry. Verified live.
+- **Case timeline.** Each case now shows a **chronological "TIMELINE"** — when it
+  was opened and when each identifier was pinned — with per-event timestamps and
+  colour-coded kind badges. Pure derivation of the case's existing timestamps
+  (`lib/analysis/caseTimeline`, 100% covered); stable-sorted so same-instant pins
+  keep their order. Verified live: a 5-identifier case renders 6 ordered events.
+- **Phone → in-app pivots on discovered identities.** When FullContact enrichment
+  ties a number to real social handles or emails, the phone Identity panel now
+  offers one-click **"sweep as username"** / **"look up email"** jumps (gated to
+  plausible handles / valid emails, so nothing fabricated), and those identities
+  are captured when you pin the phone to a case.
+- **Turn a lookup into a linked case in one click.** Every result (phone / email /
+  username / IP / domain) carries an **"ADD TO CASE"** control that lazily lists your
+  cases and pins the identifier — or creates a case inline and pins to it. Beyond the
+  primary identifier, it now offers to pin the result's **derived** identifiers too
+  (a domain's resolved IPs, an IP's reverse host, an email's domain, a username's
+  confirmed profile handles) via an opt-in "also pin N related" toggle, so a single
+  click can seed a case graph with real edges. Extraction is pure and 100%-covered
+  (`lib/analysis/entityExtract`); the control is decoupled from the Cases panel (the
+  `/api/cases` server is the single source of truth, so nothing drifts). Verified
+  end-to-end: one click on a `dns.google` result created a case holding the domain +
+  its 4 resolved A/AAAA IPs.
+- **Email → username cross-tool pivot.** When an email's local-part is a plausible
+  handle (and not a generic role inbox like `info@`), the email result shows a
+  one-click **"Sweep '<handle>' as username →"** button that jumps straight into a
+  full username sweep. Derivation is a pure, 100%-covered helper
+  (`emailToUsernameCandidate`) that strips `+tag` sub-addresses. Verified live:
+  `jdorfman@gmail.com` → sweeps `jdorfman`.
+- **Rich, API-verified username profiles (GitHub · GitLab · Hacker News · Reddit).**
+  The username lookup no longer treats every site as a bare found/notfound probe.
+  Four platforms expose a **keyless public JSON API**, so they're now promoted to a
+  **"VERIFIED PROFILES"** tier that pulls the account's real data — display name,
+  bio, repos/followers/karma, join year, location — rendered as profile cards
+  instead of a link chip. This upgrades two previously fragile checks (Hacker News
+  moved from HTML scraping to the official Firebase read API; GitLab from a
+  reserved-path-prone status check to the users API) and rescues **Reddit** from the
+  "manual, can't verify" bucket via `about.json` (a datacenter block just yields no
+  profile — never a false claim). All parsing lives in a pure, 100%-covered
+  `lib/analysis/usernameProfiles` module.
+- **Identity signals synthesis (username).** A new **"IDENTITY SIGNALS"** panel rolls
+  the verified profiles up into the distinct **name / location / avatar / bio**
+  candidates an analyst wants at a glance, each tagged with the platform it came from
+  (case-insensitive dedupe, first-seen wins). Pure derivation — no extra network
+  calls, no guessing. Verified live: a handle present on GitHub + GitLab correctly
+  collapses to a single "Justin Dorfman · GitHub" name candidate.
+- **Username results — quality-of-life.** The header now leads with a **confirmed
+  account count** (rich profiles + sweep hits) instead of a single presence %, a
+  colour-coded **category tally** summarises the footprint at a glance, and a
+  copyable **CLI deep-sweep** block (`sherlock` / `maigret`) hands power users a
+  400+-site local sweep. Profile links/avatars run through `safeExternalUrl`.
 - **Cross-case entity correlation.** The Cases panel now surfaces a **"CROSS-CASE
   LINKS"** section listing every identifier that appears in more than one
   investigation — the "have I seen this before?" signal that turns a pile of cases

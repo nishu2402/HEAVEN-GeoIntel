@@ -2,13 +2,17 @@
 
 import { motion } from "framer-motion";
 import {
-  User, Briefcase, ExternalLink, Mail, Phone, Building2,
+  User, Briefcase, ExternalLink, Mail, Phone, Building2, AtSign, Search,
 } from "lucide-react";
 import type { LookupResponse, FullContactData } from "@/lib/types";
 import { safeExternalUrl } from "@/lib/utils";
+import { isPlausibleUsername } from "@/lib/data/usernameSites";
 
 interface Props {
   data: LookupResponse;
+  /** Cross-tool pivots on FullContact-discovered identities (in-app lookups). */
+  onUsernameSweep?: (handle: string) => void;
+  onEmailLookup?: (email: string) => void;
 }
 
 function Badge({ text, color = "#00ff41" }: { text: string; color?: string }) {
@@ -22,7 +26,7 @@ function Badge({ text, color = "#00ff41" }: { text: string; color?: string }) {
   );
 }
 
-export default function PhoneIdentityPanel({ data }: Props) {
+export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLookup }: Props) {
   const fc: FullContactData | undefined = data.sources.fullContact.ok
     ? data.sources.fullContact.data
     : undefined;
@@ -156,16 +160,28 @@ export default function PhoneIdentityPanel({ data }: Props) {
           </div>
           <div className="flex flex-wrap gap-1.5">
             {profiles.map((p) => (
-              <a
-                key={p.platform + p.username}
-                href={safeExternalUrl(p.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 hover:bg-[#00d9ff]/10 transition-colors"
-              >
-                <ExternalLink className="w-2.5 h-2.5" />
-                {p.platform}{p.username ? `: ${p.username}` : ""}
-              </a>
+              <span key={p.platform + p.username} className="inline-flex items-stretch">
+                <a
+                  href={safeExternalUrl(p.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[13px] font-mono border border-[#00d9ff]/30 bg-[#00d9ff]/5 text-[#00d9ff] px-2 py-0.5 hover:border-[#00d9ff]/60 hover:bg-[#00d9ff]/10 transition-colors"
+                >
+                  <ExternalLink className="w-2.5 h-2.5" />
+                  {p.platform}{p.username ? `: ${p.username}` : ""}
+                </a>
+                {onUsernameSweep && p.username && isPlausibleUsername(p.username) && (
+                  <button
+                    type="button"
+                    onClick={() => onUsernameSweep(p.username)}
+                    title={`Sweep "${p.username}" across sites`}
+                    aria-label={`Sweep ${p.username} as username`}
+                    className="flex items-center border border-l-0 border-[#e879f9]/40 bg-[#e879f9]/5 text-[#e879f9] px-1.5 hover:bg-[#e879f9]/15 transition-colors"
+                  >
+                    <AtSign className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </span>
             ))}
           </div>
         </div>
@@ -179,9 +195,21 @@ export default function PhoneIdentityPanel({ data }: Props) {
           </div>
           <div className="flex flex-wrap gap-1.5">
             {Array.from(new Set([...otherEmails, ...ipqsEmails])).map((e) => (
-              <span key={e}
-                className="text-[13px] font-mono border border-[#ffaa00]/30 bg-[#ffaa00]/5 text-[#ffaa00] px-2 py-0.5">
-                {e}
+              <span key={e} className="inline-flex items-stretch">
+                <span className="text-[13px] font-mono border border-[#ffaa00]/30 bg-[#ffaa00]/5 text-[#ffaa00] px-2 py-0.5">
+                  {e}
+                </span>
+                {onEmailLookup && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && (
+                  <button
+                    type="button"
+                    onClick={() => onEmailLookup(e)}
+                    title={`Look up "${e}"`}
+                    aria-label={`Look up ${e}`}
+                    className="flex items-center border border-l-0 border-[#22d3ee]/40 bg-[#22d3ee]/5 text-[#22d3ee] px-1.5 hover:bg-[#22d3ee]/15 transition-colors"
+                  >
+                    <Search className="w-2.5 h-2.5" />
+                  </button>
+                )}
               </span>
             ))}
           </div>

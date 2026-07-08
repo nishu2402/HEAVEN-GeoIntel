@@ -4,27 +4,49 @@ import { audit } from "@/lib/server/auditLog";
 import { USERNAME_SITES, isPlausibleUsername } from "@/lib/data/usernameSites";
 import { fetchJson } from "@/lib/server/fetchSafe";
 import { parseBody, usernameBody } from "@/lib/server/validation";
-import type { UsernameLookupResponse, UsernameHit, UsernameHitStatus, GithubProfile } from "@/lib/types";
+import {
+  normalizeGithub, normalizeGitlab, normalizeHackerNews, normalizeReddit, deriveIdentity,
+} from "@/lib/analysis/usernameProfiles";
+import type { UsernameLookupResponse, UsernameHit, UsernameHitStatus, SocialProfile } from "@/lib/types";
 
-interface GithubUser {
-  login?: string; name?: string | null; bio?: string | null; company?: string | null;
-  blog?: string | null; location?: string | null; followers?: number; following?: number;
-  public_repos?: number; created_at?: string | null; avatar_url?: string | null; html_url?: string;
-}
+// ── Rich profile providers — keyless public JSON APIs ────────────────────────
+// Four sites expose a structured, no-key endpoint, so we upgrade them from a
+// bare found/notfound probe to a real profile card (name / karma / repos / join
+// date). All parsing is done by pure normalisers in analysis/usernameProfiles —
+// here we only fetch. A non-2xx / blocked / malformed response yields `null`
+// (no profile), never a false claim.
 
-async function fetchGithub(username: string): Promise<GithubProfile | null> {
-  const r = await fetchJson<GithubUser>(`https://api.github.com/users/${encodeURIComponent(username)}`, {
+async function fetchGithub(username: string): Promise<SocialProfile | null> {
+  const r = await fetchJson<unknown>(`https://api.github.com/users/${encodeURIComponent(username)}`, {
     source: "GitHub API", timeoutMs: 6000,
     init: { headers: { "User-Agent": UA, Accept: "application/vnd.github+json" } },
   });
-  if (!r.ok || !r.data?.login) return null;
-  const d = r.data;
-  return {
-    login: d.login!, name: d.name ?? null, bio: d.bio ?? null, company: d.company ?? null,
-    location: d.location ?? null, blog: d.blog || null, followers: d.followers ?? 0,
-    following: d.following ?? 0, publicRepos: d.public_repos ?? 0, createdAt: d.created_at ?? null,
-    avatarUrl: d.avatar_url ?? null, htmlUrl: d.html_url ?? `https://github.com/${d.login}`,
-  };
+  return r.ok ? normalizeGithub(r.data) : null;
+}
+
+async function fetchGitlab(username: string): Promise<SocialProfile | null> {
+  const r = await fetchJson<unknown>(`https://gitlab.com/api/v4/users?username=${encodeURIComponent(username)}`, {
+    source: "GitLab API", timeoutMs: 6000,
+    init: { headers: { "User-Agent": UA, Accept: "application/json" } },
+  });
+  return r.ok ? normalizeGitlab(r.data) : null;
+}
+
+async function fetchHackerNews(username: string): Promise<SocialProfile | null> {
+  // Official Firebase read API: 200 with `null` body for a missing user.
+  const r = await fetchJson<unknown>(`https://hacker-news.firebaseio.com/v0/user/${encodeURIComponent(username)}.json`, {
+    source: "Hacker News API", timeoutMs: 6000,
+    init: { headers: { "User-Agent": UA, Accept: "application/json" } },
+  });
+  return r.ok ? normalizeHackerNews(r.data) : null;
+}
+
+async function fetchReddit(username: string): Promise<SocialProfile | null> {
+  const r = await fetchJson<unknown>(`https://www.reddit.com/user/${encodeURIComponent(username)}/about.json`, {
+    source: "Reddit API", timeoutMs: 6000,
+    init: { headers: { "User-Agent": UA, Accept: "application/json" } },
+  });
+  return r.ok ? normalizeReddit(r.data) : null;
 }
 
 // ── Username OSINT — free, no API key ────────────────────────────────────────
@@ -110,7 +132,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   void audit("username", username, ip, 200);
 
-  const githubJob = fetchGithub(username); // rich profile in parallel with site sweep
+  // Rich, API-verified profiles run in parallel with the site sweep. Order here
+  // is the display order (developer forges first, then forum, then social).
+  const richJob = Promise.all([
+    fetchGithub(username), fetchGitlab(username), fetchHackerNews(username), fetchReddit(username),
+  ]);
+
   const settled = await Promise.allSettled(USERNAME_SITES.map((s) => checkSite(s, username)));
   const hits: UsernameHit[] = settled.map((r, i) =>
     r.status === "fulfilled"
@@ -122,7 +149,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const order: Record<UsernameHitStatus, number> = { found: 0, unknown: 1, manual: 2, notfound: 3 };
   hits.sort((a, b) => order[a.status] - order[b.status] || a.site.localeCompare(b.site));
 
-  const githubProfile = await githubJob;
+  const profiles = (await richJob).filter((p): p is SocialProfile => p !== null);
+  const identity = deriveIdentity(profiles);
 
   // `checked` counts only sites we could actually auto-verify — manual sites are
   // excluded from the denominator so the presence percentage isn't diluted by
@@ -134,7 +162,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     found: hits.filter((h) => h.status === "found").length,
     manual,
     hits,
-    githubProfile,
+    profiles,
+    identity,
     pivots: buildPivots(username),
   };
 

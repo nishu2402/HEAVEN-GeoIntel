@@ -9,7 +9,8 @@ import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 import HistorySidebar, { saveToHistory } from "@/components/dashboard/HistorySidebar";
 import CommandPalette from "@/components/shared/CommandPalette";
-import type { HistoryEntry } from "@/lib/types";
+import AddToCase from "@/components/shared/AddToCase";
+import type { HistoryEntry, InvestigationCase } from "@/lib/types";
 
 // Interaction tests for the client components — with a focus on locking in the
 // useSyncExternalStore refactor of ConsentGate / ThemeProvider / EffectsToggle /
@@ -146,5 +147,74 @@ describe("<CommandPalette> routing", () => {
     const group = screen.getByText(/switch mode/i).closest("[cmdk-group]") as HTMLElement;
     fireEvent.click(within(group).getByText(/^email$/i));
     expect(onMode).toHaveBeenCalledWith("email");
+  });
+});
+
+describe("<AddToCase> (pin an identifier to a case)", () => {
+  type Call = { url: string; opts?: RequestInit };
+  function stubCases(initial: Partial<InvestigationCase>[]) {
+    const calls: Call[] = [];
+    const fetchMock = vi.fn(async (url: string, opts?: RequestInit) => {
+      calls.push({ url, opts });
+      if (!opts || opts.method === undefined) {
+        return { ok: true, json: async () => ({ cases: initial }) } as unknown as Response; // GET list
+      }
+      const body = JSON.parse(String(opts.body));
+      if (body.action === "create") {
+        return { ok: true, json: async () => ({ case: { id: "new1", name: body.name, entities: [] } }) } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({ case: { id: body.id, name: "x", entities: [{ kind: body.kind, value: body.value, addedAt: 1 }] } }) } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return { calls };
+  }
+  const bodyActions = (calls: Call[]) => calls.filter((c) => c.opts?.body).map((c) => JSON.parse(String(c.opts!.body)));
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("lazily lists cases and pins the primary identifier to the chosen one", async () => {
+    const { calls } = stubCases([{ id: "c1", name: "Op Alpha", entities: [] }]);
+    render(<AddToCase entities={[{ kind: "ip", value: "8.8.8.8" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: /add to case/i }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /op alpha/i }));
+    await screen.findByRole("button", { name: /pinned/i });
+    expect(bodyActions(calls)).toContainEqual({ action: "addEntity", id: "c1", kind: "ip", value: "8.8.8.8" });
+  });
+
+  it("creates a new case then pins to it", async () => {
+    const { calls } = stubCases([]);
+    render(<AddToCase entities={[{ kind: "email", value: "a@b.com" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: /add to case/i }));
+    await screen.findByText(/no cases yet/i);
+    fireEvent.change(screen.getByLabelText(/new case name/i), { target: { value: "Fresh Case" } });
+    fireEvent.click(screen.getByRole("button", { name: /create case and pin/i }));
+    await screen.findByRole("button", { name: /pinned/i });
+    expect(bodyActions(calls).map((b) => b.action)).toEqual(["create", "addEntity"]);
+  });
+
+  it("pins only the primary by default, but all entities when 'also pin related' is checked", async () => {
+    const entities = [
+      { kind: "domain" as const, value: "dns.google" },
+      { kind: "ip" as const, value: "8.8.8.8" },
+      { kind: "ip" as const, value: "8.8.4.4" },
+    ];
+    // default: primary only
+    const first = stubCases([{ id: "c1", name: "Op Alpha", entities: [] }]);
+    const { unmount } = render(<AddToCase entities={entities} />);
+    fireEvent.click(screen.getByRole("button", { name: /add to case/i }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /op alpha/i }));
+    await screen.findByRole("button", { name: /pinned/i });
+    expect(bodyActions(first.calls).filter((b) => b.action === "addEntity").map((b) => b.value)).toEqual(["dns.google"]);
+    unmount();
+
+    // opt in: primary + related, in order
+    const second = stubCases([{ id: "c1", name: "Op Alpha", entities: [] }]);
+    render(<AddToCase entities={entities} />);
+    fireEvent.click(screen.getByRole("button", { name: /add to case/i }));
+    fireEvent.click(await screen.findByLabelText(/also pin/i));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /op alpha/i }));
+    await screen.findByRole("button", { name: /pinned/i });
+    expect(bodyActions(second.calls).filter((b) => b.action === "addEntity").map((b) => b.value))
+      .toEqual(["dns.google", "8.8.8.8", "8.8.4.4"]);
   });
 });

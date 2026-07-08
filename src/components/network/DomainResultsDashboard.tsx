@@ -5,12 +5,17 @@ import {
   Globe, Server, Mail, ShieldCheck, ShieldAlert, ExternalLink, Layers, FileText, Network,
 } from "lucide-react";
 import type { DomainLookupResponse, DnsRecord } from "@/lib/types";
+import { domainToIpPivot } from "@/lib/analysis/crossPivots";
 import Tilt3D from "@/components/shared/Tilt3D";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import Term from "@/components/shared/Term";
 
-interface Props { data: DomainLookupResponse; }
+interface Props {
+  data: DomainLookupResponse;
+  /** Cross-tool pivot: run an IP lookup on the domain's first resolved address. */
+  onIpLookup?: (ip: string) => void;
+}
 
 function RecordBlock({ title, records, accent }: { title: string; records: DnsRecord[]; accent: string }) {
   if (records.length === 0) return null;
@@ -35,8 +40,9 @@ function fmtDate(d: string | null): string {
   try { return new Date(d).toISOString().split("T")[0]; } catch { return d; }
 }
 
-export default function DomainResultsDashboard({ data }: Props) {
+export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
   const { dns, whois, emailSecurity: es, subdomains } = data;
+  const ipPivot = domainToIpPivot([...dns.a, ...dns.aaaa]);
   const dmarcColor = es.dmarcPolicy === "reject" ? "#00ff85" : es.dmarcPolicy === "quarantine" ? "#fbbf24" : es.hasDmarc ? "#fb923c" : "#ff4d6d";
 
   const glanceTiles = [
@@ -66,6 +72,15 @@ export default function DomainResultsDashboard({ data }: Props) {
                 <div className="text-sm text-[var(--hv-ink-dim)] font-mono mt-0.5">
                   {dns.a.length} A · {dns.mx.length} MX · {dns.ns.length} NS · {subdomains.length} subdomains
                 </div>
+                {ipPivot && onIpLookup && (
+                  <button
+                    type="button"
+                    onClick={() => onIpLookup(ipPivot)}
+                    className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded border border-[var(--hv-orange,#fb923c)]/40 text-[#fb923c] hover:bg-[#fb923c]/10 hover:border-[#fb923c] transition-all"
+                  >
+                    <Network className="w-3 h-3" /> Look up &ldquo;{ipPivot}&rdquo; as IP →
+                  </button>
+                )}
               </div>
             </div>
             <CopyLinkButton />

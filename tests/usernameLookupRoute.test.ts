@@ -64,7 +64,7 @@ describe("POST /api/username-lookup — validation", () => {
 });
 
 describe("POST /api/username-lookup — no false positives", () => {
-  it("a nonexistent handle (every site 404) yields 0 found", async () => {
+  it("a nonexistent handle (every site 404) yields 0 found and no profiles", async () => {
     stubAllSites(404, false);
     const res = await post({ username: "definitelynotarealhandle999" });
     expect(res.status).toBe(200);
@@ -72,6 +72,8 @@ describe("POST /api/username-lookup — no false positives", () => {
     expect(json.found).toBe(0);
     expect(json.hits.filter((h: { status: string }) => h.status === "found")).toHaveLength(0);
     expect(json.checked).toBeGreaterThan(0);
+    expect(json.profiles).toEqual([]);
+    expect(json.identity).toEqual({ names: [], locations: [], avatars: [], bios: [] });
   });
 
   it("manual (bot-walled) sites are never auto-claimed, even when upstream returns 200", async () => {
@@ -93,5 +95,48 @@ describe("POST /api/username-lookup — no false positives", () => {
     stubAllSites(404, false);
     const json = await (await post({ username: "@torvalds" })).json();
     expect(json.username).toBe("torvalds");
+  });
+});
+
+describe("POST /api/username-lookup — rich API profiles", () => {
+  it("verifies GitHub/GitLab/Hacker News/Reddit via their public APIs and synthesises identity", async () => {
+    // Every sweep site 404s (no bare hits) so the assertions isolate the rich tier.
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("api.github.com")) {
+        return mk(200, { login: "torvalds", name: "Linus Torvalds", location: "Portland", public_repos: 8, followers: 9, following: 0, created_at: "2011-09-03T00:00:00Z", avatar_url: "https://avatars.githubusercontent.com/u/1", html_url: "https://github.com/torvalds" }, "");
+      }
+      if (u.includes("gitlab.com/api")) {
+        return mk(200, [{ username: "torvalds", name: "Linus Torvalds", web_url: "https://gitlab.com/torvalds" }], "");
+      }
+      if (u.includes("hacker-news")) {
+        return mk(200, { id: "torvalds", karma: 42, created: 1160418111 }, "");
+      }
+      if (u.includes("reddit.com/user")) {
+        return mk(200, { data: { name: "torvalds", link_karma: 3, comment_karma: 4, created_utc: 1300000000 } }, "");
+      }
+      return mk(404, {}, "not found");
+    }));
+
+    const json = await (await post({ username: "torvalds" })).json();
+    expect(json.profiles.map((p: { platform: string }) => p.platform)).toEqual(["GitHub", "GitLab", "Hacker News", "Reddit"]);
+    // Identity synthesis dedupes the two "Linus Torvalds" names to one, GitHub first.
+    expect(json.identity.names).toEqual([{ value: "Linus Torvalds", source: "GitHub" }]);
+    expect(json.identity.locations).toEqual([{ value: "Portland", source: "GitHub" }]);
+    expect(json.identity.avatars).toHaveLength(1);
+  });
+
+  it("drops a rich provider that 404s / returns a malformed body — never a false profile", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("hacker-news")) return mk(200, { id: "realuser", karma: 5, created: 1160418111 }, "");
+      if (u.includes("api.github.com")) return mk(404, { message: "Not Found" }, "");
+      if (u.includes("gitlab.com/api")) return mk(200, [], ""); // exists nowhere → empty array
+      if (u.includes("reddit.com/user")) return mk(403, {}, "blocked"); // datacenter block
+      return mk(404, {}, "");
+    }));
+
+    const json = await (await post({ username: "realuser" })).json();
+    expect(json.profiles.map((p: { platform: string }) => p.platform)).toEqual(["Hacker News"]);
   });
 });
