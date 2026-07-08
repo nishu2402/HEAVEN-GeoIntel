@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   listCases, createCase, deleteCase, deleteAllCases, renameCase, setCaseNotes,
-  addEntity, removeEntity, importCase,
+  addEntity, removeEntity, importCase, mergeCases,
 } from "@/lib/server/caseStore";
 import { clearAudit } from "@/lib/server/auditLog";
 import type { EntityKind, InvestigationCase } from "@/lib/types";
 
 // ── Investigation cases API (persistent, file-backed) ───────────────────────
 // GET                          → list all cases
-// POST { action, ... }         → create | rename | notes | addEntity | removeEntity | import
+// POST { action, ... }         → create | rename | notes | addEntity | removeEntity | import | merge
 // DELETE ?id=...               → delete a case
 // DELETE ?all=1                → wipe ALL cases + audit log (delete my data)
 
@@ -20,7 +20,7 @@ export async function GET(): Promise<NextResponse> {
 }
 
 interface CaseAction {
-  action: "create" | "rename" | "notes" | "addEntity" | "removeEntity" | "import";
+  action: "create" | "rename" | "notes" | "addEntity" | "removeEntity" | "import" | "merge";
   id?: string;
   name?: string;
   notes?: string;
@@ -29,6 +29,8 @@ interface CaseAction {
   note?: string;
   /** For action "import": a previously exported case payload. */
   case?: Partial<InvestigationCase>;
+  /** For action "merge": the case folded into `id` and then deleted. */
+  sourceId?: string;
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -71,6 +73,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           entities: body.case.entities,
         });
         return NextResponse.json({ case: c });
+      }
+      case "merge": {
+        if (!body.id || !body.sourceId) return NextResponse.json({ error: "Missing id/sourceId" }, { status: 400 });
+        const c = await mergeCases(body.id, body.sourceId);
+        return c ? NextResponse.json({ case: c }) : NextResponse.json({ error: "Not found" }, { status: 404 });
       }
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });

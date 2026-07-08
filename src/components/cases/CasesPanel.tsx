@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FolderPlus, Trash2, Plus, X, Save, FolderOpen, Loader2, RefreshCw,
-  Download, FileText, Upload, ShieldAlert, Printer, Link2, Clock,
+  Download, FileText, Upload, ShieldAlert, Printer, Link2, Clock, GitMerge,
 } from "lucide-react";
 import type { InvestigationCase, EntityKind } from "@/lib/types";
 import { correlateCases } from "@/lib/analysis/caseCorrelation";
@@ -49,6 +49,7 @@ export default function CasesPanel() {
   const [notesDraft, setNotesDraft] = useState("");
   const [notesSaved, setNotesSaved] = useState(false);
   const [draftForId, setDraftForId] = useState<string | null>(null);
+  const [mergeSourceId, setMergeSourceId] = useState("");
 
   const active = cases.find((c) => c.id === activeId) ?? null;
   // Cross-case correlation is a pure derivation of the loaded cases.
@@ -132,6 +133,22 @@ export default function CasesPanel() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const ping = (m: string) => { setFlash(m); setTimeout(() => setFlash(null), 2400); };
+
+  // Fold another case into the active one: its identifiers + notes merge in and
+  // the source case is deleted. Confirmed first (it's destructive). The api()
+  // call updates the target in state; we then drop the now-deleted source.
+  async function mergeSelected() {
+    if (!active || !mergeSourceId || mergeSourceId === active.id) return;
+    const src = cases.find((c) => c.id === mergeSourceId);
+    if (!src) return;
+    if (!window.confirm(`Merge "${src.name}" into "${active.name}"? "${src.name}" will be deleted.`)) return;
+    const j = await api({ action: "merge", id: active.id, sourceId: mergeSourceId });
+    if (j.case) {
+      setCases((prev) => prev.filter((c) => c.id !== mergeSourceId));
+      setMergeSourceId("");
+      ping(`Merged "${src.name}" in`);
+    }
+  }
 
   async function exportJson() {
     if (!active) return;
@@ -312,6 +329,32 @@ export default function CasesPanel() {
               {active.entities.length === 0 && <span className="text-[12px] font-mono text-[var(--hv-ink-dim)]">No identifiers yet — add the phone/email/username/IP/domain you&apos;re investigating.</span>}
             </div>
           </div>
+
+          {/* Merge — fold another case's identifiers + notes into this one */}
+          {cases.length > 1 && (
+            <div className="terminal-card p-4 space-y-2">
+              <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
+                <GitMerge className="w-3.5 h-3.5" /> MERGE — fold another case into {active.name}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <select value={mergeSourceId} onChange={(e) => setMergeSourceId(e.target.value)}
+                  aria-label="Case to merge in"
+                  className="terminal-input flex-1 px-3 py-2 text-sm font-mono">
+                  <option value="">Select a case to merge in…</option>
+                  {cases.filter((c) => c.id !== active.id).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.entities.length})</option>
+                  ))}
+                </select>
+                <button onClick={mergeSelected} disabled={!mergeSourceId}
+                  className="btn-neon flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest disabled:opacity-40">
+                  <GitMerge className="w-3.5 h-3.5" /> MERGE IN
+                </button>
+              </div>
+              <div className="text-[11px] font-mono text-[var(--hv-ink-dim)]">
+                Its identifiers and notes fold into <span className="text-[var(--hv-ink)]">{active.name}</span>; the other case is then deleted. Duplicates are kept once (earliest sighting wins).
+              </div>
+            </div>
+          )}
 
           {/* Graph */}
           <LinkGraph entities={active.entities.map((e) => ({ kind: e.kind, value: e.value }))} title={`${active.name.toUpperCase()} — LINK GRAPH`} onChange={syncGraph} />

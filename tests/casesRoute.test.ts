@@ -70,6 +70,35 @@ describe("POST /api/cases — happy-path actions", () => {
   });
 });
 
+describe("POST /api/cases — merge", () => {
+  it("merges a source case into the target and deletes the source", async () => {
+    const target = await (await POST(req({ action: "create", name: "Target" }))).json();
+    await POST(req({ action: "addEntity", id: target.case.id, kind: "phone", value: "+14155552671" }));
+    const source = await (await POST(req({ action: "create", name: "Source" }))).json();
+    await POST(req({ action: "addEntity", id: source.case.id, kind: "email", value: "a@b.com" }));
+
+    const res = await POST(req({ action: "merge", id: target.case.id, sourceId: source.case.id }));
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.case.id).toBe(target.case.id);
+    expect(json.case.entities.map((e: { kind: string }) => e.kind).sort()).toEqual(["email", "phone"]);
+
+    const list = (await (await GET()).json()).cases as { id: string }[];
+    expect(list.map((c) => c.id)).not.toContain(source.case.id);
+  });
+
+  it("400 when merge is missing id or sourceId", async () => {
+    expect((await POST(req({ action: "merge", id: "x" }))).status).toBe(400);
+    expect((await POST(req({ action: "merge", sourceId: "y" }))).status).toBe(400);
+  });
+
+  it("404 when the target or source case doesn't exist", async () => {
+    const c = await (await POST(req({ action: "create", name: "solo" }))).json();
+    expect((await POST(req({ action: "merge", id: "ghost", sourceId: c.case.id }))).status).toBe(404);
+    expect((await POST(req({ action: "merge", id: c.case.id, sourceId: "ghost" }))).status).toBe(404);
+  });
+});
+
 describe("POST /api/cases — validation + error mapping", () => {
   it("400 on invalid JSON", async () => {
     const res = await POST(req("{ broken"));

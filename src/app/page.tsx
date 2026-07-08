@@ -38,6 +38,7 @@ import PanelErrorBoundary from "@/components/shared/PanelErrorBoundary";
 import ConsentGate from "@/components/shared/ConsentGate";
 import RecentLookups from "@/components/shared/RecentLookups";
 import { pushLookup } from "@/lib/client/lookupHistory";
+import { getSessionGraph, saveSessionGraph } from "@/lib/client/sessionGraph";
 import { saveToHistory } from "@/components/dashboard/HistorySidebar";
 
 const MatrixRain = dynamic(() => import("@/components/shared/MatrixRain"), { ssr: false });
@@ -102,7 +103,10 @@ function PageContent() {
   // Session graph — every successful lookup seeds it with the primary identifier
   // AND the identifiers that result derived (a domain's IPs, an IP's reverse host,
   // an email's domain, …), so the graph fills with real relationships as you work.
+  // It also survives a reload: hydrated from localStorage on mount and persisted
+  // on every change (see the two effects below).
   const [sessionEntities, setSessionEntities] = useState<GraphEntity[]>([]);
+  const [graphHydrated, setGraphHydrated] = useState(false);
   const addEntities = useCallback((list: { kind: GraphEntity["kind"]; value: string }[]) => {
     if (list.length === 0) return;
     setSessionEntities((prev) => {
@@ -116,6 +120,35 @@ function PageContent() {
     });
     pushLookup(list[0].kind, list[0].value); // primary only → cross-mode history
   }, []);
+
+  // Hydrate the session graph from localStorage once on mount. Kept out of the
+  // initial useState (the server has no localStorage — reading it there would
+  // cause an SSR/first-render hydration mismatch). Merge, don't replace: a
+  // deep-link lookup may have already added nodes before this effect runs.
+  useEffect(() => {
+    const saved = getSessionGraph();
+    if (saved.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSessionEntities((prev) => {
+        const seen = new Set(prev.map((e) => `${e.kind}:${e.value.toLowerCase()}`));
+        const merged = [...prev];
+        for (const e of saved) {
+          const k = `${e.kind}:${e.value.toLowerCase()}`;
+          if (!seen.has(k)) { seen.add(k); merged.push(e); }
+        }
+        return merged;
+      });
+    }
+    setGraphHydrated(true);
+    // run once on mount
+  }, []);
+
+  // Persist the session graph on every change — but only after hydration, so the
+  // initial empty state can never clobber a previously saved graph.
+  useEffect(() => {
+    if (!graphHydrated) return;
+    saveSessionGraph(sessionEntities);
+  }, [graphHydrated, sessionEntities]);
 
   const isBooting = !booted;
 
