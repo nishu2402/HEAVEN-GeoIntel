@@ -154,6 +154,45 @@ describe("caseStore importCase (untrusted re-import: validate + sanitise)", () =
   });
 });
 
+describe("caseStore mergeCases", () => {
+  it("folds the source's entities + notes into the target and deletes the source", async () => {
+    const target = await store.createCase("Target");
+    await store.addEntity(target.id, "phone", "+14155552671");
+    await store.setCaseNotes(target.id, "target notes");
+
+    const source = await store.createCase("Source");
+    await store.addEntity(source.id, "email", "a@b.com");
+    await store.addEntity(source.id, "phone", "+14155552671"); // duplicate of target → folded once
+    await store.setCaseNotes(source.id, "source notes");
+
+    const merged = await store.mergeCases(target.id, source.id);
+    expect(merged?.id).toBe(target.id);
+    expect(merged?.entities.map((e) => `${e.kind}:${e.value}`).sort())
+      .toEqual(["email:a@b.com", "phone:+14155552671"]); // shared phone kept once
+    expect(merged?.notes).toContain("target notes");
+    expect(merged?.notes).toContain('— Merged from "Source" —');
+    expect(merged?.notes).toContain("source notes");
+
+    expect(await store.getCase(source.id)).toBeNull();        // source deleted
+    expect(await store.getCase(target.id)).not.toBeNull();    // target survives
+  });
+
+  it("returns null when either the target or the source is missing", async () => {
+    const c = await store.createCase("Solo");
+    expect(await store.mergeCases("ghost", c.id)).toBeNull();  // target missing
+    expect(await store.mergeCases(c.id, "ghost")).toBeNull();  // source missing
+  });
+
+  it("is a no-op returning the unchanged case on a self-merge (never deletes it)", async () => {
+    const c = await store.createCase("Self");
+    await store.addEntity(c.id, "ip", "8.8.8.8");
+    const merged = await store.mergeCases(c.id, c.id);
+    expect(merged?.id).toBe(c.id);
+    expect(merged?.entities).toHaveLength(1);
+    expect(await store.getCase(c.id)).not.toBeNull();
+  });
+});
+
 describe("caseStore resilience (corrupt file + write failure)", () => {
   it("treats a corrupt or non-array cases.json as empty", async () => {
     writeFileSync(join(dir, "cases.json"), "{ not valid json");

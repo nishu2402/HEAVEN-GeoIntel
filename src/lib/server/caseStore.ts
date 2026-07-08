@@ -12,6 +12,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { InvestigationCase, CaseEntity, EntityKind } from "../types";
+import { mergeCaseInto } from "../analysis/caseMerge";
 
 // Resolved lazily so HV_DATA_DIR can redirect state (used by tests for a
 // hermetic temp dir, and by deploys that keep data outside the app directory).
@@ -199,6 +200,29 @@ export async function addEntity(id: string, kind: EntityKind, value: string, not
       await persist(all);
     }
     return c;
+  });
+}
+
+/**
+ * Merge the `sourceId` case into the `targetId` case: fold the source's
+ * identifiers and notes into the target (see mergeCaseInto), then delete the
+ * source. Returns the updated target, or null if either case is missing. A
+ * self-merge (same id) is a no-op that returns the case unchanged. Serialised
+ * like every other mutation so it can't race a concurrent write.
+ */
+export async function mergeCases(targetId: string, sourceId: string): Promise<InvestigationCase | null> {
+  return serialize(async () => {
+    const all = await readAll();
+    const target = all.find((c) => c.id === targetId);
+    const source = all.find((c) => c.id === sourceId);
+    if (!target || !source) return null;
+    if (targetId === sourceId) return target;
+    const { entities, notes } = mergeCaseInto(target, source);
+    target.entities = entities;
+    target.notes = cap(notes, MAX_NOTES);
+    target.updatedAt = Date.now();
+    await persist(all.filter((c) => c.id !== sourceId));
+    return target;
   });
 }
 

@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **The session graph now survives a reload.** The **Session Link Graph** you build
+  up as you work is persisted to `localStorage` and re-hydrated on mount, so a page
+  refresh (or coming back later in the same browser) keeps the web of identifiers
+  instead of resetting to a blank canvas. Persistence is a pure, 100%-covered client
+  helper (`lib/client/sessionGraph`) that validates every stored node (kind + non-
+  empty value), caps the graph at 200 nodes, and is SSR-safe/best-effort (never
+  throws, no hydration mismatch). Graph edits and one-click "clear" persist too.
+  Verified live: a `dns.google` lookup's 5-node graph reloaded intact from a bare
+  URL with no query string.
+- **Case-to-case merge.** From an active case you can now **fold another case into
+  it** — its identifiers and notes merge in and the source case is deleted (after a
+  confirm). Duplicate identifiers are kept once, with the **earliest sighting**
+  (`addedAt` and its note) winning so discovery times are never rewritten; the
+  source's notes are appended under a labelled `— Merged from "…" —` divider. The
+  merge logic is a pure, 100%-covered helper (`lib/analysis/caseMerge`) wired
+  through the file-backed store (`mergeCases`, serialised like every mutation) and a
+  new `merge` action on `/api/cases`. Verified end-to-end: merging "Bravo" into
+  "Alpha" combined 3 distinct identifiers (shared phone deduped), folded the notes,
+  and deleted "Bravo".
 - **The session graph now draws itself.** Every lookup seeds the **Session Link
   Graph** with its primary identifier *and* the identifiers the result derived (a
   domain's resolved IPs, an IP's reverse host, an email's domain, a username's
