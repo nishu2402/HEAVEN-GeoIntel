@@ -5,9 +5,10 @@ import { motion } from "framer-motion";
 import {
   User, Mail, Globe, Shield, AlertTriangle, CheckCircle2,
   XCircle, Copy, Check, Download, ExternalLink,
-  Building2, Lock, Trash2, Hash, Activity, Briefcase, Phone,
+  Building2, Lock, Trash2, Hash, Activity, Briefcase, Phone, AtSign,
 } from "lucide-react";
 import type { EmailLookupResponse } from "@/lib/types";
+import { emailToUsernameCandidate } from "@/lib/data/usernameSites";
 import EmailOsintPivots from "@/components/email/EmailOsintPivots";
 import BreachPanel      from "@/components/breach/BreachPanel";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
@@ -17,6 +18,8 @@ import SourceStrip, { type SourceStat, type SourceState } from "@/components/sha
 
 interface Props {
   data: EmailLookupResponse;
+  /** Cross-tool pivot: run a username sweep on the email's local-part. */
+  onUsernameSweep?: (handle: string) => void;
 }
 
 function CopyBtn({ text }: { text: string }) {
@@ -284,8 +287,13 @@ const PROVIDER_ICONS: Record<string, React.ReactNode> = {
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function EmailResultsDashboard({ data }: Props) {
+export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) {
   const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact } = data;
+
+  // Email → username cross-tool pivot: only when the local-part is a plausible
+  // handle and it isn't a generic role inbox (info@, support@…), which is never
+  // a person's handle.
+  const handleCandidate = analysis.isRoleAddress ? null : emailToUsernameCandidate(email);
 
   const repData = emailrep.ok ? emailrep.data : null;
   const hunterData = hunter.ok ? hunter.data : null;
@@ -387,6 +395,15 @@ export default function EmailResultsDashboard({ data }: Props) {
               <div className="text-sm text-[#00ff41]/70 mt-0.5 font-mono">
                 {analysis.username} @ {analysis.domain}
               </div>
+              {handleCandidate && onUsernameSweep && (
+                <button
+                  type="button"
+                  onClick={() => onUsernameSweep(handleCandidate)}
+                  className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 rounded border border-[#e879f9]/40 text-[#e879f9] hover:bg-[#e879f9]/10 hover:border-[#e879f9] transition-all"
+                >
+                  <AtSign className="w-3 h-3" /> Sweep &ldquo;{handleCandidate}&rdquo; as username →
+                </button>
+              )}
               {(fcData?.location ?? (gravatar.found ? gravatar.currentLocation : null)) && (
                 <div className="text-xs text-[#00d9ff]/70 mt-1 font-mono">
                   📍 {fcData?.location ?? gravatar.currentLocation}
