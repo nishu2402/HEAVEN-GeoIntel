@@ -189,6 +189,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Footer credit:** "Created & developed by **Nisarg Chasmawala (Shroff)**".
 
 ### Changed
+- **Every React component is now under the 100% coverage gate.** Coverage was
+  previously enforced only over `src/lib`; the config (`vitest.config.ts`) now lists
+  **all 47 components** in its `include`, each with a dedicated interaction test suite
+  proving 100% statements/branches/functions/lines (or an explicit `/* v8 ignore */`
+  with a stated reason for a defensive/SSR-only branch, matching the lib convention).
+  Suites cover the shared controls (inputs, popovers, share/copy, error boundary,
+  tilt), the `useSyncExternalStore` components (theme/consent/effects/history —
+  including their server-snapshot paths via `renderToStaticMarkup`), the command
+  palette, add-to-case flow, the link-analysis graph, the decorative canvas/boot
+  sequence, the OSINT pivot matrices, and the full result dashboards for phone, IP,
+  domain, username and email — including the large branch-heavy panels
+  (`EmailResultsDashboard`, `PentesterPanel` with its time-dependent call-window logic
+  frozen via fake timers, and `BreachPanel`). The suite is now **702 tests** (up from
+  373), still 100% across every gated file and verified deterministic over repeated
+  runs.
+
+### Fixed
+- **Import integrity could be misreported as "verified".** `verifyCaseImport` now
+  distinguishes three outcomes — hash matched (`verified`), hash present but wrong
+  (`tampered`), and **no hash at all** — instead of treating a hash-less report as
+  clean. `CasesPanel` no longer announces "Imported — integrity verified" for a report
+  that carried nothing to verify against; it warns and labels the import UNVERIFIED.
+  The import path is also hardened against malformed files (non-array/typed-wrong
+  `entities`, non-string fields) so a bad JSON payload is sanitised rather than throwing.
+- **Case delete/save/wipe could desync the UI from the server.** `CasesPanel` now only
+  drops a case (or clears all cases) from local state once the server confirms the
+  request; a failed `DELETE` or unreachable server surfaces an error and keeps the
+  case visible instead of hiding one that is still on disk. Every mutation reports a
+  server error, and a failed initial load shows a retry instead of a misleading
+  "No cases yet".
+- **`LocationPanel` showed the region twice.** The API-region row was de-duplicated
+  against the *formatted* state string (`"California (CA)"`), so a raw region of
+  `"California"` never matched and rendered as its own redundant row; it now compares
+  against the raw state name.
+- **`SourcesPanel` silently discarded a rejected key.** A failed key save used to clear
+  the input as if it had succeeded; it now only clears the field once the server
+  accepts the key, and surfaces save/clear/load failures. `keyLabel` also stopped
+  flattening the `RapidAPI` acronym back to `Rapidapi`.
+- **`MatrixRain` never widened on resize.** The drop-column count was recomputed inside
+  the draw loop where it had no effect; it now resizes with the window.
+- Removed dead/unreachable UI branches surfaced by the coverage work (a `BootSequence`
+  "STANDBY" style that no line used, a never-`disabled` breach crack button, an always-
+  populated email-pivot empty guard).
 - **Regression tests for the recent fixes** (56 tests, up from 47): `ipValidation`
   guards the compressed-IPv6 acceptance; `caseStore` covers CRUD + a 20-way
   concurrent-write race (proving no lost updates); `keyStore` gained write-path +
@@ -383,6 +426,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   an SPDX SBOM is also uploaded as a build artifact.
 
 ### Fixed
+- **Recent-lookup history could silently stop recording after a single corrupt
+  write** (`components/dashboard/HistorySidebar.tsx`). `saveToHistory` read the
+  existing history with a bare `JSON.parse`; if the stored blob was ever corrupt
+  (a partial write, manual tamper), the parse threw and the whole save was aborted
+  — so **no future lookup was ever recorded** until `localStorage` was cleared. It
+  now tolerates a corrupt/non-array existing blob the same way the read path
+  (`readHistory`) already did, overwriting it with a clean array containing the new
+  entry. Regression-covered.
 - **US/Canada phone numbers showed the wrong timezone for ~half the country**
   (`lib/analysis/phoneAnalysis.ts`). Timezone/UTC-offset were derived from a single
   country default (`COUNTRY_TZ["US"] = America/New_York`), so a `415` (San Francisco)

@@ -19,6 +19,7 @@ export default function Tilt3D({ children, className = "", max = 6 }: Props) {
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
     const el = ref.current;
+    /* v8 ignore next -- ref is always attached while the handler can fire; defensive */
     if (!el) return;
     const r = el.getBoundingClientRect();
     const px = (e.clientX - r.left) / r.width;   // 0..1
@@ -30,6 +31,7 @@ export default function Tilt3D({ children, className = "", max = 6 }: Props) {
   }
   function onLeave() {
     const el = ref.current;
+    /* v8 ignore next -- ref is always attached while the handler can fire; defensive */
     if (!el) return;
     el.style.setProperty("--rx", "0deg");
     el.style.setProperty("--ry", "0deg");

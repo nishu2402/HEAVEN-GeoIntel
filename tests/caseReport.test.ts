@@ -46,6 +46,7 @@ describe("caseReport — import + integrity check", () => {
     const check = await verifyCaseImport(json);
     expect(check.ok).toBe(true);
     expect(check.tampered).toBe(false);
+    expect(check.verified).toBe(true);
     expect(check.case?.name).toBe("Acme phishing 2026");
     expect(check.case?.entities).toHaveLength(2);
   });
@@ -57,7 +58,54 @@ describe("caseReport — import + integrity check", () => {
     const check = await verifyCaseImport(JSON.stringify(env));
     expect(check.ok).toBe(true);
     expect(check.tampered).toBe(true);
+    expect(check.verified).toBe(false);
     expect(check.expectedHash).not.toBe(check.actualHash);
+  });
+
+  it("never reports a hash-less report as verified", async () => {
+    const { json } = await buildCaseJson(baseCase);
+    const env = JSON.parse(json);
+    delete env.integrity; // strip the signature entirely
+    const check = await verifyCaseImport(JSON.stringify(env));
+    expect(check.ok).toBe(true);
+    expect(check.tampered).toBe(false); // nothing to compare against
+    expect(check.verified).toBe(false); // …so it is NOT verified either
+    expect(check.expectedHash).toBeUndefined();
+  });
+
+  it("survives a malformed entities array instead of throwing, and flags it as tampered", async () => {
+    const { json } = await buildCaseJson(baseCase);
+    const env = JSON.parse(json);
+    // Untrusted file: nulls, wrong types, an unknown kind, a non-string value.
+    env.case.entities = [null, "nope", 42, { kind: "wat", value: "x" }, { kind: "ip", value: 8 },
+      { kind: "ip", value: "8.8.8.8", addedAt: "yesterday", note: 7 }];
+    const check = await verifyCaseImport(JSON.stringify(env));
+    expect(check.ok).toBe(true);
+    expect(check.case?.entities).toHaveLength(1); // only the salvageable one survives
+    expect(check.case?.entities[0]).toMatchObject({ kind: "ip", value: "8.8.8.8", note: undefined });
+    expect(Number.isFinite(check.case!.entities[0]!.addedAt)).toBe(true);
+    expect(check.tampered).toBe(true); // repaired payload no longer matches the hash
+  });
+
+  it("coerces non-string/non-numeric envelope fields rather than throwing", async () => {
+    const check = await verifyCaseImport(JSON.stringify({
+      schema: REPORT_SCHEMA,
+      integrity: { algo: "SHA-256", hash: 12345 }, // not a string → treated as absent
+      case: { name: 7, notes: false, createdAt: "x", updatedAt: null, entities: { not: "an array" } },
+    }));
+    expect(check.ok).toBe(true);
+    expect(check.case?.name).toBe("");
+    expect(check.case?.notes).toBe("");
+    expect(check.case?.entities).toEqual([]);
+    expect(Number.isFinite(check.case!.createdAt)).toBe(true);
+    expect(check.expectedHash).toBeUndefined();
+    expect(check.verified).toBe(false);
+  });
+
+  it("rejects an envelope whose `case` is not an object", async () => {
+    const check = await verifyCaseImport(JSON.stringify({ schema: REPORT_SCHEMA, case: "hello" }));
+    expect(check.ok).toBe(false);
+    expect(check.error).toMatch(/not a heaven-geointel/i);
   });
 
   it("rejects JSON that is not a HEAVEN-GeoIntel case report", async () => {
@@ -196,6 +244,7 @@ describe("caseReport — verifyCaseImport envelopes", () => {
     expect(res.ok).toBe(true);
     expect(res.case?.name).toBe("");
     expect(res.case?.entities).toEqual([]);
-    expect(res.tampered).toBe(false); // no integrity hash present
+    expect(res.tampered).toBe(false);  // no integrity hash present…
+    expect(res.verified).toBe(false);  // …so it cannot be called verified
   });
 });

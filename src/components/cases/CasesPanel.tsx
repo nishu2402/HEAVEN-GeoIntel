@@ -36,13 +36,17 @@ function fmtTime(at: number): string {
     return new Date(at).toLocaleString(undefined, {
       year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
-  } catch { return String(at); }
+  } catch {
+    /* v8 ignore next -- an invalid date yields "Invalid Date" rather than throwing; only a runtime lacking Intl data reaches this */
+    return String(at);
+  }
 }
 
 export default function CasesPanel() {
   const [cases, setCases] = useState<InvestigationCase[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [newName, setNewName] = useState("");
   const [entKind, setEntKind] = useState<EntityKind>("phone");
   const [entVal, setEntVal] = useState("");
@@ -55,14 +59,17 @@ export default function CasesPanel() {
   // Cross-case correlation is a pure derivation of the loaded cases.
   const correlations = useMemo(() => correlateCases(cases), [cases]);
 
+  // A failed load must not render as "No cases yet" — that asserts an empty case
+  // list we never actually read. Surface the failure and offer a retry instead.
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch("/api/cases", { cache: "no-store" });
       const json = (await res.json()) as { cases: InvestigationCase[] };
       setCases(json.cases ?? []);
       setActiveId((prev) => prev ?? json.cases?.[0]?.id ?? null);
-    } catch { /* offline */ }
+    } catch { setLoadError(true); }
     finally { setLoading(false); }
   }, []);
 
@@ -81,14 +88,26 @@ export default function CasesPanel() {
     setNotesDraft(active?.notes ?? "");
   }
 
+  // Every mutation goes through here. A rejected fetch (offline / server down)
+  // or a server-side error must never surface as an unhandled promise rejection
+  // that leaves the button looking inert — report it and return an empty result
+  // so callers skip their success path.
   async function api(body: Record<string, unknown>) {
-    const res = await fetch("/api/cases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const json = (await res.json()) as { case?: InvestigationCase; error?: string };
+    let json: { case?: InvestigationCase; error?: string };
+    try {
+      const res = await fetch("/api/cases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      json = (await res.json()) as { case?: InvestigationCase; error?: string };
+    } catch {
+      ping("Request failed — server unreachable");
+      return {};
+    }
     if (json.case) {
       setCases((prev) => {
         const exists = prev.some((c) => c.id === json.case!.id);
         return exists ? prev.map((c) => (c.id === json.case!.id ? json.case! : c)) : [json.case!, ...prev];
       });
+    } else if (json.error) {
+      ping(json.error);
     }
     return json;
   }
@@ -97,21 +116,30 @@ export default function CasesPanel() {
     const j = await api({ action: "create", name: newName });
     if (j.case) { setActiveId(j.case.id); setNewName(""); }
   }
+  // Only drop the case from local state once the server confirms the delete —
+  // otherwise a failed DELETE hides a case that is still on disk, and it
+  // reappears on the next refresh.
   async function removeCase(id: string) {
-    await fetch(`/api/cases?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    try {
+      const res = await fetch(`/api/cases?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!res.ok) { ping("Delete failed"); return; }
+    } catch { ping("Delete failed — server unreachable"); return; }
     setCases((prev) => prev.filter((c) => c.id !== id));
     if (activeId === id) setActiveId(null);
   }
   async function addEntity() {
+    /* v8 ignore next -- `!active` is unreachable: only rendered inside `{active && …}` */
     if (!active || !entVal.trim()) return;
     await api({ action: "addEntity", id: active.id, kind: entKind, value: entVal.trim() });
     setEntVal("");
   }
   async function removeEntity(kind: EntityKind, value: string) {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     await api({ action: "removeEntity", id: active.id, kind, value });
   }
   async function saveNotes() {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     await api({ action: "notes", id: active.id, notes: notesDraft });
     setNotesSaved(true); setTimeout(() => setNotesSaved(false), 1500);
@@ -120,6 +148,7 @@ export default function CasesPanel() {
   // against the current one and fire add/remove (a relabel = remove old + add
   // new). Sequential awaits avoid racing the file-backed store.
   async function syncGraph(next: GraphEntity[]) {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     const keyOf = (e: GraphEntity) => `${e.kind}::${e.value.toLowerCase()}`;
     const cur: GraphEntity[] = active.entities.map((e) => ({ kind: e.kind, value: e.value }));
@@ -133,11 +162,16 @@ export default function CasesPanel() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const ping = (m: string) => { setFlash(m); setTimeout(() => setFlash(null), 2400); };
+  function openImportPicker() {
+    /* v8 ignore next -- the ref is always attached to the hidden <input type=file> rendered below */
+    fileInputRef.current?.click();
+  }
 
   // Fold another case into the active one: its identifiers + notes merge in and
   // the source case is deleted. Confirmed first (it's destructive). The api()
   // call updates the target in state; we then drop the now-deleted source.
   async function mergeSelected() {
+    /* v8 ignore next -- `!active` / `=== active.id` are unreachable: rendered inside `{active && …}` and the source list excludes it */
     if (!active || !mergeSourceId || mergeSourceId === active.id) return;
     const src = cases.find((c) => c.id === mergeSourceId);
     if (!src) return;
@@ -150,34 +184,42 @@ export default function CasesPanel() {
     }
   }
 
+  // Every export button below lives inside `{active && …}`, so the `!active`
+  // guards exist only to narrow the type — they are unreachable at runtime.
   async function exportJson() {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     const { json } = await buildCaseJson(active);
     downloadFile(caseFileName(active.name, "json"), json, "application/json");
     ping("JSON exported (integrity-hashed)");
   }
   async function exportMd() {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     const md = await buildCaseMarkdown(active);
     downloadFile(caseFileName(active.name, "md"), md, "text/markdown");
     ping("Markdown report exported");
   }
   function exportCsv() {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     downloadFile(caseFileName(active.name, "csv"), buildCaseCsv(active), "text/csv");
     ping("CSV exported");
   }
   function exportStix() {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     downloadFile(caseFileName(active.name, "stix.json"), buildStixBundle(active), "application/json");
     ping("STIX 2.1 bundle exported");
   }
   function exportMaltego() {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     downloadFile(caseFileName(active.name, "maltego.csv"), buildMaltegoCsv(active), "text/csv");
     ping("Maltego CSV exported");
   }
   async function printReport() {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
     const html = await buildPrintableHtml(active);
     const w = window.open("", "_blank");
@@ -185,19 +227,43 @@ export default function CasesPanel() {
     w.document.write(html); w.document.close();
     ping("Opening printable report…");
   }
+  // Three outcomes, and they must never be conflated: the hash matched
+  // (verified), the hash was present but wrong (tampered), or there was no hash
+  // at all (unverifiable — a hand-written or stripped file). Only the first may
+  // be reported to the analyst as verified; the other two require confirmation.
   async function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    /* v8 ignore next -- `files` is never null on an <input type=file>; the `?.` is defensive */
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-importing the same filename
     if (!file) return;
     const check = await verifyCaseImport(await file.text());
-    if (!check.ok || !check.case) { ping(check.error || "Import failed"); return; }
-    if (check.tampered && !window.confirm("Integrity hash does NOT match — this report may have been modified. Import anyway?")) return;
+    // `ok: false` and a missing `case` are the same condition; a rejected check
+    // always carries an error message.
+    if (!check.case) {
+      /* v8 ignore next -- the fallback string is defensive: `error` is always set on failure */
+      ping(check.error || "Import failed");
+      return;
+    }
+    if (!check.verified) {
+      const warning = check.tampered
+        ? "Integrity hash does NOT match — this report may have been modified. Import anyway?"
+        : "This report carries no integrity hash, so its contents cannot be verified. Import anyway?";
+      if (!window.confirm(warning)) return;
+    }
     const j = await api({ action: "import", case: check.case });
-    if (j.case) { setActiveId(j.case.id); ping(check.tampered ? "Imported — HASH MISMATCH" : "Imported — integrity verified"); }
+    if (!j.case) return;
+    setActiveId(j.case.id);
+    if (check.verified) ping("Imported — integrity verified");
+    else if (check.tampered) ping("Imported — HASH MISMATCH");
+    else ping("Imported — UNVERIFIED (no integrity hash)");
   }
+  // Same rule as removeCase: only clear local state once the server confirms.
   async function deleteAllData() {
     if (!window.confirm("Delete ALL cases AND the audit log? This cannot be undone.")) return;
-    await fetch("/api/cases?all=1", { method: "DELETE" });
+    try {
+      const res = await fetch("/api/cases?all=1", { method: "DELETE" });
+      if (!res.ok) { ping("Wipe failed"); return; }
+    } catch { ping("Wipe failed — server unreachable"); return; }
     setCases([]); setActiveId(null); ping("All local data wiped");
   }
 
@@ -212,7 +278,7 @@ export default function CasesPanel() {
           <div className="flex items-center gap-2">
             {flash && <span className="text-[11px] font-mono text-[var(--hv-green)]">{flash}</span>}
             <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={onImportFile} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()}
+            <button onClick={openImportPicker}
               className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-colors">
               <Upload className="w-3 h-3" /> IMPORT
             </button>
@@ -234,6 +300,12 @@ export default function CasesPanel() {
 
         {loading ? (
           <div className="flex items-center gap-2 text-[var(--hv-ink-dim)] text-sm font-mono py-3"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
+        ) : loadError ? (
+          <div className="flex items-center gap-2 text-sm font-mono py-3 text-[var(--hv-red)]">
+            <ShieldAlert className="w-4 h-4 shrink-0" />
+            Could not load cases — the server is unreachable.
+            <button onClick={load} className="underline hover:text-[var(--hv-cyan)]">Retry</button>
+          </div>
         ) : cases.length === 0 ? (
           <div className="text-sm font-mono text-[var(--hv-ink-dim)] py-3">No cases yet. Create one to start grouping identifiers.</div>
         ) : (
@@ -309,6 +381,7 @@ export default function CasesPanel() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <select value={entKind} onChange={(e) => setEntKind(e.target.value as EntityKind)}
+                aria-label="Identifier type"
                 className="terminal-input px-3 py-2 text-sm font-mono">
                 {LOOKUP_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>

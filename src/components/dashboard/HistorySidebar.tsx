@@ -50,11 +50,20 @@ function notifyHistoryChanged(): void {
 }
 
 export function saveToHistory(entry: HistoryEntry): void {
+  /* v8 ignore next -- SSR guard; saveToHistory is only ever called from client event handlers */
   if (typeof window === "undefined") return;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const existing: HistoryEntry[] = Array.isArray(parsed) ? parsed : [];
+    // Tolerate a corrupt existing blob the same way readHistory does: start fresh
+    // rather than letting a bad parse abort the save (which would silently drop
+    // every future lookup until localStorage is cleared).
+    let existing: HistoryEntry[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) existing = parsed;
+      } catch { /* corrupt existing history → overwrite with a clean array */ }
+    }
     const filtered = existing.filter((e) => e.e164 !== entry.e164);
     const updated = [entry, ...filtered].slice(0, MAX_ENTRIES);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));

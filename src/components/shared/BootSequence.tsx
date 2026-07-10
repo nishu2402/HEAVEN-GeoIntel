@@ -31,8 +31,6 @@ export default function BootSequence({ onDone }: { onDone: () => void }) {
               ? "text-[#00ff41] glow-green font-bold mt-2"
               : line === ""
               ? "h-3"
-              : line.includes("STANDBY")
-              ? "text-[#00d9ff]"
               : "text-[#00ff41]/80"
           }
         >
