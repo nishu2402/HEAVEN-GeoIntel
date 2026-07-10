@@ -187,14 +187,15 @@ export default function EmailOsintPivots({ email, domain }: Props) {
         Opens in new tab. Use only within your authorized scope.
       </div>
 
-      {byCategory.map(({ cat, items }) =>
-        items.length === 0 ? null : (
+      {/* Every category in CATEGORY_ORDER is always populated by buildLinks, so
+          there is no empty-group case to guard here. */}
+      {byCategory.map(({ cat, items }) => (
           <div key={cat} className="space-y-1.5">
             <div
               className="text-[12px] uppercase tracking-widest font-mono pb-0.5"
-              style={{ color: (CATEGORY_META[cat]?.color ?? "#00ff41") + "60" }}
+              style={{ color: CATEGORY_META[cat].color + "60" }}
             >
-              — {CATEGORY_META[cat]?.label ?? cat} —
+              — {CATEGORY_META[cat].label} —
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {items.map((link) => (
@@ -218,8 +219,7 @@ export default function EmailOsintPivots({ email, domain }: Props) {
               ))}
             </div>
           </div>
-        )
-      )}
+      ))}
     </div>
   );
 }

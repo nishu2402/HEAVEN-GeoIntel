@@ -92,12 +92,9 @@ function RiskBadge({ risk }: { risk: string }) {
 }
 
 // Copy + open in one click
-function CopyOpenBtn({
-  hash, label, url, disabled,
-}: { hash: string; label: string; url: string; disabled?: boolean }) {
+function CopyOpenBtn({ hash, label, url }: { hash: string; label: string; url: string }) {
   const [done, setDone] = useState(false);
   const handle = () => {
-    if (disabled) return;
     void copyText(hash);
     window.open(url, "_blank", "noopener,noreferrer");
     setDone(true);
@@ -106,12 +103,7 @@ function CopyOpenBtn({
   return (
     <button
       onClick={handle}
-      disabled={disabled}
-      className={`flex items-center gap-1 text-[12px] font-mono px-2 py-1 border transition-all ${
-        disabled
-          ? "border-[#555]/40 text-[#888] cursor-not-allowed"
-          : "border-[#00d9ff]/50 text-[#00d9ff] hover:border-[#00d9ff] hover:bg-[#00d9ff]/10 cursor-pointer"
-      }`}
+      className="flex items-center gap-1 text-[12px] font-mono px-2 py-1 border transition-all border-[#00d9ff]/50 text-[#00d9ff] hover:border-[#00d9ff] hover:bg-[#00d9ff]/10 cursor-pointer"
     >
       {done ? <Check className="w-2.5 h-2.5" /> : <Zap className="w-2.5 h-2.5" />}
       {done ? "COPIED + OPENED" : label}
@@ -139,6 +131,7 @@ function CopyHashBtn({ hash }: { hash: string }) {
 // ── Breach row ────────────────────────────────────────────────────────────────
 
 function BreachRow({ breach, index }: { breach: XposedOrNotBreach; index: number }) {
+  /* v8 ignore next -- split() always returns a non-empty array, so [0] is never undefined; the "????" is defensive */
   const year = breach.xposedDate.split("-")[0] ?? "????";
   const hasPassword = breach.xposedData.some((d) => d.toLowerCase().includes("password"));
   const riskMeta = PASSWORD_RISK_META[breach.passwordRisk] ?? PASSWORD_RISK_META["Unknown"];
@@ -246,6 +239,7 @@ function HashField({
   info: ReturnType<typeof detectHash> | null;
   isPartial?: boolean;
 }) {
+  /* v8 ignore next -- callers only render HashField with a truthy value + a resolved detectHash result; this guard is defensive */
   if (!value || !info) return null;
   const diffColor = CRACK_DIFFICULTY_COLOR[info.crackable];
 

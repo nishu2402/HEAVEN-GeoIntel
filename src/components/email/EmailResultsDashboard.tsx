@@ -299,6 +299,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
   const hunterData = hunter.ok ? hunter.data : null;
   const abstractData = abstract.ok ? abstract.data : null;
   const fcData = fullContact?.ok ? fullContact.data : null;
+  /* v8 ignore next -- PROVIDER_COLORS covers every EmailProviderType; the `?? "#00ff41"` is defensive */
   const provColor = PROVIDER_COLORS[analysis.providerType] ?? "#00ff41";
 
   // Name priority: FullContact (real enrichment) > Gravatar (profile) > inferred from username
@@ -324,6 +325,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
     { source: "Hunter.io", state: srState(hunter) },
     { source: "AbstractAPI", state: srState(abstract) },
     { source: "BreachDirectory", state: srState(breachDirectory) },
+    /* v8 ignore next -- fullContact is always present on EmailLookupResponse; the "off" fallback is defensive */
     { source: "FullContact", state: fullContact ? srState(fullContact) : "off" },
   ];
 

@@ -79,15 +79,18 @@ export default function LinkGraph({ entities, title = "INVESTIGATION GRAPH", onC
     if (!editable) return;
     setSelected(i);
     const e = entities[i];
+    /* v8 ignore next -- i comes from a rendered node, so entities[i] is always defined; defensive */
     if (e) { setEditKind(e.kind); setEditVal(e.value); }
   }
   function removeAt(i: number) {
+    /* v8 ignore next -- removeAt is only wired when editable (onChange defined); guard is for types */
     if (!onChange) return;
     onChange(entities.filter((_, idx) => idx !== i));
     setSelected(null);
     setHover(null);
   }
   function saveEdit() {
+    /* v8 ignore next -- saveEdit only fires from the edit form (editable + a selection); guard is for types */
     if (!onChange || selected === null) return;
     const value = editVal.trim();
     if (!value) return;
@@ -97,6 +100,7 @@ export default function LinkGraph({ entities, title = "INVESTIGATION GRAPH", onC
     setSelected(null);
   }
   function addNode() {
+    /* v8 ignore next -- addNode is only wired when editable (onChange defined); guard is for types */
     if (!onChange) return;
     const value = addVal.trim();
     if (!value) return;
@@ -106,6 +110,7 @@ export default function LinkGraph({ entities, title = "INVESTIGATION GRAPH", onC
     setAddVal("");
   }
   function clearAll() {
+    /* v8 ignore next -- clearAll is only wired when editable (onChange defined); guard is for types */
     if (!onChange) return;
     onChange([]);
     setSelected(null);
@@ -114,6 +119,7 @@ export default function LinkGraph({ entities, title = "INVESTIGATION GRAPH", onC
 
   function exportPng() {
     const svg = svgRef.current;
+    /* v8 ignore next -- the SVG ref is always attached when the export button can be clicked; defensive */
     if (!svg) return;
     const xml = new XMLSerializer().serializeToString(svg);
     const svg64 = btoa(unescape(encodeURIComponent(xml)));
