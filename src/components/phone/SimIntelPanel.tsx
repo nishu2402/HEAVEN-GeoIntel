@@ -36,6 +36,7 @@ function Row({
 }
 
 function Badge({ active }: { active: boolean | null }) {
+  /* v8 ignore next -- both call sites are guarded by `!== null`; the N/A branch is defensive for the reusable contract */
   if (active === null) return <span className="text-[13px] text-[#00ff41]/25 border border-[#00ff41]/15 px-2 py-0.5 font-mono">N/A</span>;
   return (
     <span

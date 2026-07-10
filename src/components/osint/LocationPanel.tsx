@@ -8,13 +8,13 @@ interface Props {
   data: LookupResponse;
 }
 
-function Row({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function Row({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
     <div className="flex items-start gap-2 py-1.5 border-b border-[#00ff41]/[0.08] last:border-b-0">
       <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/55 w-32 shrink-0 pt-0.5">
         {label}
       </span>
-      <span className="font-mono text-xs flex-1" style={{ color: accent ?? "#00ff41" }}>
+      <span className="font-mono text-xs flex-1" style={{ color: accent }}>
         {value}
       </span>
     </div>
@@ -24,9 +24,13 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
 export default function LocationPanel({ data }: Props) {
   const { aggregated, analysis, input, countryIntel } = data;
 
-  // Deduplicate location rows: walk from most-specific to least, skip falsy/duplicate values.
+  // Deduplicate location rows: walk from most-specific to least, skip falsy/duplicate
+  // values. Compare against the RAW state name, not the "California (CA)" display
+  // string — an API region of "California" and an NPA metro equal to the state name
+  // both mean the same place and must not be repeated as their own rows.
   const city   = aggregated.city ?? null;
   const region = aggregated.region ?? null;
+  const stateName = analysis.npaInfo?.state ?? null;
   const state  = analysis.npaInfo ? `${analysis.npaInfo.state} (${analysis.npaInfo.stateAbbr})` : null;
   const metro  = analysis.npaInfo?.region ?? null;
   const areaCode = aggregated.areaCode ?? null;
@@ -54,8 +58,8 @@ export default function LocationPanel({ data }: Props) {
       <Row label="Country" value={`${country} (${input.countryCallingCode})`} accent="#00ff41" />
 
       {state  && <Row label="State / Province" value={state}  accent="#00d9ff" />}
-      {metro  && metro !== state && <Row label="Metro / Region" value={metro} accent="#00d9ff" />}
-      {region && region !== city && region !== state && region !== metro && (
+      {metro  && metro !== stateName && <Row label="Metro / Region" value={metro} accent="#00d9ff" />}
+      {region && region !== city && region !== stateName && region !== metro && (
         <Row label="Region (API)" value={region} accent="#00d9ff" />
       )}
       {city   && <Row label="City"            value={city}  accent="#00d9ff" />}

@@ -6,7 +6,7 @@
 //   • Markdown — human-readable report (entities table, notes, provenance).
 // Pure functions + Web Crypto; runs entirely client-side.
 
-import type { InvestigationCase, CaseEntity } from "../types";
+import type { InvestigationCase, CaseEntity, EntityKind } from "../types";
 
 export const REPORT_SCHEMA = "heaven-geointel/case-report@1";
 const APP_VERSION = "1.3.0";
@@ -179,8 +179,43 @@ export interface ImportCheck {
   expectedHash?: string;
   actualHash?: string;
   error?: string;
+  /** A hash was present and did NOT match — the payload changed after export. */
   tampered?: boolean;
+  /**
+   * A hash was present AND matched. A report carrying no integrity block is
+   * `verified: false` with `tampered: false`: we cannot vouch for it either way,
+   * and callers must not claim it was verified.
+   */
+  verified?: boolean;
 }
+
+const IMPORT_KINDS = new Set<EntityKind>(["phone", "email", "username", "ip", "domain"]);
+
+// An imported file is untrusted input: it can carry nulls, wrong types, or a
+// non-array `entities`. Coerce to the shape payloadOf() expects (mirroring the
+// server's importCase validation) instead of letting a malformed field throw.
+// Anything dropped here changes the payload, so the hash check below fails and
+// the caller is warned — a silently-repaired file is still reported as tampered.
+function sanitizeEntities(raw: unknown, fallbackAt: number): CaseEntity[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CaseEntity[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const e = item as Partial<CaseEntity>;
+    if (!IMPORT_KINDS.has(e.kind as EntityKind) || typeof e.value !== "string") continue;
+    out.push({
+      kind: e.kind as EntityKind,
+      value: e.value,
+      addedAt: typeof e.addedAt === "number" && Number.isFinite(e.addedAt) ? e.addedAt : fallbackAt,
+      note: typeof e.note === "string" ? e.note : undefined,
+    });
+  }
+  return out;
+}
+
+const finiteOr = (v: unknown, fallback: number): number =>
+  typeof v === "number" && Number.isFinite(v) ? v : fallback;
+const stringOr = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback);
 
 /** Parse + integrity-check a previously exported JSON report (no network). */
 export async function verifyCaseImport(text: string): Promise<ImportCheck> {
@@ -189,15 +224,21 @@ export async function verifyCaseImport(text: string): Promise<ImportCheck> {
   catch { return { ok: false, error: "Not valid JSON" }; }
 
   const env = parsed as Partial<CaseReportEnvelope>;
-  if (!env || env.schema !== REPORT_SCHEMA || !env.case) {
+  if (!env || env.schema !== REPORT_SCHEMA || !env.case || typeof env.case !== "object") {
     return { ok: false, error: "Not a HEAVEN-GeoIntel case report" };
   }
+  const now = Date.now();
   const payload = payloadOf({
-    id: "", createdAt: env.case.createdAt ?? Date.now(), updatedAt: env.case.updatedAt ?? Date.now(),
-    name: env.case.name ?? "", entities: (env.case.entities ?? []) as CaseEntity[], notes: env.case.notes ?? "",
+    id: "",
+    createdAt: finiteOr(env.case.createdAt, now),
+    updatedAt: finiteOr(env.case.updatedAt, now),
+    name: stringOr(env.case.name, ""),
+    entities: sanitizeEntities(env.case.entities, now),
+    notes: stringOr(env.case.notes, ""),
   });
   const actualHash = await sha256Hex(canonical(payload));
-  const expectedHash = env.integrity?.hash;
-  const tampered = Boolean(expectedHash && expectedHash !== actualHash);
-  return { ok: true, case: payload, expectedHash, actualHash, tampered };
+  const expectedHash = typeof env.integrity?.hash === "string" ? env.integrity.hash : undefined;
+  const tampered = expectedHash !== undefined && expectedHash !== actualHash;
+  const verified = expectedHash !== undefined && expectedHash === actualHash;
+  return { ok: true, case: payload, expectedHash, actualHash, tampered, verified };
 }

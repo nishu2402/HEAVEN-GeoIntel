@@ -208,7 +208,7 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
           <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50 font-mono">DATA SOURCES</div>
           <div className="flex gap-2 flex-wrap">
             {[
-              { label: "libphonenumber",  ok: true,                        always: true },
+              { label: "libphonenumber",  ok: true },
               { label: "Hudson Rock",     ok: sources.hudsonRock.ok,       configured: true },
               { label: "NumVerify",       ok: sources.numverify.ok,        configured: sources.numverify.error !== "NOT_CONFIGURED" },
               { label: "IPQS",            ok: sources.ipqs.ok,             configured: sources.ipqs.error !== "NOT_CONFIGURED" },
@@ -227,7 +227,7 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
                     : "text-[#00ff41]/45 border-[#00ff41]/10"
                 }`}
               >
-                {s.ok ? "✓" : ("always" in s && s.always) ? "✓" : "·"} {s.label}
+                {s.ok ? "✓" : "·"} {s.label}
               </span>
             ))}
           </div>

@@ -66,6 +66,10 @@ export default function BulkLookup() {
     setErrorMsg(null);
     setRows(null);
 
+    // Both guards are unreachable from the UI (the RUN button is disabled in
+    // exactly these two states); they keep run() safe if it is ever called from
+    // somewhere else.
+    /* v8 ignore start -- unreachable: RUN is disabled while empty or over the cap */
     if (numbers.length === 0) {
       setErrorMsg("Paste at least one phone number.");
       return;
@@ -74,6 +78,7 @@ export default function BulkLookup() {
       setErrorMsg(`Max ${MAX_BULK} numbers per batch — got ${numbers.length}.`);
       return;
     }
+    /* v8 ignore stop */
 
     setBusy(true);
     try {
@@ -96,6 +101,7 @@ export default function BulkLookup() {
   }
 
   function downloadCsv() {
+    /* v8 ignore next -- unreachable: the download button only renders once `rows` exists */
     if (!rows) return;
     const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);

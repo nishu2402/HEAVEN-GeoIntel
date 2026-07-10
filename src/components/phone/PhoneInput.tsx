@@ -8,8 +8,10 @@ import { cn } from "@/lib/utils";
 
 function getCountryName(code: CountryCode): string {
   try {
+    /* v8 ignore next -- Intl.DisplayNames resolves every ISO code we pass; the `?? code` is defensive */
     return new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code;
   } catch {
+    /* v8 ignore next -- Intl.DisplayNames exists on all target runtimes; the catch is defensive */
     return code;
   }
 }
@@ -76,7 +78,9 @@ export default function PhoneInput({ onLookup, onClear, loading }: Props) {
       c.code.toLowerCase().includes(search.toLowerCase())
   );
 
-  const selectedCountry = ALL_COUNTRIES.find((c) => c.code === country);
+  // `country` is always one of getCountries(), and ALL_COUNTRIES is built from
+  // exactly that list, so the lookup never misses.
+  const selectedCountry = ALL_COUNTRIES.find((c) => c.code === country)!;
 
   const handleSubmit = () => {
     if (validation === "valid") onLookup(fullNumber);
@@ -99,7 +103,7 @@ export default function PhoneInput({ onLookup, onClear, loading }: Props) {
             onClick={() => setShowDropdown((p) => !p)}
             className="flex items-center gap-1.5 h-12 px-3 terminal-input border rounded-none text-sm whitespace-nowrap hover:border-[#00ff41] transition-colors min-w-[72px]"
           >
-            <span className="font-mono">{selectedCountry?.callingCode}</span>
+            <span className="font-mono">{selectedCountry.callingCode}</span>
             <ChevronDown className="w-3.5 h-3.5 text-[#00ff41]/60 shrink-0" />
           </button>
 
@@ -150,7 +154,7 @@ export default function PhoneInput({ onLookup, onClear, loading }: Props) {
             value={raw}
             onChange={(e) => handleInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            placeholder={`Number for ${selectedCountry?.name ?? "selected country"}`}
+            placeholder={`Number for ${selectedCountry.name}`}
             className="w-full h-12 pl-4 pr-10 terminal-input text-base rounded-none font-mono"
             spellCheck={false}
             autoComplete="tel"
@@ -200,12 +204,12 @@ export default function PhoneInput({ onLookup, onClear, loading }: Props) {
         )}
         {validation === "invalid" && raw && (
           <span className="text-[#ff3e3e]">
-            ✗ Not a valid {selectedCountry?.name} number — include country code ({selectedCountry?.callingCode}) or switch country
+            ✗ Not a valid {selectedCountry.name} number — include country code ({selectedCountry.callingCode}) or switch country
           </span>
         )}
         {validation === "empty" && (
           <span className="text-[#00ff41]/40">
-            _ Enter a phone number · {selectedCountry?.callingCode} will be prepended automatically
+            _ Enter a phone number · {selectedCountry.callingCode} will be prepended automatically
           </span>
         )}
       </div>

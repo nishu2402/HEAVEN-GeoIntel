@@ -17,14 +17,16 @@ interface SourceInfo {
 interface SourcesResponse { sources: SourceInfo[]; keyActive: number; keyTotal: number }
 
 // Pretty label for an env-var name, e.g. TWILIO_ACCOUNT_SID → "Account Sid".
+// The acronym fix-up has to come last: title-casing runs over the whole string,
+// so any earlier "RapidAPI" would be flattened back to "Rapidapi".
 function keyLabel(name: string): string {
   return name
     .replace(/_API_KEY$/, "")
     .replace(/^TWILIO_/, "")
-    .replace(/^RAPIDAPI$/, "RapidAPI")
     .replace(/_/g, " ")
     .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bRapidapi\b/g, "RapidAPI");
 }
 
 function FreeRow({ s }: { s: SourceInfo }) {
@@ -49,13 +51,18 @@ export default function SourcesPanel() {
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // A failed load must say so: the modal body is otherwise blank, with no hint
+  // that the source list simply never arrived.
   const refresh = useCallback(() => {
     setLoading(true);
+    setLoadError(false);
     fetch("/api/sources")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((j: SourcesResponse) => setData(j))
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -65,28 +72,40 @@ export default function SourcesPanel() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (open && !data) refresh(); }, [open, data, refresh]);
 
+  // Only clear the typed key once the server has accepted it. Wiping the field on
+  // a rejected POST looks exactly like success, and the analyst loses the value
+  // they pasted.
   const saveSource = useCallback(async (s: SourceInfo) => {
+    /* v8 ignore next -- unreachable: Save is disabled unless a key field has content */
     if (!s.keys) return;
     setBusy(s.id);
+    setError(null);
     try {
       for (const name of s.keys) {
         const v = (inputs[name] || "").trim();
-        if (v) {
-          await fetch("/api/keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, value: v }) });
-        }
+        if (!v) continue;
+        const res = await fetch("/api/keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, value: v }) });
+        if (!res.ok) { setError(`Could not save ${s.name} — the server rejected the key`); return; }
       }
       setInputs((prev) => { const n = { ...prev }; s.keys!.forEach((k) => delete n[k]); return n; });
       refresh();
-    } finally { setBusy(null); }
+    } catch { setError(`Could not save ${s.name} — server unreachable`); }
+    finally { setBusy(null); }
   }, [inputs, refresh]);
 
   const clearSource = useCallback(async (s: SourceInfo) => {
+    /* v8 ignore next -- unreachable: the clear button only renders for a UI-configured source */
     if (!s.keys) return;
     setBusy(s.id);
+    setError(null);
     try {
-      for (const name of s.keys) await fetch(`/api/keys?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+      for (const name of s.keys) {
+        const res = await fetch(`/api/keys?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+        if (!res.ok) { setError(`Could not clear ${s.name}`); return; }
+      }
       refresh();
-    } finally { setBusy(null); }
+    } catch { setError(`Could not clear ${s.name} — server unreachable`); }
+    finally { setBusy(null); }
   }, [refresh]);
 
   const free = data?.sources.filter((s) => s.tier === "free") ?? [];
@@ -119,6 +138,17 @@ export default function SourcesPanel() {
 
             <div className="overflow-y-auto p-4 space-y-4">
               {loading && !data && <div className="text-center py-6 text-sm font-mono text-[var(--hv-ink-dim)]">Loading…</div>}
+              {loadError && !data && (
+                <div className="text-center py-6 space-y-2 text-sm font-mono text-[var(--hv-red)]">
+                  <div>Could not load the source list — the server is unreachable.</div>
+                  <button onClick={refresh} className="underline hover:text-[var(--hv-cyan)]">Retry</button>
+                </div>
+              )}
+              {error && (
+                <div role="alert" className="flex items-start gap-2 text-[12px] font-mono text-[var(--hv-red)]">
+                  <ShieldAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {error}
+                </div>
+              )}
               {data && (
                 <>
                   <div>

@@ -12,6 +12,7 @@ interface Props {
 }
 
 function fmtDate(iso: string | null): string {
+  /* v8 ignore next -- the only caller guards `s.dateCompromised` first; the null branch is defensive */
   if (!iso) return "—";
   try { return new Date(iso).toISOString().split("T")[0]; }
   catch { return iso; }

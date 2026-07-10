@@ -22,6 +22,7 @@ export default function QrCodePanel({ e164 }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStatus("loading");
     const canvas = canvasRef.current;
+    /* v8 ignore next -- unreachable: the ref is always attached to the <canvas> rendered below */
     if (!canvas) return;
     let cancelled = false;
     QRCode.toCanvas(canvas, `tel:${e164}`, {
@@ -37,6 +38,7 @@ export default function QrCodePanel({ e164 }: Props) {
 
   function downloadQr() {
     const canvas = canvasRef.current;
+    /* v8 ignore next -- unreachable: the button only renders once the canvas has been drawn */
     if (!canvas) return;
     const link = document.createElement("a");
     link.download = `${e164.replace("+", "")}_qr.png`;
