@@ -206,6 +206,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   runs.
 
 ### Fixed
+- **Country dropdown was painted under the "Recent queries" card.** The `.terminal-card`
+  glass style sets `backdrop-filter`, which creates a stacking context — so the phone
+  country picker's `z-50` was trapped inside the input card and the sibling History card
+  below (its own `backdrop-filter` context) punched through the middle of the open
+  dropdown list. The input card now carries `relative z-10`, lifting it above the cards
+  that follow it while staying below the sticky header (`z-20`), so the dropdown overlays
+  them cleanly.
 - **Import integrity could be misreported as "verified".** `verifyCaseImport` now
   distinguishes three outcomes — hash matched (`verified`), hash present but wrong
   (`tampered`), and **no hash at all** — instead of treating a hash-less report as
