@@ -323,8 +323,12 @@ function PageContent() {
             </div>
           )}
 
+          {/* relative z-10 on the input card: lift it above the sibling cards below
+              it (History, results) so the country dropdown — trapped in this card's
+              backdrop-filter stacking context — overlays them instead of being
+              painted under. Stays below the sticky header (z-20). */}
           {!isBooting && (
-            <div className="terminal-card holo p-4 sm:p-5 mb-4 space-y-4">
+            <div className="terminal-card holo p-4 sm:p-5 mb-4 space-y-4 relative z-10">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]">[ TARGET ACQUISITION ]</div>
