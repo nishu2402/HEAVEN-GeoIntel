@@ -41,6 +41,21 @@ detect_lan_ip() {
   printf '%s' "$ip"
 }
 
+# ── Open the app in the default browser (best-effort, interactive only) ──────
+# Fires only when stdout is a real terminal, so it never pops a window under
+# CI/automation. Honours NO_OPEN=1 and BROWSER=none as an explicit opt-out.
+open_browser() {
+  [ -t 1 ] || return 0
+  [ -n "$NO_OPEN" ] && return 0
+  [ "$BROWSER" = "none" ] && return 0
+  if command -v open >/dev/null 2>&1; then
+    open "$1" >/dev/null 2>&1 &
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$1" >/dev/null 2>&1 &
+  fi
+  return 0
+}
+
 # ════════════════════════════════════════════════════════════════════════════
 #  --doctor : explain why a phone might not reach the Network URL
 # ════════════════════════════════════════════════════════════════════════════
@@ -171,6 +186,15 @@ if [ "$MODE" = "dev" ]; then
   echo -e "${CYAN}  Local:    http://localhost:$PORT${NC}"
   echo -e "${YELLOW}  For phone/LAN access use production mode: bash scripts/start.sh${NC}"
   echo ""
+  # Auto-open the browser once the server answers. exec (below) replaces this
+  # shell, so poll from a detached subshell that outlives it.
+  if [ -t 1 ] && [ -z "$NO_OPEN" ] && [ "$BROWSER" != "none" ]; then
+    ( for _ in $(seq 1 60); do
+        curl -s -o /dev/null --max-time 2 "http://localhost:$PORT/" 2>/dev/null \
+          && { open_browser "http://localhost:$PORT"; break; }
+        sleep 0.5
+      done ) &
+  fi
   # Bind to loopback only: the dev server's cross-origin block makes LAN access
   # fail anyway, and binding here keeps the banner clean (it never prints the
   # confusing 0.0.0.0 "Network" line).
@@ -248,6 +272,9 @@ elif [ "$NET_CODE" = "200" ]; then
 else
   echo -e "  ${RED}[x]${NC} From phone:   $URL_NET  (HTTP $NET_CODE)"
 fi
+
+# Pop the app open on this Mac (interactive launches only; see open_browser).
+[ "$LOCAL_CODE" = "200" ] && open_browser "$URL_LOCAL"
 
 # Optional QR of the Network URL (only if qrencode is installed — no hard dep).
 if [ -n "$LAN_IP" ] && command -v qrencode >/dev/null 2>&1; then

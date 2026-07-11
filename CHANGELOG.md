@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **The app opens in your browser on launch.** Starting the dev server (`npm run dev`)
+  now pops the app open in your default browser once it's ready — Next has no built-in
+  flag for this, so a thin zero-dependency wrapper (`scripts/dev-open.mjs`) spawns
+  `next dev`, reads the Local URL from what Next actually prints (so a bumped port is
+  handled), and opens it exactly once. `scripts/start.sh` does the same in both `--dev`
+  and production modes. It only fires for real interactive launches — piped/non-TTY
+  runs (CI, the Playwright e2e web-server, the editor preview) are skipped, and
+  `BROWSER=none` / `NO_OPEN=1` opt out explicitly. Verified: the exact ready URL is
+  opened under a TTY, suppressed when non-interactive or opted out, and the dev server
+  still serves and shuts down cleanly through the wrapper.
 - **The session graph now survives a reload.** The **Session Link Graph** you build
   up as you work is persisted to `localStorage` and re-hydrated on mount, so a page
   refresh (or coming back later in the same browser) keeps the web of identifiers
