@@ -150,8 +150,8 @@
 | 🗂️ **Persistent Cases** | File-backed investigation cases — group identifiers, notes, graph; survive restarts |
 | 🗺️ **NPA Database** | 400+ US/CA area codes → state · metro · timezone (offline) |
 | 🌍 **Country Dataset** | 100 countries — capital · currency · languages · GDP · emergency numbers |
-| ⚡ **Cache / Persistence** | 24 h in-memory LRU (phone/email) · file-backed cases |
-| 🚦 **Rate Limiting** | 10 requests/minute/IP — token bucket |
+| ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict) · file-backed cases |
+| 🚦 **Rate Limiting** | 10 requests/minute/IP — fixed-window counter |
 | 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs` · 8 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
@@ -301,7 +301,7 @@ incoming connections — click **Allow**.
 
 ### Global command
 
-After running `bash scripts/start.sh` once, a `geointel` shell function is registered in `~/.zshrc`. Open a new terminal and type `geointel`. To register it manually any time: `npm run install-global`; to remove it: `npm run uninstall-global`.
+The first time you run `bash scripts/start.sh`, a `geointel` shell function is auto-registered in your shell config (`~/.zshrc`, or `~/.bashrc`). Open a new terminal (or `source` it) and type `geointel` from anywhere to start the app. Register/re-register manually with `npm run install-global`; remove it with `npm run uninstall-global`; skip auto-registration with `NO_GLOBAL=1 bash scripts/start.sh`.
 
 ### Security & operations (optional)
 
@@ -612,7 +612,7 @@ POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT)
 
 Every route validates input first and only interpolates it (URL-encoded) into **fixed** upstream hosts — never an attacker-chosen host (no SSRF). A single source failing never fails the whole lookup.
 
-**Caching:** phone + email results cached in-memory 24 h (500 entries, LRU). **Persistence:** cases written to `.data/cases.json`, survive restarts. **Rate limiting:** 10 req/min/IP → HTTP 429 + `Retry-After: 60`.
+**Caching:** phone results cached in-memory 24 h (1000 entries), email 24 h (500 entries); the oldest-inserted entry is evicted first (FIFO). **Persistence:** cases written to `.data/cases.json`, survive restarts. **Rate limiting:** 10 req/min/IP → HTTP 429 + `Retry-After: 60`.
 
 ---
 
@@ -688,7 +688,7 @@ The eleven endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-loo
 | **Input validation / no SSRF** | Every lookup validates input (libphonenumber · IPv4/IPv6 · domain regex · `[A-Za-z0-9._-]{2,40}` usernames) and only URL-encodes it into **fixed** hosts — callers can't choose the destination. |
 | **Image optimizer disabled** | App uses plain `<img>`; `images.unoptimized` removes the `/_next/image` attack surface. |
 | **No tracking** | Metadata from structure + public databases only. No geolocation, device tracking, analytics, or telemetry. |
-| **Rate limiting** | 10 req/min/IP token-bucket · `Retry-After: 60` on 429 |
+| **Rate limiting** | 10 req/min/IP fixed-window counter · `Retry-After: 60` on 429 |
 | **Panel isolation** | Every results panel wrapped in `PanelErrorBoundary` — a broken upstream response takes down one card, not the page. |
 | **Disclosure policy** | [SECURITY.md](./SECURITY.md) — private GitHub Security Advisory flow + documented dependency advisories. |
 
@@ -742,7 +742,8 @@ HEAVEN-GeoIntel/
 │   │   │   ├── domain-lookup/route.ts   DNS · WHOIS · subdomains
 │   │   │   ├── bulk-lookup/route.ts     bulk phone (max 25)
 │   │   │   ├── cases/route.ts           persistent investigation cases (CRUD)
-│   │   │   └── docs/route.ts            OpenAPI 3.1 spec
+│   │   │   ├── docs/route.ts            OpenAPI 3.1 spec
+│   │   │   └── health · keys · sources  liveness · API-key store · source registry
 │   │   ├── layout.tsx · page.tsx · globals.css · not-found.tsx · robots.ts
 │   │
 │   ├── components/
@@ -755,25 +756,28 @@ HEAVEN-GeoIntel/
 │   │   ├── graph/        LinkGraph (SVG node graph + PNG export)
 │   │   ├── cases/        CasesPanel (CRUD · entities · notes · per-case graph)
 │   │   ├── dashboard/    ResultsDashboard · BulkLookup · HistorySidebar ·
-│   │   │                 LoadingSkeletons · SourceTabs
+│   │   │                 LoadingSkeletons · ScanProgress · SourceTabs
 │   │   ├── osint/        OsintPivots · LocationPanel ·
 │   │   │                 CountryPanel · QrCodePanel
-│   │   ├── shared/       ThemeProvider · ThemeToggle · CommandPalette ·
+│   │   ├── shared/       ThemeProvider · ThemeToggle · CommandPalette · ConsentGate ·
 │   │   │                 SimpleLookupInput · Tilt3D · MatrixRain · BootSequence ·
-│   │   │                 PanelErrorBoundary · ShareButton · ReportExport
+│   │   │                 PanelErrorBoundary · ShareButton · ReportExport · … (20 total)
 │   │   └── ui/           shadcn/ui primitives (Radix)
 │   │
 │   └── lib/
-│       ├── phoneAnalysis.ts · emailAnalysis.ts · freePhoneIntel.ts
-│       ├── mccMnc.ts            MCC/MNC → operator database (offline)
-│       ├── usernameSites.ts     44-site enumeration catalog
-│       ├── caseStore.ts         file-backed cases (.data/cases.json)
-│       ├── modes.ts             8-mode registry + identifier auto-detection
-│       ├── countryIntel.ts · usNpaDatabase.ts · disposableEmailDomains.ts
-│       ├── hashDetect.ts · cache.ts · rateLimit.ts · types.ts · utils.ts
+│       ├── analysis/  phoneAnalysis · emailAnalysis · freePhoneIntel · ipClassify ·
+│       │              hashDetect · entityExtract · crossPivots · usernameProfiles ·
+│       │              caseCorrelation · caseMerge · caseReport · caseTimeline
+│       ├── data/      countryIntel · mccMnc · usNpaDatabase · usernameSites ·
+│       │              disposableEmailDomains          (offline datasets)
+│       ├── server/    caseStore (.data/cases.json) · keyStore · auditLog ·
+│       │              cache · rateLimit · validation · fetchSafe
+│       ├── client/    modes (8-mode registry + auto-detect) · lookupHistory ·
+│       │              sessionGraph · effects
+│       └── types.ts · utils.ts
 │
 ├── tests/                            Vitest suites
-├── .env.example · eslint.config.mjs · .nvmrc (20) · .dockerignore
+├── .env.example · eslint.config.mjs · .nvmrc (22) · .dockerignore
 ├── CHANGELOG.md · CODE_OF_CONDUCT.md · CONTRIBUTING.md · SECURITY.md · LICENSE
 ├── Dockerfile · docker-compose.yml · next.config.mjs (hardened CSP/headers)
 ├── package.json · tsconfig.json (@/* → ./src/*) · tailwind.config.ts · vitest.config.ts
@@ -803,8 +807,8 @@ HEAVEN-GeoIntel/
 | **IP / Domain OSINT** | ip-api · Cloudflare DNS-over-HTTPS · RDAP · crt.sh (all free · no key) |
 | **Identity / Reputation** | FullContact · Gravatar · EmailRep.io · Hunter.io |
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
-| **Persistence** | In-memory LRU cache (24 h · 500 entries) · file-backed cases (`.data/`) |
-| **Rate Limiting** | Token-bucket per IP · 10 req/min |
+| **Persistence** | In-memory cache (24 h · 1000 phone / 500 email entries, FIFO) · file-backed cases (`.data/`) |
+| **Rate Limiting** | Fixed-window counter per IP · 10 req/min |
 | **Quality** | ESLint 9 (flat config) · Vitest · GitHub Actions CI |
 | **Font** | JetBrains Mono · 15 px base |
 
@@ -825,8 +829,10 @@ HEAVEN-GeoIntel/
 |---|---|
 | `bash scripts/start.sh` | One-step **production** start: build · serve on your LAN · self-test (add `--dev` for hot reload) |
 | `npm run setup` | Install deps + start the hot-reload dev server (local only) |
-| `npm run install-global` | Register the `geointel` shell command in `~/.zshrc` |
-| `npm run dev` | Start dev server |
+| `npm run install-global` | Register the `geointel` shell command in your shell config |
+| `npm run uninstall-global` | Remove the `geointel` shell command (reverses the above) |
+| `npm run doctor` | Diagnose why a phone can't reach the Network URL (firewall · VPN · AP isolation) |
+| `npm run dev` | Start dev server (opens your browser automatically) |
 | `npm run build` | Production build |
 | `npm run start` | Start production server (after `npm run build`) |
 | `npm run lint` | ESLint 9 (flat config) |
