@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`geointel` sets itself up on first launch.** The very first `bash scripts/start.sh`
+  now auto-registers the `geointel` shell function in your shell config (`~/.zshrc` /
+  `~/.bashrc`) — so after one run you can start the app from any directory just by
+  typing `geointel`, exactly as the README describes (previously that required a
+  separate `npm run install-global`). It is interactive-only (never edits a shell
+  config under CI, the Playwright e2e web-server, or the editor preview), fully
+  idempotent (does nothing if `geointel` already exists), never asks for sudo, and
+  writes the same marker + function block as `install-global.sh` so
+  `npm run uninstall-global` removes it. Opt out with `NO_GLOBAL=1`. Verified in a
+  sandboxed `HOME`: registers once under a real TTY, stays a single entry on repeat
+  runs, is cleanly removed by the uninstaller, and is skipped when piped/non-TTY or
+  when `NO_GLOBAL=1` is set.
 - **The app opens in your browser on launch.** Starting the dev server (`npm run dev`)
   now pops the app open in your default browser once it's ready — Next has no built-in
   flag for this, so a thin zero-dependency wrapper (`scripts/dev-open.mjs`) spawns
@@ -199,6 +211,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Footer credit:** "Created & developed by **Nisarg Chasmawala (Shroff)**".
 
 ### Changed
+- **Housekeeping / docs.** Removed a dead, empty top-level `data/` directory (the app
+  has always stored runtime state under `.data/`, created lazily by the server) and
+  stray `.DS_Store` files, and brought the README in line with the shipped behaviour —
+  the `geointel` auto-registration is now documented accurately, and
+  `npm run uninstall-global` / `npm run doctor` are listed under **Available Scripts**.
+  Corrected several README facts that had drifted from the code: the **Project Structure**
+  tree now reflects the real `src/lib` layout (`analysis/` · `data/` · `server/` · `client/`)
+  and the `health` / `keys` / `sources` API routes; the cache is described accurately
+  (24 h, **1000 phone / 500 email** entries, **FIFO** eviction — not "500, LRU"); the rate
+  limiter is called what it is (a **fixed-window counter**, not a "token bucket"); and the
+  `.nvmrc` pin is shown as **22**. No runtime code changed — docs only.
+- **Silenced the dev-startup module-type warning.** Declared `"type": "module"` in
+  `package.json` so Node/Turbopack loads the ESM config files (`tailwind.config.ts` et al.)
+  directly instead of parsing them as CommonJS, failing, and reparsing — which emitted a
+  `MODULE_TYPELESS_PACKAGE_JSON` warning on every `npm run dev`. Safe because the project
+  has no CommonJS `.js`/`.cjs` files; every config is already ESM (`.mjs`/`.ts`). Verified:
+  the warning is gone, and lint · typecheck · 702 tests @ 100% coverage · build · e2e all
+  stay green with styling intact.
 - **Every React component is now under the 100% coverage gate.** Coverage was
   previously enforced only over `src/lib`; the config (`vitest.config.ts`) now lists
   **all 47 components** in its `include`, each with a dedicated interaction test suite

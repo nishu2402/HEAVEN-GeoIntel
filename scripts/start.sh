@@ -56,6 +56,34 @@ open_browser() {
   return 0
 }
 
+# ── Register the global 'geointel' command on first run (RC file, no sudo) ────
+# So `geointel` works from any directory after the very first start — exactly as
+# the README promises. Interactive-only and fully idempotent: it never touches
+# a shell config under CI/automation, never asks for sudo, and does nothing if
+# the command already exists. The marker + function it writes are byte-identical
+# to install-global.sh, so `npm run uninstall-global` removes it. Opt out with
+# NO_GLOBAL=1.
+ensure_global_command() {
+  [ -t 1 ] || return 0
+  [ -n "$NO_GLOBAL" ] && return 0
+  command -v geointel >/dev/null 2>&1 && return 0   # already installed anywhere
+  local rc=""
+  if [ -f "$HOME/.zshrc" ]; then rc="$HOME/.zshrc"
+  elif [ -f "$HOME/.bashrc" ]; then rc="$HOME/.bashrc"
+  elif [ -f "$HOME/.bash_profile" ]; then rc="$HOME/.bash_profile"
+  fi
+  [ -n "$rc" ] || return 0
+  grep -q "# HEAVEN-GeoIntel global command" "$rc" 2>/dev/null && return 0
+  {
+    printf '\n# HEAVEN-GeoIntel global command\n'
+    printf 'geointel() { cd "%s" && bash scripts/start.sh "$@"; }\n' "$PROJECT_DIR"
+  } >> "$rc" 2>/dev/null || return 0
+  echo -e "${GREEN}[ok]${NC} Registered the ${BOLD}geointel${NC} command in $rc"
+  echo -e "     New terminal (or 'source $rc') → type ${CYAN}geointel${NC} from anywhere."
+  echo -e "     Remove: ${CYAN}npm run uninstall-global${NC}   ·   skip next time: NO_GLOBAL=1"
+  return 0
+}
+
 # ════════════════════════════════════════════════════════════════════════════
 #  --doctor : explain why a phone might not reach the Network URL
 # ════════════════════════════════════════════════════════════════════════════
@@ -166,6 +194,9 @@ if [ ! -f ".env.local" ] && [ -f ".env.example" ]; then
   cp .env.example .env.local
   echo -e "${GREEN}[ok]${NC} Created .env.local from template (all keys optional)"
 fi
+
+# Make `geointel` available everywhere after the first run (interactive only).
+ensure_global_command
 
 # Pick a free port starting at 3000
 PORT=3000
