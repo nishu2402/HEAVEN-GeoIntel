@@ -727,7 +727,11 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
             </>
           ) : (
             <div className="text-center py-6 text-[#888] text-xs font-mono">
-              {emailrep.error === "RATE_LIMITED" ? "Rate limited — try again" : "EmailRep.io did not return data"}
+              {emailrep.error === "NOT_CONFIGURED"
+                ? "Add EMAILREP_API_KEY — free tier available"
+                : emailrep.error === "RATE_LIMITED"
+                ? "Rate limited — try again shortly"
+                : "EmailRep.io did not return data"}
             </div>
           )}
         </div>

@@ -264,6 +264,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     nonexistent ones so they can never false-positive.
   - Net effect for a nonexistent handle: **`found: 0`** (zero false positives), and no
     perpetual "unverified" noise. The now-unused `crypto` category was dropped.
+- **Domain recon — replaced two sources that were timing out on every lookup.** Probed
+  live and swapped both for fast, equivalent APIs:
+  - **Subdomains: Certspotter primary, `crt.sh` as a bounded fallback.** crt.sh returns
+    the complete CT-log set but routinely exceeds 25s on busy domains (google.com never
+    returned), so subdomains silently came back empty. Certspotter returns the same
+    certificate-transparency names in well under a second (github.com → 39 real
+    subdomains); when it comes back sparse (<5 — a small/new domain, or a Certspotter
+    rate-limit) we still consult crt.sh and merge the results, and if crt.sh is
+    slow/unavailable it simply adds nothing. crt.sh also stays as the "full history"
+    pivot link.
+  - **First-archived: Wayback CDX → the `available` endpoint.** The CDX API took 15s+
+    (over its 9s cap → always failed); the availability endpoint, anchored to 1996,
+    resolves the oldest snapshot in ~0.5s (github.com → 2008-05-14).
+- **EmailRep no longer shows a permanent "rate limited" error.** Its keyless tier is
+  throttled to an instant 429 for server-side callers, so every email lookup surfaced a
+  red "Rate limited — try again" row (retrying also 429s). EmailRep now behaves like every
+  other keyed source: `NOT_CONFIGURED` (with an "add a key" hint) when no `EMAILREP_API_KEY`
+  is set, and the doomed keyless request is skipped entirely.
 - **Country dropdown was painted under the "Recent queries" card.** The `.terminal-card`
   glass style sets `backdrop-filter`, which creates a stacking context — so the phone
   country picker's `z-50` was trapped inside the input card and the sibling History card

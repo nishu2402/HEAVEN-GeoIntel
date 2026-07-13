@@ -231,6 +231,12 @@ describe("<EmailResultsDashboard> reputation / validation panels", () => {
   });
 
   it("shows the not-configured / rate-limited fallbacks for each source", () => {
+    // Default data has emailrep NOT_CONFIGURED → the "add a key" hint, matching
+    // how Abstract/Hunter present their unconfigured state.
+    const { unmount: u0 } = render(<EmailResultsDashboard data={data()} />);
+    expect(screen.getByText(/Add EMAILREP_API_KEY/)).toBeTruthy();
+    u0();
+
     const { unmount } = render(<EmailResultsDashboard data={data({ emailrep: { ok: false, error: "RATE_LIMITED" } })} />);
     expect(screen.getByText(/Rate limited — try again/)).toBeTruthy();
     expect(screen.getByText(/Add ABSTRACT_API_KEY/)).toBeTruthy();
