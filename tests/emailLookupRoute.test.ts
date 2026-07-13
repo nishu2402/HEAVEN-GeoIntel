@@ -5,9 +5,10 @@ import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/email-lookup/route";
 
-// End-to-end handler test for the email lookup. Gravatar, EmailRep, and
-// XposedOrNot are keyless and hit on every request, so all three are stubbed in
-// every case; the paid sources stay NOT_CONFIGURED unless a key env is set.
+// End-to-end handler test for the email lookup. Gravatar and XposedOrNot are
+// keyless and hit on every request, so both are stubbed in every case. EmailRep
+// needs a key (its keyless tier is a permanent 429), so it stays NOT_CONFIGURED
+// unless EMAILREP_API_KEY is set — just like the other keyed sources.
 // TRUST_PROXY=1 + a unique client IP isolates the rate-limit bucket; HV_DATA_DIR
 // points the audit + key store at a temp dir.
 
@@ -25,6 +26,7 @@ afterAll(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   delete process.env.RAPIDAPI_KEY;
+  delete process.env.EMAILREP_API_KEY;
 });
 
 const resp = (status: number, body: unknown, ok = status >= 200 && status < 300) =>
@@ -78,7 +80,7 @@ describe("POST /api/email-lookup — input validation", () => {
 });
 
 describe("POST /api/email-lookup — offline happy path (no paid keys)", () => {
-  it("classifies the address, merges Gravatar + EmailRep, and marks paid sources NOT_CONFIGURED", async () => {
+  it("classifies the address, merges Gravatar, and marks keyed sources NOT_CONFIGURED", async () => {
     stubFetch([
       ["gravatar.com", resp(200, {
         entry: [{
@@ -87,7 +89,6 @@ describe("POST /api/email-lookup — offline happy path (no paid keys)", () => {
           accounts: [{ shortname: "github", username: "testuser", url: "https://github.com/testuser" }],
         }],
       })],
-      ["emailrep.io", emailrepBenign],
       ["api.xposedornot.com", xonEmpty],
     ]);
 
@@ -106,12 +107,30 @@ describe("POST /api/email-lookup — offline happy path (no paid keys)", () => {
     expect(json.gravatar.displayName).toBe("Test User");
     expect(json.gravatar.accounts[0].shortname).toBe("github");
 
-    // EmailRep ok, breaches empty, paid sources not configured
-    expect(json.emailrep.ok).toBe(true);
+    // XposedOrNot empty; keyed sources (incl. EmailRep — keyless tier is a
+    // permanent 429) reported NOT_CONFIGURED without a doomed request.
     expect(json.xon.ok).toBe(true);
     expect(json.xon.data.breachCount).toBe(0);
+    expect(json.emailrep.error).toBe("NOT_CONFIGURED");
     expect(json.hunter.error).toBe("NOT_CONFIGURED");
     expect(json.breachDirectory.error).toBe("NOT_CONFIGURED");
+  });
+
+  it("hits EmailRep and maps its reputation payload when EMAILREP_API_KEY is set", async () => {
+    process.env.EMAILREP_API_KEY = "test-emailrep";
+    stubFetch([
+      ["gravatar.com", gravatar404],
+      ["emailrep.io", emailrepBenign],
+      ["api.xposedornot.com", xonEmpty],
+    ]);
+
+    const res = await post({ email: "keyed@gmail.com" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+
+    expect(json.emailrep.ok).toBe(true);
+    expect(json.emailrep.data.reputation).toBe("none");
+    expect(json.emailrep.data.deliverable).toBe(true);
   });
 });
 

@@ -10,7 +10,7 @@ import type {
 // ── Domain OSINT — all free, no API key ──────────────────────────────────────
 //   DNS records  : Cloudflare DNS-over-HTTPS (application/dns-json)
 //   WHOIS        : RDAP (rdap.org) — structured, free, no key
-//   Subdomains   : crt.sh certificate-transparency JSON
+//   Subdomains   : Certspotter certificate-transparency issuances (fast, no key)
 //   Email posture: SPF (TXT) + DMARC (_dmarc TXT) parsing
 
 const DOMAIN_RE = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.[a-zA-Z0-9-]{1,63})+$/;
@@ -91,45 +91,79 @@ async function fetchWhois(domain: string): Promise<DomainWhois | null> {
   }
 }
 
-async function fetchSubdomains(domain: string): Promise<string[]> {
-  try {
-    const res = await fetch(`https://crt.sh/?q=${encodeURIComponent("%." + domain)}&output=json`, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
-    });
-    if (!res.ok) return [];
-    const rows = (await res.json()) as { name_value?: string }[];
-    const set = new Set<string>();
-    for (const row of rows) {
-      for (const n of (row.name_value ?? "").split("\n")) {
-        const host = n.trim().toLowerCase().replace(/^\*\./, "");
-        if (host.endsWith(domain) && host !== domain) set.add(host);
-      }
-    }
-    return Array.from(set).sort().slice(0, 100);
-  } catch {
-    return [];
+// Certificate-transparency subdomains. Keep only real hostnames under `domain`,
+// stripping wildcards and dropping the apex itself.
+const SUBDOMAIN_FALLBACK_THRESHOLD = 5;
+
+function collectCtHosts(names: string[], domain: string, into: Set<string>): void {
+  for (const n of names) {
+    const host = n.trim().toLowerCase().replace(/^\*\./, "");
+    if (host.endsWith(domain) && host !== domain) into.add(host);
   }
 }
 
-// Internet Archive: oldest capture via the CDX API (free, no key).
+// Certspotter's free issuances API — fast, keyless, but only the ~100 most-recent
+// issuances, so a small/new domain can come back sparse.
+async function certspotterHosts(domain: string, into: Set<string>): Promise<void> {
+  try {
+    const res = await fetch(
+      `https://api.certspotter.com/v1/issuances?domain=${encodeURIComponent(domain)}&include_subdomains=true&expand=dns_names`,
+      { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(7000), next: { revalidate: 0 } },
+    );
+    if (!res.ok) return;
+    const rows = (await res.json()) as { dns_names?: string[] }[];
+    for (const row of rows) collectCtHosts(row.dns_names ?? [], domain, into);
+  } catch {
+    /* leave `into` untouched — a failure just contributes nothing */
+  }
+}
+
+// crt.sh — complete CT history but slow (can exceed 25s on busy domains). Used
+// only as a fallback when Certspotter is sparse; if it times out it simply adds
+// nothing, leaving the Certspotter set intact.
+async function crtShHosts(domain: string, into: Set<string>): Promise<void> {
+  try {
+    const res = await fetch(`https://crt.sh/?q=${encodeURIComponent("%." + domain)}&output=json`, {
+      headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
+    });
+    if (!res.ok) return;
+    const rows = (await res.json()) as { name_value?: string }[];
+    for (const row of rows) collectCtHosts((row.name_value ?? "").split("\n"), domain, into);
+  } catch {
+    /* leave `into` untouched */
+  }
+}
+
+// Probe Certspotter first (fast). Only when it comes back sparse — a small domain,
+// or a Certspotter hiccup/rate-limit — do we supplement with the slower, complete
+// crt.sh and merge. crt.sh also stays as the "full history" pivot link below.
+async function fetchSubdomains(domain: string): Promise<string[]> {
+  const hosts = new Set<string>();
+  await certspotterHosts(domain, hosts);
+  if (hosts.size < SUBDOMAIN_FALLBACK_THRESHOLD) await crtShHosts(domain, hosts);
+  return Array.from(hosts).sort().slice(0, 100);
+}
+
+// Internet Archive: oldest capture via the fast "available" endpoint (free, no
+// key). Anchoring the query to 1996 — the archive's own start — makes "closest"
+// resolve to the oldest snapshot on record. The CDX API returns the same first
+// capture but routinely takes 15s+; this answers in well under a second.
 function waybackTs(ts: string): string {
   const m = ts.match(/^(\d{4})(\d{2})(\d{2})/);
   return m ? `${m[1]}-${m[2]}-${m[3]}` : ts;
 }
 async function fetchWayback(domain: string): Promise<DomainLookupResponse["wayback"]> {
-  const r = await fetchJson<string[][]>(
-    `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}&output=json&fl=timestamp,original&limit=1`,
-    { source: "Wayback Machine", timeoutMs: 9000 },
+  const r = await fetchJson<{ archived_snapshots?: { closest?: { timestamp?: string; url?: string } } }>(
+    `https://archive.org/wayback/available?url=${encodeURIComponent(domain)}&timestamp=19960101`,
+    { source: "Wayback Machine", timeoutMs: 7000 },
   );
-  if (!r.ok || !Array.isArray(r.data)) return r.status === 0 ? null : { available: false, firstSnapshot: null, snapshotUrl: null };
-  const rows = r.data.slice(1); // first row is the column header
-  if (rows.length === 0 || !rows[0]?.[0]) return { available: false, firstSnapshot: null, snapshotUrl: null };
-  const [ts, original] = rows[0];
+  if (!r.ok || !r.data) return r.status === 0 ? null : { available: false, firstSnapshot: null, snapshotUrl: null };
+  const closest = r.data.archived_snapshots?.closest;
+  if (!closest?.timestamp) return { available: false, firstSnapshot: null, snapshotUrl: null };
   return {
     available: true,
-    firstSnapshot: waybackTs(ts),
-    snapshotUrl: `https://web.archive.org/web/${ts}/${original ?? domain}`,
+    firstSnapshot: waybackTs(closest.timestamp),
+    snapshotUrl: (closest.url ?? `https://web.archive.org/web/${closest.timestamp}/${domain}`).replace(/^http:/, "https:"),
   };
 }
 

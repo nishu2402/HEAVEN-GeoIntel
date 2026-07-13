@@ -175,8 +175,8 @@ During a penetration test or OSINT investigation, analysts spend significant tim
 Target  ─►  phone │ email │ username │ IP │ domain
         │
         ├─ Instant offline analysis    (libphonenumber-js · MCC/MNC · NPA · bundled datasets)
-        ├─ Free no-key source fan-out   (Hudson Rock · XposedOrNot · Gravatar · EmailRep ·
-        │                                ip-api · Cloudflare DoH · RDAP · crt.sh · 47 username sites)
+        ├─ Free no-key source fan-out   (Hudson Rock · XposedOrNot · Gravatar · ip-api ·
+        │                                Cloudflare DoH · RDAP · Certspotter · 47 username sites)
         ├─ Optional API enrichment      (IPQualityScore · Twilio · Hunter.io · FullContact · BreachDirectory)
         ├─ OSINT pivot matrix           (38 phone links · 26 email links · tier-tagged · deduplicated)
         ├─ Link-analysis graph          (connect phone ⇄ email ⇄ username ⇄ IP ⇄ domain)
@@ -488,14 +488,14 @@ Both are **free, no-key**, and validate input before any outbound request.
 
 Accepts IPv4 and IPv6.
 
-### 🌐 Domain intelligence (DNS-over-HTTPS · RDAP · crt.sh)
+### 🌐 Domain intelligence (DNS-over-HTTPS · RDAP · Certspotter)
 
 | Section | Source |
 |---|---|
 | **DNS records** | A · AAAA · MX · NS · CNAME · TXT — via Cloudflare DNS-over-HTTPS |
 | **Email-security posture** | SPF present? · DMARC policy (none/quarantine/reject) · MX present? |
 | **WHOIS** | Registrar · created / updated / expires · nameservers · status — via RDAP (no key) |
-| **Subdomains** | Discovered through certificate transparency (crt.sh), up to 100 |
+| **Subdomains** | Certificate transparency — Certspotter (fast, no key), with a crt.sh fallback when sparse; up to 100 |
 | **Pivots** | crt.sh · SecurityTrails · VirusTotal · Shodan · URLScan · Wayback · DNSDumpster · MXToolbox |
 
 Accepts bare domains or full URLs (scheme/path/`www.` are stripped automatically).
@@ -566,7 +566,7 @@ The app works fully without API keys (offline analysis + free no-key sources). A
 | **BreachDirectory** (RapidAPI) | Real SHA-1/MD5 credential hashes (phone + email) | 50/day free |
 | **FullContact** | Real name · employer · social profiles · linked contacts | 500/mo free |
 | **Hunter.io** | Email deliverability + confidence | 25/mo free |
-| **EmailRep.io** | Reputation · breach flags · platform registrations | works without key |
+| **EmailRep.io** | Reputation · breach flags · platform registrations | needs key (keyless tier is 429-limited) |
 
 </div>
 
@@ -601,13 +601,13 @@ POST /api/lookup        { number }   → libphonenumber + NPA + country dataset 
                                          Twilio · BreachDirectory · FullContact  (Promise.allSettled)
 
 POST /api/email-lookup  { email }    → offline classification + name inference
-                                       ‖ Gravatar · XposedOrNot · EmailRep (free) ‖ optional:
-                                         FullContact · BreachDirectory · Abstract · Hunter.io
+                                       ‖ Gravatar · XposedOrNot (free) ‖ optional:
+                                         FullContact · BreachDirectory · Abstract · Hunter.io · EmailRep
 
-POST /api/username-lookup { username } → 29 auto-verified + 15 manual → found / notfound / unverified / manual
+POST /api/username-lookup { username } → 28 auto-verified + 19 manual → found / notfound / unverified / manual
 POST /api/ip-lookup     { ip }       → ip-api: geo · ASN · ISP · reverse DNS · proxy/hosting/mobile + risk
 POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT) ‖ RDAP whois ‖
-                                       crt.sh subdomains ‖ SPF/DMARC posture
+                                       Certspotter subdomains ‖ SPF/DMARC posture
 ```
 
 Every route validates input first and only interpolates it (URL-encoded) into **fixed** upstream hosts — never an attacker-chosen host (no SSRF). A single source failing never fails the whole lookup.
