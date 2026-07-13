@@ -6,8 +6,8 @@ import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/domain-lookup/route";
 
 // Drives the domain OSINT handler with every free upstream mocked: Cloudflare
-// DoH (8 record types incl. SPF/_dmarc TXT + DNSKEY), RDAP whois, crt.sh
-// subdomains, and the Wayback CDX API.
+// DoH (8 record types incl. SPF/_dmarc TXT + DNSKEY), RDAP whois, Certspotter
+// certificate-transparency subdomains, and the Wayback availability API.
 
 let dir: string;
 beforeAll(() => {
@@ -26,7 +26,9 @@ const json = (body: unknown, status = 200) =>
   ({ ok: status >= 200 && status < 300, status, json: async () => body }) as unknown as Response;
 
 // A DoH answer set keyed by record type; TXT distinguishes SPF vs _dmarc by name.
-function stubDomainUpstreams() {
+// `certspotter` / `crtsh` override the two certificate-transparency sources so a
+// test can exercise the sparse-Certspotter → crt.sh fallback and the failure path.
+function stubDomainUpstreams(opts: { certspotter?: Response; crtsh?: Response } = {}) {
   vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
     const u = new URL(String(url));
     const host = u.hostname;
@@ -64,15 +66,25 @@ function stubDomainUpstreams() {
       });
     }
 
-    if (host === "crt.sh") {
-      return json([
-        { name_value: "www.acme.test\napi.acme.test" },
-        { name_value: "*.acme.test" }, // wildcard + apex are filtered out
+    if (host === "api.certspotter.com") {
+      return opts.certspotter ?? json([
+        { dns_names: ["www.acme.test", "api.acme.test"] },
+        { dns_names: ["*.acme.test", "acme.test"] }, // wildcard + apex are filtered out
       ]);
     }
 
-    if (host === "web.archive.org") {
-      return json([["timestamp", "original"], ["20040115120000", "http://acme.test/"]]);
+    // crt.sh fallback — only fetched when Certspotter comes back sparse (<5).
+    // Default set dupes www.* (deduped) and adds blog.* (merged in).
+    if (host === "crt.sh") {
+      return opts.crtsh ?? json([{ name_value: "www.acme.test\nblog.acme.test" }]);
+    }
+
+    if (host === "archive.org") {
+      return json({
+        archived_snapshots: {
+          closest: { timestamp: "20040115120000", url: "http://web.archive.org/web/20040115120000/http://acme.test/" },
+        },
+      });
     }
 
     throw new TypeError("unexpected fetch: " + u.href);
@@ -127,13 +139,35 @@ describe("POST /api/domain-lookup — full recon merge", () => {
     expect(j.whois.createdDate).toBe("2001-05-04T00:00:00Z");
     expect(j.whois.nameservers).toContain("ns1.acme.test");
 
-    // Only real subdomains (apex + wildcard removed)
-    expect(j.subdomains.sort()).toEqual(["api.acme.test", "www.acme.test"]);
+    // Certspotter (sparse: www + api) is supplemented by the crt.sh fallback
+    // (adds blog, dedupes www); apex + wildcard removed throughout.
+    expect(j.subdomains.sort()).toEqual(["api.acme.test", "blog.acme.test", "www.acme.test"]);
 
     expect(j.wayback.available).toBe(true);
     expect(j.wayback.firstSnapshot).toBe("2004-01-15");
 
     expect(j.pivots.length).toBeGreaterThan(0);
+  });
+
+  it("skips the crt.sh fallback when Certspotter already returns enough subdomains", async () => {
+    // 5 Certspotter subdomains ⇒ at the threshold ⇒ crt.sh is never consulted, so
+    // its sentinel host must not appear in the merged result.
+    stubDomainUpstreams({
+      certspotter: json([{ dns_names: ["a.acme.test", "b.acme.test", "c.acme.test", "d.acme.test", "e.acme.test"] }]),
+      crtsh: json([{ name_value: "crtsh-only.acme.test" }]),
+    });
+    const j = await (await post({ domain: "acme.test" })).json();
+    expect(j.subdomains).toEqual(["a.acme.test", "b.acme.test", "c.acme.test", "d.acme.test", "e.acme.test"]);
+    expect(j.subdomains).not.toContain("crtsh-only.acme.test");
+  });
+
+  it("degrades to zero subdomains when both certificate-transparency sources fail", async () => {
+    stubDomainUpstreams({
+      certspotter: json({ error: "rate limited" }, 429),
+      crtsh: json("gateway timeout", 504),
+    });
+    const j = await (await post({ domain: "acme.test" })).json();
+    expect(j.subdomains).toEqual([]);
   });
 
   it("normalizes a full URL (scheme/path/www) down to the bare domain", async () => {

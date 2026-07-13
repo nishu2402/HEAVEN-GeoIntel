@@ -98,11 +98,14 @@ async function fetchGravatar(email: string): Promise<GravatarProfile> {
 // ── EmailRep.io ───────────────────────────────────────────────────────────────
 async function fetchEmailRep(email: string): Promise<SourceResult<EmailRepData>> {
   try {
-    // Only include Key header when a key is actually configured —
-    // sending an empty string causes EmailRep.io to return 401
-    const headers: Record<string, string> = { "User-Agent": "HEAVEN-GeoIntel/1.3" };
+    // EmailRep's keyless tier is throttled to a near-instant 429 for server-side
+    // callers, so a request without a key only ever produces a misleading "rate
+    // limited" error on every lookup. Treat "no key" exactly like the other keyed
+    // sources (Abstract, Hunter, …): report NOT_CONFIGURED and skip the doomed
+    // request entirely, rather than surfacing a permanent error row.
     const emailRepKey = await resolveKey("EMAILREP_API_KEY");
-    if (emailRepKey) headers["Key"] = emailRepKey;
+    if (!emailRepKey) return { ok: false, error: "NOT_CONFIGURED" };
+    const headers: Record<string, string> = { "User-Agent": "HEAVEN-GeoIntel/1.3", Key: emailRepKey };
 
     const res = await fetch(`https://emailrep.io/${encodeURIComponent(email)}`, {
       headers,
