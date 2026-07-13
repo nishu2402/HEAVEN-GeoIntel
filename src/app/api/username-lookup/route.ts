@@ -50,9 +50,10 @@ async function fetchReddit(username: string): Promise<SocialProfile | null> {
 }
 
 // ── Username OSINT — free, no API key ────────────────────────────────────────
-// Checks a username against ~45 high-signal sites in parallel (server-side, so
-// no CORS). Classifies each as found / notfound / unknown using either HTTP
-// status or a "user not found" body marker. Conservative: ambiguous → unknown.
+// Checks a username against the sweep catalog in parallel (server-side, so no
+// CORS), alongside 4 rich API providers. Classifies each as found / notfound /
+// unknown using either HTTP status or a "user not found" body marker.
+// Conservative: ambiguous → unknown; unverifiable-server-side → manual.
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
@@ -65,9 +66,10 @@ async function checkSite(
   const profile = (site.profile ?? site.url).replace("{u}", username);
   const base: UsernameHit = { site: site.name, category: site.category, url: profile, status: "unknown" };
 
-  // "manual" sites can't be verified by a server-side probe (JS-rendered SPA or
-  // a bot-wall that returns HTTP 200 for everyone). Don't fetch — never claim
-  // found/notfound, just hand the analyst a link. Also skips 15 dead requests.
+  // "manual" sites can't be verified by a server-side probe — either a JS SPA /
+  // bot-wall that returns HTTP 200 for everyone, or an anti-bot challenge that
+  // 403s our keyless fetch. Don't fetch — never claim found/notfound, just hand
+  // the analyst a link. Also skips those dead requests. See usernameSites.ts.
   if (site.check === "manual") {
     return { ...base, status: "manual" };
   }
