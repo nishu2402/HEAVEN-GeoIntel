@@ -15,13 +15,21 @@ describe("usernameSites catalog", () => {
     }
   });
 
-  it("bot-walled SPAs that answer 200 for everyone are 'manual' (never auto-claimed)", () => {
-    // These were empirically verified to return HTTP 200 for both real and
-    // nonexistent usernames — a status check would be a guaranteed false positive.
+  it("sites we cannot verify server-side are 'manual' (never auto-claimed)", () => {
+    // Two reasons a site is manual, both verified with live probes of a real vs.
+    // a nonexistent handle:
+    //   (a) a JS SPA / bot-wall that returns HTTP 200 for EVERYONE — a status
+    //       check there would be a guaranteed false positive; and
+    //   (b) an anti-bot challenge (Cloudflare/Anubis/Fastly) that 403s our
+    //       keyless server fetch for real and fake users alike — a status check
+    //       there only ever yields "unknown" noise.
     const mustBeManual = [
+      // (a) 200-for-everyone SPAs / bot-walls
       "Instagram", "TikTok", "X / Twitter", "Telegram", "Threads",
       "Bluesky", "Pinterest", "Spotify", "PyPI", "Replit", "Kaggle",
       "Trello", "Twitch", "Xbox Gamertag",
+      // (b) anti-bot challenge that blocks our fetch (was falsely "status" before)
+      "npm", "Codeberg", "CodePen", "Product Hunt", "Last.fm",
     ];
     for (const name of mustBeManual) {
       const site = USERNAME_SITES.find((s) => s.name === name);
@@ -30,11 +38,28 @@ describe("usernameSites catalog", () => {
     }
   });
 
-  it("reliable 404-based forges stay auto-checked (status)", () => {
-    for (const name of ["Codeberg", "Docker Hub", "npm", "CodePen"]) {
+  it("sites that return a clean 200/404 stay auto-checked (status)", () => {
+    // Each verified with a live probe: 200 for a known-real handle, 404 for a
+    // known-nonexistent one. Medium is probed via its RSS feed (see profile URL).
+    for (const name of [
+      "Docker Hub", "Mastodon (.social)", "VK", "YouTube", "SoundCloud",
+      "DeviantArt", "Flickr", "Vimeo", "Medium", "Patreon", "Chess.com",
+      "Lichess", "Roblox", "itch.io", "Tumblr", "Keybase", "Linktree",
+      "Buy Me a Coffee", "Wattpad",
+    ]) {
       const site = USERNAME_SITES.find((s) => s.name === name);
       expect(site?.check, name).toBe("status");
     }
+  });
+
+  it("Medium is probed via its (unwalled) RSS feed but linked to the pretty profile", () => {
+    const medium = USERNAME_SITES.find((s) => s.name === "Medium");
+    expect(medium?.url).toBe("https://medium.com/feed/@{u}");
+    expect(medium?.profile).toBe("https://medium.com/@{u}");
+  });
+
+  it("does not include GitHub Sponsors (302-redirects to the plain GitHub profile → misleading)", () => {
+    expect(USERNAME_SITES.find((s) => s.name === "GitHub Sponsors")).toBeUndefined();
   });
 
   it("keyless-API providers are handled as rich profiles, not in the sweep catalog", () => {

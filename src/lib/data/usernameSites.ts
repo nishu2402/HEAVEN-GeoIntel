@@ -7,13 +7,19 @@
 
 // "status" — exists if the profile URL returns 200, free if 404.
 // "body"   — exists if 200 AND the response body lacks an `absence` marker.
-// "manual" — existence CANNOT be determined server-side (JS-rendered SPA or a
-//            bot-wall that returns 200 for everyone). NEVER auto-claimed; shown
-//            as an "open to verify" link. Empirically verified: these sites
-//            return HTTP 200 for both real and nonexistent usernames.
+// "manual" — existence CANNOT be determined server-side, for either reason:
+//            (a) a JS-rendered SPA / bot-wall that returns HTTP 200 for everyone,
+//                so a status probe would false-positive on every username, or
+//            (b) an anti-bot challenge (Cloudflare / Anubis / Fastly WAF) that
+//                blocks our keyless server-side fetch with a 403/interstitial for
+//                real AND fake users alike, so a status probe only ever yields
+//                "unknown" noise.
+//            Either way we NEVER auto-claim found/notfound — we hand the analyst
+//            an "open to verify" link. Every classification here was chosen from
+//            live probes of a known-real handle vs. a known-nonexistent one.
 export type CheckMethod = "status" | "body" | "manual";
 export type UsernameCategory =
-  | "developer" | "social" | "creative" | "gaming" | "forum" | "professional" | "crypto";
+  | "developer" | "social" | "creative" | "gaming" | "forum" | "professional";
 
 export interface UsernameSite {
   name: string;
@@ -36,13 +42,16 @@ export const USERNAME_SITES: UsernameSite[] = [
   { name: "Replit",        category: "developer",    url: "https://replit.com/@{u}",                check: "manual" },
   { name: "Docker Hub",    category: "developer",    url: "https://hub.docker.com/u/{u}",           check: "status" },
   { name: "PyPI",          category: "developer",    url: "https://pypi.org/user/{u}/",             check: "manual" },
-  { name: "npm",           category: "developer",    url: "https://www.npmjs.com/~{u}",             check: "status" },
   // NOTE: Stack Overflow has no clean username→profile URL (profiles are keyed by
   // numeric id). Its /users/filter?search= page returns HTTP 200 for ANY query,
-  // which a status-check would misreport as "found" for every username — a false
-  // positive. Codeberg (a Gitea forge) returns a real 404 for non-existent users.
-  { name: "Codeberg",      category: "developer",    url: "https://codeberg.org/{u}",               check: "status" },
-  { name: "CodePen",       category: "developer",    url: "https://codepen.io/{u}",                 check: "status" },
+  // which a status-check would misreport as "found" for every username.
+  // npm (npmjs.com), Codeberg (Anubis) and CodePen sit behind an anti-bot
+  // challenge that 403s our keyless server-side fetch for real AND fake users
+  // alike — a status probe there only ever yields "unknown", so they are `manual`
+  // (open-to-verify links) rather than a wall of unverified rows.
+  { name: "npm",           category: "developer",    url: "https://www.npmjs.com/~{u}",             check: "manual" },
+  { name: "Codeberg",      category: "developer",    url: "https://codeberg.org/{u}",               check: "manual" },
+  { name: "CodePen",       category: "developer",    url: "https://codepen.io/{u}",                 check: "manual" },
   { name: "Kaggle",        category: "developer",    url: "https://www.kaggle.com/{u}",             check: "manual" },
 
   // ── Social ──
@@ -55,6 +64,7 @@ export const USERNAME_SITES: UsernameSite[] = [
   { name: "Bluesky",       category: "social",       url: "https://bsky.app/profile/{u}.bsky.social", check: "manual" },
   { name: "VK",            category: "social",       url: "https://vk.com/{u}",                     check: "status" },
   { name: "Pinterest",     category: "social",       url: "https://www.pinterest.com/{u}/",         check: "manual" },
+  { name: "Tumblr",        category: "social",       url: "https://{u}.tumblr.com",                 check: "status" },
 
   // ── Creative / media ──
   { name: "YouTube",       category: "creative",     url: "https://www.youtube.com/@{u}",           check: "status" },
@@ -66,27 +76,36 @@ export const USERNAME_SITES: UsernameSite[] = [
   { name: "DeviantArt",    category: "creative",     url: "https://www.deviantart.com/{u}",         check: "status" },
   { name: "Flickr",        category: "creative",     url: "https://www.flickr.com/people/{u}",      check: "status" },
   { name: "Vimeo",         category: "creative",     url: "https://vimeo.com/{u}",                  check: "status" },
-  { name: "Medium",        category: "creative",     url: "https://medium.com/@{u}",                check: "status" },
+  // medium.com/@{u} is Cloudflare-walled to server fetches, but the public RSS
+  // feed is not and returns a clean 200 (exists) / 404 (free) — so we probe the
+  // feed and show the analyst the pretty profile URL.
+  { name: "Medium",        category: "creative",     url: "https://medium.com/feed/@{u}", profile: "https://medium.com/@{u}", check: "status" },
   { name: "Patreon",       category: "creative",     url: "https://www.patreon.com/{u}",            check: "status" },
 
   // ── Gaming ──
   { name: "Steam",         category: "gaming",       url: "https://steamcommunity.com/id/{u}",      check: "body", absence: "The specified profile could not be found." },
   { name: "Xbox Gamertag", category: "gaming",       url: "https://account.xbox.com/en-us/profile?gamertag={u}", check: "manual" },
   { name: "Chess.com",     category: "gaming",       url: "https://www.chess.com/member/{u}",       check: "status" },
+  { name: "Lichess",       category: "gaming",       url: "https://lichess.org/@/{u}",              check: "status" },
   { name: "Roblox",        category: "gaming",       url: "https://www.roblox.com/user.aspx?username={u}", check: "status" },
+  { name: "itch.io",       category: "gaming",       url: "https://{u}.itch.io",                    check: "status" },
 
   // ── Professional / forum ──
   { name: "Keybase",       category: "professional", url: "https://keybase.io/{u}",                 check: "status" },
   { name: "About.me",      category: "professional", url: "https://about.me/{u}",                   check: "status" },
   { name: "Gravatar",      category: "professional", url: "https://gravatar.com/{u}",               check: "status" },
   { name: "Linktree",      category: "professional", url: "https://linktr.ee/{u}",                  check: "status" },
-  { name: "Product Hunt",  category: "professional", url: "https://www.producthunt.com/@{u}",       check: "status" },
+  { name: "Buy Me a Coffee", category: "professional", url: "https://www.buymeacoffee.com/{u}",     check: "status" },
+  // Product Hunt (Cloudflare) and Last.fm (Fastly WAF, intermittent HTTP 600)
+  // both block our keyless server fetch → manual, not an "unverified" wall.
+  { name: "Product Hunt",  category: "professional", url: "https://www.producthunt.com/@{u}",       check: "manual" },
   { name: "Wattpad",       category: "forum",        url: "https://www.wattpad.com/user/{u}",       check: "status" },
-  { name: "Last.fm",       category: "creative",     url: "https://www.last.fm/user/{u}",           check: "status" },
+  { name: "Last.fm",       category: "creative",     url: "https://www.last.fm/user/{u}",           check: "manual" },
   { name: "Trello",        category: "professional", url: "https://trello.com/{u}",                 check: "manual" },
-
-  // ── Crypto ──
-  { name: "GitHub Sponsors", category: "crypto",     url: "https://github.com/sponsors/{u}",        check: "status" },
+  // NOTE: GitHub Sponsors was removed — github.com/sponsors/{u} 302-redirects to
+  // the plain github.com/{u} profile for ANY existing GitHub user, so it fired on
+  // every GitHub account as a misleading "found" that just duplicates the rich
+  // GitHub profile card (see analysis/usernameProfiles.ts).
 ];
 
 export const USERNAME_CATEGORY_META: Record<UsernameCategory, { label: string; color: string }> = {
@@ -96,7 +115,6 @@ export const USERNAME_CATEGORY_META: Record<UsernameCategory, { label: string; c
   gaming:       { label: "GAMING",        color: "#fb923c" },
   forum:        { label: "FORUM",         color: "#facc15" },
   professional: { label: "PROFESSIONAL",  color: "#38bdf8" },
-  crypto:       { label: "CRYPTO",        color: "#f59e0b" },
 };
 
 /** Validate a username is plausibly real before we hammer 45 sites with it. */

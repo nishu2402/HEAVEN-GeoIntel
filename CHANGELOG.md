@@ -246,6 +246,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   runs.
 
 ### Fixed
+- **Username sweep accuracy — verified every check against live probes.** Each site
+  was re-tested with a known-real handle vs. a known-nonexistent one (via the app's own
+  Node `fetch`, not a browser), and the catalog corrected to match reality:
+  - **Removed `GitHub Sponsors`** — `github.com/sponsors/{u}` 302-redirects to the plain
+    `github.com/{u}` profile for *any* existing GitHub user, so it fired on every account
+    as a misleading "found" that merely duplicated the rich GitHub profile card.
+  - **Reclassified `npm`, `Codeberg`, `CodePen`, `Product Hunt`, `Last.fm` to `manual`** —
+    all sit behind an anti-bot challenge (Cloudflare / Anubis / Fastly WAF) that 403s a
+    keyless server fetch for real and fake users alike, so a status check only ever
+    produced an "unverified" wall. They are now honest open-to-verify links.
+  - **Fixed `Medium`** — the profile page is Cloudflare-walled to server fetches, but the
+    public RSS feed is not, so the check now probes `medium.com/feed/@{u}` (clean 200/404)
+    while still linking the reader to the pretty `medium.com/@{u}` profile.
+  - **Added `Lichess`, `itch.io`, `Tumblr`, `Buy Me a Coffee`** — each confirmed to return
+    a clean 200 (exists) / 404 (free), double-checked against two real handles and two
+    nonexistent ones so they can never false-positive.
+  - Net effect for a nonexistent handle: **`found: 0`** (zero false positives), and no
+    perpetual "unverified" noise. The now-unused `crypto` category was dropped.
 - **Country dropdown was painted under the "Recent queries" card.** The `.terminal-card`
   glass style sets `backdrop-filter`, which creates a stacking context — so the phone
   country picker's `z-50` was trapped inside the input card and the sibling History card

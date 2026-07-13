@@ -142,7 +142,7 @@
 | 🔑 **Core Requirement** | Zero API keys — offline + free-source enrichment works out of the box |
 | 📞 **Phone OSINT** | Carrier · type · NPA geo · fraud/threat score · pivots · QR · report export |
 | 📧 **Email OSINT** | Breach (XposedOrNot) · reputation · identity · validation · credential hashes |
-| 🧑‍💻 **Username OSINT** | 44 sites checked in parallel, grouped by category, presence-scored |
+| 🧑‍💻 **Username OSINT** | 47 sites checked in parallel, grouped by category, presence-scored |
 | 🌐 **IP / Domain OSINT** | IP geo + ASN + VPN/proxy flags · domain DNS + WHOIS + SPF/DMARC + cert-transparency subdomains |
 | 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier** — free, no key, always-on |
 | 💥 **Breach Intelligence** | XposedOrNot (free) + BreachDirectory (RapidAPI) + 5 one-click free breach lookups |
@@ -176,7 +176,7 @@ Target  ─►  phone │ email │ username │ IP │ domain
         │
         ├─ Instant offline analysis    (libphonenumber-js · MCC/MNC · NPA · bundled datasets)
         ├─ Free no-key source fan-out   (Hudson Rock · XposedOrNot · Gravatar · EmailRep ·
-        │                                ip-api · Cloudflare DoH · RDAP · crt.sh · 44 username sites)
+        │                                ip-api · Cloudflare DoH · RDAP · crt.sh · 47 username sites)
         ├─ Optional API enrichment      (IPQualityScore · Twilio · Hunter.io · FullContact · BreachDirectory)
         ├─ OSINT pivot matrix           (38 phone links · 26 email links · tier-tagged · deduplicated)
         ├─ Link-analysis graph          (connect phone ⇄ email ⇄ username ⇄ IP ⇄ domain)
@@ -203,7 +203,7 @@ One unified console with an **8-mode switcher**. The first five are live lookups
 |---|---|
 | 📡 **Phone** | Full phone OSINT — carrier, breach, infostealer, identity, pivots |
 | ✉ **Email** | Full email OSINT — breach, reputation, identity, validation, pivots |
-| @ **Username** | Check a handle across 44 sites in parallel (found / unverified) |
+| @ **Username** | Check a handle across 47 sites in parallel (found / unverified) |
 | ⦿ **IP** | Geo · ASN · ISP · reverse DNS · VPN/proxy/hosting flags · risk score |
 | 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · cert-transparency subdomains |
 | ≡ **Bulk** | Triage up to 25 phone numbers → CSV export |
@@ -447,7 +447,7 @@ user@domain.com   ·   first.last@corporate.org   ·   user+tag@provider.net
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:BF5FFF,50:44FF88,100:00D9D9"/>
 </p>
 
-Enter a handle and HEAVEN-GeoIntel checks **44 sites** for it. **29 are auto-verified server-side** (so no CORS limits) and marked **FOUND** or **UNVERIFIED**. The other **15 are JS apps or bot-walls that return HTTP 200 for *every* username** (Instagram, TikTok, X, Reddit, Telegram, …) — a server probe genuinely can't tell if the handle exists there, so the tool **never guesses**: it flags them **VERIFY →** as one-click links you open to confirm. That's the difference between this and tools that proudly report "found on 40 sites" — most of those are false positives.
+Enter a handle and HEAVEN-GeoIntel checks **47 sites** for it. **28 are auto-verified server-side** (so no CORS limits) and marked **FOUND** or **UNVERIFIED**. The other **19 are JS apps or bot-walls that answer for *every* username, or anti-bot challenges that block a keyless server fetch** (Instagram, TikTok, X, Telegram, npm, …) — a server probe genuinely can't tell if the handle exists there, so the tool **never guesses**: it flags them **VERIFY →** as one-click links you open to confirm. That's the difference between this and tools that proudly report "found on 40 sites" — most of those are false positives.
 
 <div align="center">
 
@@ -737,7 +737,7 @@ HEAVEN-GeoIntel/
 │   │   ├── api/
 │   │   │   ├── lookup/route.ts          phone
 │   │   │   ├── email-lookup/route.ts    email
-│   │   │   ├── username-lookup/route.ts username enumeration (44 sites)
+│   │   │   ├── username-lookup/route.ts username enumeration (47 sites)
 │   │   │   ├── ip-lookup/route.ts       IP geo/ASN/risk
 │   │   │   ├── domain-lookup/route.ts   DNS · WHOIS · subdomains
 │   │   │   ├── bulk-lookup/route.ts     bulk phone (max 25)
@@ -803,7 +803,7 @@ HEAVEN-GeoIntel/
 | **UX** | `cmdk` ⌘K command palette · 3D tilt cards · holographic borders · glassmorphism |
 | **Animation / Viz** | Framer Motion · Canvas API (katakana rain · QR) · hand-rolled SVG link graph |
 | **Breach / Infostealer** | Hudson Rock Cavalier (free) · XposedOrNot (free) · BreachDirectory via RapidAPI |
-| **Username OSINT** | 44-site parallel existence checks (server-side, no key) |
+| **Username OSINT** | 47-site parallel existence checks (server-side, no key) |
 | **IP / Domain OSINT** | ip-api · Cloudflare DNS-over-HTTPS · RDAP · crt.sh (all free · no key) |
 | **Identity / Reputation** | FullContact · Gravatar · EmailRep.io · Hunter.io |
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
