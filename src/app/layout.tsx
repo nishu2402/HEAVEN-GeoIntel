@@ -3,6 +3,13 @@ import { JetBrains_Mono } from "next/font/google";
 import "./globals.css"; // side-effect import — DO NOT remove (loads the global stylesheet)
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 
+// Static, compile-time constant — no user or runtime input reaches it. Applies the
+// persisted theme before first paint to prevent a flash of the wrong theme.
+// Uses only ===, try/catch and dot access — no <, >, or & — so React renders it
+// verbatim as a plain inline <script> child (no dangerouslySetInnerHTML needed).
+const THEME_INIT =
+  "try{var t=localStorage.getItem('heaven-geointel-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}";
+
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains-mono",
@@ -74,13 +81,9 @@ export default function RootLayout({
     // per Next.js theming guidance) so it never logs a hydration error.
     <html lang="en" data-theme="dark" suppressHydrationWarning className={jetbrainsMono.variable}>
       <head>
-        {/* Apply persisted theme before paint to avoid a flash of the wrong theme. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "try{var t=localStorage.getItem('heaven-geointel-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}",
-          }}
-        />
+        {/* Apply persisted theme before paint to avoid a flash of the wrong theme.
+            A plain inline <script> child runs synchronously during head parse. */}
+        <script id="theme-init">{THEME_INIT}</script>
       </head>
       <body className="min-h-screen antialiased font-mono">
         {/* Skip link — invisible until keyboard-focused, jumps past header straight to main */}
