@@ -18,8 +18,11 @@ import type {
   SourceResult,
 } from "@/lib/types";
 
-function md5(str: string): string {
-  return createHash("md5").update(str).digest("hex");
+// Gravatar identifies an account by a hash of its lowercased, trimmed email.
+// The API accepts SHA-256 (its recommended, current form) as well as legacy MD5
+// for both the profile JSON and the avatar endpoint — we use SHA-256.
+function gravatarHash(email: string): string {
+  return createHash("sha256").update(email).digest("hex");
 }
 
 // In-memory cache (shared with phone cache module style — simple Map)
@@ -44,7 +47,7 @@ function setCachedEmail(email: string, data: EmailLookupResponse): void {
 
 // ── Gravatar ──────────────────────────────────────────────────────────────────
 async function fetchGravatar(email: string): Promise<GravatarProfile> {
-  const hash = md5(email.toLowerCase().trim());
+  const hash = gravatarHash(email.toLowerCase().trim());
   const empty: GravatarProfile = {
     found: false, displayName: null, preferredUsername: null,
     aboutMe: null, currentLocation: null, profileUrl: null,
