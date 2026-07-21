@@ -27,6 +27,8 @@
 .claude/
 .vscode/
 .idea/
+# markdown-preview cache of the README's remote images
+/.offline-markdown-preview/
 
 # debug
 npm-debug.log*

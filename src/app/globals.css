@@ -177,6 +177,18 @@ body::after {
 @keyframes hv-scan-sweep { 0% { transform: translateX(-120%); } 100% { transform: translateX(420%); } }
 .hv-scan-sweep { animation: hv-scan-sweep 1.1s ease-in-out infinite; }
 
+/* ── Brand mark ──
+   The logo's orbit ring completes one slow revolution on hover. transform-box
+   keeps transform-origin in the SVG's own 64×64 user space rather than the
+   element's bounding box, so the ring pivots about the globe's centre. The
+   keyframes start at the mark's resting -20° tilt so there is no jump on
+   hover-in. The global prefers-reduced-motion rule below neutralises this. */
+@keyframes hv-orbit { from { transform: rotate(-20deg); } to { transform: rotate(340deg); } }
+.hv-logo-mark .hv-logo-orbit { transform-box: view-box; transform-origin: 32px 32px; }
+.hv-logo-mark:hover .hv-logo-orbit { animation: hv-orbit 6s linear infinite; }
+.hv-logo-mark { transition: filter .3s ease; }
+.hv-logo-mark:hover { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--hv-green) 55%, transparent)); }
+
 /* ── Glow helpers (strength scales with theme) ── */
 .glow-green { text-shadow: 0 0 calc(8px * var(--hv-glow-strength)) var(--hv-green), 0 0 calc(20px * var(--hv-glow-strength)) color-mix(in srgb, var(--hv-green) 40%, transparent); }
 .glow-cyan  { text-shadow: 0 0 calc(8px * var(--hv-glow-strength)) var(--hv-cyan),  0 0 calc(20px * var(--hv-glow-strength)) color-mix(in srgb, var(--hv-cyan) 40%, transparent); }

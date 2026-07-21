@@ -1,15 +1,15 @@
-# 🌐 HEAVEN-GeoIntel
+<p align="center">
+  <img width="100%" src="public/brand/hero.png" alt="HEAVEN-GeoIntel — Unified OSINT Platform"/>
+</p>
+
+# HEAVEN-GeoIntel
 
 <p align="center">
-  <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&height=320&color=0:05070F,15:0D0500,30:1A0A00,45:2D1500,60:7A3500,75:FFAA00,90:BF5FFF,100:05070F&text=HEAVEN-GeoIntel&fontSize=40&fontAlignY=38&fontColor=ffffff&animation=twinkling&desc=Unified%20OSINT%20Platform%20%7C%20Phone%20%C2%B7%20Email%20%C2%B7%20Username%20%C2%B7%20IP%20%C2%B7%20Domain%20%7C%20Zero%20API%20Keys%20Required&descAlignY=65&descSize=18"/>
+<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=00FF85&center=true&vCenter=true&width=1200&lines=Unified+OSINT+Intelligence+Platform;Phone+%C2%B7+Email+%C2%B7+Username+%C2%B7+IP+%C2%B7+Domain+%E2%80%94+5+Identifier+Types;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;Link-Analysis+Graph+%C2%B7+Persistent+Cases+%C2%B7+%E2%8C%98K+Command+Palette;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+16+%C2%B7+TypeScript"/>
 </p>
 
 <p align="center">
-<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=FFAA00&center=true&vCenter=true&width=1200&lines=Unified+OSINT+Intelligence+Platform;Phone+%C2%B7+Email+%C2%B7+Username+%C2%B7+IP+%C2%B7+Domain+%E2%80%94+5+Identifier+Types;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;Link-Analysis+Graph+%C2%B7+Persistent+Cases+%C2%B7+%E2%8C%98K+Command+Palette;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+16+%C2%B7+TypeScript"/>
-</p>
-
-<p align="center">
-<img src="https://capsule-render.vercel.app/api?type=rect&height=6&color=0:FFAA00,25:BF5FFF,50:00D9D9,75:44FF88,100:FF3333"/>
+<img src="https://capsule-render.vercel.app/api?type=rect&height=6&color=0:00FF85,50:22D3EE,100:E879F9"/>
 </p>
 
 ---
@@ -117,6 +117,7 @@
 - [🧪 Tests](#tests)
 - [📁 Project Structure](#project-structure)
 - [⚡ Tech Stack](#tech-stack)
+- [⬡ The Mark](#the-mark)
 - [📜 Available Scripts](#available-scripts)
 - [🔧 Troubleshooting](#troubleshooting)
 - [🤝 Contributing](#contributing)
@@ -711,7 +712,9 @@ npm run typecheck     # tsc --noEmit
 npm run lint          # ESLint 9 (flat config)
 ```
 
-Every push to `main` and every PR runs `lint → typecheck → test → build` via GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)). Pushes to `main` also publish a multi-arch image to [`ghcr.io/nishu2402/heaven-geointel`](https://github.com/nishu2402/HEAVEN-GeoIntel/pkgs/container/heaven-geointel).
+The gated files (all of `src/lib` plus the covered components) are held at **100%** — statements, branches, functions, and lines — enforced by `vitest.config.ts` thresholds. New gated code must ship with tests or an explicit `/* v8 ignore */` for a genuinely defensive branch, or the build fails.
+
+Every push to `main` and every PR runs `lint → typecheck → test (with the coverage gate) → build` via GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)), plus a Playwright smoke suite. Pushes to `main` also publish a multi-arch image to [`ghcr.io/nishu2402/heaven-geointel`](https://github.com/nishu2402/HEAVEN-GeoIntel/pkgs/container/heaven-geointel).
 
 ---
 
@@ -728,9 +731,11 @@ All source lives under `src/`, grouped by feature. Tests under `tests/`, shell +
 HEAVEN-GeoIntel/
 ├── .github/                          CI workflows · issue/PR templates
 ├── docs/screenshots/                 README screenshots
+├── public/brand/                     generated logo assets (mark svg/png · hero)
 ├── scripts/
 │   ├── start.sh · install-global.sh  one-step start + global `geointel` command
-│   └── capture-screenshots.mjs       regenerate README screenshots (puppeteer-core)
+│   ├── capture-screenshots.mjs       regenerate README screenshots (puppeteer-core)
+│   └── generate-brand-assets.mjs     regenerate every logo asset from the brand module
 │
 ├── src/
 │   ├── app/                          Next.js App Router
@@ -745,6 +750,7 @@ HEAVEN-GeoIntel/
 │   │   │   ├── docs/route.ts            OpenAPI 3.1 spec
 │   │   │   └── health · keys · sources  liveness · API-key store · source registry
 │   │   ├── layout.tsx · page.tsx · globals.css · not-found.tsx · robots.ts
+│   │   └── icon.svg · apple-icon.png · opengraph-image.png · favicon.ico · manifest.ts
 │   │
 │   ├── components/
 │   │   ├── phone/        PhoneInput · PentesterPanel · NumberAnatomyPanel ·
@@ -761,10 +767,12 @@ HEAVEN-GeoIntel/
 │   │   │                 CountryPanel · QrCodePanel
 │   │   ├── shared/       ThemeProvider · ThemeToggle · CommandPalette · ConsentGate ·
 │   │   │                 SimpleLookupInput · Tilt3D · MatrixRain · BootSequence ·
-│   │   │                 PanelErrorBoundary · ShareButton · ReportExport · … (20 total)
+│   │   │                 PanelErrorBoundary · ShareButton · ReportExport · Logo · … (21 total)
 │   │   └── ui/           shadcn/ui primitives (Radix)
 │   │
 │   └── lib/
+│       ├── brand/     logo.ts — the mark's geometry, colours + SVG/ASCII renderers
+│       │              (single source for app · icons · reports)
 │       ├── analysis/  phoneAnalysis · emailAnalysis · freePhoneIntel · ipClassify ·
 │       │              hashDetect · entityExtract · crossPivots · usernameProfiles ·
 │       │              caseCorrelation · caseMerge · caseReport · caseTimeline
@@ -816,6 +824,44 @@ HEAVEN-GeoIntel/
 
 ---
 
+<a id="the-mark"></a>
+## ⬡ The Mark
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:00FF85,50:22D3EE,100:E879F9"/>
+</p>
+
+<div align="center">
+<img src="public/brand/mark.svg" width="120" alt="HEAVEN-GeoIntel mark"/>
+</div>
+
+A pointy-top hexagon — the defensive-security seal — frames a wireframe globe (**Geo**).
+The **H** of HEAVEN is not drawn *on top of* the globe: its two stems are **chords** of the
+sphere, so their endpoints land exactly on it, and its crossbar **is** the equator. A single
+orbit ring, tilted 20°, crosses behind the monogram (**Intel**).
+
+Nothing in the mark is arbitrary — every coordinate derives from the hexagon's circumradius
+(30) and the globe's radius (16), with the stems terminating at `±√(16² − 9²)`. That one
+construction is defined once in [`src/lib/brand/logo.ts`](src/lib/brand/logo.ts) and rendered
+four ways, so the identity can never drift:
+
+| Surface | Renderer |
+|---|---|
+| App header · 404 · lockups | `<Logo>` / `<LogoLockup>` React components |
+| favicon · app icons · OG image · README hero | `npm run brand` → static assets |
+| HTML + printable reports | `logoSvg()` — full-colour on screen, single-ink on paper |
+| Plain-text `.txt` reports | `asciiLetterhead()` — the same hexagon in monospace |
+
+```text
+ ▄▀▀▀▀▀▄     HEAVEN-GeoIntel — Phone Intelligence Report
+▐  █ █  ▌    Unified OSINT Platform
+▐  ███  ▌
+▐  █ █  ▌    Generated   : 2026-07-20T19:34:13.570Z
+ ▀▄▄▄▄▄▀     Threat Score: 0/100 — CLEAN
+```
+
+---
+
 <a id="available-scripts"></a>
 ## 📜 Available Scripts
 
@@ -839,6 +885,7 @@ HEAVEN-GeoIntel/
 | `npm run typecheck` | `tsc --noEmit` type-check |
 | `npm test` · `npm run test:watch` · `npm run test:coverage` | Vitest |
 | `npm run screenshots` | Regenerate README screenshots (needs the dev server running) |
+| `npm run brand` | Regenerate every logo asset (favicon · app icons · OG image · README hero) |
 | `docker compose up -d` · `down` · `logs -f geointel` | Container lifecycle |
 
 </div>

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Shield, Terminal, AtSign, Network, Globe } from "lucide-react";
+import { Shield, AtSign, Network, Globe } from "lucide-react";
 import type {
   LookupResponse, EmailLookupResponse, UsernameLookupResponse, IpLookupResponse, DomainLookupResponse,
 } from "@/lib/types";
@@ -36,6 +36,7 @@ import HelpPopover from "@/components/shared/HelpPopover";
 import CommandPalette from "@/components/shared/CommandPalette";
 import PanelErrorBoundary from "@/components/shared/PanelErrorBoundary";
 import ConsentGate from "@/components/shared/ConsentGate";
+import Logo, { LogoLockup } from "@/components/shared/Logo";
 import RecentLookups from "@/components/shared/RecentLookups";
 import { pushLookup } from "@/lib/client/lookupHistory";
 import { getSessionGraph, saveSessionGraph } from "@/lib/client/sessionGraph";
@@ -288,17 +289,9 @@ function PageContent() {
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header */}
         <header className="border-b border-[var(--hv-glass-border)] px-4 sm:px-6 py-3 flex items-center justify-between glass sticky top-0 z-20">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <Terminal className="w-5 h-5 text-[var(--hv-green)] shrink-0" />
-            <h1 className="font-mono font-bold text-sm sm:text-base tracking-widest m-0">
-              <span className="glow-green">HEAVEN</span>
-              <span className="text-[var(--hv-ink-dim)]">-</span>
-              <span className="gradient-text">GeoIntel</span>
-            </h1>
-            <span className="text-[11px] text-[var(--hv-ink-dim)] uppercase tracking-widest hidden md:block">
-              {"//"} unified osint platform
-            </span>
-          </div>
+          <h1 className="m-0 min-w-0 text-sm sm:text-base">
+            <LogoLockup size={30} tagline animated compact />
+          </h1>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <CommandPalette onMode={setMode} onQuickLookup={onQuickLookup} />
             <RecentLookups onRun={onQuickLookup} />
@@ -316,8 +309,20 @@ function PageContent() {
         <main id="main" className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-5xl">
           {isBooting && (
             <div className="mb-6 terminal-card p-4 sm:p-6">
-              <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-4">
-                [ SYSTEM INIT ] — HEAVEN-GeoIntel Unified OSINT Platform
+              {/* Cold-start splash: the mark at display size, since this panel is
+                  the first thing a first-run user actually watches. */}
+              <div className="flex items-center gap-3 sm:gap-4 mb-4 pb-4 border-b border-[var(--hv-glass-border)]">
+                <Logo size={44} animated />
+                <div className="min-w-0">
+                  <div className="font-mono font-bold tracking-widest text-base sm:text-lg">
+                    <span className="glow-green">HEAVEN</span>
+                    <span className="text-[var(--hv-ink-dim)]">-</span>
+                    <span className="gradient-text">GeoIntel</span>
+                  </div>
+                  <div className="text-[11px] uppercase tracking-widest text-[var(--hv-ink-dim)] mt-0.5">
+                    [ SYSTEM INIT ] — Unified OSINT Platform
+                  </div>
+                </div>
               </div>
               <BootSequence onDone={handleBootDone} />
             </div>

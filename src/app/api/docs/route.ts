@@ -20,6 +20,13 @@ const OPENAPI = {
       name: "MIT (with OSINT acceptable-use policy)",
       url:  "https://github.com/nishu2402/HEAVEN-GeoIntel/blob/main/LICENSE",
     },
+    // ReDoc/Scalar render this in the spec's masthead; ignored by tools that
+    // don't know the extension, so it costs nothing where it isn't supported.
+    "x-logo": {
+      url: "/brand/mark.png",
+      altText: "HEAVEN-GeoIntel",
+      backgroundColor: "#05060d",
+    },
   },
   servers: [
     { url: "/", description: "Same host as the running instance" },

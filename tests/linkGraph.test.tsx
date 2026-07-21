@@ -169,10 +169,14 @@ describe("<LinkGraph> PNG export", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
   it("draws to a canvas and triggers a download when a 2D context is available", () => {
-    ctxValue = { fillStyle: "", fillRect: vi.fn(), drawImage: vi.fn() };
+    ctxValue = { fillStyle: "", font: "", fillRect: vi.fn(), drawImage: vi.fn(), fillText: vi.fn() };
     render(<LinkGraph entities={FIVE} onChange={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /png/i }));
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
+    // The graph bitmap, then the brand mark stamped over it.
+    expect((ctxValue as { drawImage: ReturnType<typeof vi.fn> }).drawImage).toHaveBeenCalledTimes(2);
+    expect((ctxValue as { fillText: ReturnType<typeof vi.fn> }).fillText)
+      .toHaveBeenCalledWith("HEAVEN-GeoIntel", expect.any(Number), expect.any(Number));
   });
 
   it("bails out safely when the 2D context is unavailable", () => {
