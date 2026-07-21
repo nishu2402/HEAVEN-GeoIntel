@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **A real brand mark, synced end to end.** The app shipped with the stock
+  `create-next-app` favicon and no logo of its own; it now has a proper one. A
+  pointy-top hexagon frames a wireframe globe, and the **H** of HEAVEN is built
+  from *chords* of that globe — its stems terminate exactly on the sphere at
+  `±√(16²−9²)` and its crossbar is the equator — with a 20°-tilted orbit ring
+  behind it. Every coordinate derives from the hexagon's circumradius (30) and
+  the globe's radius (16). The construction lives once in `lib/brand/logo.ts`
+  and is rendered four ways so it can never drift: as React (`<Logo>` /
+  `<LogoLockup>`, hook-free so it works in server *and* client components), as
+  static assets (`npm run brand` → favicon.ico with real 16/32/48 entries,
+  `icon.svg`, `apple-icon.png`, `opengraph-image.png`, `public/brand/*`), as an
+  inline SVG in HTML and printable reports (full-colour on screen, single-ink on
+  paper), and as monospace art (`asciiLetterhead()`) heading the plain-text
+  exports. Wired into the header, boot splash, consent gate, 404, phone + email
+  reports, printable case reports, the exported link-graph PNG (stamped with the
+  mark, wordmark and timestamp so a chart stays attributable once it leaves the
+  tool), the web manifest and the OpenAPI spec. Verified by capturing the real
+  export blobs from a live lookup, not by reading the code.
 - **`geointel` sets itself up on first launch.** The very first `bash scripts/start.sh`
   now auto-registers the `geointel` shell function in your shell config (`~/.zshrc` /
   `~/.bashrc`) — so after one run you can start the app from any directory just by
@@ -246,6 +264,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   runs.
 
 ### Fixed
+- **`public/` was never copied into the Docker runtime image.** The runtime stage
+  copied `.next`, `node_modules`, `package.json` and `next.config.mjs` but not
+  `public/` — and Next does not bundle `public/` into `.next`, it serves it from
+  the working directory at runtime. Nothing referenced `public/` before, so the
+  omission was invisible; the brand assets made it load-bearing (the web
+  manifest's icons and the OpenAPI spec's logo both point at `/brand/*`). Added
+  the missing `COPY`.
+- **CI never enforced the 100% coverage gate.** The workflow ran `npm test`, which
+  does not evaluate the thresholds in `vitest.config.ts` — so gated code could
+  merge uncovered despite the documented gate. CI now runs `npm run test:coverage`.
+- **Duplicate `### Fixed` sections under `[Unreleased]`** in this file: two
+  separate blocks had accumulated, so related entries were split across the
+  document. Merged into one, restoring Keep-a-Changelog ordering
+  (Added → Changed → Fixed → Security).
+- **The header logo collapsed at narrow widths.** As a flex child the mark has an
+  auto min-width, so a declared 30px mark was being crushed to ~5px whenever the
+  header ran out of room; it is now `shrink-0` at the component level so this
+  cannot recur at any usage. The wordmark is `nowrap` and was silently overflowing
+  its shrunk flex item and colliding with the header controls — a bounding-box
+  check on the *container* does not catch that, since the text escapes the box
+  rather than widening it. The lockup now reveals progressively instead (mark →
+  wordmark at `md` → tagline at `xl`, the tagline waiting an extra breakpoint
+  because at `lg` it lands flush against the controls with zero gap).
 - **Username sweep accuracy — verified every check against live probes.** Each site
   was re-tested with a known-real handle vs. a known-nonexistent one (via the app's own
   Node `fetch`, not a browser), and the catalog corrected to match reality:
@@ -424,91 +465,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (smart-run classifies a typed IP as IP, mode switch, the new dialog a11y). Verified
   end-to-end in a browser; the header is visually unchanged.
 - **Docs:** README now reflects the Node 22 `.nvmrc` pin (was still documented as v20).
-
-### Security
-- **HSTS on HTTPS deployments.** When the app is served over TLS
-  (`FORCE_HTTPS=1`), responses now carry
-  `Strict-Transport-Security: max-age=63072000; includeSubDomains`. It is gated on
-  the exact same condition as `upgrade-insecure-requests` so it is **never** sent on
-  the default HTTP (localhost/LAN) deployment — where a cached HSTS entry would
-  otherwise make the browser refuse the very origin serving it. Verified live: the
-  header is present on an `FORCE_HTTPS=1` build and absent on the default build.
-  (Note: Next bakes `headers()` into the build, so `FORCE_HTTPS` must be set at
-  **build** time, not just at `next start`.)
-- **Full security audit + hardening.** From a fresh review of the whole codebase
-  (SSRF, injection, XSS, CSRF, path traversal, ReDoS, prototype pollution, secrets,
-  headers):
-  - **CSRF guard** in middleware — cross-site `POST/PUT/PATCH/DELETE` are rejected
-    (`Sec-Fetch-Site` + `Origin`/`Host` fallback), so a malicious page can't drive
-    `/api/keys` or `/api/cases`. Verified: a cross-site write returns 403 and
-    persists nothing; same-origin and curl are unaffected.
-  - **`unsafe-eval` removed from the production CSP** (dev-only now) — the prod
-    bundle contains zero `eval()` / `new Function()`, verified in-browser with no
-    CSP violations.
-  - **Request-body cap** (512 KB, HTTP 413) against memory-exhaustion DoS.
-  - **Generic 500s** on `/api/cases` (no internal paths/stack in responses).
-  - **DOM-XSS via third-party links closed** — results include URLs a *target*
-    can control (Gravatar profile / linked-account URLs, FullContact "social
-    profile" URLs). React does not block `javascript:`/`data:` hrefs and the prod
-    CSP keeps `script-src 'unsafe-inline'`, so such a URL was a click-to-XSS on our
-    origin (which could then drive same-origin `/api/keys` / `/api/cases`). Every
-    remote-supplied `href` now goes through `safeExternalUrl()` (`lib/utils.ts`),
-    which admits only absolute `http(s)` URLs and renders anything else inert.
-    (+ regression tests, `tests/safeUrl.test.ts`.)
-  - **No runtime fingerprinting** — `/api/health` (reachable even with the auth
-    gate on) no longer reports the Node interpreter version.
-  - **Normalised source errors** — per-source failures shown in the UI are mapped
-    to a small safe set (`timed out` / `aborted` / `request failed` / …) via
-    `describeError()`; a raw exception string is never returned to the browser.
-  - Confirmed safe (no change needed): no SSRF (every outbound host is fixed;
-    input is validated + URL-encoded), no path traversal (fixed file paths), no
-    prototype pollution (allow-listed keys + fresh-object construction), no secrets
-    in the client bundle (only public env-var *names* for setup hints). Remaining
-    XSS surface (text nodes, HTML/CSV/print exports) is React-escaped /
-    entity-escaped / formula-guarded.
-  - Documented accepted risk: NumVerify (`apilayer.net`) and `ip-api.com` are
-    HTTP-only on their free tiers, so on the free tier the NumVerify `access_key`
-    travels in cleartext — noted in `SECURITY.md` (use a paid HTTPS plan or omit).
-  - **Migrated the CSRF/auth interceptor to Next 16's `proxy` convention** —
-    `src/middleware.ts` → `src/proxy.ts` (`middleware()` → `proxy()`), clearing the
-    deprecation warning. Same matcher, same behaviour; CSRF re-verified after the move.
-- **`npm audit`: 0 vulnerabilities.** Next's nested `postcss@8.4.31`
-  (GHSA-qx2v-qp2m-jg93, `</style>` XSS in CSS stringify) is pinned forward to the
-  patched `8.5.x` line via an npm `overrides` (`"postcss": "$postcss"`) that dedupes
-  it to the already-patched top-level copy. The earlier `esbuild`/`vitest`
-  dev-server advisory was cleared by upgrading to **Vitest 4**.
-- **Upgraded React 18 → 19.2 and Vitest 2 → 4** — current, supported, advisory-free.
-  No code changes were required (no `defaultProps`, string refs, `findDOMNode`, or
-  legacy context in the tree).
-- **CSV formula-injection guard** on every CSV export (case + bulk): a cell starting
-  with `= + - @` (or tab/CR) is prefixed with a single quote so it can't run as a
-  formula in Excel / Sheets. (+ regression test.)
-- **Case-store length caps** — file-backed case `name` / entity `value` / `note` are
-  length-bounded so a malformed request can't bloat `.data/cases.json`.
-- **Resilient outbound fetch (`lib/fetchSafe.ts`):** every third-party call now
-  runs through a hard-timeout `AbortController` wrapper that never throws — a
-  slow/dead source can no longer hang a lookup, and each result carries
-  provenance (source · fetchedAt · latency).
-- **Optional auth gate (`src/proxy.ts`):** set `AUTH_PASSWORD` to require
-  HTTP Basic auth on the whole app + API (constant-time compare). **Off by
-  default** (single-user self-host); `/api/health` stays open for probes.
-- **Append-only audit log (`lib/auditLog.ts`):** records that a lookup happened
-  (type · salted-SHA-256 of the target · time · status) to `.data/audit.log`.
-  Targets are **hashed by default** so the log isn't fresh PII (`AUDIT_PLAINTEXT=1`
-  to override). Wired into all six lookup routes.
-- **Data hygiene:** `.data/*` is written `0600` (owner-only); a **"WIPE ALL"**
-  control + `DELETE /api/cases?all=1` erases every case **and** the audit log
-  ("delete my data"). Case import validates kinds + de-dupes.
-- **Schema validation with zod (`lib/validation.ts`):** every lookup route now
-  parses its body against a typed schema with **length bounds** before doing any
-  work — rejecting malformed/oversized payloads (e.g. a 5 KB "IP") with a 400.
-  Domain-specific checks (libphonenumber, IP/domain regex, username charset) still
-  run afterwards.
-- **Supply chain (CI):** the GHCR publish workflow now attaches an **SBOM** +
-  **SLSA provenance** to the image and **signs it with cosign** (keyless OIDC);
-  an SPDX SBOM is also uploaded as a build artifact.
-
-### Fixed
 - **Recent-lookup history could silently stop recording after a single corrupt
   write** (`components/dashboard/HistorySidebar.tsx`). `saveToHistory` read the
   existing history with a bare `JSON.parse`; if the stored blob was ever corrupt
@@ -629,6 +585,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   legacy/duplicate installs) from all RC files via an explicit line loop (no awk
   rule-order bug that previously ate an adjacent line), back up each RC, and
   verify nothing remains. Added `npm run uninstall-global`.
+
+### Security
+- **HSTS on HTTPS deployments.** When the app is served over TLS
+  (`FORCE_HTTPS=1`), responses now carry
+  `Strict-Transport-Security: max-age=63072000; includeSubDomains`. It is gated on
+  the exact same condition as `upgrade-insecure-requests` so it is **never** sent on
+  the default HTTP (localhost/LAN) deployment — where a cached HSTS entry would
+  otherwise make the browser refuse the very origin serving it. Verified live: the
+  header is present on an `FORCE_HTTPS=1` build and absent on the default build.
+  (Note: Next bakes `headers()` into the build, so `FORCE_HTTPS` must be set at
+  **build** time, not just at `next start`.)
+- **Full security audit + hardening.** From a fresh review of the whole codebase
+  (SSRF, injection, XSS, CSRF, path traversal, ReDoS, prototype pollution, secrets,
+  headers):
+  - **CSRF guard** in middleware — cross-site `POST/PUT/PATCH/DELETE` are rejected
+    (`Sec-Fetch-Site` + `Origin`/`Host` fallback), so a malicious page can't drive
+    `/api/keys` or `/api/cases`. Verified: a cross-site write returns 403 and
+    persists nothing; same-origin and curl are unaffected.
+  - **`unsafe-eval` removed from the production CSP** (dev-only now) — the prod
+    bundle contains zero `eval()` / `new Function()`, verified in-browser with no
+    CSP violations.
+  - **Request-body cap** (512 KB, HTTP 413) against memory-exhaustion DoS.
+  - **Generic 500s** on `/api/cases` (no internal paths/stack in responses).
+  - **DOM-XSS via third-party links closed** — results include URLs a *target*
+    can control (Gravatar profile / linked-account URLs, FullContact "social
+    profile" URLs). React does not block `javascript:`/`data:` hrefs and the prod
+    CSP keeps `script-src 'unsafe-inline'`, so such a URL was a click-to-XSS on our
+    origin (which could then drive same-origin `/api/keys` / `/api/cases`). Every
+    remote-supplied `href` now goes through `safeExternalUrl()` (`lib/utils.ts`),
+    which admits only absolute `http(s)` URLs and renders anything else inert.
+    (+ regression tests, `tests/safeUrl.test.ts`.)
+  - **No runtime fingerprinting** — `/api/health` (reachable even with the auth
+    gate on) no longer reports the Node interpreter version.
+  - **Normalised source errors** — per-source failures shown in the UI are mapped
+    to a small safe set (`timed out` / `aborted` / `request failed` / …) via
+    `describeError()`; a raw exception string is never returned to the browser.
+  - Confirmed safe (no change needed): no SSRF (every outbound host is fixed;
+    input is validated + URL-encoded), no path traversal (fixed file paths), no
+    prototype pollution (allow-listed keys + fresh-object construction), no secrets
+    in the client bundle (only public env-var *names* for setup hints). Remaining
+    XSS surface (text nodes, HTML/CSV/print exports) is React-escaped /
+    entity-escaped / formula-guarded.
+  - Documented accepted risk: NumVerify (`apilayer.net`) and `ip-api.com` are
+    HTTP-only on their free tiers, so on the free tier the NumVerify `access_key`
+    travels in cleartext — noted in `SECURITY.md` (use a paid HTTPS plan or omit).
+  - **Migrated the CSRF/auth interceptor to Next 16's `proxy` convention** —
+    `src/middleware.ts` → `src/proxy.ts` (`middleware()` → `proxy()`), clearing the
+    deprecation warning. Same matcher, same behaviour; CSRF re-verified after the move.
+- **`npm audit`: 0 vulnerabilities.** Next's nested `postcss@8.4.31`
+  (GHSA-qx2v-qp2m-jg93, `</style>` XSS in CSS stringify) is pinned forward to the
+  patched `8.5.x` line via an npm `overrides` (`"postcss": "$postcss"`) that dedupes
+  it to the already-patched top-level copy. The earlier `esbuild`/`vitest`
+  dev-server advisory was cleared by upgrading to **Vitest 4**.
+- **Upgraded React 18 → 19.2 and Vitest 2 → 4** — current, supported, advisory-free.
+  No code changes were required (no `defaultProps`, string refs, `findDOMNode`, or
+  legacy context in the tree).
+- **CSV formula-injection guard** on every CSV export (case + bulk): a cell starting
+  with `= + - @` (or tab/CR) is prefixed with a single quote so it can't run as a
+  formula in Excel / Sheets. (+ regression test.)
+- **Case-store length caps** — file-backed case `name` / entity `value` / `note` are
+  length-bounded so a malformed request can't bloat `.data/cases.json`.
+- **Resilient outbound fetch (`lib/fetchSafe.ts`):** every third-party call now
+  runs through a hard-timeout `AbortController` wrapper that never throws — a
+  slow/dead source can no longer hang a lookup, and each result carries
+  provenance (source · fetchedAt · latency).
+- **Optional auth gate (`src/proxy.ts`):** set `AUTH_PASSWORD` to require
+  HTTP Basic auth on the whole app + API (constant-time compare). **Off by
+  default** (single-user self-host); `/api/health` stays open for probes.
+- **Append-only audit log (`lib/auditLog.ts`):** records that a lookup happened
+  (type · salted-SHA-256 of the target · time · status) to `.data/audit.log`.
+  Targets are **hashed by default** so the log isn't fresh PII (`AUDIT_PLAINTEXT=1`
+  to override). Wired into all six lookup routes.
+- **Data hygiene:** `.data/*` is written `0600` (owner-only); a **"WIPE ALL"**
+  control + `DELETE /api/cases?all=1` erases every case **and** the audit log
+  ("delete my data"). Case import validates kinds + de-dupes.
+- **Schema validation with zod (`lib/validation.ts`):** every lookup route now
+  parses its body against a typed schema with **length bounds** before doing any
+  work — rejecting malformed/oversized payloads (e.g. a 5 KB "IP") with a 400.
+  Domain-specific checks (libphonenumber, IP/domain regex, username charset) still
+  run afterwards.
+- **Supply chain (CI):** the GHCR publish workflow now attaches an **SBOM** +
+  **SLSA provenance** to the image and **signs it with cosign** (keyless OIDC);
+  an SPDX SBOM is also uploaded as a build artifact.
 
 ## [1.3.0] — 2026-05-29
 

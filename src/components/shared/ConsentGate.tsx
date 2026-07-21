@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { ShieldAlert } from "lucide-react";
+import { LogoLockup } from "@/components/shared/Logo";
 
 // First-run permitted-use gate. Acceptance lives in localStorage (an external
 // store), read via useSyncExternalStore: getServerSnapshot returns false so the
@@ -37,6 +38,11 @@ export default function ConsentGate() {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Permitted use">
       <div className="terminal-card max-w-lg w-full p-6 space-y-4" style={{ borderColor: "var(--hv-glass-hi)" }}>
+        {/* Identity first, then the warning. The lockup is deliberately quiet and
+            sits above a rule so the amber block keeps all of its urgency. */}
+        <div className="pb-3 border-b border-[var(--hv-glass-border)]">
+          <LogoLockup size={26} className="text-[13px] opacity-80" />
+        </div>
         <div className="flex items-center gap-2 text-[var(--hv-amber)]">
           <ShieldAlert className="w-5 h-5" />
           <span className="font-mono uppercase tracking-widest text-sm font-bold">Authorized use only</span>

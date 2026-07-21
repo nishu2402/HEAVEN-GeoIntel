@@ -7,6 +7,7 @@
 // Pure functions + Web Crypto; runs entirely client-side.
 
 import type { InvestigationCase, CaseEntity, EntityKind } from "../types";
+import { BRAND, logoSvg } from "../brand/logo";
 
 export const REPORT_SCHEMA = "heaven-geointel/case-report@1";
 const APP_VERSION = "1.3.0";
@@ -162,13 +163,20 @@ export function buildStixBundle(c: InvestigationCase): string {
 export async function buildPrintableHtml(c: InvestigationCase): Promise<string> {
   const md = await buildCaseMarkdown(c);
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Bound for paper, so the mark is drawn in single-colour ink rather than neon.
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>HEAVEN-GeoIntel — ${esc(c.name)}</title>
+<title>${BRAND.name} — ${esc(c.name)}</title>
 <style>
-  body{font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;max-width:820px;margin:32px auto;padding:0 20px;color:#0b1020}
-  pre{white-space:pre-wrap;word-break:break-word}
-  @media print{@page{margin:14mm}}
-</style></head><body><pre>${esc(md)}</pre>
+  body{font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;max-width:820px;margin:32px auto;padding:0 20px;color:${BRAND.ink}}
+  .masthead{display:flex;align-items:center;gap:16px;border-bottom:1.5px solid ${BRAND.ink};padding-bottom:14px;margin-bottom:22px}
+  .masthead h1{margin:0;font-size:13px;letter-spacing:.26em;text-transform:uppercase}
+  .masthead p{margin:4px 0 0;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#5a6b63}
+  pre{white-space:pre-wrap;word-break:break-word;margin:0}
+  @media print{@page{margin:14mm} .masthead{break-after:avoid}}
+</style></head><body>
+<header class="masthead">${logoSvg({ size: 46, mono: BRAND.ink })}<div>
+<h1>${BRAND.name}</h1><p>${BRAND.tagline} — Investigation Report</p></div></header>
+<pre>${esc(md)}</pre>
 <script>window.onload=function(){setTimeout(function(){window.print()},250)}</script>
 </body></html>`;
 }

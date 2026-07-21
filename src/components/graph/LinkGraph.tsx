@@ -6,6 +6,7 @@ import {
   Plus, Trash2, Check, X, Pencil,
 } from "lucide-react";
 import type { EntityKind } from "@/lib/types";
+import { BRAND, logoSvg } from "@/lib/brand/logo";
 
 export interface GraphEntity { kind: EntityKind; value: string; }
 
@@ -121,23 +122,38 @@ export default function LinkGraph({ entities, title = "INVESTIGATION GRAPH", onC
     const svg = svgRef.current;
     /* v8 ignore next -- the SVG ref is always attached when the export button can be clicked; defensive */
     if (!svg) return;
-    const xml = new XMLSerializer().serializeToString(svg);
-    const svg64 = btoa(unescape(encodeURIComponent(xml)));
-    const img = new Image();
-    img.onload = () => {
+    const encode = (markup: string) => `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`;
+    const graph = new Image();
+    graph.onload = () => {
       const canvas = document.createElement("canvas");
       canvas.width = W * 2; canvas.height = H * 2;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.fillStyle = "#05060d";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const a = document.createElement("a");
-      a.download = `geointel-graph-${Date.now()}.png`;
-      a.href = canvas.toDataURL("image/png");
-      a.click();
+      ctx.drawImage(graph, 0, 0, canvas.width, canvas.height);
+      // Stamp the mark into the bitmap. A link chart is the artefact most likely
+      // to be pasted into someone else's deck, so it has to stay attributable
+      // once it leaves the tool.
+      const mark = new Image();
+      mark.onload = () => {
+        const pad = 24, size = 44;
+        const baseline = canvas.height - pad;
+        ctx.drawImage(mark, pad, baseline - size, size, size);
+        ctx.fillStyle = BRAND.green;
+        ctx.font = "700 24px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(BRAND.name, pad + size + 14, baseline - 16);
+        ctx.fillStyle = "#7fae93";
+        ctx.font = "400 15px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(new Date().toISOString(), pad + size + 14, baseline - 1);
+        const a = document.createElement("a");
+        a.download = `geointel-graph-${Date.now()}.png`;
+        a.href = canvas.toDataURL("image/png");
+        a.click();
+      };
+      mark.src = encode(logoSvg({ size: 88, idPrefix: "graph" }));
     };
-    img.src = `data:image/svg+xml;base64,${svg64}`;
+    graph.src = encode(new XMLSerializer().serializeToString(svg));
   }
 
   // Read-only + empty → original hint. Editable + empty → still show the canvas
