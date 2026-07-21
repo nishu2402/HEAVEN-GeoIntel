@@ -37,6 +37,9 @@ Before opening a PR:
 - [ ] `npm run lint` passes
 - [ ] `node node_modules/typescript/bin/tsc --noEmit` passes
 - [ ] `npm test` passes
+- [ ] `npm run test:coverage` passes — the gated files are held at **100%**
+      (statements/branches/functions/lines), so new gated code ships with tests
+      or an explicit `/* v8 ignore */` for a genuinely defensive branch
 - [ ] `node node_modules/next/dist/bin/next build` passes
 - [ ] Screenshots attached for UI changes
 - [ ] No new third-party data source without an entry in README's data-sources table
@@ -70,6 +73,35 @@ In `src/components/osint/OsintPivots.tsx`, add an entry with:
 
 If a link 404s or just redirects to a homepage, do **not** add it. We'd
 rather show 30 working links than 80 links of which half are dead.
+
+## Using the brand mark
+
+Never hand-roll the logo or paste its path data into a component. The geometry,
+colours and every renderer live in [`src/lib/brand/logo.ts`](./src/lib/brand/logo.ts):
+
+| Need | Use |
+|---|---|
+| The mark in the UI | `<Logo>` / `<LogoLockup>` from `components/shared/Logo` |
+| The mark in generated HTML (reports, exports) | `logoSvg({ mono })` — pass `mono: BRAND.ink` for anything bound for paper |
+| The mark in a plain-text export | `asciiLetterhead([...])` |
+| The product name / tagline / palette | `BRAND.name`, `BRAND.tagline`, `BRAND.green`, `BRAND.cyan`, `BRAND.ink` |
+
+Two things that have bitten us:
+
+- **`<Logo>` is deliberately hook-free** so it renders in server *and* client
+  components. Don't add `useId`/`useState` to it — pass `idPrefix` instead.
+- **The mark is `shrink-0` for a reason.** As a flex child an SVG has an auto
+  min-width and gets crushed (a 30px mark collapsed to ~5px in the header). If you
+  place it in a new flex row, check its *rendered* size, and check the wordmark's
+  own bounding box too — it is `nowrap`, so it overflows a shrunk parent instead of
+  widening it, and a box check on the container will not catch the collision. Test
+  at 360px first, as above.
+
+After changing the brand module, regenerate the committed assets:
+
+```bash
+npm run brand        # favicon · app icons · OG image · README hero · public/brand/*
+```
 
 ## Commit messages
 

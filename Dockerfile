@@ -26,8 +26,12 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 geointel
 
-# Copy build output + minimal runtime files
+# Copy build output + minimal runtime files.
+# `public/` is required, not optional: `next start` serves it from the working
+# directory, and the brand assets referenced by the web manifest and the
+# OpenAPI spec (/brand/*) 404 without it.
 COPY --from=builder --chown=geointel:nodejs /app/.next ./.next
+COPY --from=builder /app/public          ./public
 COPY --from=builder /app/node_modules    ./node_modules
 COPY --from=builder /app/package.json    ./package.json
 COPY --from=builder /app/next.config.mjs ./next.config.mjs

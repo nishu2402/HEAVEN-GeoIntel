@@ -21,7 +21,8 @@
     "install-global": "bash scripts/install-global.sh",
     "uninstall-global": "bash scripts/uninstall-global.sh",
     "doctor": "bash scripts/start.sh --doctor",
-    "screenshots": "node scripts/capture-screenshots.mjs"
+    "screenshots": "node scripts/capture-screenshots.mjs",
+    "brand": "node scripts/generate-brand-assets.mjs"
   },
   "dependencies": {
     "@radix-ui/react-tabs": "^1.1.13",

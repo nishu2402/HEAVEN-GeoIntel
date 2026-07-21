@@ -44,6 +44,7 @@ export default defineConfig({
         "src/components/shared/MatrixRain.tsx",
         "src/components/shared/ReportExport.tsx",
         "src/components/shared/SourcesPanel.tsx",
+        "src/components/shared/Logo.tsx",
         // osint/
         "src/components/osint/CountryPanel.tsx",
         "src/components/osint/LocationPanel.tsx",

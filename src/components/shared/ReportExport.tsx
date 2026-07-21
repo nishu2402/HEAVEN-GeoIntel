@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FileText, Download } from "lucide-react";
 import type { LookupResponse } from "@/lib/types";
+import { BRAND, asciiLetterhead, logoSvg } from "@/lib/brand/logo";
 
 interface Props {
   data: LookupResponse;
@@ -15,7 +16,12 @@ function val(v: unknown): string {
   return String(v);
 }
 
-function generateTextReport(data: LookupResponse): string {
+/**
+ * @param letterhead Render the ASCII brand mark above the title. On for the
+ *   standalone .txt export; off for the HTML export, which shows the real SVG
+ *   mark in its masthead and would otherwise carry the identity twice.
+ */
+function generateTextReport(data: LookupResponse, letterhead = true): string {
   const { input, aggregated, analysis, sources, threatScore, threatLabel } = data;
   const now = new Date().toISOString();
   const separator = "─".repeat(70);
@@ -34,10 +40,23 @@ function generateTextReport(data: LookupResponse): string {
 
   const npa = analysis.npaInfo;
 
+  const title = `${BRAND.name} — Phone Intelligence Report`;
+  const head = letterhead
+    ? [asciiLetterhead([
+        title,
+        BRAND.tagline,
+        "",
+        `Generated   : ${now}`,
+        `Threat Score: ${threatScore}/100 — ${threatLabel}`,
+      ])]
+    : [
+        title,
+        `Generated   : ${now}`,
+        `Threat Score: ${threatScore}/100 — ${threatLabel}`,
+      ];
+
   const lines = [
-    `HEAVEN-GeoIntel — Phone Intelligence Report`,
-    `Generated   : ${now}`,
-    `Threat Score: ${threatScore}/100 — ${threatLabel}`,
+    ...head,
     separator,
     ``,
     `TARGET NUMBER`,
@@ -154,26 +173,42 @@ function generateTextReport(data: LookupResponse): string {
   return lines.join("\n");
 }
 
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 function generateHtmlReport(data: LookupResponse): string {
-  const text = generateTextReport(data);
-  const escaped = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  const escaped = esc(generateTextReport(data, false));
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>HEAVEN-GeoIntel Report — ${data.input.e164}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${BRAND.name} Report — ${esc(data.input.e164)}</title>
 <style>
-  body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', monospace; padding: 40px; max-width: 900px; margin: 0 auto; }
-  pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.7; }
-  h1 { color: #00ff41; border-bottom: 1px solid #00ff4130; padding-bottom: 8px; font-size: 16px; letter-spacing: 4px; text-transform: uppercase; }
+  body { background: #05060d; color: #d6ffe6; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+         padding: 40px 24px; max-width: 960px; margin: 0 auto; }
+  .masthead { display: flex; align-items: center; gap: 18px; padding-bottom: 18px; margin-bottom: 26px;
+              border-bottom: 1px solid rgba(0, 255, 133, 0.22); }
+  .masthead h1 { margin: 0; font-size: 15px; letter-spacing: .28em; text-transform: uppercase; color: ${BRAND.green}; }
+  .masthead p  { margin: 5px 0 0; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #7fae93; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.7; margin: 0; }
+  /* Printed on paper the neon inverts to ink; the mark keeps its own colours. */
+  @media print {
+    body { background: #fff; color: #10151f; padding: 0; max-width: none; }
+    .masthead h1 { color: #10151f; }
+    .masthead p { color: #4a5b53; }
+    @page { margin: 14mm; }
+  }
 </style>
 </head>
 <body>
-<h1>HEAVEN-GeoIntel — Intelligence Report</h1>
+<header class="masthead">
+${logoSvg({ size: 54, idPrefix: "rpt" })}
+<div>
+  <h1>${BRAND.name}</h1>
+  <p>${BRAND.tagline} — Intelligence Report</p>
+</div>
+</header>
 <pre>${escaped}</pre>
 </body>
 </html>`;

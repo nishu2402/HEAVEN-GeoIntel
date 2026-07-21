@@ -31,8 +31,11 @@ jobs:
       - name: Type-check
         run: node node_modules/typescript/bin/tsc --noEmit
 
-      - name: Test
-        run: npm test --if-present
+      # Runs with --coverage so the 100% thresholds in vitest.config.ts are
+      # actually evaluated. Plain `npm test` skips them, which let gated code
+      # merge uncovered despite the project's stated gate.
+      - name: Test (with the 100% coverage gate)
+        run: npm run test:coverage
 
       - name: Build
         run: node node_modules/next/dist/bin/next build

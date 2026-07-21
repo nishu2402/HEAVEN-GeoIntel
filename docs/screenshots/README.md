@@ -20,3 +20,19 @@ The script uses `puppeteer-core` against your system Chrome (no extra browser
 download) and writes high-DPI PNGs back into this folder. If your Chrome lives
 somewhere other than the macOS default, edit the `CHROME` constant at the top of
 [`scripts/capture-screenshots.mjs`](../../scripts/capture-screenshots.mjs).
+
+Re-shoot these whenever the header, theme or a captured panel changes — they show
+the real UI, so a stale screenshot is a wrong one.
+
+## Not screenshots: the brand assets
+
+The logo files (favicon, app icons, OG image, README hero, `public/brand/*`) are
+**generated**, not captured — they come from the geometry in
+[`src/lib/brand/logo.ts`](../../src/lib/brand/logo.ts) via a separate script:
+
+```bash
+npm run brand                     # = node scripts/generate-brand-assets.mjs
+```
+
+That one needs no dev server. Re-run it after editing the brand module, and commit
+the regenerated files.
