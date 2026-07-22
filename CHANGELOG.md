@@ -270,7 +270,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the working directory at runtime. Nothing referenced `public/` before, so the
   omission was invisible; the brand assets made it load-bearing (the web
   manifest's icons and the OpenAPI spec's logo both point at `/brand/*`). Added
-  the missing `COPY`.
+  the missing `COPY`, and verified it against a real build: with the line, all
+  twelve brand/metadata routes serve 200 and every asset is byte-identical
+  (sha256) to the committed file; with the line removed, `/brand/*` 404s while
+  `/manifest.webmanifest`, `/icon.svg` and `/api/health` all still return 200 —
+  so the healthcheck and the manifest stay green while every icon they point at
+  is missing, which is why the omission would have shipped silently.
+- **The dependency layer's `--omit=dev=false` was invalid npm config.** npm
+  rejected it (`invalid config … Must be one or more of: dev, optional, peer`)
+  and ignored it, which happened to produce the right result — dev
+  dependencies stayed installed, as `next build` requires. Replaced with the
+  correct `--include=dev` so the intent survives a stricter npm.
+- **The healthcheck passed `-O` twice** (`wget -qO- … -O /dev/null`); the last
+  flag won, so it worked by accident. Rewritten as `wget -q -O /dev/null …`.
+- **The Dockerfile claimed the image was "small (<200 MB)".** Measured, it is
+  ~205 MB compressed and ~1 GB on disk. Comment corrected to the real figures
+  and points at `output: "standalone"` as the lever for reducing it. The same
+  stale claim appeared twice in the README (plus a `node:20-alpine` layer table
+  entry, three Node majors out of date) — all corrected.
+- **The README told you to set `PORT` for a custom port — which breaks the
+  container.** `PORT` moves the port the app listens on inside the container,
+  while the published mapping stays pinned at 3000; following the tip produced
+  a container that starts cleanly, reports nothing wrong, and answers no
+  requests. Compose now pins `PORT=3000` in `environment:` (which takes
+  precedence over `.env.local`, verified) and the host port is set with
+  `GEOINTEL_PORT`.
+- **`docker compose up` failed outright on a fresh clone.** `env_file` entries
+  are mandatory by default, so with no `.env.local` compose aborted with
+  `env file .env.local not found` before creating the container — flatly
+  contradicting the file's own "every key is optional" comment and the
+  project's zero-keys-required promise. Now declared `required: false`.
+- **The compose healthcheck ran a real OSINT lookup every 30 seconds.** It
+  POSTed a live phone number to `/api/lookup`, which fans out to seven
+  third-party APIs — roughly 2,880 lookups a day against free-tier rate limits,
+  purely to answer "is the container up?". The override is removed entirely so
+  the image's own `HEALTHCHECK` (`GET /api/health`, no outbound calls) is
+  inherited; keeping one definition is what stops the two drifting apart again.
+- **Compose published the console on `0.0.0.0`.** A bare `3000:3000` exposes a
+  working OSINT console — backed by the operator's API keys and case store — to
+  anyone on the LAN. Now bound to `127.0.0.1` by default, which leaves the
+  documented reverse-proxy deployment working unchanged. Both sides of the
+  mapping are overridable without editing the file — `GEOINTEL_BIND=0.0.0.0`
+  and `GEOINTEL_PORT=8080` — so the safe default costs nothing to depart from.
+  Note these are read from the shell or a `.env` file in the repo root, not
+  from `.env.local` (which is only forwarded into the container).
 - **CI never enforced the 100% coverage gate.** The workflow ran `npm test`, which
   does not evaluate the thresholds in `vitest.config.ts` — so gated code could
   merge uncovered despite the documented gate. CI now runs `npm run test:coverage`.
