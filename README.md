@@ -239,7 +239,7 @@ One unified console with an **8-mode switcher**. The first five are live lookups
 Or pull the pre-built container:
 
 ```bash
-docker run -d --name geointel -p 3000:3000 ghcr.io/nishu2402/heaven-geointel:latest
+docker run -d --name geointel -p 127.0.0.1:3000:3000 ghcr.io/nishu2402/heaven-geointel:latest
 ```
 
 ### Requirements
@@ -325,7 +325,9 @@ Persistent data lives in `.data/` (`cases.json`, `audit.log`), written owner-onl
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:00D9D9,50:BF5FFF,100:FFAA00"/>
 </p>
 
-A multi-stage `Dockerfile` and `docker-compose.yml` ship with the repo. The runtime image weighs **under 200 MB**, runs as a non-root user, and reads optional API keys from your `.env.local` at start-up.
+A multi-stage `Dockerfile` and `docker-compose.yml` ship with the repo. The runtime image is **~205 MB compressed (~1 GB on disk)**, runs as a non-root user, and reads optional API keys from your `.env.local` at start-up — starting fine without one, since every key is optional.
+
+Compose publishes on **127.0.0.1 only**, so the console is not exposed to your network by default. Both sides of the mapping are overridable without editing any file — `GEOINTEL_BIND=0.0.0.0 docker compose up -d` to expose it, `GEOINTEL_PORT=8080` for a different host port.
 
 ```bash
 # Compose (build + start in the background)
@@ -334,7 +336,11 @@ open http://localhost:3000          # macOS — Linux: xdg-open, Windows: start
 
 # Plain Docker (no compose)
 docker build -t heaven-geointel:1.3 .
-docker run --rm -p 3000:3000 --env-file .env.local heaven-geointel:1.3
+docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:1.3
+
+# …with API keys (omit --env-file entirely if you have no .env.local —
+# docker run fails on a missing env file, it does not skip it)
+docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:1.3
 ```
 
 <div align="center">
@@ -343,11 +349,11 @@ docker run --rm -p 3000:3000 --env-file .env.local heaven-geointel:1.3
 |---|---|---|
 | `deps`    | `npm ci` against a frozen `package-lock.json` | cache-friendly |
 | `builder` | `next build` — emits the production bundle  | discarded |
-| `runner`  | `node:20-alpine` + non-root user + `next start` | < 200 MB final |
+| `runner`  | `node:22-alpine` + non-root user + `next start` | ~205 MB compressed |
 
 </div>
 
-**Tips** — update API keys: edit `.env.local` then `docker compose restart`. Custom port: set `PORT` or change the `ports:` mapping. Logs: `docker compose logs -f geointel`. A built-in health check shows the container as `(healthy)` once the API responds. In production, terminate TLS in your nginx/Caddy/Traefik and proxy to `localhost:3000`.
+**Tips** — update API keys: edit `.env.local` then `docker compose restart`. Custom host port: `GEOINTEL_PORT=8080 docker compose up -d` — do **not** set `PORT`, which moves the port the app listens on while the published mapping stays at 3000, leaving a container that starts cleanly and answers nothing (compose pins `PORT=3000` to prevent exactly that). Expose beyond localhost: `GEOINTEL_BIND=0.0.0.0 docker compose up -d`. Compose reads both variables from your shell or a `.env` file in the repo root — **not** from `.env.local`, which is only forwarded into the container. Logs: `docker compose logs -f geointel`. The image's own `HEALTHCHECK` polls [`/api/health`](#rest-api) — a local-only endpoint that makes no third-party calls — and shows the container as `(healthy)` about 20 s after start. In production, terminate TLS in your nginx/Caddy/Traefik and proxy to `localhost:3000` (the default loopback binding is what you want there).
 
 ---
 
