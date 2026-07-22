@@ -2,8 +2,6 @@
   <img width="100%" src="public/brand/hero.png" alt="HEAVEN-GeoIntel — Unified OSINT Platform"/>
 </p>
 
-# HEAVEN-GeoIntel
-
 <p align="center">
 <img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=00FF85&center=true&vCenter=true&width=1200&lines=Unified+OSINT+Intelligence+Platform;Phone+%C2%B7+Email+%C2%B7+Username+%C2%B7+IP+%C2%B7+Domain+%E2%80%94+5+Identifier+Types;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;Link-Analysis+Graph+%C2%B7+Persistent+Cases+%C2%B7+%E2%8C%98K+Command+Palette;Real+Data+Only+%E2%80%94+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+16+%C2%B7+TypeScript"/>
 </p>
