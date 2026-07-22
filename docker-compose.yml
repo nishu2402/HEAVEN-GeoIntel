@@ -9,18 +9,40 @@ services:
     container_name: heaven-geointel
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # SECURITY: loopback by DEFAULT. A bare "3000:3000" publishes on 0.0.0.0,
+      # which hands anyone on the LAN a working OSINT console backed by *your*
+      # API keys and case store. The documented production path (terminate TLS
+      # in nginx/Caddy/Traefik and proxy to localhost:3000) works unchanged.
+      #
+      # Both sides are overridable without editing this file:
+      #     GEOINTEL_BIND=0.0.0.0 docker compose up -d   # expose on the network
+      #     GEOINTEL_PORT=8080    docker compose up -d   # different host port
+      #
+      # Compose reads those two from your shell or from a `.env` file in this
+      # directory — NOT from `.env.local`, which is only forwarded into the
+      # container. Putting GEOINTEL_BIND in .env.local silently does nothing.
+      - "${GEOINTEL_BIND:-127.0.0.1}:${GEOINTEL_PORT:-3000}:3000"
     env_file:
-      - .env.local
+      # required:false — every key is optional, so a fresh clone with no
+      # .env.local must still start. Without this, compose aborts before the
+      # container is created ("env file .env.local not found").
+      - path: .env.local
+        required: false
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
+      # Pinned on purpose, and `environment:` wins over `env_file:`. The
+      # container side of the mapping above is fixed at 3000, so a stray
+      # PORT=8080 in .env.local would otherwise leave the app listening on a
+      # port nothing is published to — a container that starts, passes nothing,
+      # and serves no one. Change the *host* port with GEOINTEL_PORT instead.
+      PORT: "3000"
     # tmpfs keeps the lookup cache fast even on slow disks
     tmpfs:
       - /tmp:size=128M
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/lookup --post-data='{\"number\":\"+14155552671\"}' --header='Content-Type: application/json' >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
+    # No healthcheck override here on purpose — the image's own HEALTHCHECK
+    # (GET /api/health) is inherited. This block used to POST a real lookup to
+    # /api/lookup every 30s, which fans out to seven third-party OSINT APIs:
+    # ~2,880 lookups a day burning free-tier rate limits just to answer "is the
+    # container up?". /api/health makes no outbound calls. Keeping the probe in
+    # one place (the Dockerfile) is what stops the two drifting apart again.
