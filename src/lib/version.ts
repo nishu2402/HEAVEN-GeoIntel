@@ -15,7 +15,7 @@
 // dependency list) to the browser. The test is what keeps the two honest.
 
 /** Full semver, as published. Matches `version` in package.json. */
-export const APP_VERSION = "2.0.0";
+export const APP_VERSION = "2.0.1";
 
 /** `major.minor` — what the UI shows and what upstreams see. */
 export const APP_VERSION_SHORT = APP_VERSION.split(".").slice(0, 2).join(".");

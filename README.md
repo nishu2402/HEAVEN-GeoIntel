@@ -49,7 +49,7 @@
 <div align="center">
 
   <p>
-    <img src="https://img.shields.io/badge/Version-2.0.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
+    <img src="https://img.shields.io/badge/Version-2.0.1-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
     <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
     <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
@@ -1049,7 +1049,7 @@ the same numbers as this page:
 ```text
 ╭────────────────────────────────────────────────────────────────────╮
 │   ▄▀▀▀▀▀▄                                                          │
-│  ▐  █ █  ▌   HEAVEN-GeoIntel  v2.0.0                               │
+│  ▐  █ █  ▌   HEAVEN-GeoIntel  v2.0.1                               │
 │  ▐  ███  ▌   UNIFIED OSINT PLATFORM                                │
 │  ▐  █ █  ▌                                                         │
 │   ▀▄▄▄▄▄▀    5 identifiers · 8 modes · 13/21 sources need no key   │

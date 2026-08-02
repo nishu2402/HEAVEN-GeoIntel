@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 _Nothing yet._
 
+## [2.0.1] — 2026-08-02
+
+**A dependency security patch, and the documentation that describes it.** No application
+logic changed — the only edit under `src/` is the version literal itself, so the API
+surface, the data sources, the on-disk case format and the OpenAPI document are all
+identical to 2.0.0. **Upgrading is a reinstall; there is nothing to migrate.**
+
+### Security
+
+- **The `brace-expansion` chain that 2.0.0 disclosed as unfixable is now fixed.**
+  [GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg) /
+  CVE-2026-14257 (high) — a crafted brace pattern expands without bound and crashes the
+  process out of memory; affects `<1.1.17`. It is reached only through
+  `eslint` → `minimatch@3` → `brace-expansion@1.1.16`: dev tooling, never bundled into
+  the app, and driven only by a glob pattern the repo owner writes. 2.0.0 left it open
+  because no patched 1.x release existed and forcing the patched 5.x breaks
+  `minimatch@3`'s API (lint crashes). Upstream has since backported the fix onto the 1.x
+  maintenance line, so a lockfile bump to **1.1.18** — already inside `minimatch@3`'s own
+  `^1.1.7` range — closes it with no `overrides` entry and no API change. Lint re-verified
+  against the bumped tree. **`npm audit`, full tree and `--omit=dev`: 0 vulnerabilities.**
+
+### Documentation
+
+- [`SECURITY.md`](SECURITY.md) claimed "0 vulnerabilities" while the tree carried a high
+  — a status line is only worth having if it is checked. `brace-expansion` now sits in
+  the resolved-advisory list with the reason it was reachable and the reason it closed.
+- [`docs/AUDIT-AND-ROADMAP.md`](docs/AUDIT-AND-ROADMAP.md) §3.1 keeps its original
+  "Residual, disclosed" paragraph as the record of what was true at audit time, with the
+  closure written underneath it rather than over it. §9's open-items list marks the chain
+  closed and points back at §3.1.
+
 ## [2.0.0] — 2026-08-01
 
 **A full audit of the codebase, and everything it turned up.** 2.0 is the result of
