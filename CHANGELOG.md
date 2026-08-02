@@ -30,6 +30,20 @@ identical to 2.0.0. **Upgrading is a reinstall; there is nothing to migrate.**
   `^1.1.7` range — closes it with no `overrides` entry and no API change. Lint re-verified
   against the bumped tree. **`npm audit`, full tree and `--omit=dev`: 0 vulnerabilities.**
 
+### Added
+
+- **`npm run release:verify` — a release pre-flight that checks the git tag, not the
+  working tree.** `versionSync` proves every file in the repo agrees with
+  `src/lib/version.ts`, but a tag is created outside the tree, so a perfectly
+  consistent checkout can still be published under a tag pointing at the commit
+  *before* the bump — which happened twice here, once shipping a `v2.0.1` tag whose
+  `src/lib/version.ts` still read `2.0.0` and whose lockfile still held the vulnerable
+  `brace-expansion`. The script reads `git show <tag>:src/lib/version.ts` and refuses
+  the release when the two disagree, alongside a clean-tree check, the CHANGELOG
+  heading and `npm audit`. The full procedure, including the conventions for the
+  GitHub release page, is in
+  [`.github/RELEASE_CHECKLIST.md`](.github/RELEASE_CHECKLIST.md).
+
 ### Documentation
 
 - [`SECURITY.md`](SECURITY.md) claimed "0 vulnerabilities" while the tree carried a high
