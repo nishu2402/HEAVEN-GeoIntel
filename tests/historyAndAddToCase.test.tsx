@@ -162,7 +162,8 @@ describe("<AddToCase> edge paths", () => {
     await vi.waitFor(() => screen.getByRole("menuitem", { name: /alpha/i }));
     fireEvent.click(screen.getByRole("menuitem", { name: /alpha/i }));
     await vi.waitFor(() => screen.getByRole("button", { name: /pinned/i }));
-    act(() => { vi.advanceTimersByTime(2600); });
+    // The confirmation now lingers 6 s, because it can carry a snapshot diff.
+    act(() => { vi.advanceTimersByTime(6000); });
     expect(screen.getByRole("button", { name: /add to case/i })).toBeTruthy();
     vi.useRealTimers();
   });

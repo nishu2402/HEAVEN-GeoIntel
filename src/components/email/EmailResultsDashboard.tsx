@@ -11,6 +11,8 @@ import type { EmailLookupResponse } from "@/lib/types";
 import { emailToUsernameCandidate } from "@/lib/data/usernameSites";
 import EmailOsintPivots from "@/components/email/EmailOsintPivots";
 import BreachPanel      from "@/components/breach/BreachPanel";
+import InfostealerPanel from "@/components/breach/InfostealerPanel";
+import LeakCheckPanel   from "@/components/breach/LeakCheckPanel";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import { cn, copyText, safeExternalUrl } from "@/lib/utils";
@@ -121,7 +123,8 @@ function ThreatScoreBar({ score }: { score: number }) {
 
 // ── Report download ───────────────────────────────────────────────────────────
 function downloadReport(data: EmailLookupResponse, score: number): void {
-  const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact } = data;
+  const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact,
+    hudsonRock, leakCheck } = data;
   const sep = "─".repeat(70);
   const now = new Date().toISOString();
 
@@ -186,6 +189,38 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
         ? "CLEAN — no credentials found in BreachDirectory"
         : (breachDirectory?.error ?? "N/A")
     }`]),
+    ``,
+    `INFOSTEALER EXPOSURE — Hudson Rock (free, no key)`,
+    sep,
+    ...(hudsonRock.ok && hudsonRock.data
+      ? hudsonRock.data.total > 0
+        ? [
+            `  Infections      : ${hudsonRock.data.total}`,
+            ``,
+            `  INFECTED MACHINES:`,
+            ...hudsonRock.data.stealers.map((st, i) => [
+              `    [${i + 1}] Malware  : ${st.malwareFamily ?? "unknown"}`,
+              st.dateCompromised ? `         Date     : ${st.dateCompromised}` : "",
+              st.operatingSystem ? `         OS       : ${st.operatingSystem}` : "",
+              st.computerName    ? `         Machine  : ${st.computerName}` : "",
+              st.ip              ? `         IP       : ${st.ip}` : "",
+              st.topLogins.length ? `         Logins   : ${st.topLogins.join(", ")}` : "",
+            ].filter(Boolean).join("\n")),
+          ]
+        : [`  Result          : CLEAN — no infostealer infections recorded`]
+      : [`  Status          : ${hudsonRock.error ?? "N/A"}`]),
+    ``,
+    `PUBLIC BREACH INDEX — LeakCheck (free, no key)`,
+    sep,
+    ...(leakCheck.ok && leakCheck.data
+      ? leakCheck.data.found > 0
+        ? [
+            `  Records         : ${leakCheck.data.found}`,
+            `  Exposed Fields  : ${leakCheck.data.fields.join(", ") || "N/A"}`,
+            `  Named Breaches  : ${leakCheck.data.sources.map((x) => x.date ? `${x.name} (${x.date})` : x.name).join(", ") || "N/A"}`,
+          ]
+        : [`  Result          : NOT INDEXED — no breach records for this address`]
+      : [`  Status          : ${leakCheck.error ?? "N/A"}`]),
     ``,
     `IDENTITY — FullContact Person Enrichment`,
     sep,
@@ -294,7 +329,8 @@ const PROVIDER_ICONS: Record<string, React.ReactNode> = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) {
-  const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact } = data;
+  const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact,
+    hudsonRock, leakCheck } = data;
 
   // Email → username cross-tool pivot: only when the local-part is a plausible
   // handle and it isn't a generic role inbox (info@, support@…), which is never
@@ -331,6 +367,8 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
     { source: "Hunter.io", state: srState(hunter) },
     { source: "AbstractAPI", state: srState(abstract) },
     { source: "BreachDirectory", state: srState(breachDirectory) },
+    { source: "Hudson Rock", state: srState(hudsonRock) },
+    { source: "LeakCheck", state: srState(leakCheck) },
     /* v8 ignore next -- fullContact is always present on EmailLookupResponse; the "off" fallback is defensive */
     { source: "FullContact", state: fullContact ? srState(fullContact) : "off" },
   ];
@@ -349,6 +387,8 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
   const jump: JumpItem[] = [
     ...(fcData ? [{ id: "sec-identity", label: "Identity" }] : []),
     { id: "sec-breach", label: "Breach" },
+    { id: "sec-infostealer", label: "Infostealer" },
+    { id: "sec-leakcheck", label: "Breach index" },
     { id: "sec-class", label: "Classification" },
     { id: "sec-rep", label: "Reputation" },
     { id: "sec-pivots", label: "Pivots" },
@@ -589,6 +629,12 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
 
       {/* ── BREACH DATABASE — Primary intelligence ── */}
       <section id="sec-breach" className="scroll-mt-24"><BreachPanel xon={xon} breachDirectory={breachDirectory} /></section>
+
+      {/* Hudson Rock and LeakCheck are keyless, so both render on every email
+          lookup — including the out-of-the-box, no-API-key configuration. */}
+      <section id="sec-infostealer" className="scroll-mt-24"><InfostealerPanel source={hudsonRock} subject="email address" /></section>
+
+      <section id="sec-leakcheck" className="scroll-mt-24"><LeakCheckPanel source={leakCheck} subject="email address" /></section>
 
       {/* ── Risk indicators (EmailRep critical flags) ── */}
       {repData && (repData.credentialsLeaked || repData.dataBreach || repData.suspicious || repData.maliciousActivity) && (

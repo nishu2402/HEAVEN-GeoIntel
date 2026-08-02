@@ -174,4 +174,5 @@ await writeFile(
 console.log("wrote public/brand/hero.png");
 
 await browser.close();
+
 console.log("\nBrand assets regenerated.");

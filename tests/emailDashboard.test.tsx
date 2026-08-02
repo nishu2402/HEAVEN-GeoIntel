@@ -71,6 +71,7 @@ const xonD = (over: Partial<XposedOrNotData> = {}): XposedOrNotData =>
 const data = (over: Partial<EmailLookupResponse> = {}): EmailLookupResponse => ({
   email: "ada.lovelace@gmail.com", analysis: analysis() as never, gravatar: gravatar(),
   emailrep: off(), hunter: off(), abstract: off(), xon: off(), breachDirectory: off(), fullContact: off(),
+  hudsonRock: off(), leakCheck: off(),
   ...over,
 });
 
@@ -309,6 +310,81 @@ describe("<EmailResultsDashboard> report export", () => {
       expect(cap.text).toContain("Full Name       : Ada Lovelace");
       expect(cap.text).toContain("[CURRENT] Acme — Analyst");
       expect(cap.text).toContain("REPUTATION — EmailRep.io");
+    } finally { cap.restore(); }
+  });
+
+  it("exports the keyless Hudson Rock and LeakCheck sections in full", () => {
+    const cap = capture();
+    try {
+      render(<EmailResultsDashboard data={data({
+        hudsonRock: okS({ total: 2, stealers: [
+          { computerName: "DESKTOP-1", operatingSystem: "Windows 11", malwareFamily: "Acreed",
+            dateCompromised: "2026-07-25T00:00:00Z", ip: "8.8.8.8",
+            topPasswords: ["p***d"], topLogins: ["a@b.com"] },
+          { computerName: null, operatingSystem: null, malwareFamily: null,
+            dateCompromised: null, ip: null, topPasswords: [], topLogins: [] },
+        ] }),
+        leakCheck: okS({ found: 12, fields: ["password", "phone"], sources: [
+          { name: "Trello.com", date: "2024-01" }, { name: "Vivagames.com", date: null },
+        ] }),
+      })} />);
+      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
+      expect(cap.text).toContain("INFOSTEALER EXPOSURE — Hudson Rock (free, no key)");
+      expect(cap.text).toContain("Infections      : 2");
+      expect(cap.text).toContain("Malware  : Acreed");
+      expect(cap.text).toContain("IP       : 8.8.8.8");
+      expect(cap.text).toContain("Logins   : a@b.com");
+      // The second stealer has no detail fields — its optional lines vanish
+      // rather than printing "Malware  : null".
+      expect(cap.text).toContain("[2] Malware  : unknown");
+      expect(cap.text).toContain("PUBLIC BREACH INDEX — LeakCheck (free, no key)");
+      expect(cap.text).toContain("Records         : 12");
+      expect(cap.text).toContain("Exposed Fields  : password, phone");
+      expect(cap.text).toContain("Trello.com (2024-01), Vivagames.com");
+    } finally { cap.restore(); }
+  });
+
+  it("exports the clean and failed states for the keyless sources", () => {
+    const cap = capture();
+    try {
+      const { unmount } = render(<EmailResultsDashboard data={data({
+        hudsonRock: okS({ total: 0, stealers: [] }),
+        leakCheck: okS({ found: 0, fields: [], sources: [] }),
+      })} />);
+      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
+      expect(cap.text).toContain("Result          : CLEAN — no infostealer infections recorded");
+      expect(cap.text).toContain("Result          : NOT INDEXED — no breach records for this address");
+      unmount();
+
+      const { unmount: unmount2 } = render(<EmailResultsDashboard data={data({
+        hudsonRock: { ok: false },
+        leakCheck: { ok: false, error: "RATE_LIMITED" },
+      })} />);
+      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
+      // Both fall back to N/A when a source failed without naming a reason.
+      expect(cap.text).toContain("Status          : N/A");
+      expect(cap.text).toContain("Status          : RATE_LIMITED");
+      unmount2();
+
+      render(<EmailResultsDashboard data={data({
+        hudsonRock: { ok: false, error: "RATE_LIMITED" },
+        leakCheck: { ok: false },
+      })} />);
+      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
+      expect(cap.text).toContain("Status          : RATE_LIMITED");
+      expect(cap.text).toContain("Status          : N/A");
+    } finally { cap.restore(); }
+  });
+
+  it("prints N/A for a LeakCheck hit that named no fields or breaches", () => {
+    const cap = capture();
+    try {
+      render(<EmailResultsDashboard data={data({
+        leakCheck: okS({ found: 4, fields: [], sources: [] }),
+      })} />);
+      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
+      expect(cap.text).toContain("Exposed Fields  : N/A");
+      expect(cap.text).toContain("Named Breaches  : N/A");
     } finally { cap.restore(); }
   });
 

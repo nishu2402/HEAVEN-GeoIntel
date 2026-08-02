@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { APP_VERSION } from "@/lib/version";
 
 // Liveness/readiness probe for Docker, uptime monitors, and load balancers.
 // Left unauthenticated by the proxy matcher so probes work even when the
@@ -16,7 +17,7 @@ export async function GET(): Promise<NextResponse> {
     {
       status: "ok",
       name: "HEAVEN-GeoIntel",
-      version: "1.3.0",
+      version: APP_VERSION,
       uptimeSec: Math.round((Date.now() - startedAt) / 1000),
       authGate: Boolean(process.env.AUTH_PASSWORD),
       time: new Date().toISOString(),

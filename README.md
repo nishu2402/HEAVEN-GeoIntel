@@ -1,5 +1,9 @@
 <p align="center">
-  <img width="100%" src="public/brand/hero.png" alt="HEAVEN-GeoIntel — Unified OSINT Platform"/>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
+    <source media="(prefers-color-scheme: dark)" srcset="public/brand/poster.svg"/>
+    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 5 identifier types, 8 workspace modes, 13 of 21 sources need no API key, 24 of 43 username sites auto-verified, 17 API operations, 100% test coverage"/>
+  </picture>
 </p>
 
 <p align="center">
@@ -45,6 +49,7 @@
 <div align="center">
 
   <p>
+    <img src="https://img.shields.io/badge/Version-2.0.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
     <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
     <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
@@ -61,10 +66,10 @@
 
   <p>
     <img src="https://img.shields.io/badge/Phone_Pivots-38_(FREE%2FCAPTCHA%2FLOGIN%2FPAID)-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
-    <img src="https://img.shields.io/badge/Username-44_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/>
+    <img src="https://img.shields.io/badge/Username-43_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/>
     <img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/>
     <img src="https://img.shields.io/badge/NPA_Database-400%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
-    <img src="https://img.shields.io/badge/Rate_Limit-10_req%2Fmin%2FIP-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
+    <img src="https://img.shields.io/badge/Rate_Limit-60_req%2Fmin%2Fclient_(tunable)-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
   </p>
 
   <p>
@@ -109,6 +114,7 @@
 - [≡ Bulk Mode](#bulk-mode)
 - [🔑 Optional API Enrichment](#api-enrichment)
 - [⚙️ How It Works](#how-it-works)
+- [🎛️ Runtime configuration](#runtime-configuration)
 - [🔌 REST API](#rest-api)
 - [✅ Data Accuracy](#data-accuracy)
 - [🔒 Security](#security)
@@ -141,17 +147,19 @@
 | 🔑 **Core Requirement** | Zero API keys — offline + free-source enrichment works out of the box |
 | 📞 **Phone OSINT** | Carrier · type · NPA geo · fraud/threat score · pivots · QR · report export |
 | 📧 **Email OSINT** | Breach (XposedOrNot) · reputation · identity · validation · credential hashes |
-| 🧑‍💻 **Username OSINT** | 47 sites checked in parallel, grouped by category, presence-scored |
+| 🧑‍💻 **Username OSINT** | 43 sites checked in parallel, grouped by category, presence-scored |
 | 🌐 **IP / Domain OSINT** | IP geo + ASN + VPN/proxy flags · domain DNS + WHOIS + SPF/DMARC + cert-transparency subdomains |
-| 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier** — free, no key, always-on |
-| 💥 **Breach Intelligence** | XposedOrNot (free) + BreachDirectory (RapidAPI) + 5 one-click free breach lookups |
-| 🕸️ **Link-Analysis Graph** | Interactive SVG node graph of every identifier in a session/case · PNG export |
-| 🗂️ **Persistent Cases** | File-backed investigation cases — group identifiers, notes, graph; survive restarts |
+| 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier** — free, no key, always-on, on **phone and email** |
+| 💥 **Breach Intelligence** | XposedOrNot **+ LeakCheck public index** (both free, no key) + BreachDirectory (RapidAPI) + 5 one-click free breach lookups |
+| 🔀 **Cross-Identifier Auto-Pivot** | Every result offers the identifiers it derived as one-click lookups — confirmed links separated from related ones, nothing guessed |
+| 🕸️ **Link-Analysis Graph** | Interactive SVG node graph · **derived links persisted server-side per case**, labelled with the source that produced them · PNG export |
+| 🗂️ **Persistent Cases** | File-backed cases — identifiers, notes, derived graph, **snapshot history**; survive restarts · optional `CASE_PASSWORD` lock |
+| 📈 **Change Tracking** | Re-run a pinned lookup and the tool reports exactly which facts moved — breach counts, open ports, subdomains |
 | 🗺️ **NPA Database** | 400+ US/CA area codes → state · metro · timezone (offline) |
 | 🌍 **Country Dataset** | 100 countries — capital · currency · languages · GDP · emergency numbers |
-| ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict) · file-backed cases |
-| 🚦 **Rate Limiting** | 10 requests/minute/IP — fixed-window counter |
-| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs` · 8 endpoints |
+| ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict, auto-invalidated when an API key changes) · file-backed cases |
+| 🚦 **Rate Limiting** | 60 requests/minute **per client** + a server-wide ceiling — fixed-window, all limits env-tunable |
+| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs` — **generated from the route registry**, 17 operations across 12 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
 | 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
@@ -175,7 +183,7 @@ Target  ─►  phone │ email │ username │ IP │ domain
         │
         ├─ Instant offline analysis    (libphonenumber-js · MCC/MNC · NPA · bundled datasets)
         ├─ Free no-key source fan-out   (Hudson Rock · XposedOrNot · Gravatar · ip-api ·
-        │                                Cloudflare DoH · RDAP · Certspotter · 47 username sites)
+        │                                Cloudflare DoH · RDAP · Certspotter · 43 username sites)
         ├─ Optional API enrichment      (IPQualityScore · Twilio · Hunter.io · FullContact · BreachDirectory)
         ├─ OSINT pivot matrix           (38 phone links · 26 email links · tier-tagged · deduplicated)
         ├─ Link-analysis graph          (connect phone ⇄ email ⇄ username ⇄ IP ⇄ domain)
@@ -202,7 +210,7 @@ One unified console with an **8-mode switcher**. The first five are live lookups
 |---|---|
 | 📡 **Phone** | Full phone OSINT — carrier, breach, infostealer, identity, pivots |
 | ✉ **Email** | Full email OSINT — breach, reputation, identity, validation, pivots |
-| @ **Username** | Check a handle across 47 sites in parallel (found / unverified) |
+| @ **Username** | Check a handle across 43 sites in parallel (found / unverified) |
 | ⦿ **IP** | Geo · ASN · ISP · reverse DNS · VPN/proxy/hosting flags · risk score |
 | 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · cert-transparency subdomains |
 | ≡ **Bulk** | Triage up to 25 phone numbers → CSV export |
@@ -300,7 +308,30 @@ incoming connections — click **Allow**.
 
 ### Global command
 
-The first time you run `bash scripts/start.sh`, a `geointel` shell function is auto-registered in your shell config (`~/.zshrc`, or `~/.bashrc`). Open a new terminal (or `source` it) and type `geointel` from anywhere to start the app. Register/re-register manually with `npm run install-global`; remove it with `npm run uninstall-global`; skip auto-registration with `NO_GLOBAL=1 bash scripts/start.sh`.
+The first time you run `bash scripts/start.sh`, a `geointel` shell function is auto-registered in your shell config (`~/.zshrc`, or `~/.bashrc`). Open a new terminal (or `source` it) and type `geointel` from anywhere to start the app. Register/re-register manually with `npm run install-global`; skip auto-registration with `NO_GLOBAL=1 bash scripts/start.sh`. `geointel --help` lists the flags.
+
+### Uninstall
+
+```bash
+npm run uninstall-global
+```
+
+Removes the `geointel` command in every form it can be installed — the
+`/usr/local/bin` shim (with `sudo` if it's root-owned) and the function block in
+any of your shell RC files, including entries left by older versions. It writes
+a one-time `.geointel-bak` backup of each RC file it edits, and it is idempotent.
+
+**Your data is not touched by default.** Investigation cases, the audit log and
+any API keys you saved in the UI stay in `.data/`. To delete those too:
+
+```bash
+npm run uninstall-global -- --purge-data
+```
+
+It prints exactly what it is about to delete (including how many cases) and
+requires you to type `yes`. Non-interactively it refuses unless you also pass
+`--yes`. `.env.local`, `node_modules` and the build output are never removed —
+delete the project folder when you want those gone.
 
 ### Security & operations (optional)
 
@@ -333,12 +364,12 @@ docker compose up -d
 open http://localhost:3000          # macOS — Linux: xdg-open, Windows: start
 
 # Plain Docker (no compose)
-docker build -t heaven-geointel:1.3 .
-docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:1.3
+docker build -t heaven-geointel:2.0 .
+docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:2.0
 
 # …with API keys (omit --env-file entirely if you have no .env.local —
 # docker run fails on a missing env file, it does not skip it)
-docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:1.3
+docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:2.0
 ```
 
 <div align="center">
@@ -371,7 +402,8 @@ Every phone lookup returns real data derived from the number structure and bundl
 | **Result Header** | E.164 · country flag · validity · unified **Threat Score (0–100)** with colour-coded label |
 | **Identity — Owner Profile** | Real name · employer · social profiles (FullContact). With no key, it points you to the **OSINT Pivot Matrix** — one deduplicated set of reverse-lookup links (no repeated or dead links). |
 | **Credential Breach Search** | BreachDirectory password-hash hits (with key) + 5 always-on **one-click free breach lookups** (HaveIBeenPwned · IntelligenceX · Dehashed · LeakCheck · Snusbase). |
-| **Infostealer Malware Exposure** | Hudson Rock — **no key**. Every infected device that captured the number, paired credential samples, captured sites, malware family, OS, capture date. |
+| **Infostealer Malware Exposure** | Hudson Rock — **no key**. Every infected device that captured the number, paired credential samples, captured sites, malware family (only when identifiable — never a dropper filename passed off as a family), OS, capture date. |
+| **Public Breach Index** | LeakCheck — **no key**. How many indexed records mention the number, which field types were exposed, and the named breaches. Exposure metadata only; the public tier returns no credentials. |
 | **Phone OSINT Intelligence** | Intelligence Score · Target Profile classifier · Attack-Vector grid (Vishing/Smishing/SIM-Swap/Spoofing/Pretexting/Location) · live local time · call window · NPA intel · offline signals |
 | **Location Intelligence** | Country · state/province · metro · city · area code · timezone + UTC offset |
 | **Country Intelligence** | Capital · continent · region · population · currency · languages · driving side · emergency number · GDP per capita |
@@ -452,7 +484,7 @@ user@domain.com   ·   first.last@corporate.org   ·   user+tag@provider.net
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:BF5FFF,50:44FF88,100:00D9D9"/>
 </p>
 
-Enter a handle and HEAVEN-GeoIntel checks **47 sites** for it. **28 are auto-verified server-side** (so no CORS limits) and marked **FOUND** or **UNVERIFIED**. The other **19 are JS apps or bot-walls that answer for *every* username, or anti-bot challenges that block a keyless server fetch** (Instagram, TikTok, X, Telegram, npm, …) — a server probe genuinely can't tell if the handle exists there, so the tool **never guesses**: it flags them **VERIFY →** as one-click links you open to confirm. That's the difference between this and tools that proudly report "found on 40 sites" — most of those are false positives.
+Enter a handle and HEAVEN-GeoIntel checks **43 sites** for it. **24 are auto-verified server-side** (so no CORS limits) and marked **FOUND** or **UNVERIFIED**. The other **19 are JS apps or bot-walls that answer for *every* username, or anti-bot challenges that block a keyless server fetch** (Instagram, TikTok, X, Telegram, npm, …) — a server probe genuinely can't tell if the handle exists there, so the tool **never guesses**: it flags them **VERIFY →** as one-click links you open to confirm. That's the difference between this and tools that proudly report "found on 40 sites" — most of those are false positives.
 
 <div align="center">
 
@@ -518,14 +550,36 @@ Accepts bare domains or full URLs (scheme/path/`www.` are stripped automatically
 
 Every successful lookup (phone, email, username, IP, domain) adds a colour-coded node to an interactive SVG graph, connected to a central **TARGET**. Hover to highlight, and **export the whole chart as a PNG** for your report. It turns a session of scattered lookups into one visual map of how the identifiers relate.
 
+### Derived links — what was inferred from what
+
+Pinning a result to a case also stores the **relationships the auto-pivot engine derived**, each labelled with the source that produced it (`Gravatar — linked github account`, `DNS — MX host`, `Hudson Rock — credential captured on the same machine`). Those are drawn as dashed edges *between* real nodes, on top of the membership spokes — so the graph shows the derivation, not just the roster.
+
+Only links whose **both** ends were actually pinned are stored, so the graph can never contain a node the case doesn't.
+
 ### Investigation cases (persistent)
 
 - Create named **cases** and add any identifiers to them.
-- Each case stores its own **link graph** and free-form **analyst notes**.
+- Each case stores its own **link graph** (nodes + derived edges) and free-form **analyst notes**.
 - Backed by a file store (`.data/cases.json`) so cases **survive server restarts** and sessions — no database required.
 - Full CRUD via the UI or the [`/api/cases`](#rest-api) endpoint.
 
-> Cases are **unauthenticated** by design (single-user / self-hosted assumption). If you expose the app publicly, put an auth proxy in front — see [SECURITY.md](./SECURITY.md).
+### Change tracking — "what moved since last time?"
+
+Pinning a lookup also records a **snapshot**: a small bag of the scalars worth watching for that mode (breach count, infostealer hits, open ports, subdomain total, registrar, DMARC policy…). Pin the same identifier again later and the server diffs the new snapshot against the stored one and tells you exactly what changed.
+
+The diff is computed **server-side against what is on disk**, so it works across sessions and machines — a browser that has forgotten everything still gets a correct comparison. A first snapshot is reported as a **baseline**, never as "no change", and if either side of a comparison was served from the result cache the diff says so rather than letting an unchanged result read as stability. Snapshots hold no PII beyond the identifier itself and are capped per identifier (`CASE_SNAPSHOT_HISTORY`, default 5).
+
+### Optional case lock
+
+Cases are **unauthenticated by default** (single-user / self-hosted assumption). `AUTH_PASSWORD` gates the whole app, which is all-or-nothing — so if you want the lookup console open on your LAN while the case history stays sealed, set **`CASE_PASSWORD`** instead:
+
+```env
+CASE_PASSWORD=your-passphrase
+```
+
+`/api/cases` then requires an unlock. The panel prompts for the passphrase once and receives an HttpOnly, self-verifying token cookie (an HMAC over its own expiry, keyed by the password) — so there is no session table, rotating the password invalidates every outstanding token, and the expiry can't be extended by editing the cookie. Lookups are unaffected. Leave it unset and nothing changes.
+
+> This is a single shared secret for a single user, not a general-purpose auth system. If you expose the app publicly, still put an auth proxy in front — see [SECURITY.md](./SECURITY.md).
 
 ---
 
@@ -563,7 +617,8 @@ The app works fully without API keys (offline analysis + free no-key sources). A
 
 | Service | What It Adds | Tier |
 |---|---|---|
-| **Hudson Rock Cavalier** | Phone/email infostealer-malware exposure | **free · no key** (always-on) |
+| **Hudson Rock Cavalier** | Phone **and email** infostealer-malware exposure | **free · no key** (always-on) |
+| **LeakCheck (public)** | Named breaches + exposed field types for a phone, email or username | **free · no key** (always-on) |
 | **IPQualityScore** | Fraud score · VoIP · abuse · prepaid · active · city · associated emails | 200/day free |
 | **NumVerify** | Carrier · line type · location | 100/mo free |
 | **AbstractAPI** | Phone validation **and** email SMTP/MX/quality | 250/mo free |
@@ -591,6 +646,97 @@ TRUST_PROXY=               # set to 1 behind nginx/Cloudflare to rate-limit per 
 
 Sign up: [IPQualityScore](https://www.ipqualityscore.com) · [NumVerify](https://numverify.com) · [AbstractAPI](https://www.abstractapi.com) · [Twilio](https://www.twilio.com) · [Hunter.io](https://hunter.io) · [EmailRep.io](https://emailrep.io) · [FullContact](https://www.fullcontact.com) · [BreachDirectory on RapidAPI](https://rapidapi.com/rohan-patra/api/breachdirectory)
 
+> **Adding a key takes effect immediately.** Storing or removing a key — in the
+> UI or via `/api/keys` — clears the phone and email caches, so the very next
+> lookup re-runs the fan-out with the new key instead of serving the pre-key
+> result until the 24 h TTL expires.
+
+---
+
+<a id="runtime-configuration"></a>
+## 🎛️ Runtime configuration
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:44FF88,50:00D9D9,100:BF5FFF"/>
+</p>
+
+Every operational limit is an environment variable, not a compile-time constant.
+Leave them all unset and you get the documented defaults — no behaviour change.
+
+```env
+# Rate limiting
+RATE_LIMIT_MAX=60            # requests per window, per client
+RATE_LIMIT_WINDOW_MS=60000   # window length in ms
+RATE_LIMIT_GLOBAL_MAX=600    # ceiling across ALL clients in the same window
+
+# Result caches
+CACHE_TTL_MS=86400000        # phone cache TTL (24 h)
+CACHE_MAX_ENTRIES=1000       # phone cache size
+EMAIL_CACHE_TTL_MS=          # defaults to CACHE_TTL_MS
+EMAIL_CACHE_MAX_ENTRIES=500
+
+# Upstream behaviour
+SOURCE_TIMEOUT_MS=8000       # per-source hard timeout
+FANOUT_CONCURRENCY=12
+
+# Cases
+CASE_SNAPSHOT_HISTORY=5      # lookup snapshots kept per identifier, per case
+CASE_PASSWORD=               # unset = cases open. Set it to seal the case
+                             # store while leaving lookups open (see below)
+CASE_UNLOCK_TTL_MS=43200000  # how long one unlock lasts (12 h)
+```
+
+Junk values fall back to the default and are clamped to a sane range, so a typo
+can never disable rate limiting or set a nonsensical TTL. The live values are
+reported by `GET /api/sources` under `runtime`, and the OpenAPI description at
+`/api/docs` states the limits this instance is actually running.
+
+**How clients are identified.** Next removed `NextRequest.ip`, so there is no
+socket address in a route handler. The limiter uses, in order: the real client
+IP from `X-Forwarded-For` / `X-Real-IP` when you opt in with `TRUST_PROXY=1`;
+otherwise a first-party `hv_rl` cookie that gives each browser its own bucket;
+otherwise one shared bucket for non-browser clients. The cookie is an opaque
+random id — HttpOnly, SameSite=Lax, never logged, and carrying no identity or
+lookup history. It exists solely so that opening the console on your phone
+doesn't consume your laptop's allowance. The server-wide ceiling is what stops a
+script that discards the cookie from exhausting a free upstream tier.
+
+### Dataset overlays — update data without a rebuild
+
+The five bundled datasets can be corrected or extended at runtime by dropping a
+JSON file into `.data/datasets/`. Nothing is required; without an overlay the
+bundled data is used exactly as before.
+
+| File | Shape | Use it to |
+|---|---|---|
+| `usNpa.json` | keyed | fix an area code after a split |
+| `countryIntel.json` | keyed | correct or add a country record |
+| `mccMnc.json` | keyed | add an operator (`"310-260"`) |
+| `disposableDomains.json` | list | block a new burner-mail provider |
+| `usernameSites.json` | list | add, replace or remove a sweep site |
+
+```jsonc
+// .data/datasets/usernameSites.json
+{
+  "version": "2026-07-27",
+  "entries": [
+    { "name": "Codeberg", "category": "developer",
+      "url": "https://codeberg.org/{u}", "check": "status" }
+  ],
+  "remove": ["Replit"]
+}
+```
+
+An entry whose `name` matches a bundled one **replaces** it; `remove` drops
+bundled entries. `POST /api/datasets` re-reads the directory without restarting
+the process, and `GET /api/datasets` reports what is loaded (versions and row
+counts only — never contents).
+
+A malformed overlay is **ignored**, never fatal: the bundled data stays in
+force and the problem is reported in `warnings`. Username-site entries are
+validated individually — a `body`-check site with no absence marker would claim
+every handle as FOUND, so it is rejected rather than trusted.
+
 ---
 
 <a id="how-it-works"></a>
@@ -602,22 +748,31 @@ Sign up: [IPQualityScore](https://www.ipqualityscore.com) · [NumVerify](https:/
 
 ```
 POST /api/lookup        { number }   → libphonenumber + NPA + country dataset + MCC/MNC (offline)
-                                       ‖ Hudson Rock (free) ‖ optional: NumVerify · IPQS · Abstract ·
-                                         Twilio · BreachDirectory · FullContact  (Promise.allSettled)
+                                       ‖ Hudson Rock · LeakCheck (free) ‖ optional: NumVerify · IPQS ·
+                                         Abstract · Twilio · BreachDirectory · FullContact  (Promise.allSettled)
 
 POST /api/email-lookup  { email }    → offline classification + name inference
-                                       ‖ Gravatar · XposedOrNot (free) ‖ optional:
-                                         FullContact · BreachDirectory · Abstract · Hunter.io · EmailRep
+                                       ‖ Gravatar · XposedOrNot · Hudson Rock · LeakCheck (free) ‖
+                                         optional: FullContact · BreachDirectory · Abstract ·
+                                         Hunter.io · EmailRep
 
 POST /api/username-lookup { username } → 28 auto-verified + 19 manual → found / notfound / unverified / manual
+                                       ‖ GitHub · GitLab · HN · Reddit profiles · LeakCheck (free)
 POST /api/ip-lookup     { ip }       → ip-api: geo · ASN · ISP · reverse DNS · proxy/hosting/mobile + risk
 POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT) ‖ RDAP whois ‖
-                                       Certspotter subdomains ‖ SPF/DMARC posture
+                                       Certspotter subdomains (crt.sh supplements only when sparse,
+                                       on a 2.5 s budget) ‖ SPF/DMARC posture
+
+Every result then feeds the auto-pivot engine (`src/lib/analysis/autoPivot.ts`), a pure
+function that reads the identifiers the response already contains — a domain's MX host,
+a Gravatar-linked handle, an unmasked infostealer IP — and offers each as a one-click
+lookup. It never synthesises an identifier, and it drops Hudson Rock's masked values,
+which are evidence rather than something you can pivot on.
 ```
 
 Every route validates input first and only interpolates it (URL-encoded) into **fixed** upstream hosts — never an attacker-chosen host (no SSRF). A single source failing never fails the whole lookup.
 
-**Caching:** phone results cached in-memory 24 h (1000 entries), email 24 h (500 entries); the oldest-inserted entry is evicted first (FIFO). **Persistence:** cases written to `.data/cases.json`, survive restarts. **Rate limiting:** 10 req/min/IP → HTTP 429 + `Retry-After: 60`.
+**Caching:** phone results cached in-memory 24 h (1000 entries), email 24 h (500 entries); the oldest-inserted entry is evicted first (FIFO). Adding, changing or removing an API key clears both caches immediately, so the next lookup reflects the new key rather than serving the pre-key result for the rest of the TTL. **Persistence:** cases written to `.data/cases.json`, survive restarts. **Rate limiting:** 60 req/min per client (plus a 600/min server-wide ceiling) → HTTP 429 + `Retry-After`. Every limit and TTL is env-tunable — see [Runtime configuration](#runtime-configuration).
 
 ---
 
@@ -641,7 +796,11 @@ curl -s localhost:3000/api/cases | jq '.cases'
 curl -s localhost:3000/api/docs  | jq .info
 ```
 
-The eleven endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/keys` · `/api/health` · `/api/docs`. Lookup routes return `X-RateLimit-*` headers and `X-Robots-Tag: noindex`. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (booleans only — key **values are never returned**).
+The twelve endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/datasets` · `/api/keys` · `/api/health` · `/api/docs` — 17 operations in all, and **every one of them is in the spec**.
+
+The spec is generated at request time from a route registry (`src/lib/api/endpoints.ts`), not hand-written, and a test walks `src/app/api/**/route.ts` and fails the build if the registry and the actual routes disagree. Adding a route without documenting it is a red build, so the "import it into Postman" promise cannot quietly stop being true.
+
+Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope`, which tells you whether your own limit or the server-wide ceiling is binding) and `X-Robots-Tag: noindex`. Each also returns a uniform `sourceHealth` array — `{ source, ok, ms, fetchedAt, error?, skipped? }` — so one consumer can render source health for any mode; `skipped` means "no API key configured", which is deliberately distinct from a source that was called and failed. `/api/sources` reports what each source did on its **last actual call**, not just whether a key is present. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (provenance only — key **values are never returned**).
 
 ---
 
@@ -668,7 +827,7 @@ The eleven endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-loo
 
 ### Username · IP · Domain (free live sources)
 
-- **Username** — **FOUND** only on a confirmed 200 / known profile marker. The 15 sites that return HTTP 200 for *every* handle (Instagram, TikTok, X, Reddit, …) are **never auto-claimed** — they're flagged **VERIFY →** so you open them yourself. A nonexistent handle yields **zero** false positives (regression-tested). Sites that block bots land in UNVERIFIED, never silently dropped.
+- **Username** — **FOUND** only on a confirmed 200 / known profile marker. The 19 sites that return HTTP 200 for *every* handle (Instagram, TikTok, X, Reddit, …) are **never auto-claimed** — they're flagged **VERIFY →** so you open them yourself. A nonexistent handle yields **zero** false positives (regression-tested). Sites that block bots land in UNVERIFIED, never silently dropped.
 - **IP** — geolocation is **ISP-level, not a precise address** (stated in the UI). Hosting / VPN / proxy IPs mask the real user; we surface those flags instead of pretending the location is the person.
 - **Domain** — DNS / WHOIS / subdomain data is reported exactly as upstream resolvers return it. Empty sections mean "not resolved," never fabricated. WHOIS depends on the TLD's RDAP support.
 - **Offline carrier (MCC/MNC)** — resolved from a bundled operator table only when network codes are known; otherwise left blank.
@@ -693,7 +852,8 @@ The eleven endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-loo
 | **Input validation / no SSRF** | Every lookup validates input (libphonenumber · IPv4/IPv6 · domain regex · `[A-Za-z0-9._-]{2,40}` usernames) and only URL-encodes it into **fixed** hosts — callers can't choose the destination. |
 | **Image optimizer disabled** | App uses plain `<img>`; `images.unoptimized` removes the `/_next/image` attack surface. |
 | **No tracking** | Metadata from structure + public databases only. No geolocation, device tracking, analytics, or telemetry. |
-| **Rate limiting** | 10 req/min/IP fixed-window counter · `Retry-After: 60` on 429 |
+| **Rate limiting** | 60 req/min per client + 600/min server-wide, fixed-window · `Retry-After` on 429 · all values env-tunable |
+| **Optional case lock** | `CASE_PASSWORD` seals `/api/cases` (GET/POST/DELETE) behind an HMAC-signed, HttpOnly token cookie while leaving lookups open. Constant-time password comparison; rotating the secret invalidates every issued token. |
 | **Panel isolation** | Every results panel wrapped in `PanelErrorBoundary` — a broken upstream response takes down one card, not the page. |
 | **Disclosure policy** | [SECURITY.md](./SECURITY.md) — private GitHub Security Advisory flow + documented dependency advisories. |
 
@@ -716,7 +876,7 @@ npm run typecheck     # tsc --noEmit
 npm run lint          # ESLint 9 (flat config)
 ```
 
-The gated files (all of `src/lib` plus the covered components) are held at **100%** — statements, branches, functions, and lines — enforced by `vitest.config.ts` thresholds. New gated code must ship with tests or an explicit `/* v8 ignore */` for a genuinely defensive branch, or the build fails.
+The gated files are held at **100%** — statements, branches, functions, and lines — enforced by `vitest.config.ts` thresholds. The gate covers all of `src/lib`, the covered components, **every API route (`src/app/api/**/route.ts`) and `src/proxy.ts`** — that is, every outbound fetch in the application plus the CSRF and auth gate. New gated code must ship with tests or an explicit `/* v8 ignore */` naming why the branch is unreachable, or the build fails.
 
 Every push to `main` and every PR runs `lint → typecheck → test (with the coverage gate) → build` via GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)), plus a Playwright smoke suite. Pushes to `main` also publish a multi-arch image to [`ghcr.io/nishu2402/heaven-geointel`](https://github.com/nishu2402/HEAVEN-GeoIntel/pkgs/container/heaven-geointel).
 
@@ -735,18 +895,21 @@ All source lives under `src/`, grouped by feature. Tests under `tests/`, shell +
 HEAVEN-GeoIntel/
 ├── .github/                          CI workflows · issue/PR templates
 ├── docs/screenshots/                 README screenshots
-├── public/brand/                     generated logo assets (mark svg/png · hero)
+├── public/brand/                     generated artwork (mark · hero · poster light/dark/still)
 ├── scripts/
 │   ├── start.sh · install-global.sh  one-step start + global `geointel` command
+│   ├── banner.sh                     GENERATED terminal banner, sourced by all three scripts
 │   ├── capture-screenshots.mjs       regenerate README screenshots (puppeteer-core)
-│   └── generate-brand-assets.mjs     regenerate every logo asset from the brand module
+│   ├── generate-poster.mjs           regenerate the poster + banner (no browser needed)
+│   ├── poster-stats.mjs              the numbers the artwork may print, read from source
+│   └── generate-brand-assets.mjs     regenerate every raster logo asset (needs Chrome)
 │
 ├── src/
 │   ├── app/                          Next.js App Router
 │   │   ├── api/
 │   │   │   ├── lookup/route.ts          phone
 │   │   │   ├── email-lookup/route.ts    email
-│   │   │   ├── username-lookup/route.ts username enumeration (47 sites)
+│   │   │   ├── username-lookup/route.ts username enumeration (43 sites)
 │   │   │   ├── ip-lookup/route.ts       IP geo/ASN/risk
 │   │   │   ├── domain-lookup/route.ts   DNS · WHOIS · subdomains
 │   │   │   ├── bulk-lookup/route.ts     bulk phone (max 25)
@@ -775,8 +938,10 @@ HEAVEN-GeoIntel/
 │   │   └── ui/           shadcn/ui primitives (Radix)
 │   │
 │   └── lib/
+│       ├── version.ts the app version — every other file derives from it
 │       ├── brand/     logo.ts — the mark's geometry, colours + SVG/ASCII renderers
-│       │              (single source for app · icons · reports)
+│       │              (single source for app · icons · reports) · poster.ts —
+│       │              the animated README poster · banner.ts — the terminal one
 │       ├── analysis/  phoneAnalysis · emailAnalysis · freePhoneIntel · ipClassify ·
 │       │              hashDetect · entityExtract · crossPivots · usernameProfiles ·
 │       │              caseCorrelation · caseMerge · caseReport · caseTimeline
@@ -814,8 +979,8 @@ HEAVEN-GeoIntel/
 | **UI** | Tailwind CSS · shadcn/ui (Radix) · CSS design tokens · light + dark themes · fully responsive |
 | **UX** | `cmdk` ⌘K command palette · 3D tilt cards · holographic borders · glassmorphism |
 | **Animation / Viz** | Framer Motion · Canvas API (katakana rain · QR) · hand-rolled SVG link graph |
-| **Breach / Infostealer** | Hudson Rock Cavalier (free) · XposedOrNot (free) · BreachDirectory via RapidAPI |
-| **Username OSINT** | 47-site parallel existence checks (server-side, no key) |
+| **Breach / Infostealer** | Hudson Rock Cavalier (free) · XposedOrNot (free) · LeakCheck public (free) · BreachDirectory via RapidAPI |
+| **Username OSINT** | 43-site parallel existence checks (server-side, no key) |
 | **IP / Domain OSINT** | ip-api · Cloudflare DNS-over-HTTPS · RDAP · crt.sh (all free · no key) |
 | **Identity / Reputation** | FullContact · Gravatar · EmailRep.io · Hunter.io |
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
@@ -852,9 +1017,48 @@ four ways, so the identity can never drift:
 | Surface | Renderer |
 |---|---|
 | App header · 404 · lockups | `<Logo>` / `<LogoLockup>` React components |
-| favicon · app icons · OG image · README hero | `npm run brand` → static assets |
+| favicon · app icons · OG image · hero | `npm run brand` → static assets |
+| **README poster** (light + dark + still) | `posterSvg()` — animated SVG, [see below](#the-poster) |
+| **Launcher · installer · uninstaller** | `bannerAnsi()` → `scripts/banner.sh` |
 | HTML + printable reports | `logoSvg()` — full-colour on screen, single-ink on paper |
 | Plain-text `.txt` reports | `asciiLetterhead()` — the same hexagon in monospace |
+
+<a id="the-poster"></a>
+### The poster tells the truth about the build
+
+The banner at the top of this README is **generated**, not drawn. Every number on it
+is read out of the thing it describes at build time — the version module, the source
+manifest, the mode registry, the endpoint registry, the username catalog, the coverage
+threshold in `vitest.config.ts`:
+
+```bash
+npm run brand:poster
+```
+
+So "13/21 keyless sources" cannot become a lie by adding a 22nd source, and
+`tests/posterAssets.test.ts` fails the build if the committed artwork is older than the
+registries it quotes. It ships in three files — `poster.svg` (dark), `poster-light.svg`
+(GitHub switches with your theme) and `poster-still.svg` for print — is one
+self-contained file each with no external font or image to fetch, and stops animating
+under `prefers-reduced-motion`.
+
+The same generator writes `scripts/banner.sh`, which is why `bash scripts/start.sh`,
+`npm run install-global` and `npm run uninstall-global` all open with the same mark and
+the same numbers as this page:
+
+```text
+╭────────────────────────────────────────────────────────────────────╮
+│   ▄▀▀▀▀▀▄                                                          │
+│  ▐  █ █  ▌   HEAVEN-GeoIntel  v2.0.0                               │
+│  ▐  ███  ▌   UNIFIED OSINT PLATFORM                                │
+│  ▐  █ █  ▌                                                         │
+│   ▀▄▄▄▄▄▀    5 identifiers · 8 modes · 13/21 sources need no key   │
+╰────────────────────────────────────────────────────────────────────╯
+```
+
+It prints colour on a TTY and plain text when piped or under `NO_COLOR`, and every
+script degrades gracefully if the generated file isn't there — a launcher must never
+fail over decoration.
 
 ```text
  ▄▀▀▀▀▀▄     HEAVEN-GeoIntel — Phone Intelligence Report
@@ -880,7 +1084,7 @@ four ways, so the identity can never drift:
 | `bash scripts/start.sh` | One-step **production** start: build · serve on your LAN · self-test (add `--dev` for hot reload) |
 | `npm run setup` | Install deps + start the hot-reload dev server (local only) |
 | `npm run install-global` | Register the `geointel` shell command in your shell config |
-| `npm run uninstall-global` | Remove the `geointel` shell command (reverses the above) |
+| `npm run uninstall-global` | Remove the `geointel` shell command (reverses the above). Add `-- --purge-data` to also delete `.data/` — asks first |
 | `npm run doctor` | Diagnose why a phone can't reach the Network URL (firewall · VPN · AP isolation) |
 | `npm run dev` | Start dev server (opens your browser automatically) |
 | `npm run build` | Production build |
@@ -889,7 +1093,8 @@ four ways, so the identity can never drift:
 | `npm run typecheck` | `tsc --noEmit` type-check |
 | `npm test` · `npm run test:watch` · `npm run test:coverage` | Vitest |
 | `npm run screenshots` | Regenerate README screenshots (needs the dev server running) |
-| `npm run brand` | Regenerate every logo asset (favicon · app icons · OG image · README hero) |
+| `npm run brand:poster` | Regenerate the README poster + the terminal banner from the live registries (no browser needed) |
+| `npm run brand` | The above, plus every raster asset (favicon · app icons · OG image · hero) — needs Chrome |
 | `docker compose up -d` · `down` · `logs -f geointel` | Container lifecycle |
 
 </div>

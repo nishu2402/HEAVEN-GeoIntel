@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/domain-lookup/route";
+import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
 
 // Drives the domain OSINT handler with every free upstream mocked: Cloudflare
 // DoH (8 record types incl. SPF/_dmarc TXT + DNSKEY), RDAP whois, Certspotter
@@ -179,11 +180,14 @@ describe("POST /api/domain-lookup — full recon merge", () => {
 });
 
 describe("POST /api/domain-lookup — rate limiting", () => {
-  it("429s the 11th request from one client IP", async () => {
+  afterEach(restoreRateLimit);
+
+  it("allows MAX requests then 429s the next from the same client", async () => {
+    useRateLimit(10);
     stubDomainUpstreams();
     const req = () => new Request("http://localhost/api/domain-lookup", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.123" },
+      headers: { "content-type": "application/json", cookie: clientCookie("rlclient") },
       body: JSON.stringify({ domain: "acme.test" }),
     });
     let last = await POST(req() as unknown as NextRequest);

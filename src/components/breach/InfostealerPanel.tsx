@@ -5,10 +5,18 @@ import {
   Bug, ShieldCheck, ShieldAlert, Calendar, Monitor, Globe,
   Lock, Eye,
 } from "lucide-react";
-import type { LookupResponse } from "@/lib/types";
+import type { HudsonRockData, SourceResult } from "@/lib/types";
 
 interface Props {
-  data: LookupResponse;
+  /** The Hudson Rock envelope from whichever lookup ran. */
+  source: SourceResult<HudsonRockData>;
+  /**
+   * What was searched, so the copy reads truthfully in both modes ("this phone
+   * number was captured" vs "this email address was captured"). The panel is
+   * shared by the phone and email dashboards, which is why the subject can't be
+   * hardcoded.
+   */
+  subject: "phone number" | "email address";
 }
 
 function fmtDate(iso: string | null): string {
@@ -18,8 +26,7 @@ function fmtDate(iso: string | null): string {
   catch { return iso; }
 }
 
-export default function InfostealerPanel({ data }: Props) {
-  const hr = data.sources.hudsonRock;
+export default function InfostealerPanel({ source: hr, subject }: Props) {
 
   // Hudson Rock returns ok=true even when no infections are found, so we
   // always show this card.  Empty state is a green "clean" badge, not a
@@ -67,14 +74,14 @@ export default function InfostealerPanel({ data }: Props) {
                 {d.total} INFECTION{d.total === 1 ? "" : "S"}
               </span>
               <span className="text-[12px] font-mono text-[#ff3e3e]/80">
-                this phone number was captured by an info-stealer running on a victim&apos;s device
+                this {subject} was captured by an info-stealer running on a victim&apos;s device
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold font-mono text-[#00ff41]">CLEAN</span>
               <span className="text-[12px] font-mono text-[#00ff41]/60">
-                — no infostealer infections recorded by Hudson Rock for this number
+                — no infostealer infections recorded by Hudson Rock for this {subject}
               </span>
             </div>
           )}
@@ -85,9 +92,9 @@ export default function InfostealerPanel({ data }: Props) {
       {found && d.stealers.length > 0 && (
         <div className="space-y-3">
           <p className="text-[13px] font-mono text-[#00ff41]/65 leading-snug">
-            Each row below is a compromised device that captured the number while it was
-            being typed into a website. The stolen credential dump usually includes
-            paired passwords and the sites the number was used on.
+            Each row below is a compromised device that captured this {subject} while it
+            was being typed into a website. The stolen credential dump usually includes
+            paired passwords and the sites it was used on.
           </p>
           {d.stealers.map((s, i) => (
             <motion.div

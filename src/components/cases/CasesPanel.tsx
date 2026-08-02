@@ -10,6 +10,7 @@ import { correlateCases } from "@/lib/analysis/caseCorrelation";
 import { caseTimeline } from "@/lib/analysis/caseTimeline";
 import { LOOKUP_MODES } from "@/lib/client/modes";
 import LinkGraph, { type GraphEntity } from "@/components/graph/LinkGraph";
+import CaseChanges from "@/components/cases/CaseChanges";
 import {
   buildCaseJson, buildCaseMarkdown, verifyCaseImport,
   buildCaseCsv, buildMaltegoCsv, buildStixBundle, buildPrintableHtml,
@@ -47,6 +48,11 @@ export default function CasesPanel() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // Set when CASE_PASSWORD is configured and this browser has no valid unlock
+  // cookie. Distinct from loadError: the store is reachable, just sealed.
+  const [locked, setLocked] = useState(false);
+  const [unlockPw, setUnlockPw] = useState("");
+  const [unlockErr, setUnlockErr] = useState("");
   const [newName, setNewName] = useState("");
   const [entKind, setEntKind] = useState<EntityKind>("phone");
   const [entVal, setEntVal] = useState("");
@@ -66,7 +72,9 @@ export default function CasesPanel() {
     setLoadError(false);
     try {
       const res = await fetch("/api/cases", { cache: "no-store" });
+      if (res.status === 401) { setLocked(true); setCases([]); return; }
       const json = (await res.json()) as { cases: InvestigationCase[] };
+      setLocked(false);
       setCases(json.cases ?? []);
       setActiveId((prev) => prev ?? json.cases?.[0]?.id ?? null);
     } catch { setLoadError(true); }
@@ -110,6 +118,20 @@ export default function CasesPanel() {
       ping(json.error);
     }
     return json;
+  }
+
+  async function unlock() {
+    setUnlockErr("");
+    try {
+      const res = await fetch("/api/cases", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unlock", password: unlockPw }),
+      });
+      if (!res.ok) { setUnlockErr("Incorrect password"); return; }
+      setUnlockPw("");
+      setLocked(false);
+      await load();
+    } catch { setUnlockErr("Request failed — server unreachable"); }
   }
 
   async function createCase() {
@@ -265,6 +287,44 @@ export default function CasesPanel() {
       if (!res.ok) { ping("Wipe failed"); return; }
     } catch { ping("Wipe failed — server unreachable"); return; }
     setCases([]); setActiveId(null); ping("All local data wiped");
+  }
+
+  // The store is sealed (CASE_PASSWORD is set and this browser has no valid
+  // unlock cookie). Render ONLY the unlock form: no case list, no wipe button,
+  // no export — a locked panel must not leak the shape of what it protects.
+  if (locked) {
+    return (
+      <div className="space-y-4 mt-6">
+        <div className="terminal-card p-5 space-y-3 max-w-md">
+          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
+            <ShieldAlert className="w-3.5 h-3.5" /> CASE STORE LOCKED
+          </div>
+          <p className="text-[12px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+            This instance sets <code className="text-[var(--hv-cyan)]">CASE_PASSWORD</code>, so saved
+            investigations are sealed even though lookups are open. Unlock to continue.
+          </p>
+          <div className="flex gap-1.5">
+            <input
+              type="password"
+              value={unlockPw}
+              onChange={(e) => setUnlockPw(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void unlock(); }}
+              placeholder="case password"
+              aria-label="Case password"
+              className="terminal-input flex-1 min-w-0 px-2 py-1.5 text-xs font-mono"
+            />
+            <button
+              onClick={unlock}
+              disabled={!unlockPw}
+              className="px-3 rounded-md border border-[var(--hv-glass-border)] text-[11px] font-mono uppercase tracking-widest text-[var(--hv-cyan)] hover:border-[var(--hv-cyan)] transition-colors disabled:opacity-40"
+            >
+              Unlock
+            </button>
+          </div>
+          {unlockErr && <div className="text-[11px] font-mono text-[var(--hv-red)]">{unlockErr}</div>}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -430,7 +490,14 @@ export default function CasesPanel() {
           )}
 
           {/* Graph */}
-          <LinkGraph entities={active.entities.map((e) => ({ kind: e.kind, value: e.value }))} title={`${active.name.toUpperCase()} — LINK GRAPH`} onChange={syncGraph} />
+          <LinkGraph
+            entities={active.entities.map((e) => ({ kind: e.kind, value: e.value }))}
+            links={active.edges}
+            title={`${active.name.toUpperCase()} — LINK GRAPH`}
+            onChange={syncGraph}
+          />
+
+          <CaseChanges snapshots={active.snapshots ?? []} />
 
           {/* Timeline — when the case was opened and each identifier pinned */}
           <div className="terminal-card p-4 space-y-2">

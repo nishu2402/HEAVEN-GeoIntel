@@ -32,6 +32,7 @@ const resp = (over: Partial<UsernameLookupResponse> = {}): UsernameLookupRespons
     bios: [{ value: "wakes up", source: "GitHub" }],
   },
   pivots: [{ label: "Google dork", url: "https://google.com/search?q=neo" }],
+  leakCheck: { ok: false, error: "NOT_CONFIGURED" },
   ...over,
 });
 

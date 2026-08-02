@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/ip-lookup/route";
+import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
 
 // End-to-end handler test: drives the real POST through the shared middleware
 // (rate-limit → parseBody → IP validation → fetchSafe upstreams → threat/merge
@@ -152,7 +153,10 @@ describe("POST /api/ip-lookup — offline scope classification", () => {
 });
 
 describe("POST /api/ip-lookup — rate limiting", () => {
-  it("returns 429 after 10 requests from the same client IP", async () => {
+  afterEach(restoreRateLimit);
+
+  it("allows MAX requests then 429s the next from the same client", async () => {
+    useRateLimit(10);
     stubFetch([
       ["ip-api.com", resp(200, { status: "success", query: "1.1.1.1", countryCode: "US" })],
       ["internetdb.shodan.io", resp(404, {})],
@@ -160,7 +164,7 @@ describe("POST /api/ip-lookup — rate limiting", () => {
     ]);
     const req = () => new Request("http://localhost/api/ip-lookup", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.7" },
+      headers: { "content-type": "application/json", cookie: clientCookie("rlclient") },
       body: JSON.stringify({ ip: "1.1.1.1" }),
     });
     let last = await POST(req() as unknown as NextRequest);

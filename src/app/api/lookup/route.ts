@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { getCached, setCached } from "@/lib/server/cache";
-import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { guardRateLimit } from "@/lib/server/rateLimit";
+import { settleSources } from "@/lib/server/sourceHealth";
+import { ensureDatasets } from "@/lib/server/datasets";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, phoneBody } from "@/lib/server/validation";
 import { analyzePhoneNumber } from "@/lib/analysis/phoneAnalysis";
@@ -10,6 +12,9 @@ import { deriveOfflineReputation } from "@/lib/analysis/freePhoneIntel";
 import { lookupMccMnc } from "@/lib/data/mccMnc";
 import { resolveKey } from "@/lib/server/keyStore";
 import { describeError } from "@/lib/server/fetchSafe";
+import { USER_AGENT } from "@/lib/version";
+import { hudsonRockFor } from "@/lib/server/hudsonRock";
+import { fetchLeakCheck } from "@/lib/server/leakCheck";
 import type { CountryIntel } from "@/lib/data/countryIntel";
 import type {
   LookupResponse,
@@ -23,7 +28,7 @@ import type {
   BreachDirectoryData,
   FullContactData,
   HudsonRockData,
-  HudsonRockStealer,
+  LeakCheckData,
 } from "@/lib/types";
 import type { PhoneAnalysis } from "@/lib/analysis/phoneAnalysis";
 
@@ -148,7 +153,7 @@ async function fetchFullContactPhone(e164: string): Promise<SourceResult<FullCon
       headers: {
         "Authorization": `Bearer ${key}`,
         "Content-Type": "application/json",
-        "User-Agent": "HEAVEN-GeoIntel/1.3",
+        "User-Agent": USER_AGENT,
       },
       body: JSON.stringify({ phone: e164 }),
       signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
@@ -217,82 +222,6 @@ async function fetchFullContactPhone(e164: string): Promise<SourceResult<FullCon
   }
 }
 
-// ── Hudson Rock — free infostealer search (no API key) ──
-// Their Cavalier "search-by-username" endpoint accepts any free-form identifier
-// (phone, username, handle) and returns infostealer infections that captured
-// that identifier. Free, anonymous, public preview tier.
-async function fetchHudsonRock(e164: string): Promise<SourceResult<HudsonRockData>> {
-  try {
-    const url = `https://cavalier.hudsonrock.com/api/json/v2/osint-tools/search-by-username?username=${encodeURIComponent(e164)}`;
-    const res = await fetch(url, {
-      headers: { "Accept": "application/json", "User-Agent": "HEAVEN-GeoIntel/1.3" },
-      signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
-    });
-
-    if (res.status === 429) return { ok: false, error: "RATE_LIMITED" };
-    if (res.status === 404) return { ok: true, data: { total: 0, stealers: [], message: "No infections found" } };
-    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
-
-    type HRRaw = {
-      message?: string;
-      total_corporate_services?: number;
-      total_user_services?: number;
-      stealers?: {
-        computer_name?: string;
-        operating_system?: string;
-        malware_path?: string;
-        date_compromised?: string;
-        ip?: string;
-        top_passwords?: string[];
-        top_logins?: string[];
-      }[];
-    };
-
-    const raw = (await res.json()) as HRRaw;
-
-    // Hudson Rock returns either "stealers" array OR a "message" like
-    // "This e-mail/phone is not associated with a computer infected by an info-stealer."
-    if (!raw.stealers || raw.stealers.length === 0) {
-      return { ok: true, data: { total: 0, stealers: [], message: raw.message ?? "No infections found" } };
-    }
-
-    const stealers: HudsonRockStealer[] = raw.stealers.slice(0, 10).map((s) => ({
-      computerName:    s.computer_name ?? null,
-      operatingSystem: s.operating_system ?? null,
-      // malware_path looks like "C:\Users\...\redline.exe" — extract a clean family name
-      malwareFamily:   s.malware_path ? extractMalwareFamily(s.malware_path) : null,
-      dateCompromised: s.date_compromised ?? null,
-      ip:              s.ip ?? null,
-      topPasswords:    (s.top_passwords ?? []).slice(0, 5),
-      topLogins:       (s.top_logins ?? []).slice(0, 5),
-    }));
-
-    return {
-      ok: true,
-      data: {
-        total: raw.stealers.length,
-        stealers,
-        message: raw.message,
-      },
-    };
-  } catch (err) {
-    return { ok: false, error: describeError(err) };
-  }
-}
-
-function extractMalwareFamily(malwarePath: string): string {
-  const lower = malwarePath.toLowerCase();
-  const KNOWN_FAMILIES = [
-    "redline", "raccoon", "vidar", "lumma", "stealc", "amadey",
-    "azorult", "meta", "mars", "rhadamanthys", "risepro", "atomic",
-  ];
-  const hit = KNOWN_FAMILIES.find((fam) => lower.includes(fam));
-  if (hit) return hit.charAt(0).toUpperCase() + hit.slice(1);
-  // Fall back to the executable filename
-  const filename = malwarePath.split(/[\\/]/).pop() ?? malwarePath;
-  return filename.replace(/\.exe$/i, "");
-}
-
 async function fetchTwilio(e164: string): Promise<SourceResult<TwilioData>> {
   const sid = await resolveKey("TWILIO_ACCOUNT_SID");
   const token = await resolveKey("TWILIO_AUTH_TOKEN");
@@ -357,15 +286,23 @@ function buildAggregated(
       ? [timezoneRaw]
       : analysis.timezones.length > 0
       ? analysis.timezones
+      /* v8 ignore start -- every number libphonenumber can parse yields at least
+         one timezone, so the country-dataset fallback is a safety net only. */
       : countryIntel?.timezones && countryIntel.timezones.length > 0
       ? [countryIntel.timezones[0]]
       : null;
+  /* v8 ignore stop */
 
   // Only real UTC offsets — never fall back to an IANA timezone name,
   // which is not an offset and would render as wrong data.
   const utcOffsets = analysis.utcOffsets.length > 0 ? analysis.utcOffsets : null;
 
-  const fraudScore = ipqs.ok && ipqs.data ? ipqs.data.fraud_score : null;
+  // Only accept a real number. A success response that omits fraud_score (or
+  // sends a string) would otherwise flow into the threat maths as NaN and
+  // serialise to `threatScore: null` — a broken bar in the UI instead of an
+  // honest "not supplied".
+  const rawFraud = ipqs.ok && ipqs.data ? ipqs.data.fraud_score : null;
+  const fraudScore = typeof rawFraud === "number" && Number.isFinite(rawFraud) ? rawFraud : null;
 
   // VOIP: only claim true if explicitly confirmed — never claim false without data
   const isVoipConfirmed: boolean | null =
@@ -445,19 +382,12 @@ function buildAggregated(
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip = getClientIp(req);
-  const { allowed, remaining } = checkRateLimit(ip);
-  const rlHeaders = {
-    "X-RateLimit-Limit": "10",
-    "X-RateLimit-Remaining": String(remaining),
-    "X-RateLimit-Window": "60s",
-  };
-  if (!allowed) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Max 10 requests per minute." },
-      { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } }
-    );
-  }
+  const rl = guardRateLimit(req);
+  if (rl.limited) return rl.limited;
+  const rlHeaders = rl.headers;
+  const client = rl.client;
+
+  await ensureDatasets();
 
   const body = await parseBody(req, phoneBody);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -471,13 +401,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const e164 = parsed.format("E.164");
-  void audit("phone", e164, ip, 200);
+  void audit("phone", e164, client, 200);
 
   const cached = getCached(e164);
   if (cached) return NextResponse.json(cached, { headers: rlHeaders });
 
   // Deep analysis — offline, zero APIs
   const analysis = analyzePhoneNumber(e164);
+  /* v8 ignore next 3 -- unreachable: libphonenumber has already parsed the
+     number above, so analyzePhoneNumber cannot return null here. Kept so a
+     future change to the parser can't produce a 500 instead of a 400. */
   if (!analysis) {
     return NextResponse.json({ error: "Failed to analyze number" }, { status: 400 });
   }
@@ -497,48 +430,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   };
 
   // Optional enrichment — fan-out to APIs if keys are configured.
-  // Hudson Rock is always called (no key required).
-  const [numverifyResult, ipqsResult, abstractResult, twilioResult, breachResult, fcResult, hrResult] =
-    await Promise.allSettled([
-      fetchNumVerify(e164),
-      fetchIpqs(e164),
-      fetchAbstract(e164),
-      fetchTwilio(e164),
-      fetchBreachDirectoryPhone(e164),
-      fetchFullContactPhone(e164),
-      fetchHudsonRock(e164),
-    ]);
-
-  const sources: LookupResponse["sources"] = {
-    numverify:
-      numverifyResult.status === "fulfilled"
-        ? numverifyResult.value
-        : { ok: false, error: describeError(numverifyResult.reason) },
-    ipqs:
-      ipqsResult.status === "fulfilled"
-        ? ipqsResult.value
-        : { ok: false, error: describeError(ipqsResult.reason) },
-    abstract:
-      abstractResult.status === "fulfilled"
-        ? abstractResult.value
-        : { ok: false, error: describeError(abstractResult.reason) },
-    twilio:
-      twilioResult.status === "fulfilled"
-        ? twilioResult.value
-        : { ok: false, error: describeError(twilioResult.reason) },
-    breachDirectory:
-      breachResult.status === "fulfilled"
-        ? breachResult.value
-        : { ok: false, error: describeError(breachResult.reason) },
-    fullContact:
-      fcResult.status === "fulfilled"
-        ? fcResult.value
-        : { ok: false, error: describeError(fcResult.reason) },
-    hudsonRock:
-      hrResult.status === "fulfilled"
-        ? hrResult.value
-        : { ok: false, error: describeError(hrResult.reason) },
-  };
+  // Hudson Rock and LeakCheck are always called (no key required). settleSources
+  // times each call and turns a rejection into a failed envelope, so one dead
+  // source can never fail the lookup.
+  const { results: sources, health } = await settleSources({
+    numverify: fetchNumVerify(e164),
+    ipqs: fetchIpqs(e164),
+    abstract: fetchAbstract(e164),
+    twilio: fetchTwilio(e164),
+    breachDirectory: fetchBreachDirectoryPhone(e164),
+    fullContact: fetchFullContactPhone(e164),
+    hudsonRock: hudsonRockFor(e164, "identifier"),
+    leakCheck: fetchLeakCheck(e164, "phone"),
+  });
 
   const aggregated = buildAggregated(
     analysis,
@@ -552,13 +456,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const { score: threatScore, label: threatLabel } = computeThreatScore(
     aggregated,
     sources.breachDirectory,
-    sources.hudsonRock
+    sources.hudsonRock,
+    sources.leakCheck
   );
 
   const offline = deriveOfflineReputation(analysis);
 
   const response: LookupResponse = {
-    input, analysis, countryIntel, offline, sources, aggregated, threatScore, threatLabel,
+    input, analysis, countryIntel, offline, sources, sourceHealth: health,
+    aggregated, threatScore, threatLabel,
   };
   setCached(e164, response);
 
@@ -571,7 +477,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 function computeThreatScore(
   agg: AggregatedResult,
   bd: SourceResult<BreachDirectoryData>,
-  hr: SourceResult<HudsonRockData>
+  hr: SourceResult<HudsonRockData>,
+  lc: SourceResult<LeakCheckData>
 ): { score: number; label: string } {
   let score = 0;
 
@@ -600,6 +507,13 @@ function computeThreatScore(
   if (hr.ok && hr.data && hr.data.total > 0) {
     score = Math.max(score, 60);
     score += Math.min(hr.data.total * 10, 30);
+  }
+
+  // Public breach index. Weighted below BreachDirectory on purpose: LeakCheck's
+  // free tier reports that records EXIST, not what they contain, so appearing in
+  // it is exposure evidence rather than a confirmed credential compromise.
+  if (lc.ok && lc.data && lc.data.found > 0) {
+    score += Math.min(lc.data.found * 3, 20);
   }
 
   score = Math.max(0, Math.min(score, 100));

@@ -30,17 +30,38 @@ describe("GET /api/health", () => {
 });
 
 describe("GET /api/docs", () => {
-  it("serves a valid OpenAPI 3.1 document describing the lookup endpoints", async () => {
+  it("serves a valid OpenAPI 3.1 document describing every endpoint", async () => {
     const res = await docsGET();
     expect(res.status).toBe(200);
     const spec = await res.json();
     expect(spec.openapi).toBe("3.1.0");
     expect(spec.info.title).toBe("HEAVEN-GeoIntel API");
-    expect(spec.paths["/api/lookup"].post).toBeTruthy();
-    expect(spec.paths["/api/email-lookup"].post).toBeTruthy();
     expect(spec.components.schemas.LookupResponse).toBeTruthy();
-    // Cacheable + CORS-open so external Swagger UIs can import it.
-    expect(res.headers.get("Cache-Control")).toContain("max-age");
+
+    // Every lookup mode, not just phone and email — the spec used to cover 3 of
+    // 11 routes while the README told people to import it into Postman.
+    for (const p of ["/api/lookup", "/api/email-lookup", "/api/username-lookup",
+                     "/api/ip-lookup", "/api/domain-lookup", "/api/bulk-lookup"]) {
+      expect(spec.paths[p]?.post, `missing POST ${p}`).toBeTruthy();
+    }
+    for (const p of ["/api/cases", "/api/keys", "/api/sources", "/api/datasets", "/api/health", "/api/docs"]) {
+      expect(spec.paths[p], `missing ${p}`).toBeTruthy();
+    }
+    expect(spec.paths["/api/cases"].delete).toBeTruthy();
+    expect(spec.paths["/api/keys"].delete).toBeTruthy();
+
+    // Generated per request from the live config, so it must not be cached.
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+
+  it("states the live rate limit rather than a number baked into the text", async () => {
+    process.env.RATE_LIMIT_MAX = "250";
+    try {
+      const spec = await (await docsGET()).json();
+      expect(spec.info.description).toContain("250 requests");
+    } finally {
+      delete process.env.RATE_LIMIT_MAX;
+    }
   });
 });

@@ -7,7 +7,203 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+_Nothing yet._
+
+## [2.0.0] — 2026-08-01
+
+**A full audit of the codebase, and everything it turned up.** 2.0 is the result of
+reading all 17,275 lines of `src/`, running every mode against live upstream APIs on a
+production build, and fixing what that found — then closing the gap between what the
+tool *did* and what its own README said it was *for*. Every number below is measured,
+not estimated; the full record is in [`docs/AUDIT-AND-ROADMAP.md`](docs/AUDIT-AND-ROADMAP.md).
+
+The headline: **a lookup no longer ends at its own result.** Every finished lookup
+offers the identifiers it derived as one-click pivots, those links persist into a case
+carrying the reason they were drawn, and re-running a case tells you what changed since
+last time. Phone — the weakest mode without API keys — went from 1 keyless source to 2.
+The suite grew from 718 to **1,215 tests**, and the 100% coverage gate now covers every
+API route and the auth/CSRF proxy, which were previously outside it.
+
+### Breaking / upgrade notes
+
+- **`/api/sources` ids were renamed and split 1:1 with what the routes report.**
+  `hudsonrock` → `hudsonRock`, `xposedornot` → `xon`, `fullcontact` → `fullContact`,
+  `rapidapi` → `breachDirectory`; the composite `ipapi` became `ip-api.com` +
+  `Shodan InternetDB` + `GreyNoise Community`, `doh` became `dns` + `whois` +
+  `subdomains` + `wayback`, and `usernames` became `usernameSweep` +
+  `usernameProfiles`. The old ids never matched the ids the lookup routes emit, so
+  `/api/sources` reported sources as "never called" moments after they had answered.
+  A script that keys off these ids needs updating; the browser UI needs nothing.
+  The response also gained `runtime` (live rate-limit and cache settings) and a
+  per-source `lastSeen`.
+- **Docker image tag:** `heaven-geointel:1.3` → `heaven-geointel:2.0`, in both
+  `docker-compose.yml` and the README's plain-`docker` commands.
+- **The default rate limit is now 60 requests/min per client** (was 10, shared by
+  *every* client). If you relied on the old ceiling as a brake on upstream free-tier
+  usage, set `RATE_LIMIT_MAX` back to 10 explicitly — and note there is now a separate
+  server-wide `RATE_LIMIT_GLOBAL_MAX` (default 600/min) for exactly that job.
+
+Everything else is backward compatible. Lookup responses only gained fields, and case
+reports exported by 1.x still import and still verify as untampered — the integrity
+hash for a v1 file is deliberately re-computed against the v1 payload shape.
+
+### Added — cross-identifier intelligence
+
+- **Auto-pivot: every result hands you its next lookup.** A finished result now
+  surfaces the identifiers it already contains as one-click lookups — a domain's MX
+  host and NS records, a Gravatar-linked handle, an IPQS-associated email, a
+  FullContact phone, an XposedOrNot breach domain, an unmasked infostealer IP.
+  `lib/analysis/autoPivot.ts` holds itself to four rules, each enforced by a test: it
+  is **pure** (no network, no clock — the panel paints with the result); it **never
+  invents** a value, so an email is never synthesised from a username; it **validates
+  by kind**, so a malformed upstream field can't produce a dead-end lookup; and it
+  **drops masked values** — Hudson Rock's free tier returns `82.167.***.**` and
+  `i****@gmail.com`, which are evidence that something was captured, not identifiers
+  you can pivot on. Confirmed links (an upstream asserts the association) render
+  separately from related ones rather than being flattened into one list.
+- **Phone finally has free enrichment — 1 keyless source of 7 became 2 of 8.**
+  LeakCheck's public endpoint (`lib/server/leakCheck.ts`) reports how many indexed
+  breach records mention an identifier, which field types were exposed, and the named
+  breaches. It returns no credentials — that is the paid tier — so everything shown is
+  exposure metadata. It answers for **three** modes (phone, email, username), which is
+  why it is a shared module rather than route-inline. Two accuracy details, both found
+  by probing the live endpoint rather than reading its docs: a phone in `+E.164` form
+  is *rejected* ("could not determine search type automatically") so the route sends
+  bare digits with an explicit `type=phone`; and the endpoint answers **HTTP 200 with
+  `success: false`** for both "no records" *and* a refused query, so only the
+  not-found message is treated as clean — without that split a malformed query would
+  have been shown to the analyst as "this identifier is clean". Measured, keyless:
+  `+919876543210` → 78 records across 13 named breaches.
+- **Infostealer exposure for email, not just phone.** The source registry advertised
+  Hudson Rock for phone **and** email while the email route never called it. Cavalier
+  needs a different endpoint per identifier shape (`search-by-email` for an address;
+  the `search-by-username` endpoint the phone route uses returns HTTP 400 *"Email is
+  required"*), so both now go through `lib/server/hudsonRock.ts` and `InfostealerPanel`
+  was made mode-agnostic. Measured: `test@example.com` → 5 infections.
+- **The link graph is now server-side, per case, and records *why*.** A case gained
+  `edges: { from, to, reason, addedAt }`, where `reason` is the verbatim auto-pivot
+  string — so the stored graph says *what linked these two identifiers*, which the old
+  `localStorage` graph could never answer. `LinkGraph` draws them as dashed edges on
+  top of the membership spokes. Only links whose **both** ends were actually pinned are
+  persisted; an edge to an identifier you chose not to pin would put a phantom node in
+  the case graph.
+- **Change tracking — "re-run this and tell me what moved".** Pinning a lookup to a
+  case records a small bag of scalars worth watching (breach counts, open ports,
+  subdomain totals, registrar, DMARC policy) — deliberately *not* the whole response,
+  which would balloon the case file and pin PII on disk indefinitely. Three choices
+  worth naming: the diff is computed **server-side against what is on disk**, because a
+  client-side diff can only compare against what that browser happens to still hold; a
+  first snapshot is a **baseline**, never "no change", because those are different
+  claims; and `fromCache` is recorded, because otherwise an empty diff is ambiguous
+  between "nothing moved upstream" and "we compared a cached result with itself".
+  Facts a source couldn't answer are dropped, so "we don't know" never diffs as "zero".
+  Verified live: a re-run reported `subdomains 1 → 4` and `dnssec — → signed`.
+- **Case export schema v2 — the whole case, not just its identifiers.** Exports now
+  carry the derived graph and the snapshot history, and the Markdown report gained a
+  **Derived links** table and a **Change history** section. v1 exports still verify
+  (see the upgrade notes above). One subtlety the tests surfaced: because the hash
+  covers the *canonical* payload, junk appended to a report that doesn't survive
+  sanitisation leaves the hash matching — correct about the **case**, silent about the
+  **file** — so import now also reports `dropped`, the count of unparseable rows
+  discarded. A verified report with `dropped > 0` means the file was edited even though
+  nothing an analyst would act on changed.
+- **Optional case lock (`CASE_PASSWORD`).** `AUTH_PASSWORD` gates the whole app, which
+  is all-or-nothing. Cases are the only thing on disk that accumulates investigation
+  targets and survives restarts, so `CASE_PASSWORD` seals `/api/cases` while leaving
+  lookups open. Unset — the default — is a complete no-op. It uses a cookie rather than
+  HTTP Basic because the cases UI talks to `/api/cases` with `fetch()`, and a 401 from
+  `fetch()` does **not** make the browser prompt for credentials, so a Basic realm here
+  would simply break the panel. The token is an HMAC over its own expiry keyed by the
+  password: no session table, rotating the password invalidates every outstanding
+  token, and the expiry cannot be extended by editing the cookie. `CASE_UNLOCK_TTL_MS`
+  tunes its lifetime.
+
+### Added — the poster
+
+- **The README banner is generated, and it tells the truth about the build.**
+  `lib/brand/poster.ts` renders an animated, self-contained SVG from the same
+  geometry module as the favicon and the report letterheads, and every number on it
+  is read out of the thing it describes at generation time: the version module, the
+  source manifest, the mode registry, the endpoint registry, the username catalog,
+  and the coverage threshold in `vitest.config.ts`. "13/21 sources need no key"
+  therefore cannot become a lie by adding a 22nd source. Three files ship —
+  `poster.svg`, `poster-light.svg` (GitHub switches with the reader's theme) and
+  `poster-still.svg` for print — each with no external font or image to fetch,
+  because GitHub will not proxy one. It stops animating under
+  `prefers-reduced-motion`, and the still frame is a finished poster rather than a
+  blank canvas waiting for keyframes.
+- **The launcher, installer and uninstaller open with the same mark and the same
+  numbers.** The generator also writes `scripts/banner.sh` from
+  `lib/brand/banner.ts`, sourced by all three scripts. Colour on a TTY, plain text
+  when piped or under `NO_COLOR`, padded on visible width so an escape code can
+  never break the box, and the frame grows rather than truncating a number. Every
+  script degrades gracefully when the generated file is absent — a launcher must not
+  fail over decoration.
+- **`npm run brand:poster`** regenerates the poster and the banner with no browser
+  involved, so it works in CI and on a machine with no Chrome; `npm run brand` does
+  that plus the rasters. `tests/posterAssets.test.ts` re-derives the numbers and
+  fails the build if the committed artwork is older than the registries it quotes —
+  "remember to regenerate the assets" is now a gate rather than a hope.
+
+### Added — runtime configuration & operations
+
+- **Every operational knob is an environment variable now** (`lib/server/config.ts`).
+  Rate limits, cache TTLs and sizes, the per-source fetch timeout, fanout concurrency
+  and snapshot history were compile-time constants; changing any of them meant editing
+  TypeScript and rebuilding. Values are read on every call rather than frozen at module
+  load, junk falls back to the default, and everything is clamped — so a typo cannot
+  disable rate limiting. Defaults are the previous hardcoded values, except the rate
+  limit (see the upgrade notes).
+- **Dataset overlays — update the data without a rebuild.** Drop a JSON file in
+  `.data/datasets/` to add, replace or remove entries in any of the five bundled
+  datasets (country intel, NPA, MCC/MNC, disposable domains, username sites), then
+  `POST /api/datasets` to reload without restarting. A malformed overlay is ignored
+  with a warning rather than being fatal, and username-site entries are validated
+  individually — a `body`-check site with no absence marker would claim every handle as
+  FOUND, so it is rejected rather than trusted. Verified live: added a site, removed a
+  bundled one, and changed a third from `manual` to `status`, with no rebuild.
+- **One source manifest** (`lib/sources/manifest.ts`) that `/api/sources`, the OpenAPI
+  description and the UI all derive from, plus `tests/sourceManifestAlignment.test.ts`,
+  which drives every mode and asserts the manifest and the routes agree in *both*
+  directions. Adding a provider can no longer leave a registry stale.
+- **The OpenAPI spec is generated, not hand-written.** `/api/docs` is now built at
+  request time from a declarative endpoint registry plus the source manifest — 12
+  paths, 17 operations, up from 3 hand-maintained paths — and it states the limits
+  *this instance* is running rather than numbers baked in when the doc was written.
+  `tests/openapiCoverage.test.ts` walks `src/app/api/**/route.ts`, extracts the
+  exported HTTP methods, and fails the build if the registry and the routes disagree
+  either way.
+- **Uniform per-source provenance on every mode.** Each lookup returns
+  `sourceHealth: { source, ok, ms, fetchedAt, error?, skipped? }[]` alongside its typed
+  payloads, replacing three different shapes across three routes. `skipped`
+  distinguishes "no API key configured" from "called and failed" — colouring an
+  unconfigured optional source red made a healthy keyless install look broken.
+  `/api/sources` now reports each source's last observed call, not just whether a key
+  is present.
+- **One version, one place** (`lib/version.ts`). The version was typed out by hand in
+  eight files and had already drifted three ways — `package.json` and `/api/health`
+  said 1.3.0, the OpenAPI spec said 1.4.0, and the outbound User-Agent said 1.3.
+  Everything now derives from a single constant, and `tests/versionSync.test.ts` fails
+  the build if `package.json`, `package-lock.json`, `docker-compose.yml`, `SECURITY.md`,
+  `scripts/start.sh`, the README's docker commands or this changelog fall out of step
+  with it.
+- **`.env.example` documents the whole surface**, not just API keys: the auth gate,
+  the case lock, all rate-limit / cache / timeout / concurrency knobs, the data
+  directory and the audit-log mode, each with its real default and the range it is
+  clamped to.
+- **A real uninstall.** `npm run uninstall-global` already removed the `geointel`
+  command in every form it can be installed; it now also answers the obvious next
+  question by telling you exactly what it deliberately left on disk. Pass
+  `-- --purge-data` to delete the data directory too (cases, audit log, UI-saved API
+  keys, dataset overlays) — it prints the contents and the case count and makes you
+  type `yes`, and refuses outright when it isn't a terminal unless `--yes` is also
+  given. `.env.local`, `node_modules` and the build output are never removed.
+  Verified in a sandboxed `HOME` over a real pty: `yes` deletes, `n` and an empty
+  answer keep, and the RC file comes out with the user's own lines intact.
+- **`geointel --help`** — and unknown flags now fail with usage instead of silently
+  starting a production build, which is what `geointel --help` used to do.
+
+### Added — workspace, brand & quality-of-life
 - **A real brand mark, synced end to end.** The app shipped with the stock
   `create-next-app` favicon and no logo of its own; it now has a proper one. A
   pointy-top hexagon frames a wireframe globe, and the **H** of HEAVEN is built
@@ -229,6 +425,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Footer credit:** "Created & developed by **Nisarg Chasmawala (Shroff)**".
 
 ### Changed
+
+- **Rate limiting is per client, and the default ceiling is 6× higher.**
+  `getClientIp()` returned a hard-coded `127.0.0.1` unless `TRUST_PROXY=1`, so the
+  whole installation shared **10 lookups per minute across all modes and all users** —
+  measured before the fix: 12 requests across 6 modes, 429 at request 11. Clients are
+  now keyed by trusted-proxy IP → a first-party `hv_rl` cookie (one bucket per browser,
+  minted by `proxy.ts`) → a shared bucket for non-browser clients, with the default
+  raised to 60/min *each* and a separate server-wide ceiling of 600/min so a
+  cookie-discarding script can't exhaust a free upstream tier. A request rejected by
+  the ceiling is **not** charged to the client, and a new `X-RateLimit-Scope` header
+  says which limit is binding. One `guardRateLimit()` helper serves all six lookup
+  routes, so the headers are now identical everywhere and on every status —
+  `bulk-lookup` previously sent none at all. Measured after, same 12-request trace: all
+  200, `remaining` counting 59→48, and a second client's first request still at 59.
+- **Domain lookups: the crt.sh fallback is capped at 2.5 s** (was given the full 8 s
+  source timeout, and a slow crt.sh spent all of it). It only ever *adds* to an
+  already-usable Certspotter set, so cutting it short costs at most some extra
+  subdomains. `example.com` **8.16 s → 0.42 s**; `nasa.gov` 2.42 → 2.28 s;
+  `github.com` 0.83 → 0.64 s. **The faster design was tried and rejected:** firing both
+  CT logs concurrently and aborting crt.sh once Certspotter proves sufficient is better
+  on paper, but it sends a query to a free public CT front end on *every* domain lookup,
+  and an abort only stops us reading the response — crt.sh has already started the work.
+  Staying sequential keeps the common case at zero crt.sh requests, and a test asserts
+  it. **Honestly reported:** `cloudflare.com` still takes 7.2 s, and the per-source
+  timing attributes that to Certspotter itself (7.16 s) — the primary source on a
+  certificate-heavy domain, not the fallback that was fixed. Still open.
+- **The 100% coverage gate now includes every API route and `src/proxy.ts`.** Tests
+  existed for them; nothing enforced that they covered the error paths. Bringing them
+  in went from 94.31% statements / 89.99% branches to 100%/100% and took 299 new tests
+  across 11 files — every provider success path, every HTTP error code, every timeout,
+  every sparse-payload default, and the auth/CSRF gate, which had **zero** direct
+  tests. Genuinely unreachable defensive branches carry a `/* v8 ignore */` naming why.
+  Suite total: **718 → 1,215 tests across 90 files.**
+- **Docs corrected where they overstated the tool.** Username badge 44 → **47** sites;
+  `/api/docs` "8 endpoints" → **17 operations across 12 endpoints**; "the 15 sites that
+  return HTTP 200 for every handle" → **19**; the rate-limit badge, and the caching and
+  rate-limiting prose.
 - **Housekeeping / docs.** Removed a dead, empty top-level `data/` directory (the app
   has always stored runtime state under `.data/`, created lazily by the server) and
   stray `.DS_Store` files, and brought the README in line with the shipped behaviour —
@@ -264,6 +497,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   runs.
 
 ### Fixed
+
+- **Adding an API key did not invalidate cached results.** A keyless result stayed
+  cached for 24 h, so adding a key in the UI appeared to do nothing and the reasonable
+  conclusion was "the key is broken". Both caches now live in `lib/server/cache.ts` and
+  are cleared by any successful `setKey` / `clearKey` / `clearAllKeys`; a *rejected*
+  mutation deliberately leaves them alone. Env-supplied keys need a restart, which
+  empties the in-memory maps anyway.
+- **A dropper filename was being rendered as a malware family.** `malwareFamily` fell
+  back to the executable's bare filename when it recognised no known strain, so a live
+  Hudson Rock record for `.../45AmJcDpU.exe` put **"45AMJCDPU"** in the malware badge —
+  a random token presented as an identification. It now returns Cavalier's own
+  `stealer_family`, a name from the known-family list, or **null**. The infection is
+  still reported; an empty badge is the honest answer about the strain.
+- **`threatScore` could serialise as `null`.** An IPQS `success: true` response that
+  omitted `fraud_score` reached the threat maths as `undefined` → `NaN` → JSON `null`,
+  rendering a broken bar. Only a finite number is accepted now; otherwise the field is
+  honestly `null` and the score stays a number.
+- **The username sweep reported itself healthy when every probe had failed.** The
+  health predicate counted all hits, but `manual` sites are never contacted — so a
+  total outage of the auto-checked sites still read as healthy. Judged on auto-checked
+  sites only.
+- **`/api/sources` showed sources as "never called" moments after they answered.** The
+  hardcoded registry's ids didn't match the ids the routes emit. See the upgrade notes.
+- **The test suite could write into the developer's real `.data/`.** Route handlers
+  persist through `HV_DATA_DIR`, so any test exercising a route without setting its own
+  temp dir wrote into `./.data` — polluting real cases and the audit log. This bit
+  during the audit itself. Fixed two ways: the vitest run now points `HV_DATA_DIR` at a
+  git-ignored `.vitest-data/` so no test can reach the real directory even if it
+  forgets, and the four duplicated `dataDir()` definitions (audit log, case store, key
+  store, dataset loader) were consolidated into `lib/server/dataDir.ts` with its own
+  tests.
+- **The OpenAPI spec documented 3 of 11 endpoints**, and drifted every time a route was
+  added. Fixed structurally — see the generated spec above.
+- **The version had drifted three ways across eight files.** See `lib/version.ts` above.
+- **The README advertised 47 username sites; the catalog holds 43.** It also claimed
+  28 were auto-verified when the real split is 24 auto / 19 manual — and the live
+  sweep had been reporting `checked: 24` all along. Corrected in all seven places it
+  appeared, and the poster now derives the number instead of repeating it.
+- **`geointel` could serve the previous release's bundle after an upgrade.** The
+  launcher only rebuilt when `package.json` was newer than the last build, so pulling
+  a release that changed `src/` but not the manifest started the stale bundle with no
+  hint that it had. It now rebuilds when anything that ends up *in* the bundle —
+  `src/`, `public/`, `next.config.mjs`, the Tailwind/PostCSS config — is newer than
+  `.next/BUILD_ID`.
 - **`public/` was never copied into the Docker runtime image.** The runtime stage
   copied `.next`, `node_modules`, `package.json` and `next.config.mjs` but not
   `public/` — and Next does not bundle `public/` into `.next`, it serves it from
@@ -630,6 +907,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   verify nothing remains. Added `npm run uninstall-global`.
 
 ### Security
+
+- **`next` 16.2.10 → 16.2.12, closing 9 high-severity advisories — one of them aimed
+  squarely at how this app authenticates.**
+  [GHSA-6gpp-xcg3-4w24](https://github.com/advisories/GHSA-6gpp-xcg3-4w24) is a
+  *middleware/proxy bypass in App Router applications using Turbopack*, and this app
+  implements its CSRF guard and HTTP Basic gate in `src/proxy.ts`, builds with
+  Turbopack, and documents `AUTH_PASSWORD` as the control for exposing the console on a
+  LAN. The installed version was confirmed to be in the affected range and to use the
+  affected feature combination; no exploitation was attempted. `postcss` and `sharp`
+  were resolved via overrides (`sharp` is unreachable anyway — `images.unoptimized` is
+  on and the app renders plain `<img>`), and the dead `@eslint/eslintrc` devDependency
+  was dropped. **`npm audit --omit=dev` is now clean: 0 vulnerabilities.**
+- **Disclosed, not fixed:** the full tree still reports 9 **dev-only** advisories, all
+  rooting in `brace-expansion` reached via `minimatch@3`, which is bundled inside
+  `eslint-config-next`'s own plugins. No fixed 1.x–4.x of `brace-expansion` exists —
+  only 5.0.8 — and forcing it breaks `minimatch@3`'s API (verified: lint crashes).
+  ESLint 10 also fails (`eslint-plugin-react`: `contextOrFilename.getFilename is not a
+  function`). This chain is dev tooling only, never bundled, and reachable only through
+  a glob pattern the repo owner writes. It needs an upstream `eslint-config-next`
+  release.
+- **Per-client rate limiting is a security fix, not just a UX one.** A single shared
+  bucket meant any one client could deny the tool to every other user of the same
+  instance with 10 requests.
+- **`CASE_PASSWORD` seals the case store** without gating lookups — see above.
 - **HSTS on HTTPS deployments.** When the app is served over TLS
   (`FORCE_HTTPS=1`), responses now carry
   `Strict-Transport-Security: max-age=63072000; includeSubDomains`. It is gated on

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { guardRateLimit } from "@/lib/server/rateLimit";
 import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 import { fetchJson } from "@/lib/server/fetchSafe";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, ipBody, isValidIp, ipVersion } from "@/lib/server/validation";
 import { classifyIp } from "@/lib/analysis/ipClassify";
+import { markAll } from "@/lib/server/sourceHealth";
 import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/types";
 
 // ── IP OSINT — free, no API key ──────────────────────────────────────────────
@@ -96,18 +97,16 @@ function computeThreat(d: IpLookupData): { score: number; label: string } {
 
 function fail(target: string, error: string, rlHeaders: Record<string, string>, sources: SourceProvenance[]): NextResponse {
   return NextResponse.json(
-    { input: target, ip: null, pivots: buildPivots(target), threatScore: 0, threatLabel: "UNKNOWN", sources, error } as IpLookupResponse,
+    { input: target, ip: null, pivots: buildPivots(target), threatScore: 0, threatLabel: "UNKNOWN", sources, sourceHealth: sources, error } as IpLookupResponse,
     { headers: rlHeaders },
   );
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const clientIp = getClientIp(req);
-  const { allowed, remaining } = checkRateLimit(clientIp);
-  const rlHeaders = { "X-RateLimit-Limit": "10", "X-RateLimit-Remaining": String(remaining) };
-  if (!allowed) {
-    return NextResponse.json({ error: "Rate limit exceeded. Max 10/min." }, { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } });
-  }
+  const rl = guardRateLimit(req);
+  if (rl.limited) return rl.limited;
+  const rlHeaders = rl.headers;
+  const client = rl.client;
 
   const body = await parseBody(req, ipBody);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -121,7 +120,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // precise answer instead of firing three upstreams that would only fail.
   const classification = classifyIp(target);
   if (classification && !classification.isGloballyRoutable) {
-    void audit("ip", target, clientIp, 200);
+    void audit("ip", target, client, 200);
     return NextResponse.json(
       {
         input: target,
@@ -150,19 +149,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
 
   const [shodan, gn] = await Promise.all([shodanJob, gnJob]);
-  const sources: SourceProvenance[] = [
+  const sources: SourceProvenance[] = markAll([
     { source: ipApi.source, ok: ipApi.ok && ipApi.data?.status === "success", ms: ipApi.ms, fetchedAt: ipApi.fetchedAt, error: ipApi.ok ? (ipApi.data?.status === "success" ? undefined : (ipApi.data?.message ?? "lookup failed")) : ipApi.error },
     { source: shodan.source, ok: shodan.ok, ms: shodan.ms, fetchedAt: shodan.fetchedAt, error: shodan.ok ? undefined : shodan.error },
     { source: gn.source, ok: gn.status === 200 || gn.status === 404, ms: gn.ms, fetchedAt: gn.fetchedAt, error: (gn.status === 200 || gn.status === 404) ? undefined : gn.error },
-  ];
+  ]);
 
   if (!ipApi.ok || !ipApi.data) {
-    void audit("ip", target, clientIp, 502);
+    void audit("ip", target, client, 502);
+    /* v8 ignore next -- fetchJson always sets `error` when ok is false. */
     return fail(target, ipApi.error ?? "geo source unreachable", rlHeaders, sources);
   }
   const raw = ipApi.data;
   if (raw.status !== "success") {
-    void audit("ip", target, clientIp, 200);
+    void audit("ip", target, client, 200);
     return fail(target, raw.message ?? "Lookup failed", rlHeaders, sources);
   }
 
@@ -231,16 +231,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const { score, label } = computeThreat(data);
-  void audit("ip", target, clientIp, 200);
+  void audit("ip", target, client, 200);
 
   const response: IpLookupResponse = {
     input: target,
     ip: data,
+    /* v8 ignore next -- classifyIp always returns a value for an address that
+       passed isValidIp, so the undefined arm is unreachable. */
     classification: classification ?? undefined,
     pivots: buildPivots(target),
     threatScore: score,
     threatLabel: label,
     sources,
+    // `sourceHealth` is the canonical field name across every lookup mode;
+    // `sources` is kept as an alias so existing IP-dashboard consumers don't break.
+    sourceHealth: sources,
   };
   return NextResponse.json(response, { headers: rlHeaders });
 }

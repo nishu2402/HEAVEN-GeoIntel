@@ -19,6 +19,32 @@ export function installResizeObserver(): void {
   }
 }
 
+// ── Rate-limit helpers for route tests ───────────────────────────────────────
+// The shipped default is 60 requests/minute per client, which would make an
+// "exhaust the bucket" test do 60 round-trips. These helpers pin a small limit
+// for the duration of a test and hand out distinct client identities so a test
+// can prove that one client's exhaustion doesn't affect another's.
+
+import { CLIENT_ID_COOKIE, resetRateLimit } from "@/lib/server/rateLimit";
+
+/** Pin RATE_LIMIT_MAX (and clear all buckets) for one test. */
+export function useRateLimit(max: number): void {
+  process.env.RATE_LIMIT_MAX = String(max);
+  resetRateLimit();
+}
+
+/** Undo useRateLimit — call from afterEach. */
+export function restoreRateLimit(): void {
+  delete process.env.RATE_LIMIT_MAX;
+  delete process.env.RATE_LIMIT_GLOBAL_MAX;
+  resetRateLimit();
+}
+
+/** A Cookie header that puts a request in its own rate-limit bucket. */
+export function clientCookie(id: string): string {
+  return `${CLIENT_ID_COOKIE}=${id.padEnd(16, "0").slice(0, 32)}`;
+}
+
 export function installMemoryLocalStorage(): void {
   const store = new Map<string, string>();
   const mem: Storage = {

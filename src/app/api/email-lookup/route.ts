@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { analyzeEmail } from "@/lib/analysis/emailAnalysis";
-import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { guardRateLimit } from "@/lib/server/rateLimit";
+import { getCachedEmail, setCachedEmail } from "@/lib/server/cache";
+import { settleSources } from "@/lib/server/sourceHealth";
+import { ensureDatasets } from "@/lib/server/datasets";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, emailBody } from "@/lib/server/validation";
 import { resolveKey } from "@/lib/server/keyStore";
 import { describeError } from "@/lib/server/fetchSafe";
+import { hudsonRockFor } from "@/lib/server/hudsonRock";
+import { fetchLeakCheck } from "@/lib/server/leakCheck";
+import { USER_AGENT } from "@/lib/version";
 import type {
   EmailLookupResponse,
   GravatarProfile,
@@ -25,40 +31,29 @@ function gravatarHash(email: string): string {
   return createHash("sha256").update(email).digest("hex");
 }
 
-// In-memory cache (shared with phone cache module style — simple Map)
-const emailCache = new Map<string, { data: EmailLookupResponse; expiresAt: number }>();
-const EMAIL_TTL = 24 * 60 * 60 * 1000;
-const EMAIL_CACHE_MAX = 500;
-
-function getCachedEmail(email: string): EmailLookupResponse | null {
-  const entry = emailCache.get(email);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { emailCache.delete(email); return null; }
-  return entry.data;
-}
-
-function setCachedEmail(email: string, data: EmailLookupResponse): void {
-  if (emailCache.size >= EMAIL_CACHE_MAX && !emailCache.has(email)) {
-    const oldest = emailCache.keys().next().value;
-    if (oldest !== undefined) emailCache.delete(oldest);
-  }
-  emailCache.set(email, { data: { ...data, cachedAt: Date.now() }, expiresAt: Date.now() + EMAIL_TTL });
-}
-
 // ── Gravatar ──────────────────────────────────────────────────────────────────
-async function fetchGravatar(email: string): Promise<GravatarProfile> {
+// Returns a SourceResult like every other source so its health is reported the
+// same way. "No Gravatar for this address" is a successful lookup with
+// `found: false` — distinct from "gravatar.com did not answer".
+export const EMPTY_GRAVATAR: GravatarProfile = {
+  found: false, displayName: null, preferredUsername: null,
+  aboutMe: null, currentLocation: null, profileUrl: null,
+  thumbnailUrl: null, accounts: [], verifiedAccounts: [],
+};
+
+async function fetchGravatar(email: string): Promise<SourceResult<GravatarProfile>> {
   const hash = gravatarHash(email.toLowerCase().trim());
-  const empty: GravatarProfile = {
-    found: false, displayName: null, preferredUsername: null,
-    aboutMe: null, currentLocation: null, profileUrl: null,
-    thumbnailUrl: null, accounts: [], verifiedAccounts: [],
-  };
+  const empty = EMPTY_GRAVATAR;
   try {
     const res = await fetch(`https://gravatar.com/${hash}.json`, {
-      headers: { "User-Agent": "HEAVEN-GeoIntel/1.3" },
+      headers: { "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
     });
-    if (!res.ok) return empty;
+    if (!res.ok) {
+      // 404 is Gravatar's "no profile for this hash" — a real answer, not a fault.
+      if (res.status === 404) return { ok: true, data: empty };
+      return { ok: false, error: `HTTP ${res.status}` };
+    }
 
     type GravatarEntry = {
       displayName?: string;
@@ -74,27 +69,30 @@ async function fetchGravatar(email: string): Promise<GravatarProfile> {
 
     const json = (await res.json()) as GravatarResponse;
     const entry = json.entry?.[0];
-    if (!entry) return empty;
+    if (!entry) return { ok: true, data: empty };
 
     return {
-      found: true,
-      displayName: entry.displayName ?? null,
-      preferredUsername: entry.preferredUsername ?? null,
-      aboutMe: entry.aboutMe ?? null,
-      currentLocation: entry.currentLocation ?? null,
-      profileUrl: entry.profileUrl ?? null,
-      thumbnailUrl: entry.thumbnailUrl
-        ? `${entry.thumbnailUrl}?s=200`
-        : `https://gravatar.com/avatar/${hash}?s=200&d=404`,
-      accounts: (entry.accounts ?? []).map((a) => ({
-        shortname: a.shortname ?? "",
-        username: a.username ?? "",
-        url: a.url ?? "",
-      })),
-      verifiedAccounts: [], // v1 API doesn't return this separately
+      ok: true,
+      data: {
+        found: true,
+        displayName: entry.displayName ?? null,
+        preferredUsername: entry.preferredUsername ?? null,
+        aboutMe: entry.aboutMe ?? null,
+        currentLocation: entry.currentLocation ?? null,
+        profileUrl: entry.profileUrl ?? null,
+        thumbnailUrl: entry.thumbnailUrl
+          ? `${entry.thumbnailUrl}?s=200`
+          : `https://gravatar.com/avatar/${hash}?s=200&d=404`,
+        accounts: (entry.accounts ?? []).map((a) => ({
+          shortname: a.shortname ?? "",
+          username: a.username ?? "",
+          url: a.url ?? "",
+        })),
+        verifiedAccounts: [], // v1 API doesn't return this separately
+      },
     };
-  } catch {
-    return empty;
+  } catch (err) {
+    return { ok: false, error: describeError(err) };
   }
 }
 
@@ -108,7 +106,7 @@ async function fetchEmailRep(email: string): Promise<SourceResult<EmailRepData>>
     // request entirely, rather than surfacing a permanent error row.
     const emailRepKey = await resolveKey("EMAILREP_API_KEY");
     if (!emailRepKey) return { ok: false, error: "NOT_CONFIGURED" };
-    const headers: Record<string, string> = { "User-Agent": "HEAVEN-GeoIntel/1.3", Key: emailRepKey };
+    const headers: Record<string, string> = { "User-Agent": USER_AGENT, Key: emailRepKey };
 
     const res = await fetch(`https://emailrep.io/${encodeURIComponent(email)}`, {
       headers,
@@ -323,7 +321,7 @@ async function fetchXposedOrNot(email: string): Promise<SourceResult<XposedOrNot
     const res = await fetch(
       `https://api.xposedornot.com/v1/breach-analytics?email=${encodeURIComponent(email)}`,
       {
-        headers: { "User-Agent": "HEAVEN-GeoIntel/1.3", "Accept": "application/json" },
+        headers: { "User-Agent": USER_AGENT, "Accept": "application/json" },
         signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
       }
     );
@@ -409,7 +407,7 @@ async function fetchFullContact(email: string): Promise<SourceResult<FullContact
       headers: {
         "Authorization": `Bearer ${key}`,
         "Content-Type": "application/json",
-        "User-Agent": "HEAVEN-GeoIntel/1.3",
+        "User-Agent": USER_AGENT,
       },
       body: JSON.stringify({ email }),
       signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
@@ -540,19 +538,12 @@ async function fetchBreachDirectory(email: string): Promise<SourceResult<BreachD
 
 // ── POST handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip = getClientIp(req);
-  const { allowed, remaining } = checkRateLimit(ip);
-  const rlHeaders = {
-    "X-RateLimit-Limit": "10",
-    "X-RateLimit-Remaining": String(remaining),
-    "X-RateLimit-Window": "60s",
-  };
-  if (!allowed) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Max 10 requests per minute." },
-      { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } }
-    );
-  }
+  const rl = guardRateLimit(req);
+  if (rl.limited) return rl.limited;
+  const rlHeaders = rl.headers;
+  const client = rl.client;
+
+  await ensureDatasets();
 
   const body = await parseBody(req, emailBody);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
@@ -566,48 +557,40 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const email = analysis.email; // normalized lowercase
-  void audit("email", email, ip, 200);
+  void audit("email", email, client, 200);
 
   const cached = getCachedEmail(email);
   if (cached) return NextResponse.json(cached, { headers: rlHeaders });
 
-  const [gravatarResult, emailrepResult, abstractResult, hunterResult, xonResult, bdResult, fcResult] =
-    await Promise.allSettled([
-      fetchGravatar(email),
-      fetchEmailRep(email),
-      fetchAbstractEmail(email),
-      fetchHunter(email),
-      fetchXposedOrNot(email),
-      fetchBreachDirectory(email),
-      fetchFullContact(email),
-    ]);
+  const { results, health } = await settleSources({
+    gravatar: fetchGravatar(email),
+    emailrep: fetchEmailRep(email),
+    abstract: fetchAbstractEmail(email),
+    hunter: fetchHunter(email),
+    xon: fetchXposedOrNot(email),
+    breachDirectory: fetchBreachDirectory(email),
+    fullContact: fetchFullContact(email),
+    // Both keyless. Cavalier needs the search-by-EMAIL endpoint here — the
+    // search-by-username one the phone route uses rejects an address with 400.
+    hudsonRock: hudsonRockFor(email, "email"),
+    leakCheck: fetchLeakCheck(email, "email"),
+  });
 
   const response: EmailLookupResponse = {
     email,
     analysis,
-    gravatar: gravatarResult.status === "fulfilled" ? gravatarResult.value : {
-      found: false, displayName: null, preferredUsername: null,
-      aboutMe: null, currentLocation: null, profileUrl: null,
-      thumbnailUrl: null, accounts: [], verifiedAccounts: [],
-    },
-    emailrep: emailrepResult.status === "fulfilled"
-      ? emailrepResult.value
-      : { ok: false, error: describeError((emailrepResult as PromiseRejectedResult).reason) },
-    abstract: abstractResult.status === "fulfilled"
-      ? abstractResult.value
-      : { ok: false, error: describeError((abstractResult as PromiseRejectedResult).reason) },
-    hunter: hunterResult.status === "fulfilled"
-      ? hunterResult.value
-      : { ok: false, error: describeError((hunterResult as PromiseRejectedResult).reason) },
-    xon: xonResult.status === "fulfilled"
-      ? xonResult.value
-      : { ok: false, error: describeError((xonResult as PromiseRejectedResult).reason) },
-    breachDirectory: bdResult.status === "fulfilled"
-      ? bdResult.value
-      : { ok: false, error: describeError((bdResult as PromiseRejectedResult).reason) },
-    fullContact: fcResult.status === "fulfilled"
-      ? fcResult.value
-      : { ok: false, error: describeError((fcResult as PromiseRejectedResult).reason) },
+    // Gravatar is reported as a bare profile for backwards compatibility with
+    // the dashboard; its health lives in `sourceHealth` like every other source.
+    gravatar: results.gravatar.data ?? EMPTY_GRAVATAR,
+    emailrep: results.emailrep,
+    abstract: results.abstract,
+    hunter: results.hunter,
+    xon: results.xon,
+    breachDirectory: results.breachDirectory,
+    fullContact: results.fullContact,
+    hudsonRock: results.hudsonRock,
+    leakCheck: results.leakCheck,
+    sourceHealth: health,
   };
 
   setCachedEmail(email, response);

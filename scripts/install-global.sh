@@ -17,6 +17,15 @@ elif [ -f "$HOME/.bash_profile" ]; then SHELL_RC="$HOME/.bash_profile"
 fi
 
 echo ""
+# The generated brand banner (npm run brand → scripts/banner.sh). Optional by
+# design: installing the command must work on a clone that has never run a
+# build step.
+if [ -f "$SCRIPT_DIR/banner.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$SCRIPT_DIR/banner.sh"
+  hv_banner
+  echo ""
+fi
 echo "  HEAVEN-GeoIntel — Global Command Installer"
 echo "──────────────────────────────────────────────────────────────────"
 echo "  Project: $PROJECT_DIR"
