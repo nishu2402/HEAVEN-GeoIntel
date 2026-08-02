@@ -12,14 +12,41 @@
 #   (none)     production mode (recommended; works on the LAN)
 #   --dev      hot-reload dev server (local development only)
 #   --doctor   diagnose why the Network URL might not reach your phone, then exit
+#   --help     print this and exit
 set -e
 
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 
+usage() {
+  cat <<'USAGE'
+HEAVEN-GeoIntel — one-command startup
+
+  bash scripts/start.sh [flag]      (or just: geointel [flag])
+
+  (none)     Production mode. Builds if needed, serves on all interfaces so a
+             phone on the same Wi-Fi can reach it, then self-tests both URLs.
+  --dev      Hot-reload dev server, bound to localhost only.
+  --doctor   Diagnose why the Network URL might not reach your phone, and exit.
+  --help     This message.
+
+Environment:
+  NO_OPEN=1        don't pop the browser open
+  BROWSER=none     same
+  NO_GLOBAL=1      don't register the `geointel` shell command on first run
+
+Uninstall the global command:  npm run uninstall-global
+USAGE
+}
+
 MODE="prod"
 case "${1:-}" in
-  --dev)    MODE="dev" ;;
-  --doctor) MODE="doctor" ;;
+  "")             ;;
+  --dev)          MODE="dev" ;;
+  --doctor)       MODE="doctor" ;;
+  --help|-h)      usage; exit 0 ;;
+  # Previously any unknown flag fell through and silently started a full
+  # production build — so `geointel --help` built the app instead of helping.
+  *) echo "Unknown option: $1" >&2; echo "" >&2; usage >&2; exit 2 ;;
 esac
 
 # Repo root = parent of this script's dir (script lives in scripts/).
@@ -163,10 +190,20 @@ if [ "$MODE" = "doctor" ]; then
 fi
 
 # ── Banner ───────────────────────────────────────────────────────────────────
+# scripts/banner.sh is generated from src/lib/brand/banner.ts by `npm run brand`,
+# so the terminal shows the same mark — and the same numbers — as the README
+# poster and the app header. It degrades to a plain line if the generated file
+# is missing, because a launcher must never fail over decoration.
 echo ""
-echo -e "${GREEN}==============================================================${NC}"
-echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v1.3${NC}"
-echo -e "${GREEN}==============================================================${NC}"
+if [ -f "$SCRIPT_DIR/banner.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$SCRIPT_DIR/banner.sh"
+  hv_banner
+else
+  echo -e "${GREEN}==============================================================${NC}"
+  echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v2.0${NC}"
+  echo -e "${GREEN}==============================================================${NC}"
+fi
 echo ""
 
 # Node version check (Next.js 16 needs Node 20.9+)
@@ -235,11 +272,22 @@ fi
 # ════════════════════════════════════════════════════════════════════════════
 #  PRODUCTION mode (default) — builds once, then serves on all interfaces
 # ════════════════════════════════════════════════════════════════════════════
+# Rebuild when anything that ends up IN the bundle is newer than the last build.
+# This used to check package.json only, so pulling a release that changed src/
+# but not the manifest left `geointel` serving the previous version's bundle —
+# with no hint that it had. `find -newer` is POSIX and costs a few ms.
 NEED_BUILD=0
 if [ ! -f ".next/BUILD_ID" ]; then
   NEED_BUILD=1
-elif [ "package.json" -nt ".next/BUILD_ID" ]; then
-  NEED_BUILD=1
+else
+  for f in package.json next.config.mjs tailwind.config.ts postcss.config.mjs; do
+    [ -f "$f" ] && [ "$f" -nt ".next/BUILD_ID" ] && NEED_BUILD=1
+  done
+  if [ "$NEED_BUILD" -eq 0 ]; then
+    # -print -quit stops at the first hit instead of walking the whole tree.
+    CHANGED="$(find src public -newer ".next/BUILD_ID" -type f -print -quit 2>/dev/null)"
+    [ -n "$CHANGED" ] && NEED_BUILD=1
+  fi
 fi
 if [ "$NEED_BUILD" -eq 1 ]; then
   echo -e "${YELLOW}[~] Building production bundle (first run / sources changed)...${NC}"

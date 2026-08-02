@@ -19,6 +19,7 @@ import LocationPanel         from "@/components/osint/LocationPanel";
 import QrCodePanel           from "@/components/osint/QrCodePanel";
 import BreachPanel           from "@/components/breach/BreachPanel";
 import InfostealerPanel      from "@/components/breach/InfostealerPanel";
+import LeakCheckPanel         from "@/components/breach/LeakCheckPanel";
 import ShareButton           from "@/components/shared/ShareButton";
 import ReportExport          from "@/components/shared/ReportExport";
 import PanelErrorBoundary    from "@/components/shared/PanelErrorBoundary";
@@ -133,6 +134,7 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
     { id: "sec-identity", label: "Identity" },
     { id: "sec-breach", label: "Breach" },
     { id: "sec-infostealer", label: "Infostealer" },
+    { id: "sec-leakcheck", label: "Breach index" },
     { id: "sec-pentest", label: "Pentest" },
     { id: "sec-location", label: "Location" },
     { id: "sec-anatomy", label: "Anatomy" },
@@ -255,7 +257,10 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
       </PanelErrorBoundary></section>
 
       {/* ── INFOSTEALER MALWARE (Hudson Rock — free, always-on) ─────────────── */}
-      <section id="sec-infostealer" className="scroll-mt-24"><PanelErrorBoundary label="Hudson Rock infostealer"><InfostealerPanel data={data} /></PanelErrorBoundary></section>
+      <section id="sec-infostealer" className="scroll-mt-24"><PanelErrorBoundary label="Hudson Rock infostealer"><InfostealerPanel source={data.sources.hudsonRock} subject="phone number" /></PanelErrorBoundary></section>
+
+      {/* ── PUBLIC BREACH INDEX (LeakCheck — free, always-on) ───────────────── */}
+      <section id="sec-leakcheck" className="scroll-mt-24"><PanelErrorBoundary label="LeakCheck breach index"><LeakCheckPanel source={data.sources.leakCheck} subject="phone number" /></PanelErrorBoundary></section>
 
       {/* ── Pentester intelligence — core value of the tool ─────────────────── */}
       <section id="sec-pentest" className="scroll-mt-24"><PanelErrorBoundary label="Pentester intelligence"><PentesterPanel data={data} /></PanelErrorBoundary></section>

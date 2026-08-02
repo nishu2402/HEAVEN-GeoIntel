@@ -1,5 +1,5 @@
 import {
-  DISPOSABLE_DOMAINS,
+  isDisposableDomain,
   FREE_WEBMAIL_DOMAINS,
   PRIVACY_DOMAINS,
   ROLE_PREFIXES,
@@ -94,7 +94,7 @@ export function analyzeEmail(raw: string): EmailAnalysis {
 
   const isValidFormat = EMAIL_RE.test(email);
 
-  const isDisposable = DISPOSABLE_DOMAINS.has(domain);
+  const isDisposable = isDisposableDomain(domain);
   const isPrivacyFocused = PRIVACY_DOMAINS.has(domain);
   const isWebmail = FREE_WEBMAIL_DOMAINS.has(domain);
 

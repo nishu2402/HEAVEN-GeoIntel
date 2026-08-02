@@ -6,11 +6,15 @@
 // earliest sighting wins (its addedAt and note are kept), so a merge never
 // rewrites the original discovery time.
 
-import type { CaseEntity, InvestigationCase } from "../types";
+import type { CaseEdge, CaseEntity, CaseSnapshot, InvestigationCase } from "../types";
 
 export interface MergedCaseData {
   entities: CaseEntity[];
   notes: string;
+  /** Derived relationships from both cases, de-duped on from+to+reason. */
+  edges: CaseEdge[];
+  /** Both histories interleaved by time, so a merged case still diffs correctly. */
+  snapshots: CaseSnapshot[];
 }
 
 /**
@@ -34,11 +38,33 @@ export function mergeEntities(target: CaseEntity[], source: CaseEntity[]): CaseE
  * is only added when the source actually has notes, so a merge never injects an
  * empty separator or a stray heading.
  */
+export function mergeEdges(target: CaseEdge[] = [], source: CaseEdge[] = []): CaseEdge[] {
+  const byKey = new Map<string, CaseEdge>();
+  for (const e of [...target, ...source]) {
+    const key = `${e.from.kind}:${e.from.value.toLowerCase()}|${e.to.kind}:${e.to.value.toLowerCase()}|${e.reason}`;
+    const existing = byKey.get(key);
+    if (!existing || e.addedAt < existing.addedAt) byKey.set(key, e);
+  }
+  return [...byKey.values()].sort((a, b) => a.addedAt - b.addedAt);
+}
+
+/**
+ * Interleave both snapshot histories chronologically. Order matters: the diff
+ * engine takes the LAST snapshot for an identifier as the previous state, so a
+ * merged case whose histories were simply concatenated would compare against
+ * whichever case happened to be the target.
+ */
+export function mergeSnapshots(target: CaseSnapshot[] = [], source: CaseSnapshot[] = []): CaseSnapshot[] {
+  return [...target, ...source].sort((a, b) => a.takenAt - b.takenAt);
+}
+
 export function mergeCaseInto(target: InvestigationCase, source: InvestigationCase): MergedCaseData {
   const entities = mergeEntities(target.entities, source.entities);
+  const edges = mergeEdges(target.edges, source.edges);
+  const snapshots = mergeSnapshots(target.snapshots, source.snapshots);
   const srcNotes = (source.notes ?? "").trim();
   const tgtNotes = target.notes ?? "";
-  if (!srcNotes) return { entities, notes: tgtNotes };
+  if (!srcNotes) return { entities, edges, snapshots, notes: tgtNotes };
   const prefix = tgtNotes.trim() ? `${tgtNotes}\n\n` : "";
-  return { entities, notes: `${prefix}— Merged from "${source.name}" —\n${srcNotes}` };
+  return { entities, edges, snapshots, notes: `${prefix}— Merged from "${source.name}" —\n${srcNotes}` };
 }

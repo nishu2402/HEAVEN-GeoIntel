@@ -9,10 +9,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { dataDir } from "./dataDir";
 
 // Resolved lazily per call (like caseStore/keyStore) so an operator can relocate
 // all file-backed state with HV_DATA_DIR, and so tests can point at a temp dir.
-const dataDir = () => process.env.HV_DATA_DIR || path.join(process.cwd(), ".data");
 const auditFile = () => path.join(dataDir(), "audit.log");
 
 // Per-process random salt so hashes aren't trivially reversible via a rainbow

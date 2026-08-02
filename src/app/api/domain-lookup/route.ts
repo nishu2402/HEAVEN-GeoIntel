@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { guardRateLimit } from "@/lib/server/rateLimit";
+import { timedValue } from "@/lib/server/sourceHealth";
 import { audit } from "@/lib/server/auditLog";
 import { fetchJson } from "@/lib/server/fetchSafe";
 import { parseBody, domainBody } from "@/lib/server/validation";
@@ -94,6 +95,13 @@ async function fetchWhois(domain: string): Promise<DomainWhois | null> {
 // Certificate-transparency subdomains. Keep only real hostnames under `domain`,
 // stripping wildcards and dropping the apex itself.
 const SUBDOMAIN_FALLBACK_THRESHOLD = 5;
+// Hard ceiling on the crt.sh supplement. crt.sh is a public Postgres front end
+// and routinely takes 6–20 s on a busy domain; the whole domain fanout used to
+// inherit that via an 8 s timeout (measured 8.16 s worst case for example.com).
+// Since crt.sh only ever ADDS to an already-usable Certspotter set, cutting it
+// short costs at most some extra subdomains and is strictly better than an
+// eight-second page.
+const CRTSH_BUDGET_MS = 2500;
 
 function collectCtHosts(names: string[], domain: string, into: Set<string>): void {
   for (const n of names) {
@@ -119,12 +127,14 @@ async function certspotterHosts(domain: string, into: Set<string>): Promise<void
 }
 
 // crt.sh — complete CT history but slow (can exceed 25s on busy domains). Used
-// only as a fallback when Certspotter is sparse; if it times out it simply adds
+// only as a supplement when Certspotter is sparse; if it times out it simply adds
 // nothing, leaving the Certspotter set intact.
-async function crtShHosts(domain: string, into: Set<string>): Promise<void> {
+async function crtShHosts(domain: string, into: Set<string>, budgetMs: number): Promise<void> {
   try {
     const res = await fetch(`https://crt.sh/?q=${encodeURIComponent("%." + domain)}&output=json`, {
-      headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000), next: { revalidate: 0 },
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(budgetMs),
+      next: { revalidate: 0 },
     });
     if (!res.ok) return;
     const rows = (await res.json()) as { name_value?: string }[];
@@ -134,13 +144,26 @@ async function crtShHosts(domain: string, into: Set<string>): Promise<void> {
   }
 }
 
-// Probe Certspotter first (fast). Only when it comes back sparse — a small domain,
-// or a Certspotter hiccup/rate-limit — do we supplement with the slower, complete
-// crt.sh and merge. crt.sh also stays as the "full history" pivot link below.
+/**
+ * Certspotter first; crt.sh only when it came back sparse — and then on a short
+ * budget.
+ *
+ * The 8.16 s worst case came from the SECOND call, not from the shape of the
+ * fallback: crt.sh was given an 8 s timeout, and a slow crt.sh spent all of it.
+ * Capping that at CRTSH_BUDGET_MS bounds the whole fanout at roughly
+ * Certspotter + 2.5 s.
+ *
+ * I also tried firing both concurrently and aborting crt.sh once Certspotter
+ * proved sufficient. That is faster on paper, but it sends a query to a free
+ * public CT front end on EVERY domain lookup, and an abort only stops us
+ * reading the response — crt.sh has already started the work. Staying
+ * sequential keeps the common case at zero crt.sh requests, which is worth more
+ * than the ~700 ms it costs when the fallback does run.
+ */
 async function fetchSubdomains(domain: string): Promise<string[]> {
   const hosts = new Set<string>();
   await certspotterHosts(domain, hosts);
-  if (hosts.size < SUBDOMAIN_FALLBACK_THRESHOLD) await crtShHosts(domain, hosts);
+  if (hosts.size < SUBDOMAIN_FALLBACK_THRESHOLD) await crtShHosts(domain, hosts, CRTSH_BUDGET_MS);
   return Array.from(hosts).sort().slice(0, 100);
 }
 
@@ -182,12 +205,10 @@ function buildPivots(domain: string): DomainLookupResponse["pivots"] {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip = getClientIp(req);
-  const { allowed, remaining } = checkRateLimit(ip);
-  const rlHeaders = { "X-RateLimit-Limit": "10", "X-RateLimit-Remaining": String(remaining) };
-  if (!allowed) {
-    return NextResponse.json({ error: "Rate limit exceeded. Max 10/min." }, { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } });
-  }
+  const rl = guardRateLimit(req);
+  if (rl.limited) return rl.limited;
+  const rlHeaders = rl.headers;
+  const client = rl.client;
 
   const body = await parseBody(req, domainBody);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -197,22 +218,40 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   domain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/:.*$/, "").replace(/^www\./, "");
   if (!domain) return NextResponse.json({ error: "Missing domain" }, { status: 400 });
   if (!DOMAIN_RE.test(domain)) return NextResponse.json({ error: "Not a valid domain name" }, { status: 400 });
-  void audit("domain", domain, ip, 200);
+  void audit("domain", domain, client, 200);
 
-  const waybackJob = fetchWayback(domain);
-  const [a, aaaa, mx, txt, ns, cname, dmarcTxt, dnskey, whois, subdomains] = await Promise.all([
-    doh(domain, "A"),
-    doh(domain, "AAAA"),
-    doh(domain, "MX"),
-    doh(domain, "TXT"),
-    doh(domain, "NS"),
-    doh(domain, "CNAME"),
-    doh(`_dmarc.${domain}`, "TXT"),
-    doh(domain, "DNSKEY"),
-    fetchWhois(domain),
-    fetchSubdomains(domain),
+  // Three logical upstreams (DoH, RDAP, Certspotter) plus the Wayback probe.
+  // Each is timed independently so the response reports which one was slow —
+  // this fanout is the tool's longest, and "which source cost the 6 seconds?"
+  // was previously unanswerable.
+  const dnsJob = timedValue(
+    "dns",
+    Promise.all([
+      doh(domain, "A"),
+      doh(domain, "AAAA"),
+      doh(domain, "MX"),
+      doh(domain, "TXT"),
+      doh(domain, "NS"),
+      doh(domain, "CNAME"),
+      doh(`_dmarc.${domain}`, "TXT"),
+      doh(domain, "DNSKEY"),
+    ]),
+    (recs) => recs.some((r) => r.length > 0)
+  );
+  const whoisJob = timedValue("whois", fetchWhois(domain), (w) => w !== null);
+  const subdomainJob = timedValue("subdomains", fetchSubdomains(domain), () => true);
+  const waybackJob = timedValue("wayback", fetchWayback(domain), (w) => w !== null);
+
+  const [dnsOut, whoisOut, subdomainOut, waybackOut] = await Promise.all([
+    dnsJob, whoisJob, subdomainJob, waybackJob,
   ]);
-  const wayback = await waybackJob;
+  const [a, aaaa, mx, txt, ns, cname, dmarcTxt, dnskey] = dnsOut.value;
+  const whois = whoisOut.value;
+  const subdomains = subdomainOut.value;
+  const wayback = waybackOut.value;
+  const sourceHealth = [
+    dnsOut.provenance, whoisOut.provenance, subdomainOut.provenance, waybackOut.provenance,
+  ];
   const dnssec = dnskey.length > 0;
 
   const spfRecord = txt.find((r) => r.value.toLowerCase().startsWith("v=spf1"))?.value ?? null;
@@ -235,6 +274,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     dnssec,
     wayback,
     pivots: buildPivots(domain),
+    sourceHealth,
   };
 
   return NextResponse.json(response, { headers: rlHeaders });

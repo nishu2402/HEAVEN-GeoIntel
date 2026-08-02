@@ -13,6 +13,12 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.{ts,tsx}"],
     exclude: ["node_modules", ".next", ".claude"],
+    // Hard guard: route handlers write through HV_DATA_DIR (audit log, cases,
+    // API keys). Without a default here, any test that exercises a route
+    // WITHOUT setting its own temp dir writes into the developer's real ./.data
+    // — silently polluting their cases and audit log. Point the whole run at a
+    // throwaway directory; suites that need isolation still set their own.
+    env: { HV_DATA_DIR: path.resolve(__dirname, ".vitest-data") },
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
@@ -23,6 +29,12 @@ export default defineConfig({
       // a defensive/environment-only branch, matching the lib convention).
       include: [
         "src/lib/**/*.ts",
+        // The highest-risk code in the repo: every outbound fetch lives in a
+        // route handler, and the CSRF + auth gate lives in proxy.ts. These were
+        // outside the gate until 1.4 — tests existed, but nothing enforced that
+        // they covered the error paths.
+        "src/app/api/**/route.ts",
+        "src/proxy.ts",
         // shared/
         "src/components/shared/SimpleLookupInput.tsx",
         "src/components/shared/PanelErrorBoundary.tsx",
@@ -75,6 +87,9 @@ export default defineConfig({
         // breach/ + network/ + username/
         "src/components/breach/InfostealerPanel.tsx",
         "src/components/breach/BreachPanel.tsx",
+        "src/components/breach/LeakCheckPanel.tsx",
+        "src/components/shared/AutoPivots.tsx",
+        "src/components/cases/CaseChanges.tsx",
         "src/components/network/DomainResultsDashboard.tsx",
         "src/components/network/IpResultsDashboard.tsx",
         "src/components/username/UsernameResultsDashboard.tsx",

@@ -24,6 +24,14 @@ import AddToCase from "@/components/shared/AddToCase";
 import {
   entitiesFromPhone, entitiesFromEmail, entitiesFromUsername, entitiesFromIp, entitiesFromDomain,
 } from "@/lib/analysis/entityExtract";
+import {
+  pivotsFromPhone, pivotsFromEmail, pivotsFromUsername, pivotsFromIp, pivotsFromDomain,
+  edgesFromPivots,
+} from "@/lib/analysis/autoPivot";
+import {
+  factsFromPhone, factsFromEmail, factsFromUsername, factsFromIp, factsFromDomain,
+} from "@/lib/analysis/caseSnapshot";
+import AutoPivots from "@/components/shared/AutoPivots";
 import LinkGraph from "@/components/graph/LinkGraph";
 import LoadingSkeletons from "@/components/dashboard/LoadingSkeletons";
 import ScanProgress from "@/components/dashboard/ScanProgress";
@@ -38,6 +46,7 @@ import PanelErrorBoundary from "@/components/shared/PanelErrorBoundary";
 import ConsentGate from "@/components/shared/ConsentGate";
 import Logo, { LogoLockup } from "@/components/shared/Logo";
 import RecentLookups from "@/components/shared/RecentLookups";
+import { APP_VERSION_SHORT } from "@/lib/version";
 import { pushLookup } from "@/lib/client/lookupHistory";
 import { getSessionGraph, saveSessionGraph } from "@/lib/client/sessionGraph";
 import { saveToHistory } from "@/components/dashboard/HistorySidebar";
@@ -302,7 +311,7 @@ function PageContent() {
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-[var(--hv-ink-dim)] font-mono">
               <Shield className="w-3 h-3" /> DEFENSIVE OSINT
             </div>
-            <div className="text-[11px] text-[var(--hv-ink-dim)] font-mono hidden sm:block">v1.3</div>
+            <div className="text-[11px] text-[var(--hv-ink-dim)] font-mono hidden sm:block">v{APP_VERSION_SHORT}</div>
           </div>
         </header>
 
@@ -421,11 +430,11 @@ function PageContent() {
           )}
 
           {/* Results — each can pin its primary + derived identifiers to a case in one click */}
-          {mode === "phone"    && phoneStatus === "done" && phoneResult && <PanelErrorBoundary label="Phone results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromPhone(phoneResult)} /></div><ResultsDashboard data={phoneResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} onEmailLookup={(e) => { setMode("email"); void runEmail(e); }} /></PanelErrorBoundary>}
-          {mode === "email"    && emailStatus === "done" && emailResult && <PanelErrorBoundary label="Email results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromEmail(emailResult)} /></div><EmailResultsDashboard data={emailResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} /></PanelErrorBoundary>}
-          {mode === "username" && userStatus === "done"  && userResult  && <PanelErrorBoundary label="Username results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromUsername(userResult)} /></div><UsernameResultsDashboard data={userResult} /></PanelErrorBoundary>}
-          {mode === "ip"       && ipStatus === "done"    && ipResult    && <PanelErrorBoundary label="IP results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromIp(ipResult)} /></div><IpResultsDashboard data={ipResult} onDomainLookup={(d) => { setMode("domain"); void runDomain(d); }} /></PanelErrorBoundary>}
-          {mode === "domain"   && domStatus === "done"   && domResult   && <PanelErrorBoundary label="Domain results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromDomain(domResult)} /></div><DomainResultsDashboard data={domResult} onIpLookup={(v) => { setMode("ip"); void runIp(v); }} /></PanelErrorBoundary>}
+          {mode === "phone"    && phoneStatus === "done" && phoneResult && <PanelErrorBoundary label="Phone results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromPhone(phoneResult)} edges={edgesFromPivots({ kind: "phone", value: phoneResult.input.e164 }, pivotsFromPhone(phoneResult))} snapshot={{ kind: "phone", value: phoneResult.input.e164, facts: factsFromPhone(phoneResult), fromCache: phoneResult.cachedAt !== undefined }} /></div><ResultsDashboard data={phoneResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} onEmailLookup={(e) => { setMode("email"); void runEmail(e); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromPhone(phoneResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
+          {mode === "email"    && emailStatus === "done" && emailResult && <PanelErrorBoundary label="Email results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromEmail(emailResult)} edges={edgesFromPivots({ kind: "email", value: emailResult.email }, pivotsFromEmail(emailResult))} snapshot={{ kind: "email", value: emailResult.email, facts: factsFromEmail(emailResult), fromCache: emailResult.cachedAt !== undefined }} /></div><EmailResultsDashboard data={emailResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromEmail(emailResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
+          {mode === "username" && userStatus === "done"  && userResult  && <PanelErrorBoundary label="Username results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromUsername(userResult)} edges={edgesFromPivots({ kind: "username", value: userResult.username }, pivotsFromUsername(userResult))} snapshot={{ kind: "username", value: userResult.username, facts: factsFromUsername(userResult), fromCache: userResult.cachedAt !== undefined }} /></div><UsernameResultsDashboard data={userResult} /><div className="mt-4"><AutoPivots pivots={pivotsFromUsername(userResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
+          {mode === "ip"       && ipStatus === "done"    && ipResult    && <PanelErrorBoundary label="IP results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromIp(ipResult)} edges={edgesFromPivots({ kind: "ip", value: ipResult.input }, pivotsFromIp(ipResult))} snapshot={{ kind: "ip", value: ipResult.input, facts: factsFromIp(ipResult), fromCache: ipResult.cachedAt !== undefined }} /></div><IpResultsDashboard data={ipResult} onDomainLookup={(d) => { setMode("domain"); void runDomain(d); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromIp(ipResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
+          {mode === "domain"   && domStatus === "done"   && domResult   && <PanelErrorBoundary label="Domain results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromDomain(domResult)} edges={edgesFromPivots({ kind: "domain", value: domResult.domain }, pivotsFromDomain(domResult))} snapshot={{ kind: "domain", value: domResult.domain, facts: factsFromDomain(domResult), fromCache: domResult.cachedAt !== undefined }} /></div><DomainResultsDashboard data={domResult} onIpLookup={(v) => { setMode("ip"); void runIp(v); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromDomain(domResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
 
           {!isBooting && mode === "graph" && (
             <div className="mt-6"><PanelErrorBoundary label="Graph"><LinkGraph entities={sessionEntities} title="SESSION LINK GRAPH" onChange={setSessionEntities} /></PanelErrorBoundary></div>

@@ -10,8 +10,23 @@ import { BRAND, logoSvg } from "@/lib/brand/logo";
 
 export interface GraphEntity { kind: EntityKind; value: string; }
 
+/** A derived relationship drawn between two real nodes. */
+export interface GraphLink {
+  from: GraphEntity;
+  to: GraphEntity;
+  /** Shown on hover — which source produced the link. */
+  reason: string;
+}
+
 interface Props {
   entities: GraphEntity[];
+  /**
+   * Derived relationships to draw BETWEEN nodes. Without these the graph is a
+   * plain star (every identifier spoked off the case), which shows membership
+   * but not derivation. With them it shows what was actually inferred from
+   * what — links whose ends are both present are drawn; the rest are ignored.
+   */
+  links?: GraphLink[];
   title?: string;
   /**
    * When provided, the graph becomes EDITABLE: click a node to relabel /
@@ -42,7 +57,7 @@ function KindIcon({ kind, className }: { kind: EntityKind; className?: string })
   }
 }
 
-export default function LinkGraph({ entities, title = "INVESTIGATION GRAPH", onChange }: Props) {
+export default function LinkGraph({ entities, links, title = "INVESTIGATION GRAPH", onChange }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -71,6 +86,26 @@ export default function LinkGraph({ entities, title = "INVESTIGATION GRAPH", onC
       };
     });
   }, [entities, cx, cy, R]);
+
+  // Resolve each link's endpoints to node indices. A link naming an identifier
+  // that isn't in the graph (removed since it was derived) is dropped rather
+  // than drawn to nowhere.
+  const derived = useMemo(() => {
+    if (!links || links.length === 0) return [];
+    const index = new Map(entities.map((e, i) => [`${e.kind}:${e.value.toLowerCase()}`, i]));
+    const out: { a: number; b: number; reason: string }[] = [];
+    const seen = new Set<string>();
+    for (const l of links) {
+      const a = index.get(`${l.from.kind}:${l.from.value.toLowerCase()}`);
+      const b = index.get(`${l.to.kind}:${l.to.value.toLowerCase()}`);
+      if (a === undefined || b === undefined || a === b) continue;
+      const key = `${a}-${b}-${l.reason}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ a, b, reason: l.reason });
+    }
+    return out;
+  }, [links, entities]);
 
   // ── edit helpers (all go through onChange — controlled) ────────────────────
   const isDup = (cand: GraphEntity, skip = -1) =>
@@ -213,12 +248,29 @@ export default function LinkGraph({ entities, title = "INVESTIGATION GRAPH", onC
             </radialGradient>
           </defs>
 
-          {/* edges */}
+          {/* membership spokes — every identifier belongs to this case */}
           {nodes.map((n, i) => (
             <line key={`e-${i}`} x1={cx} y1={cy} x2={n.x} y2={n.y}
               stroke={n.color} strokeWidth={hover === i || selected === i ? 2.5 : 1.2}
-              strokeOpacity={hover === null || hover === i || selected === i ? 0.8 : 0.2} />
+              strokeOpacity={
+                hover === null || hover === i || selected === i
+                  ? (derived.length > 0 ? 0.35 : 0.8)   // recede once real links are drawn
+                  : 0.2
+              } />
           ))}
+
+          {/* derived links — what the tool actually inferred from what */}
+          {derived.map((d, i) => {
+            const a = nodes[d.a], b = nodes[d.b];
+            const lit = hover === d.a || hover === d.b || selected === d.a || selected === d.b;
+            return (
+              <line key={`d-${i}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                stroke="#22d3ee" strokeWidth={lit ? 2.2 : 1.4} strokeDasharray="5 4"
+                strokeOpacity={hover === null && selected === null ? 0.7 : lit ? 0.95 : 0.15}>
+                <title>{`${a.value} → ${b.value} · ${d.reason}`}</title>
+              </line>
+            );
+          })}
 
           {/* central subject node */}
           <circle cx={cx} cy={cy} r={34} fill="url(#coreGlow)" />

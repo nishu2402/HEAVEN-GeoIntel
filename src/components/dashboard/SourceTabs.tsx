@@ -18,6 +18,7 @@ const SOURCE_LABELS: Record<SourceKey, string> = {
   breachDirectory: "Breach",
   fullContact: "FullContact",
   hudsonRock: "HudsonRock",
+  leakCheck: "LeakCheck",
 };
 
 const SOURCE_ENV_HINT: Record<SourceKey, string> = {
@@ -28,6 +29,7 @@ const SOURCE_ENV_HINT: Record<SourceKey, string> = {
   breachDirectory: "RAPIDAPI_KEY",
   fullContact: "FULLCONTACT_API_KEY",
   hudsonRock: "(no key — free)",
+  leakCheck: "(no key — free)",
 };
 
 function StatusDot({ ok, error }: { ok: boolean; error?: string }) {

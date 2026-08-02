@@ -6,6 +6,8 @@
 // Source: public ITU / Wikipedia MCC-MNC allocations (curated subset of the
 // highest-traffic operators worldwide). Keyed by "MCC-MNC".
 
+import { overlayLookup } from "./overlay";
+
 export interface MccMncEntry {
   operator: string;
   country: string;
@@ -179,6 +181,9 @@ export function lookupMccMnc(
     `${m}-${n.padStart(3, "0")}`,
   ];
   for (const key of candidates) {
+    const over = overlayLookup<MccMncEntry>("mccMnc", key);
+    if (over) return over;
+    if (over === null) return null; // overlay explicitly removed this operator
     if (MCC_MNC[key]) return MCC_MNC[key];
   }
   return null;

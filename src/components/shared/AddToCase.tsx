@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { FolderPlus, Check, Plus, Loader2 } from "lucide-react";
-import type { InvestigationCase, EntityKind } from "@/lib/types";
+import type { InvestigationCase, EntityKind, EntityRef } from "@/lib/types";
 import type { ExtractedEntity } from "@/lib/analysis/entityExtract";
+import type { Facts, SnapshotDiff } from "@/lib/analysis/caseSnapshot";
 
 // A self-contained "pin this result to a case" control for any result dashboard.
 // It's decoupled from the Cases panel: the server (/api/cases) is the single
@@ -12,9 +13,27 @@ import type { ExtractedEntity } from "@/lib/analysis/entityExtract";
 // result's derived identifiers (resolved IPs, reverse host, confirmed profiles…)
 // which the analyst can opt into pinning in the same click.
 
+/** A derived relationship to persist with the pin. */
+export interface EdgeInput {
+  from: EntityRef;
+  to: EntityRef;
+  reason: string;
+}
+
 interface Props {
   /** Non-empty; entities[0] is the primary, the rest are "related". */
   entities: ExtractedEntity[];
+  /**
+   * Auto-pivot links for this result. Pinned alongside the entities so the
+   * case keeps the derivation, not just the identifiers.
+   */
+  edges?: EdgeInput[];
+  /**
+   * Comparable fingerprint of this lookup. Posting it returns what moved since
+   * the last time the same identifier was pinned to the same case — the
+   * "re-run and show me what changed" loop.
+   */
+  snapshot?: { kind: EntityKind; value: string; facts: Facts; fromCache?: boolean };
 }
 
 const KIND_COLOR: Record<EntityKind, string> = {
@@ -28,12 +47,13 @@ function summarize(entities: ExtractedEntity[]): string {
   return [...counts.entries()].map(([k, n]) => `${n} ${k}`).join(", ");
 }
 
-export default function AddToCase({ entities }: Props) {
+export default function AddToCase({ entities, edges, snapshot }: Props) {
   const [open, setOpen] = useState(false);
   const [cases, setCases] = useState<InvestigationCase[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
+  const [diff, setDiff] = useState<SnapshotDiff | null>(null);
   const [newName, setNewName] = useState("");
   const [includeRelated, setIncludeRelated] = useState(false);
 
@@ -62,18 +82,41 @@ export default function AddToCase({ entities }: Props) {
     const res = await fetch("/api/cases", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
-    return (await res.json()) as { case?: InvestigationCase; error?: string };
+    return (await res.json()) as { case?: InvestigationCase; diff?: SnapshotDiff; error?: string };
   }
 
   function confirmAdded(name: string) {
     setAdded(name);
     setOpen(false);
-    setTimeout(() => setAdded(null), 2600);
+    // The change summary is the point of snapshotting, so it lingers longer
+    // than the plain "pinned" tick.
+    setTimeout(() => { setAdded(null); setDiff(null); }, 6000);
   }
 
   // Sequential awaits — the case store is a single JSON file; parallel writes race.
   async function pinAll(id: string) {
     for (const e of toPin) await post({ action: "addEntity", id, kind: e.kind, value: e.value });
+
+    // Only edges between identifiers we actually pinned: persisting a link to
+    // an identifier the analyst chose NOT to pin would put a node in the case
+    // graph that the case does not contain.
+    if (edges && edges.length > 0) {
+      const pinned = new Set(toPin.map((e) => `${e.kind}:${e.value.toLowerCase()}`));
+      const keep = edges.filter(
+        (e) => pinned.has(`${e.from.kind}:${e.from.value.toLowerCase()}`)
+            && pinned.has(`${e.to.kind}:${e.to.value.toLowerCase()}`),
+      );
+      if (keep.length > 0) await post({ action: "addEdges", id, edges: keep });
+    }
+
+    if (snapshot) {
+      const j = await post({
+        action: "snapshot", id,
+        kind: snapshot.kind, value: snapshot.value,
+        facts: snapshot.facts, fromCache: snapshot.fromCache === true,
+      });
+      setDiff(j.diff ?? null);
+    }
   }
 
   async function addTo(c: InvestigationCase) {
@@ -117,6 +160,43 @@ export default function AddToCase({ entities }: Props) {
           ? <><Check className="w-3 h-3" /> PINNED → {added}</>
           : <><FolderPlus className="w-3 h-3" /> ADD TO CASE</>}
       </button>
+
+      {added && diff && (
+        <div
+          role="status"
+          className="absolute right-0 mt-1 z-50 w-72 terminal-card p-2.5 text-[11px] font-mono space-y-1 shadow-xl"
+        >
+          {diff.baseline ? (
+            <div className="text-[var(--hv-ink-dim)]">
+              Baseline recorded — pin this lookup again later to see what changed.
+            </div>
+          ) : diff.changes.length === 0 ? (
+            <div className="text-[var(--hv-ink-dim)]">
+              Nothing changed since {new Date(diff.previousAt!).toLocaleString()}.
+              {diff.cacheInvolved && " (one side was served from cache)"}
+            </div>
+          ) : (
+            <>
+              <div className="text-[var(--hv-cyan)] uppercase tracking-widest">
+                {diff.changes.length} change{diff.changes.length === 1 ? "" : "s"} since {new Date(diff.previousAt!).toLocaleDateString()}
+              </div>
+              {diff.changes.slice(0, 6).map((c) => (
+                <div key={c.fact} className="flex items-baseline gap-1">
+                  <span className="text-[var(--hv-ink-dim)]">{c.fact}</span>
+                  <span className="text-[var(--hv-ink-dim)] opacity-60">{String(c.from ?? "—")}</span>
+                  <span className="text-[var(--hv-ink-dim)]">→</span>
+                  <span className="text-[var(--hv-green)]">{String(c.to ?? "—")}</span>
+                </div>
+              ))}
+              {diff.cacheInvolved && (
+                <div className="text-[var(--hv-amber)] opacity-80">
+                  One side came from the result cache — re-check after the TTL expires.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {open && (
         <>

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { guardRateLimit } from "@/lib/server/rateLimit";
+import { timedValue, markAll } from "@/lib/server/sourceHealth";
 import { audit } from "@/lib/server/auditLog";
-import { USERNAME_SITES, isPlausibleUsername } from "@/lib/data/usernameSites";
+import { activeUsernameSites, isPlausibleUsername } from "@/lib/data/usernameSites";
+import { ensureDatasets } from "@/lib/server/datasets";
 import { fetchJson } from "@/lib/server/fetchSafe";
+import { fetchLeakCheck } from "@/lib/server/leakCheck";
 import { parseBody, usernameBody } from "@/lib/server/validation";
 import {
   normalizeGithub, normalizeGitlab, normalizeHackerNews, normalizeReddit, deriveIdentity,
@@ -59,7 +62,7 @@ const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
 async function checkSite(
-  site: (typeof USERNAME_SITES)[number],
+  site: ReturnType<typeof activeUsernameSites>[number],
   username: string
 ): Promise<UsernameHit> {
   const url = site.url.replace("{u}", encodeURIComponent(username));
@@ -97,6 +100,8 @@ async function checkSite(
       return { ...base, status: httpStatus === 404 ? "notfound" : "unknown", httpStatus };
     }
     const text = (await res.text()).slice(0, 60000);
+    /* v8 ignore next -- a "body" site without an absence marker is rejected by
+       the overlay loader and none is bundled, so the false arm is unreachable. */
     const absent = site.absence ? text.includes(site.absence) : false;
     return { ...base, status: absent ? "notfound" : "found", httpStatus };
   } catch {
@@ -117,12 +122,10 @@ function buildPivots(username: string): UsernameLookupResponse["pivots"] {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip = getClientIp(req);
-  const { allowed, remaining } = checkRateLimit(ip);
-  const rlHeaders = { "X-RateLimit-Limit": "10", "X-RateLimit-Remaining": String(remaining) };
-  if (!allowed) {
-    return NextResponse.json({ error: "Rate limit exceeded. Max 10/min." }, { status: 429, headers: { ...rlHeaders, "Retry-After": "60" } });
-  }
+  const rl = guardRateLimit(req);
+  if (rl.limited) return rl.limited;
+  const rlHeaders = rl.headers;
+  const client = rl.client;
 
   const body = await parseBody(req, usernameBody);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -132,27 +135,60 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!isPlausibleUsername(username)) {
     return NextResponse.json({ error: "Username must be 2–40 chars: letters, digits, . _ -" }, { status: 400 });
   }
-  void audit("username", username, ip, 200);
+  void audit("username", username, client, 200);
 
   // Rich, API-verified profiles run in parallel with the site sweep. Order here
   // is the display order (developer forges first, then forum, then social).
-  const richJob = Promise.all([
-    fetchGithub(username), fetchGitlab(username), fetchHackerNews(username), fetchReddit(username),
-  ]);
+  const richJob = timedValue(
+    "usernameProfiles",
+    Promise.all([
+      fetchGithub(username), fetchGitlab(username), fetchHackerNews(username), fetchReddit(username),
+    ]),
+    () => true
+  );
 
-  const settled = await Promise.allSettled(USERNAME_SITES.map((s) => checkSite(s, username)));
+  // Breach exposure for the handle itself — keyless, and it starts alongside the
+  // sweep rather than after it so it costs no extra wall time.
+  const leakJob = timedValue("leakCheck", fetchLeakCheck(username, "username"), (r) => r.ok);
+
+  // Pick up any operator-supplied catalog overlay before sweeping.
+  await ensureDatasets();
+  const sites = activeUsernameSites();
+
+  const sweepStarted = Date.now();
+  const settled = await Promise.allSettled(sites.map((s) => checkSite(s, username)));
+  /* v8 ignore start -- checkSite catches everything, so a rejected promise is not
+     reachable; the fallback exists so one bad site can never fail the sweep. */
   const hits: UsernameHit[] = settled.map((r, i) =>
     r.status === "fulfilled"
       ? r.value
-      : { site: USERNAME_SITES[i].name, category: USERNAME_SITES[i].category, url: USERNAME_SITES[i].url.replace("{u}", username), status: "unknown" as const }
+      : { site: sites[i].name, category: sites[i].category, url: sites[i].url.replace("{u}", username), status: "unknown" as const }
   );
+  /* v8 ignore stop */
 
   // Sort: confirmed first, then the "open to verify" buckets, then notfound.
   const order: Record<UsernameHitStatus, number> = { found: 0, unknown: 1, manual: 2, notfound: 3 };
   hits.sort((a, b) => order[a.status] - order[b.status] || a.site.localeCompare(b.site));
 
-  const profiles = (await richJob).filter((p): p is SocialProfile => p !== null);
+  const sweepMs = Date.now() - sweepStarted;
+  const [rich, leak] = await Promise.all([richJob, leakJob]);
+  const profiles = rich.value.filter((p): p is SocialProfile => p !== null);
   const identity = deriveIdentity(profiles);
+
+  // Health is judged on the AUTO-CHECKED sites only. `manual` sites are never
+  // fetched, so counting them would make the sweep look healthy even when every
+  // real probe had failed.
+  const probed = hits.filter((h) => h.status !== "manual");
+  const sourceHealth = markAll([
+    {
+      source: "usernameSweep",
+      ok: probed.some((h) => h.status !== "unknown"),
+      ms: sweepMs,
+      fetchedAt: Date.now(),
+    },
+    rich.provenance,
+    leak.provenance,
+  ]);
 
   // `checked` counts only sites we could actually auto-verify — manual sites are
   // excluded from the denominator so the presence percentage isn't diluted by
@@ -167,6 +203,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     profiles,
     identity,
     pivots: buildPivots(username),
+    leakCheck: leak.value,
+    sourceHealth,
   };
 
   return NextResponse.json(response, { headers: rlHeaders });

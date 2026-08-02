@@ -21,6 +21,9 @@ afterAll(() => {
 });
 beforeEach(async () => { await deleteAllCases(); });
 
+/** A GET request object — the handler reads cookies off it for the case lock. */
+const getReq = () => new NextRequest("http://localhost/api/cases");
+
 const req = (body: unknown, method = "POST") =>
   new Request("http://localhost/api/cases", {
     method,
@@ -33,7 +36,7 @@ const del = (qs: string) =>
 
 describe("GET /api/cases", () => {
   it("returns an empty list initially", async () => {
-    const res = await GET();
+    const res = await GET(getReq());
     expect(res.status).toBe(200);
     expect((await res.json()).cases).toEqual([]);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -83,7 +86,7 @@ describe("POST /api/cases — merge", () => {
     expect(json.case.id).toBe(target.case.id);
     expect(json.case.entities.map((e: { kind: string }) => e.kind).sort()).toEqual(["email", "phone"]);
 
-    const list = (await (await GET()).json()).cases as { id: string }[];
+    const list = (await (await GET(getReq())).json()).cases as { id: string }[];
     expect(list.map((c) => c.id)).not.toContain(source.case.id);
   });
 
@@ -157,6 +160,6 @@ describe("DELETE /api/cases", () => {
     await POST(req({ action: "create", name: "b" }));
     const res = await del("?all=1");
     expect((await res.json()).wiped).toBe("all");
-    expect((await (await GET()).json()).cases).toEqual([]);
+    expect((await (await GET(getReq())).json()).cases).toEqual([]);
   });
 });

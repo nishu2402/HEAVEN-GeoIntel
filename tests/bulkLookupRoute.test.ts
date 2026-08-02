@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/bulk-lookup/route";
+import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
 
 // Bulk triage is fully offline (analyzePhoneNumber + cache only) — no upstreams
 // to stub. TRUST_PROXY + unique client IP isolates the rate-limit bucket.
@@ -69,15 +70,19 @@ describe("POST /api/bulk-lookup — offline triage rows", () => {
     expect(uk.ok).toBe(true);
     expect(uk.country).toBe("GB");
 
-    expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
+    expect(res.headers.get("X-RateLimit-Limit")).toBe("60"); // shipped default
+    expect(res.headers.get("X-RateLimit-Scope")).toBe("client");
   });
 });
 
 describe("POST /api/bulk-lookup — rate limiting", () => {
-  it("429s the 11th request from one client IP", async () => {
+  afterEach(restoreRateLimit);
+
+  it("allows MAX requests then 429s the next from the same client", async () => {
+    useRateLimit(10);
     const req = () => new Request("http://localhost/api/bulk-lookup", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.99" },
+      headers: { "content-type": "application/json", cookie: clientCookie("rlclient") },
       body: JSON.stringify({ numbers: ["+14155552671"] }),
     });
     let last = await POST(req() as unknown as NextRequest);

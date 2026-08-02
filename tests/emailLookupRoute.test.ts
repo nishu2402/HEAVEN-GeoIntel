@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/email-lookup/route";
+import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
 
 // End-to-end handler test for the email lookup. Gravatar and XposedOrNot are
 // keyless and hit on every request, so both are stubbed in every case. EmailRep
@@ -172,7 +173,10 @@ describe("POST /api/email-lookup — breach parsing", () => {
 });
 
 describe("POST /api/email-lookup — rate limiting", () => {
-  it("allows 10 requests then 429s the 11th from one client IP", async () => {
+  afterEach(restoreRateLimit);
+
+  it("allows MAX requests then 429s the next from the same client", async () => {
+    useRateLimit(10);
     stubFetch([
       ["gravatar.com", gravatar404],
       ["emailrep.io", emailrepBenign],
@@ -180,7 +184,7 @@ describe("POST /api/email-lookup — rate limiting", () => {
     ]);
     const req = () => new Request("http://localhost/api/email-lookup", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.88" },
+      headers: { "content-type": "application/json", cookie: clientCookie("rlclient") },
       body: JSON.stringify({ email: "rl@example.com" }),
     });
     let last = await POST(req() as unknown as NextRequest);
