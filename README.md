@@ -1095,6 +1095,7 @@ fail over decoration.
 | `npm run screenshots` | Regenerate README screenshots (needs the dev server running) |
 | `npm run brand:poster` | Regenerate the README poster + the terminal banner from the live registries (no browser needed) |
 | `npm run brand` | The above, plus every raster asset (favicon · app icons · OG image · hero) — needs Chrome |
+| `npm run release:verify` | Release pre-flight — checks the **git tag** itself declares the version being released, which no test can see ([checklist](.github/RELEASE_CHECKLIST.md)) |
 | `docker compose up -d` · `down` · `logs -f geointel` | Container lifecycle |
 
 </div>

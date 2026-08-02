@@ -179,8 +179,17 @@ Then, in order:
 4. `npm run brand` — the posters print the version.
 5. `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
    `versionSync` and `posterAssets` are the two that catch a half-done bump.
-6. Tag it `vx.y.z` and write the GitHub release notes from the CHANGELOG
-   section.
+6. Commit, **then** tag `vx.y.z` — in that order, so the tag lands on the commit
+   that contains the bump.
+7. `npm run release:verify`. `versionSync` proves the *tree* is consistent; this
+   proves the *tag* is, by reading `git show vx.y.z:src/lib/version.ts` rather
+   than the working copy. A tag one commit early is invisible to every other
+   check and publishes a release whose contents contradict its own name — it has
+   happened here twice.
+8. Push, then write the release notes from the CHANGELOG section.
+
+The full procedure, including the conventions for the GitHub release page
+itself, is in [`.github/RELEASE_CHECKLIST.md`](./.github/RELEASE_CHECKLIST.md).
 
 ## Code of conduct
 

@@ -21,6 +21,7 @@
     "install-global": "bash scripts/install-global.sh",
     "uninstall-global": "bash scripts/uninstall-global.sh",
     "doctor": "bash scripts/start.sh --doctor",
+    "release:verify": "node scripts/release-verify.mjs",
     "screenshots": "node scripts/capture-screenshots.mjs",
     "brand": "npm run brand:poster && node scripts/generate-brand-assets.mjs",
     "brand:poster": "node --import ./scripts/ts-resolve.mjs scripts/generate-poster.mjs"
