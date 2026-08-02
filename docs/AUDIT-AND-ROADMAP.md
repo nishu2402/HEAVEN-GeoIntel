@@ -3,6 +3,8 @@
 **Audited:** 2026-07-26 · v1.3.0 · commit `90ed86f`
 **Remediated:** 2026-07-27 · **Phases 0–4 complete**
 **Released as:** v2.0.0 · 2026-08-01 · commit `9cd4b50`
+**Patched:** v2.0.1 · 2026-08-02 — closes the one residual this record left open (§3.1);
+no application logic changed
 **Method:** static read of all 17,275 lines of `src/`, full quality gate, and live runs of
 every mode against a production build (`next start`, real upstream APIs, Node `fetch`).
 Every number below is measured, not estimated.
@@ -92,6 +94,16 @@ Upgrading to ESLint 10 also fails (`eslint-plugin-react` throws
 `contextOrFilename.getFilename is not a function`). This chain is dev-tooling only, never
 bundled, and reachable only via a glob pattern the repo owner writes. It needs an upstream
 `eslint-config-next` release.
+
+**Residual closed — 2026-08-02.** It did not need the upstream `eslint-config-next`
+release after all: the premise above ("no fixed 1.x exists") stopped being true when
+upstream backported the fix onto the 1.x maintenance line. `brace-expansion@1.1.18`
+already satisfies `minimatch@3`'s own `^1.1.7` range, so the chain closes with a
+three-line lockfile bump — no `overrides` entry, no API break, lint re-verified against
+the bumped tree. That also clears the advisory currently filed against the chain,
+[GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg) /
+CVE-2026-14257 (high — unbounded expansion, out-of-memory crash, affects `<1.1.17`).
+**`npm audit` on the full tree: 0 vulnerabilities.**
 
 ### P1 — fixed
 
@@ -463,5 +475,6 @@ Nothing from the original gap list. What I would look at next, in order:
 1. **Certspotter latency on certificate-heavy domains** (§8.6) — the current worst case.
 2. **Scheduled re-runs.** Snapshots make diffing possible but still require a manual pin.
    A cron that re-runs a case and reports changes is the natural next step.
-3. **The dev-only `brace-expansion` advisory chain** (§3.1) — needs an upstream
-   `eslint-config-next` release.
+3. ~~**The dev-only `brace-expansion` advisory chain** (§3.1) — needs an upstream
+   `eslint-config-next` release.~~ **Closed 2026-08-02** — upstream backported the fix
+   to the 1.x line; a lockfile bump was enough. See §3.1.
