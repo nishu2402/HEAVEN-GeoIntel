@@ -2,7 +2,7 @@
 
 **Audited:** 2026-07-26 · v1.3.0 · commit `90ed86f`
 **Remediated:** 2026-07-27 · **Phases 0–4 complete**
-**Released as:** v2.0.0 · 2026-08-01 · uncommitted (commits are yours)
+**Released as:** v2.0.0 · 2026-08-01 · commit `9cd4b50`
 **Method:** static read of all 17,275 lines of `src/`, full quality gate, and live runs of
 every mode against a production build (`next start`, real upstream APIs, Node `fetch`).
 Every number below is measured, not estimated.
@@ -16,7 +16,7 @@ Every number below is measured, not estimated.
 | `npm audit` (production tree) | 4 high-severity packages | **0 vulnerabilities** |
 | `npm run lint` | pass | pass |
 | `npm run typecheck` | pass | pass |
-| `npm test` | 718 tests | **1283 tests** across 95 files |
+| `npm test` | 718 tests | **1285 tests** across 95 files |
 | Coverage (statements/branches/functions/lines) | 100% on gated files | **100%**, gate now also covers **every API route + `src/proxy.ts`** |
 | `npm run build` | pass, 17 routes | pass, 19 routes |
 

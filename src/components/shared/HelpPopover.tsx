@@ -6,7 +6,11 @@ import { HelpCircle, X } from "lucide-react";
 const MODE_HELP: [string, string][] = [
   ["📡 Phone", "Carrier · line type · breach · infostealer · identity · pivots"],
   ["✉ Email", "Breach databases · reputation · identity · deliverability"],
-  ["@ Username", "Where a handle is registered — 44 sites, no false positives"],
+  // The site count is asserted against USERNAME_SITES.length in
+  // tests/usernameSites.test.ts — the catalog is server-side, so it is written
+  // out here rather than imported, which would ship the whole thing to the
+  // browser for one number.
+  ["@ Username", "Where a handle is registered — 43 sites, no false positives"],
   ["⦿ IP", "Geo · ASN · ISP · open ports · VPN/proxy flags · risk score"],
   ["🌐 Domain", "DNS · WHOIS · SPF/DMARC · subdomains (cert transparency)"],
   ["≡ Bulk", "Triage up to 25 phone numbers → CSV export"],
