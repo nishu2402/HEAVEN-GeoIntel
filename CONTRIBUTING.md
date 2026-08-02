@@ -5,16 +5,20 @@ by individuals on their own time — please be patient with reviews.
 
 ## Quick start
 
-Requires **Node.js 20.9+** (Next.js 16).
+The app runs on **Node.js 20.9+** (Next.js 16). `.nvmrc` pins **22**, which is
+what CI uses and what you want locally: the brand generator needs Node 22.15+
+for `module.registerHooks()`, so on 20.x everything works except
+`npm run brand`.
 
 ```bash
 git clone https://github.com/nishu2402/HEAVEN-GeoIntel.git
 cd HEAVEN-GeoIntel
 npm install
-npm run dev          # http://localhost:3000
-npm test             # Vitest
-npm run lint         # ESLint 9 (flat config)
-npm run typecheck    # tsc --noEmit
+npm run dev            # http://localhost:3000
+npm test               # Vitest
+npm run test:coverage  # the gate — 100% on the gated files
+npm run lint           # ESLint 9 (flat config)
+npm run typecheck      # tsc --noEmit
 ```
 
 ## Ground rules
@@ -29,6 +33,12 @@ npm run typecheck    # tsc --noEmit
 - **TypeScript strict.** All new code must type-check with no `any`
   escape-hatches unless there is a written justification in a comment.
 - **Mobile-first.** Test new UI at 360px before 1280px.
+- **One source of truth per fact.** The version lives in
+  `src/lib/version.ts`, the data sources in `src/lib/sources/manifest.ts`, the
+  API surface in `src/lib/api/endpoints.ts`, the brand in `src/lib/brand/`.
+  Never retype one of those facts somewhere else — a drift-guard test
+  (`versionSync`, `sourceManifestAlignment`, `openapiCoverage`,
+  `posterAssets`) will fail the build, which is the point.
 
 ## Pull-request checklist
 
@@ -42,20 +52,30 @@ Before opening a PR:
       or an explicit `/* v8 ignore */` for a genuinely defensive branch
 - [ ] `node node_modules/next/dist/bin/next build` passes
 - [ ] Screenshots attached for UI changes
-- [ ] No new third-party data source without an entry in README's data-sources table
+- [ ] No new third-party data source without an entry in
+      `src/lib/sources/manifest.ts` (the README table, `/api/sources` and the
+      OpenAPI spec are all generated from it)
 - [ ] No personal data in commits (test phone numbers should be `+14155552671` / `+14155552672` — Twilio's public test numbers)
 
 ## Adding a new OSINT data source
 
-1. Add the fetch helper in the relevant route under `src/app/api/`
+1. **Add one entry to `src/lib/sources/manifest.ts`** — `id`, `name`, `tier`
+   (`free` or `key`), the `modes` that call it, and `unlocks` (shown verbatim
+   in the UI, so write it for an analyst). This is the step that registers the
+   source: `/api/sources`, the OpenAPI description and the in-app Sources
+   screen all read from here. `tests/sourceManifestAlignment.test.ts` fails if
+   a route emits a `sources` key with no manifest entry, or vice versa.
+2. Add the fetch helper in the relevant route under `src/app/api/`
    (`lookup` phone · `email-lookup` · `username-lookup` · `ip-lookup` ·
-   `domain-lookup`).
-2. Add the response shape to `src/lib/types.ts`.
-3. Add a panel under `src/components/<feature>/` if the data warrants its own
+   `domain-lookup`), keying its `sources` block by the manifest `id`.
+3. Add the response shape to `src/lib/types.ts`.
+4. Add a panel under `src/components/<feature>/` if the data warrants its own
    card, or extend an existing panel for a single signal.
-4. Update the README's data-sources / tech-stack tables and the OpenAPI spec
-   in `src/app/api/docs/route.ts`.
-5. If the source needs a key, document it in `.env.example`.
+5. If the source needs a key, add it to `src/lib/server/keyStore.ts`, list it
+   in the entry's `keys`, give it a `signup` URL, and document it in
+   `.env.example`. Do **not** hand-edit the OpenAPI document — it is generated
+   from `src/lib/api/endpoints.ts` plus the manifest by
+   `src/lib/api/openapi.ts` on every request.
 6. If the source has a free tier, add it to the OSINT Pivot Matrix
    (`src/components/osint/OsintPivots.tsx`) with the correct access badge.
 7. Validate user input **before** any outbound request and only interpolate it
@@ -85,6 +105,8 @@ colours and every renderer live in [`src/lib/brand/logo.ts`](./src/lib/brand/log
 | The mark in generated HTML (reports, exports) | `logoSvg({ mono })` — pass `mono: BRAND.ink` for anything bound for paper |
 | The mark in a plain-text export | `asciiLetterhead([...])` |
 | The product name / tagline / palette | `BRAND.name`, `BRAND.tagline`, `BRAND.green`, `BRAND.cyan`, `BRAND.ink` |
+| The README poster | `posterSvg(stats, { theme })` from `brand/poster.ts` |
+| The banner a shell script prints | source `scripts/banner.sh`, call `hv_banner` |
 
 Two things that have bitten us:
 
@@ -100,8 +122,28 @@ Two things that have bitten us:
 After changing the brand module, regenerate the committed assets:
 
 ```bash
-npm run brand        # favicon · app icons · OG image · README hero · public/brand/*
+npm run brand
 ```
+
+That runs two generators: `brand:poster` writes the three README posters
+(`public/brand/poster{,-light,-still}.svg`) and `scripts/banner.sh`, then
+`generate-brand-assets.mjs` writes the favicon, app icons, OG image and hero.
+Both are committed, because a fresh clone must not need a build step to print
+its own banner.
+
+**The poster states facts about the build** — version, source and mode counts,
+how many sources need no key, the coverage floor — and every one of them is
+read out of the registries at generation time, never typed. So:
+
+- Adding a source or a mode makes the committed artwork *wrong*, and
+  `tests/posterAssets.test.ts` fails with `stale generated asset — run
+  npm run brand:poster`. Run it and commit the result.
+- Don't edit the SVGs or `banner.sh` by hand. The test byte-compares them
+  against what the generator would produce, so an edit there is reverted by
+  the next regeneration anyway.
+- The posters are self-contained on purpose — no external font, no linked
+  image. GitHub's image proxy won't fetch either, so a "small" change like
+  referencing a webfont silently breaks the README for everyone but you.
 
 ## Commit messages
 
@@ -113,6 +155,32 @@ fix(api): handle Hudson Rock 429 response correctly
 docs(readme): clarify Docker setup steps
 chore(deps): bump next to the latest patch release
 ```
+
+## Cutting a release
+
+The version is declared once, in `src/lib/version.ts`, and
+`tests/versionSync.test.ts` holds every file outside the module graph to it —
+`package.json`, the lockfile, `docker-compose.yml`, `SECURITY.md`, the
+launcher banner, the README's badge and docker tags, and the CHANGELOG
+heading. So a release is: change the number, then run the gate and fix what it
+tells you.
+
+```bash
+npm version <major|minor|patch> --no-git-tag-version
+```
+
+Then, in order:
+
+1. Set `APP_VERSION` in `src/lib/version.ts` to match.
+2. Move the CHANGELOG's `[Unreleased]` body under `## [x.y.z] — YYYY-MM-DD`.
+   Breaking changes get an explicit **Breaking / upgrade notes** section — the
+   whole point of the major number is that someone reads it before upgrading.
+3. Add the new `x.y` to the supported table in `SECURITY.md`.
+4. `npm run brand` — the posters print the version.
+5. `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
+   `versionSync` and `posterAssets` are the two that catch a half-done bump.
+6. Tag it `vx.y.z` and write the GitHub release notes from the CHANGELOG
+   section.
 
 ## Code of conduct
 

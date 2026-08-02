@@ -21,7 +21,7 @@ The headline: **a lookup no longer ends at its own result.** Every finished look
 offers the identifiers it derived as one-click pivots, those links persist into a case
 carrying the reason they were drawn, and re-running a case tells you what changed since
 last time. Phone — the weakest mode without API keys — went from 1 keyless source to 2.
-The suite grew from 718 to **1,215 tests**, and the 100% coverage gate now covers every
+The suite grew from 718 to **1,285 tests**, and the 100% coverage gate now covers every
 API route and the auth/CSRF proxy, which were previously outside it.
 
 ### Breaking / upgrade notes
@@ -457,8 +457,10 @@ hash for a v1 file is deliberately re-computed against the v1 payload shape.
   across 11 files — every provider success path, every HTTP error code, every timeout,
   every sparse-payload default, and the auth/CSRF gate, which had **zero** direct
   tests. Genuinely unreachable defensive branches carry a `/* v8 ignore */` naming why.
-  Suite total: **718 → 1,215 tests across 90 files.**
-- **Docs corrected where they overstated the tool.** Username badge 44 → **47** sites;
+  Suite total: **718 → 1,285 tests across 95 files.**
+- **Docs corrected where they overstated the tool.** Username badge 44 → **43** sites
+  (the catalog's real size — an earlier pass "corrected" it to 47, which was also wrong,
+  and the release pass counted it from `usernameSites.ts` rather than from prose);
   `/api/docs` "8 endpoints" → **17 operations across 12 endpoints**; "the 15 sites that
   return HTTP 200 for every handle" → **19**; the rate-limit badge, and the caching and
   rate-limiting prose.
