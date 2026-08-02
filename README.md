@@ -756,7 +756,7 @@ POST /api/email-lookup  { email }    → offline classification + name inference
                                          optional: FullContact · BreachDirectory · Abstract ·
                                          Hunter.io · EmailRep
 
-POST /api/username-lookup { username } → 28 auto-verified + 19 manual → found / notfound / unverified / manual
+POST /api/username-lookup { username } → 24 auto-verified + 19 manual → found / notfound / unverified / manual
                                        ‖ GitHub · GitLab · HN · Reddit profiles · LeakCheck (free)
 POST /api/ip-lookup     { ip }       → ip-api: geo · ASN · ISP · reverse DNS · proxy/hosting/mobile + risk
 POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT) ‖ RDAP whois ‖

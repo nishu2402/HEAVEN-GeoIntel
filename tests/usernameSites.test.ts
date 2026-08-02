@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { USERNAME_SITES, isPlausibleUsername, emailToUsernameCandidate } from "@/lib/data/usernameSites";
+
+const ROOT = join(__dirname, "..");
+const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 
 describe("usernameSites catalog", () => {
   it("every site has a {u} placeholder and a valid check method", () => {
@@ -87,5 +92,28 @@ describe("usernameSites catalog", () => {
     expect(emailToUsernameCandidate("+tag@example.com")).toBeNull();    // empty local-part
     expect(emailToUsernameCandidate("has space@example.com")).toBeNull(); // illegal char
     expect(emailToUsernameCandidate("barehandle")).toBe("barehandle");  // no @ → treat whole as local
+  });
+});
+
+describe("everything that states the catalog's size agrees with the catalog", () => {
+  // This is the claim that has drifted more than any other in the project: the
+  // README said 44, then 47, while the array held 43, and the help popover
+  // still said 44 after both "corrections". These are the only places the size
+  // is written out in prose; each one is checked against the array itself.
+  const total = USERNAME_SITES.length;
+  const auto = USERNAME_SITES.filter((s) => s.check !== "manual").length;
+  const manual = USERNAME_SITES.filter((s) => s.check === "manual").length;
+
+  it("the in-app help popover names the real number of sites", () => {
+    expect(read("src/components/shared/HelpPopover.tsx")).toContain(`${total} sites, no false positives`);
+  });
+
+  it("the README's badge and API cheat-sheet name the real numbers", () => {
+    const readme = read("README.md");
+    expect(readme).toContain(`${auto} auto-verified + ${manual} manual`);
+    expect(readme).toContain(`Username-${total}`);
+    // A stale count is only half the risk; the split has to add up too, or the
+    // README can be internally consistent and still wrong.
+    expect(auto + manual).toBe(total);
   });
 });
