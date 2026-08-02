@@ -103,7 +103,7 @@ Out of scope (please report these to the upstream maintainers):
 We track `npm audit` and keep the framework on the latest stable (Next.js 16).
 **Current status: `npm audit` reports 0 vulnerabilities.**
 
-Two advisories were resolved and are documented here for the record:
+Three advisories were resolved and are documented here for the record:
 
 - **`postcss` `</style>` XSS** (GHSA-qx2v-qp2m-jg93) — Next pins an older
   `postcss@8.4.31` as a nested dependency. We pin it forward to the patched
@@ -112,6 +112,16 @@ Two advisories were resolved and are documented here for the record:
   never stringifies untrusted CSS.
 - **`esbuild` / `vitest` dev-server advisory** — cleared by upgrading the test
   runner to `vitest@4`. Dev-only; never shipped to production.
+- **`brace-expansion` unbounded-expansion DoS** ([GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg)
+  / CVE-2026-14257, high — a crafted brace pattern expands without bound and
+  crashes the process out of memory; affects `<1.1.17`). Reached only through
+  `eslint` → `minimatch@3`, which pins the 1.x line. 2.0.0 disclosed this chain
+  rather than fixing it, because at the time no patched 1.x existed and forcing
+  the patched 5.x breaks `minimatch@3`'s API. Upstream has since backported the
+  fix onto the 1.x maintenance line, so the lockfile now resolves **1.1.18** —
+  inside `minimatch@3`'s own `^1.1.7` range, so no `overrides` entry and no API
+  change. Dev tooling only; never bundled into the app, and reachable only via a
+  glob pattern the repo owner writes.
 
 Run `npm audit` (or `npm audit --omit=dev` for the production-only picture) to
 confirm.
