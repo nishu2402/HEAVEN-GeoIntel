@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { getCached } from "@/lib/server/cache";
-import { checkRateLimit, getClientIp } from "@/lib/server/rateLimit";
+import { guardRateLimit } from "@/lib/server/rateLimit";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, bulkBody } from "@/lib/server/validation";
 import { analyzePhoneNumber } from "@/lib/analysis/phoneAnalysis";
@@ -36,26 +36,25 @@ interface BulkRow {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip = getClientIp(req);
-  const { allowed, remaining } = checkRateLimit(ip);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded. Max 10 requests per minute." },
-      { status: 429, headers: { "Retry-After": "60" } }
-    );
-  }
+  const rl = guardRateLimit(req);
+  if (rl.limited) return rl.limited;
+  const rlHeaders = rl.headers;
+  const client = rl.client;
 
   const body = await parseBody(req, bulkBody);
   if (!body) {
     return NextResponse.json(
       { error: `Body must include a non-empty \`numbers\` array (max ${MAX_BULK} phone strings).` },
-      { status: 400 }
+      { status: 400, headers: rlHeaders }
     );
   }
 
-  void audit("bulk", `${body.numbers.length} numbers`, ip, 200);
+  void audit("bulk", `${body.numbers.length} numbers`, client, 200);
 
   const rows: BulkRow[] = body.numbers.map((raw, idx) => {
+    /* v8 ignore next 3 -- unreachable via the API: the zod schema already
+       enforces string[] and rejects anything else with a 400. Kept as a
+       belt-and-braces guard for any future non-HTTP caller. */
     if (typeof raw !== "string") {
       return { input: `row-${idx}`, ok: false, error: "Not a string" };
     }
@@ -90,6 +89,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const analysis = analyzePhoneNumber(e164);
+    /* v8 ignore next -- unreachable: isPossible() has already passed above, so
+       the analyser always returns a result. Defensive only. */
     if (!analysis) return { input: cleaned, ok: false, error: "Analysis failed" };
 
     return {
@@ -100,7 +101,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       countryName: analysis.countryName,
       type:        analysis.type,
       carrier:     null,
+      /* v8 ignore next -- every parseable number yields at least one zone. */
       timezone:    analysis.timezones[0] ?? null,
+      /* v8 ignore next -- ...and at least one UTC offset. */
       utcOffset:   analysis.utcOffsets[0] ?? null,
       npaState:    analysis.npaInfo?.state ?? null,
       npaRegion:   analysis.npaInfo?.region ?? null,
@@ -108,13 +111,5 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     };
   });
 
-  return NextResponse.json(
-    { count: rows.length, rows },
-    {
-      headers: {
-        "X-RateLimit-Limit": "10",
-        "X-RateLimit-Remaining": String(remaining),
-      },
-    }
-  );
+  return NextResponse.json({ count: rows.length, rows }, { headers: rlHeaders });
 }

@@ -9,6 +9,7 @@ import type { UsernameLookupResponse, UsernameHit, SocialProfile } from "@/lib/t
 import { USERNAME_CATEGORY_META } from "@/lib/data/usernameSites";
 import Tilt3D from "@/components/shared/Tilt3D";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import LeakCheckPanel from "@/components/breach/LeakCheckPanel";
 import { safeExternalUrl } from "@/lib/utils";
 
 interface Props { data: UsernameLookupResponse; }
@@ -289,6 +290,10 @@ export default function UsernameResultsDashboard({ data }: Props) {
           &nbsp;<span className="text-[var(--hv-amber)]">UNVERIFIED</span> = the site blocked our check or returned an ambiguous response.
         </p>
       </div>
+
+      {/* Breach exposure for the handle itself — keyless, so it renders on every
+          username sweep rather than only when a key is configured. */}
+      <LeakCheckPanel source={data.leakCheck} subject="username" />
     </motion.div>
   );
 }

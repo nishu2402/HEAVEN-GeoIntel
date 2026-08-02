@@ -6,11 +6,22 @@
 //   • Markdown — human-readable report (entities table, notes, provenance).
 // Pure functions + Web Crypto; runs entirely client-side.
 
-import type { InvestigationCase, CaseEntity, EntityKind } from "../types";
+import type { InvestigationCase, CaseEdge, CaseEntity, CaseSnapshot, EntityKind } from "../types";
 import { BRAND, logoSvg } from "../brand/logo";
+import { diffFacts } from "./caseSnapshot";
+import { APP_VERSION } from "../version";
 
-export const REPORT_SCHEMA = "heaven-geointel/case-report@1";
-const APP_VERSION = "1.3.0";
+/**
+ * Schema v2 adds the derived graph and the snapshot history to the export, so a
+ * report is now "everything the case knows" rather than just its identifiers.
+ *
+ * v1 files remain verifiable: the integrity hash covers the payload, and adding
+ * fields would change it, so `verifyCaseImport` re-hashes a v1 file against the
+ * v1 payload shape. An old export therefore still reads as untampered.
+ */
+export const REPORT_SCHEMA_V1 = "heaven-geointel/case-report@1";
+export const REPORT_SCHEMA = "heaven-geointel/case-report@2";
+
 
 export interface CaseReportEnvelope {
   tool: "HEAVEN-GeoIntel";
@@ -21,7 +32,7 @@ export interface CaseReportEnvelope {
   case: CasePayload;
 }
 
-interface CasePayload {
+interface CasePayloadV1 {
   name: string;
   createdAt: number;
   updatedAt: number;
@@ -29,20 +40,47 @@ interface CasePayload {
   notes: string;
 }
 
-// Stable, key-ordered payload so the hash is deterministic across exports.
-function payloadOf(c: InvestigationCase): CasePayload {
+interface CasePayload extends CasePayloadV1 {
+  edges: CaseEdge[];
+  snapshots: CaseSnapshot[];
+}
+
+function sortedEntities(c: InvestigationCase): CaseEntity[] {
+  return c.entities
+    .map((e) => ({ kind: e.kind, value: e.value, addedAt: e.addedAt, note: e.note }))
+    .sort((a, b) => a.kind.localeCompare(b.kind) || a.value.localeCompare(b.value));
+}
+
+// The v1 payload shape, kept verbatim so a report exported before v2 still
+// hashes to the value recorded in its own integrity block.
+function payloadOfV1(c: InvestigationCase): CasePayloadV1 {
   return {
     name: c.name,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
-    entities: c.entities
-      .map((e) => ({ kind: e.kind, value: e.value, addedAt: e.addedAt, note: e.note }))
-      .sort((a, b) => a.kind.localeCompare(b.kind) || a.value.localeCompare(b.value)),
+    entities: sortedEntities(c),
     notes: c.notes ?? "",
   };
 }
 
-function canonical(p: CasePayload): string {
+// Stable, key-ordered payload so the hash is deterministic across exports.
+function payloadOf(c: InvestigationCase): CasePayload {
+  return {
+    ...payloadOfV1(c),
+    edges: (c.edges ?? [])
+      .map((e) => ({ from: e.from, to: e.to, reason: e.reason, addedAt: e.addedAt }))
+      .sort((a, b) =>
+        a.from.value.localeCompare(b.from.value) ||
+        a.to.value.localeCompare(b.to.value) ||
+        a.reason.localeCompare(b.reason)),
+    // Chronological, NOT alphabetical: the order is load-bearing for diffing.
+    snapshots: (c.snapshots ?? [])
+      .map((s) => ({ kind: s.kind, value: s.value, takenAt: s.takenAt, facts: s.facts, fromCache: s.fromCache }))
+      .sort((a, b) => a.takenAt - b.takenAt),
+  };
+}
+
+function canonical(p: CasePayloadV1): string {
   // JSON.stringify with the object built in a fixed key order = canonical form.
   return JSON.stringify(p);
 }
@@ -66,6 +104,48 @@ export async function buildCaseJson(c: InvestigationCase): Promise<{ json: strin
   return { json: JSON.stringify(envelope, null, 2), hash };
 }
 
+/** Escape a value for a Markdown table cell. */
+const md = (s: string) => s.replace(/\|/g, "\\|");
+
+/**
+ * Render the snapshot history as one section per identifier: the baseline, then
+ * every fact that moved between consecutive re-runs. This is the "what changed"
+ * view — the reason snapshots are stored at all.
+ */
+function changeHistory(snapshots: CaseSnapshot[]): string[] {
+  if (snapshots.length === 0) return ["_No lookups have been snapshotted for this case._"];
+
+  const byKey = new Map<string, CaseSnapshot[]>();
+  for (const s of snapshots) {
+    const key = `${s.kind}:${s.value.toLowerCase()}`;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(s);
+  }
+
+  const out: string[] = [];
+  for (const list of byKey.values()) {
+    const first = list[0];
+    out.push(`### ${first.kind} \`${md(first.value)}\``, "");
+    out.push(`Snapshots: ${list.length} · first ${new Date(first.takenAt).toISOString()} · latest ${new Date(list[list.length - 1].takenAt).toISOString()}`, "");
+
+    if (list.length === 1) {
+      out.push("_Baseline only — re-run this identifier to see what changes._", "");
+      continue;
+    }
+    out.push(`| When | Fact | Was | Now |`, `|------|------|-----|-----|`);
+    let moved = 0;
+    for (let i = 1; i < list.length; i++) {
+      for (const ch of diffFacts(list[i - 1].facts, list[i].facts)) {
+        moved++;
+        out.push(`| ${new Date(list[i].takenAt).toISOString()} | ${md(ch.fact)} | ${md(String(ch.from ?? "—"))} | ${md(String(ch.to ?? "—"))} |`);
+      }
+    }
+    if (moved === 0) out.push(`| — | _nothing changed across ${list.length} snapshots_ | — | — |`);
+    out.push("");
+  }
+  return out;
+}
+
 export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
   const payload = payloadOf(c);
   const hash = await sha256Hex(canonical(payload));
@@ -82,12 +162,32 @@ export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
     `**Last updated:** ${fmt(payload.updatedAt)}`,
     `**Exported:** ${new Date().toISOString()}`,
     `**Identifiers:** ${payload.entities.length}`,
+    `**Derived links:** ${payload.edges.length}`,
+    `**Snapshots:** ${payload.snapshots.length}`,
     ``,
     `## Identifiers`,
     ``,
     `| Type | Value | Added | Note |`,
     `|------|-------|-------|------|`,
     rows,
+    ``,
+    `## Derived links`,
+    ``,
+    ...(payload.edges.length
+      ? [
+          `Relationships the tool derived from lookup results, with the source that produced each.`,
+          ``,
+          `| From | To | Derived from | Added |`,
+          `|------|----|--------------|-------|`,
+          ...payload.edges.map(
+            (e) => `| ${e.from.kind} \`${md(e.from.value)}\` | ${e.to.kind} \`${md(e.to.value)}\` | ${md(e.reason)} | ${fmt(e.addedAt)} |`,
+          ),
+        ]
+      : ["_No derived links recorded._"]),
+    ``,
+    `## Change history`,
+    ``,
+    ...changeHistory(payload.snapshots),
     ``,
     `## Analyst notes`,
     ``,
@@ -184,6 +284,20 @@ export async function buildPrintableHtml(c: InvestigationCase): Promise<string> 
 export interface ImportCheck {
   ok: boolean;
   case?: CasePayload;
+  /** Which schema the file declared — 1 for pre-v2 reports, 2 for current. */
+  schemaVersion?: 1 | 2;
+  /**
+   * Rows the file contained that could not be parsed and were discarded
+   * (wrong kind, blank value, wrong shape).
+   *
+   * The integrity hash covers the CANONICAL payload, so rows that don't survive
+   * sanitisation are not part of what was attested — appending junk to a report
+   * therefore still verifies. That is the correct answer about the *case*, but
+   * it would be silent about the *file*, so the count is reported separately.
+   * A non-zero value on an otherwise-verified report means someone edited the
+   * file even though nothing an analyst would act on changed.
+   */
+  dropped?: number;
   expectedHash?: string;
   actualHash?: string;
   error?: string;
@@ -198,6 +312,11 @@ export interface ImportCheck {
 }
 
 const IMPORT_KINDS = new Set<EntityKind>(["phone", "email", "username", "ip", "domain"]);
+
+/** How many rows a raw array held that the matching sanitizer did not keep. */
+function droppedCount(raw: unknown, kept: number): number {
+  return Array.isArray(raw) ? Math.max(0, raw.length - kept) : 0;
+}
 
 // An imported file is untrusted input: it can carry nulls, wrong types, or a
 // non-array `entities`. Coerce to the shape payloadOf() expects (mirroring the
@@ -221,6 +340,57 @@ function sanitizeEntities(raw: unknown, fallbackAt: number): CaseEntity[] {
   return out;
 }
 
+/** Keep only well-formed edges from an untrusted file (mirrors the server). */
+function sanitizeEdges(raw: unknown, fallbackAt: number): CaseEdge[] {
+  if (!Array.isArray(raw)) return [];
+  const ref = (r: unknown): { kind: EntityKind; value: string } | null => {
+    if (!r || typeof r !== "object") return null;
+    const o = r as { kind?: unknown; value?: unknown };
+    if (!IMPORT_KINDS.has(o.kind as EntityKind) || typeof o.value !== "string" || !o.value) return null;
+    return { kind: o.kind as EntityKind, value: o.value };
+  };
+  const out: CaseEdge[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const e = item as { from?: unknown; to?: unknown; reason?: unknown; addedAt?: unknown };
+    const from = ref(e.from);
+    const to = ref(e.to);
+    if (!from || !to) continue;
+    out.push({
+      from, to,
+      reason: typeof e.reason === "string" ? e.reason : "derived",
+      addedAt: finiteOr(e.addedAt, fallbackAt),
+    });
+  }
+  return out;
+}
+
+/** Same for snapshots; non-scalar facts are dropped rather than carried. */
+function sanitizeSnapshots(raw: unknown, fallbackAt: number): CaseSnapshot[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CaseSnapshot[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const s = item as { kind?: unknown; value?: unknown; takenAt?: unknown; facts?: unknown; fromCache?: unknown };
+    if (!IMPORT_KINDS.has(s.kind as EntityKind) || typeof s.value !== "string" || !s.value) continue;
+    const facts: Record<string, number | string> = {};
+    if (s.facts && typeof s.facts === "object" && !Array.isArray(s.facts)) {
+      for (const [k, v] of Object.entries(s.facts as Record<string, unknown>)) {
+        if (typeof v === "number" && Number.isFinite(v)) facts[k] = v;
+        else if (typeof v === "string") facts[k] = v;
+      }
+    }
+    out.push({
+      kind: s.kind as EntityKind,
+      value: s.value,
+      takenAt: finiteOr(s.takenAt, fallbackAt),
+      facts,
+      ...(s.fromCache === true ? { fromCache: true as const } : {}),
+    });
+  }
+  return out;
+}
+
 const finiteOr = (v: unknown, fallback: number): number =>
   typeof v === "number" && Number.isFinite(v) ? v : fallback;
 const stringOr = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback);
@@ -231,22 +401,36 @@ export async function verifyCaseImport(text: string): Promise<ImportCheck> {
   try { parsed = JSON.parse(text); }
   catch { return { ok: false, error: "Not valid JSON" }; }
 
-  const env = parsed as Partial<CaseReportEnvelope>;
-  if (!env || env.schema !== REPORT_SCHEMA || !env.case || typeof env.case !== "object") {
+  const env = parsed as Partial<CaseReportEnvelope> & { schema?: string };
+  const schemaVersion: 1 | 2 | null =
+    env?.schema === REPORT_SCHEMA ? 2 : env?.schema === REPORT_SCHEMA_V1 ? 1 : null;
+  if (!env || schemaVersion === null || !env.case || typeof env.case !== "object") {
     return { ok: false, error: "Not a HEAVEN-GeoIntel case report" };
   }
   const now = Date.now();
-  const payload = payloadOf({
+  const restored: InvestigationCase = {
     id: "",
     createdAt: finiteOr(env.case.createdAt, now),
     updatedAt: finiteOr(env.case.updatedAt, now),
     name: stringOr(env.case.name, ""),
     entities: sanitizeEntities(env.case.entities, now),
     notes: stringOr(env.case.notes, ""),
-  });
-  const actualHash = await sha256Hex(canonical(payload));
+    edges: sanitizeEdges(env.case.edges, now),
+    snapshots: sanitizeSnapshots(env.case.snapshots, now),
+  };
+  const payload = payloadOf(restored);
+  const dropped =
+    droppedCount(env.case.entities, restored.entities.length) +
+    droppedCount(env.case.edges, restored.edges!.length) +
+    droppedCount(env.case.snapshots, restored.snapshots!.length);
+  // Hash against the shape the file was WRITTEN with. Re-hashing a v1 report as
+  // v2 would add two empty arrays to the canonical form and report every old
+  // export as tampered.
+  const actualHash = await sha256Hex(
+    canonical(schemaVersion === 1 ? payloadOfV1(restored) : payload),
+  );
   const expectedHash = typeof env.integrity?.hash === "string" ? env.integrity.hash : undefined;
   const tampered = expectedHash !== undefined && expectedHash !== actualHash;
   const verified = expectedHash !== undefined && expectedHash === actualHash;
-  return { ok: true, case: payload, expectedHash, actualHash, tampered, verified };
+  return { ok: true, case: payload, schemaVersion, dropped, expectedHash, actualHash, tampered, verified };
 }

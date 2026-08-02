@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { CLIENT_ID_COOKIE } from "@/lib/server/rateLimit";
 
 // ── CSRF guard + optional auth gate (Next 16 `proxy` convention) ─────────────
 // This is the file formerly known as `middleware.ts`; Next 16 renamed the
@@ -41,6 +42,32 @@ function safeEqual(a: string, b: string): boolean {
   return r === 0;
 }
 
+/**
+ * Pass the request through, minting the rate-limit client id if this browser
+ * doesn't have one yet.
+ *
+ * The value is opaque and random — it identifies a BUCKET, not a person. It
+ * carries no lookup history, is HttpOnly (invisible to page JS), SameSite=Lax,
+ * and is never logged or transmitted off the box. Without it every browser on
+ * the LAN shares one bucket and throttles the others.
+ */
+function passThrough(req: NextRequest): NextResponse {
+  const res = NextResponse.next();
+  if (!req.cookies.get(CLIENT_ID_COOKIE)) {
+    res.cookies.set(CLIENT_ID_COOKIE, crypto.randomUUID().replace(/-/g, ""), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      // The app is served over plain HTTP by default (localhost + LAN). Marking
+      // the cookie Secure there would stop it ever being stored, so it is only
+      // set when the operator has declared a real TLS deployment.
+      secure: process.env.FORCE_HTTPS === "1",
+    });
+  }
+  return res;
+}
+
 export function proxy(req: NextRequest): NextResponse {
   if (isCrossSiteWrite(req)) {
     return NextResponse.json({ error: "Cross-site request blocked" }, { status: 403 });
@@ -57,7 +84,7 @@ export function proxy(req: NextRequest): NextResponse {
   }
 
   const pass = process.env.AUTH_PASSWORD;
-  if (!pass) return NextResponse.next(); // auth disabled → no behaviour change
+  if (!pass) return passThrough(req); // auth disabled → no behaviour change
 
   const user = process.env.AUTH_USER || "analyst";
   const header = req.headers.get("authorization") || "";
@@ -73,7 +100,7 @@ export function proxy(req: NextRequest): NextResponse {
         // could reveal that the username alone was correct.
         const okUser = safeEqual(u, user);
         const okPass = safeEqual(p, pass);
-        if (okUser && okPass) return NextResponse.next();
+        if (okUser && okPass) return passThrough(req);
       }
     } catch { /* malformed header → fall through to 401 */ }
   }

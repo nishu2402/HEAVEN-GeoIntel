@@ -19,6 +19,10 @@
 # persistent case store (runtime data)
 /.data/
 
+# Throwaway data dir used by the test run (see vitest.config.ts `env`),
+# so tests can never write into the real /.data.
+/.vitest-data/
+
 # misc
 .DS_Store
 *.pem

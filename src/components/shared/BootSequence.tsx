@@ -1,15 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { APP_VERSION_SHORT } from "@/lib/version";
 
 const lines = [
-  "[+] HEAVEN-GeoIntel v1.3 — Unified OSINT Platform",
+  `[+] HEAVEN-GeoIntel v${APP_VERSION_SHORT} — Unified OSINT Platform`,
   "[+] Loading libphonenumber-js database (240+ countries)...",
   "[+] Bundled datasets: country · NPA · MCC/MNC · disposable domains [ OK ]",
   "[+] Offline analysis engine: READY",
   "[+] Phone · Email · Username · IP · Domain modules: LOADED",
-  "[+] Free no-key sources: Hudson Rock · XposedOrNot · ip-api · DoH [ ACTIVE ]",
-  "[+] Breach module: XposedOrNot (free) · BreachDirectory          [ READY  ]",
+  "[+] Free no-key sources: Hudson Rock · LeakCheck · XposedOrNot · ip-api · DoH",
+  "[+] Breach module: XposedOrNot · LeakCheck (free) · BreachDirectory [ READY ]",
   "[*] Link-analysis graph + persistent cases: initialized",
   "[*] Matrix rain canvas: active",
   "",

@@ -1,3 +1,5 @@
+import { overlayList, overlayRemovals } from "./overlay";
+
 // ── Username enumeration catalog (offline definition, checked at request time) ──
 // Each entry defines how to test whether a username is registered on a site.
 //   - check "status": claimed if the profile URL returns HTTP 200, free if 404.
@@ -107,6 +109,23 @@ export const USERNAME_SITES: UsernameSite[] = [
   // every GitHub account as a misleading "found" that just duplicates the rich
   // GitHub profile card (see analysis/usernameProfiles.ts).
 ];
+
+/**
+ * The catalog actually swept, bundled entries plus any runtime overlay.
+ *
+ * Adding a site used to mean editing this file and redeploying. An overlay in
+ * `.data/datasets/usernameSites.json` can now append sites (or remove a
+ * bundled one by name) on a running instance. Overlay entries are validated by
+ * the loader, so a malformed entry is skipped rather than breaking the sweep.
+ */
+export function activeUsernameSites(): UsernameSite[] {
+  const removed = new Set(overlayRemovals("usernameSites"));
+  const extra = overlayList<UsernameSite>("usernameSites");
+  const bundled = USERNAME_SITES.filter((s) => !removed.has(s.name));
+  // An overlay entry with the same name as a bundled one replaces it.
+  const overridden = new Set(extra.map((s) => s.name));
+  return [...bundled.filter((s) => !overridden.has(s.name)), ...extra];
+}
 
 export const USERNAME_CATEGORY_META: Record<UsernameCategory, { label: string; color: string }> = {
   developer:    { label: "DEVELOPER",     color: "#22d3ee" },

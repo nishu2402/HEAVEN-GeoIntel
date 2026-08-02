@@ -1,3 +1,5 @@
+import { overlayLookup } from "./overlay";
+
 // Bundled country intelligence — zero API calls, fully offline
 export interface CountryIntel {
   code: string;
@@ -1027,7 +1029,10 @@ const COUNTRY_DATA: Record<string, CountryIntel> = {
 };
 
 export function getCountryIntel(code: string): CountryIntel | null {
-  return COUNTRY_DATA[code.toUpperCase()] ?? null;
+  const key = code.toUpperCase();
+  const over = overlayLookup<CountryIntel>("countryIntel", key);
+  if (over !== undefined) return over;
+  return COUNTRY_DATA[key] ?? null;
 }
 
 // Pre-built reverse lookup: calling code → first matching ISO country code (O(1) per call)

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/lookup/route";
+import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
 
 // End-to-end handler test for the phone lookup: drives the real POST through the
 // shared middleware (rate-limit → parseBody → libphonenumber parse → offline
@@ -106,7 +107,8 @@ describe("POST /api/lookup — offline happy path (no provider keys)", () => {
     expect(json.threatScore).toBe(0);
     expect(json.threatLabel).toBe("CLEAN");
 
-    expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
+    expect(res.headers.get("X-RateLimit-Limit")).toBe("60"); // shipped default
+    expect(res.headers.get("X-RateLimit-Scope")).toBe("client");
   });
 });
 
@@ -181,18 +183,48 @@ describe("POST /api/lookup — caching", () => {
 });
 
 describe("POST /api/lookup — rate limiting", () => {
-  it("allows 10 requests then 429s the 11th from one client IP", async () => {
+  afterEach(restoreRateLimit);
+
+  const req = (cookie: string) => () => new Request("http://localhost/api/lookup", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ number: "+16465550170" }),
+  });
+
+  it("allows MAX requests then 429s the next from the same client", async () => {
+    useRateLimit(10);
     stubFetch([["cavalier.hudsonrock.com", hudsonClean]]);
-    const req = () => new Request("http://localhost/api/lookup", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "198.51.100.42" },
-      body: JSON.stringify({ number: "+16465550170" }),
-    });
-    let last = await POST(req() as unknown as NextRequest);
-    for (let i = 0; i < 9; i++) last = await POST(req() as unknown as NextRequest);
+    const make = req(clientCookie("lookupclient1"));
+    let last = await POST(make() as unknown as NextRequest);
+    for (let i = 0; i < 9; i++) last = await POST(make() as unknown as NextRequest);
     expect(last.status).toBe(200); // 10th still allowed
-    const over = await POST(req() as unknown as NextRequest);
+    const over = await POST(make() as unknown as NextRequest);
     expect(over.status).toBe(429);
-    expect(over.headers.get("Retry-After")).toBe("60");
+    expect(Number(over.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(over.headers.get("X-RateLimit-Scope")).toBe("client");
+  });
+
+  it("does not let one exhausted client throttle another — the P1 defect", async () => {
+    useRateLimit(2);
+    stubFetch([["cavalier.hudsonrock.com", hudsonClean]]);
+    const a = req(clientCookie("browserAAA"));
+    const b = req(clientCookie("browserBBB"));
+
+    await POST(a() as unknown as NextRequest);
+    await POST(a() as unknown as NextRequest);
+    expect((await POST(a() as unknown as NextRequest)).status).toBe(429); // A is spent
+
+    // B has never made a request; before the fix it would already be blocked.
+    expect((await POST(b() as unknown as NextRequest)).status).toBe(200);
+  });
+
+  it("reports the server-wide ceiling separately from the per-client one", async () => {
+    useRateLimit(100);
+    process.env.RATE_LIMIT_GLOBAL_MAX = "1";
+    stubFetch([["cavalier.hudsonrock.com", hudsonClean]]);
+    await POST(req(clientCookie("firstclient"))() as unknown as NextRequest);
+    const denied = await POST(req(clientCookie("secondclient"))() as unknown as NextRequest);
+    expect(denied.status).toBe(429);
+    expect(denied.headers.get("X-RateLimit-Scope")).toBe("global");
   });
 });

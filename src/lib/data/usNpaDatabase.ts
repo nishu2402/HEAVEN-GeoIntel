@@ -1,3 +1,5 @@
+import { overlayLookup } from "./overlay";
+
 export interface NpaInfo {
   country: "US" | "CA" | "NANP";
   state: string;
@@ -475,5 +477,9 @@ const NPA_DATABASE: Record<string, NpaInfo> = {
 export function getNpaInfo(nationalDigits: string): NpaInfo | null {
   if (nationalDigits.length < 3) return null;
   const npa = nationalDigits.slice(0, 3);
+  // An operator-supplied overlay wins over the bundled table, so a newly split
+  // area code can be corrected without a rebuild. See lib/data/overlay.ts.
+  const over = overlayLookup<NpaInfo>("usNpa", npa);
+  if (over !== undefined) return over;
   return NPA_DATABASE[npa] ?? null;
 }

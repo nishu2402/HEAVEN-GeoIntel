@@ -162,6 +162,26 @@ export interface HudsonRockData {
   message?: string;
 }
 
+// ── LeakCheck public breach index (free, no key) ──────────────────────────────
+// LeakCheck's *public* endpoint reports, for an email / phone / username, how
+// many indexed breach records mention it, which field types were exposed, and
+// the named source breaches. It never returns credentials — the paid tier does
+// that — so what we render is exposure metadata only.
+export interface LeakCheckSource {
+  name: string;
+  /** "YYYY-MM" when the breach is dated; null when the index has no date. */
+  date: string | null;
+}
+
+export interface LeakCheckData {
+  /** Number of indexed records mentioning the identifier. */
+  found: number;
+  /** Field types exposed across those records ("password", "address", …). */
+  fields: string[];
+  /** Named breaches the identifier appears in. */
+  sources: LeakCheckSource[];
+}
+
 export interface LookupResponse {
   input: PhoneInputData;
   analysis: PhoneAnalysis;
@@ -176,7 +196,14 @@ export interface LookupResponse {
     breachDirectory: SourceResult<BreachDirectoryData>;
     fullContact: SourceResult<FullContactData>;
     hudsonRock: SourceResult<HudsonRockData>;
+    leakCheck: SourceResult<LeakCheckData>;
   };
+  /**
+   * Uniform per-source provenance — the same shape every lookup mode emits, so
+   * one UI component can render source health for any mode. `sources` above
+   * carries the typed payloads; this carries only who answered and how fast.
+   */
+  sourceHealth?: SourceProvenance[];
   aggregated: AggregatedResult;
   threatScore: number;          // 0-100 unified threat score
   threatLabel: string;          // "CLEAN" | "LOW RISK" | "MODERATE" | "HIGH RISK" | "CRITICAL"
@@ -355,6 +382,10 @@ export interface EmailLookupResponse {
   xon: SourceResult<XposedOrNotData>;                  // XposedOrNot — free breach DB
   breachDirectory: SourceResult<BreachDirectoryData>;   // BreachDirectory — credential hashes
   fullContact: SourceResult<FullContactData>;           // FullContact — real name + employer
+  hudsonRock: SourceResult<HudsonRockData>;             // Hudson Rock — infostealer exposure
+  leakCheck: SourceResult<LeakCheckData>;               // LeakCheck — public breach index
+  /** Uniform per-source provenance — same shape as every other lookup mode. */
+  sourceHealth?: SourceProvenance[];
   cachedAt?: number;
 }
 
@@ -428,6 +459,10 @@ export interface UsernameLookupResponse {
   identity: IdentitySignals;
   /** Derived dork/search links to pivot further (no key) */
   pivots: { label: string; url: string }[];
+  /** LeakCheck public breach index — free, no key. */
+  leakCheck: SourceResult<LeakCheckData>;
+  /** Uniform per-source provenance — same shape as every other lookup mode. */
+  sourceHealth?: SourceProvenance[];
   cachedAt?: number;
 }
 
@@ -481,6 +516,12 @@ export interface SourceProvenance {
   ms: number;
   fetchedAt: number;
   error?: string;
+  /**
+   * True when the source was never called because its API key isn't
+   * configured. Distinct from `ok: false`, which means it was called and
+   * failed — an unconfigured optional source is not an outage.
+   */
+  skipped?: boolean;
 }
 
 export interface IpLookupResponse {
@@ -494,6 +535,8 @@ export interface IpLookupResponse {
   threatLabel: string;
   /** Which sources were queried, whether they answered, and how fast. */
   sources?: SourceProvenance[];
+  /** Uniform per-source provenance — same shape as every other lookup mode. */
+  sourceHealth?: SourceProvenance[];
   error?: string;
   cachedAt?: number;
 }
@@ -546,6 +589,8 @@ export interface DomainLookupResponse {
   wayback: { available: boolean; firstSnapshot: string | null; snapshotUrl: string | null } | null;
   pivots: { label: string; url: string; note: string }[];
   sources?: SourceProvenance[];
+  /** Uniform per-source provenance — same shape as every other lookup mode. */
+  sourceHealth?: SourceProvenance[];
   cachedAt?: number;
 }
 
@@ -561,6 +606,48 @@ export interface CaseEntity {
   note?: string;
 }
 
+/** One identifier inside an edge or a snapshot. */
+export interface EntityRef {
+  kind: EntityKind;
+  value: string;
+}
+
+/**
+ * A derived relationship between two identifiers in a case.
+ *
+ * The session graph only ever knew that two identifiers had both been looked
+ * up; it could not say *why* they were connected. An edge records the actual
+ * derivation ("Gravatar — linked github account"), so the graph survives the
+ * browser, reaches the exported report, and can be read months later.
+ */
+export interface CaseEdge {
+  from: EntityRef;
+  to: EntityRef;
+  /** Verbatim auto-pivot reason — which source/field produced the link. */
+  reason: string;
+  addedAt: number;
+}
+
+/**
+ * A comparable fingerprint of one lookup, so re-running it later can be diffed.
+ *
+ * Deliberately NOT the whole response: storing full results would bloat the
+ * case file and pin PII on disk indefinitely. `facts` holds only the scalars an
+ * analyst would actually watch — breach counts, open ports, subdomain totals.
+ */
+export interface CaseSnapshot {
+  kind: EntityKind;
+  value: string;
+  takenAt: number;
+  facts: Record<string, number | string>;
+  /**
+   * True when the lookup behind this snapshot was served from the result cache.
+   * Without it, an unchanged diff is ambiguous: nothing moved upstream, or we
+   * simply compared a cached result with itself.
+   */
+  fromCache?: boolean;
+}
+
 export interface InvestigationCase {
   id: string;
   name: string;
@@ -569,4 +656,8 @@ export interface InvestigationCase {
   entities: CaseEntity[];
   /** freeform analyst notes */
   notes?: string;
+  /** Derived relationships between this case's identifiers. */
+  edges?: CaseEdge[];
+  /** Lookup fingerprints, newest last, capped per identifier. */
+  snapshots?: CaseSnapshot[];
 }

@@ -10,10 +10,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { clearAllCaches } from "./cache";
+import { dataDir } from "./dataDir";
 
-// Resolved lazily so HV_DATA_DIR can redirect state (hermetic temp dir in tests,
-// or a deploy that keeps data outside the app dir). Defaults to ./.data.
-const dataDir = () => process.env.HV_DATA_DIR || path.join(process.cwd(), ".data");
 const keysFile = () => path.join(dataDir(), "keys.json");
 
 // Allow-list — only these names may be stored or read, so the endpoint can never
@@ -95,6 +94,14 @@ async function writeAtomic(next: Record<string, string>): Promise<void> {
   await fs.chmod(file, 0o600).catch(() => {});
 }
 
+// Any change to the key set invalidates every cached lookup: a result produced
+// without a key is not the answer the user gets once that key exists. Without
+// this, adding a key in the UI silently kept serving the old thin result until
+// the 24 h TTL expired, and the key looked broken.
+function keysChanged(): void {
+  clearAllCaches();
+}
+
 export async function setKey(name: string, value: string): Promise<boolean> {
   if (!ALLOWED.has(name)) return false;
   const v = value.trim().slice(0, 512);
@@ -104,6 +111,7 @@ export async function setKey(name: string, value: string): Promise<boolean> {
     cache = next;
     await writeAtomic(next);
   });
+  keysChanged();
   return true;
 }
 
@@ -116,6 +124,7 @@ export async function clearKey(name: string): Promise<boolean> {
     cache = all;
     await writeAtomic(all);
   });
+  keysChanged();
   return true;
 }
 
@@ -124,4 +133,5 @@ export async function clearAllKeys(): Promise<void> {
     cache = {};
     await writeAtomic({});
   });
+  keysChanged();
 }

@@ -1,3 +1,5 @@
+import { overlayList, overlayRemovals } from "./overlay";
+
 // Known disposable / throwaway email domains.
 // Sources: public domain lists, manually curated. Deduplicated.
 export const DISPOSABLE_DOMAINS = new Set<string>([
@@ -321,3 +323,18 @@ export const ROLE_PREFIXES = new Set<string>([
   "unsubscribe","updates","vendor","vendors","volunteer","web",
   "webadmin","webmaster","webshop","welcome","workflow",
 ]);
+
+/**
+ * Is this domain a throwaway provider?
+ *
+ * Consults the runtime overlay before the bundled set, so a new burner service
+ * can be blocked (or a false positive removed) by dropping a JSON file into
+ * `.data/datasets/` — no rebuild. Throwaway domains rotate faster than any
+ * release cycle, which is exactly why this list needed to stop being frozen.
+ */
+export function isDisposableDomain(domain: string): boolean {
+  const d = domain.trim().toLowerCase();
+  if (overlayRemovals("disposableDomains").includes(d)) return false;
+  if (overlayList<string>("disposableDomains").includes(d)) return true;
+  return DISPOSABLE_DOMAINS.has(d);
+}
