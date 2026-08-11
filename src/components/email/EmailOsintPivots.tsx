@@ -180,10 +180,10 @@ export default function EmailOsintPivots({ email, domain }: Props) {
 
   return (
     <div className="terminal-card p-4 space-y-4">
-      <div className="text-xs uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
+      <div className="text-xs uppercase tracking-widest text-[#00ff41]/54 border-b border-[#00ff41]/15 pb-2">
         [ EMAIL OSINT MATRIX ] — {links.length} investigation targets
       </div>
-      <div className="text-[13px] text-[#00ff41]/50 italic">
+      <div className="text-[13px] text-[#00ff41]/54 italic">
         Opens in new tab. Use only within your authorized scope.
       </div>
 

@@ -1,5 +1,5 @@
-import type { LookupResponse, EmailLookupResponse } from "../types";
-import { phoneCacheConfig, emailCacheConfig, type CacheConfig } from "./config";
+import type { LookupResponse, EmailLookupResponse, IpLookupResponse } from "../types";
+import { phoneCacheConfig, emailCacheConfig, ipCacheConfig, type CacheConfig } from "./config";
 
 // ── Result caches ────────────────────────────────────────────────────────────
 // Both lookup caches live here (rather than one in a route module) so that a
@@ -52,6 +52,7 @@ class ResultCache<T extends { cachedAt?: number }> {
 
 const phone = new ResultCache<LookupResponse>(phoneCacheConfig);
 const email = new ResultCache<EmailLookupResponse>(emailCacheConfig);
+const ip = new ResultCache<IpLookupResponse>(ipCacheConfig);
 
 export function getCached(e164: string): LookupResponse | null {
   return phone.get(e164);
@@ -69,6 +70,21 @@ export function setCachedEmail(address: string, data: EmailLookupResponse): void
   email.set(address, data);
 }
 
+export function getCachedIp(address: string): IpLookupResponse | null {
+  return ip.get(address);
+}
+
+/**
+ * Only ever called with a result that actually carries geo data.
+ *
+ * Caching a degraded answer would be the worst of both worlds: the analyst
+ * would keep seeing "geo source unreachable" for the rest of the TTL, long
+ * after the provider's one-minute window had reset.
+ */
+export function setCachedIp(address: string, data: IpLookupResponse): void {
+  ip.set(address, data);
+}
+
 /**
  * Drop every cached result.
  *
@@ -82,9 +98,10 @@ export function setCachedEmail(address: string, data: EmailLookupResponse): void
 export function clearAllCaches(): void {
   phone.clear();
   email.clear();
+  ip.clear();
 }
 
 /** Observability for /api/sources — entry counts, never contents. */
-export function cacheStats(): { phone: number; email: number } {
-  return { phone: phone.size, email: email.size };
+export function cacheStats(): { phone: number; email: number; ip: number } {
+  return { phone: phone.size, email: email.size, ip: ip.size };
 }

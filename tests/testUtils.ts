@@ -26,6 +26,8 @@ export function installResizeObserver(): void {
 // can prove that one client's exhaustion doesn't affect another's.
 
 import { CLIENT_ID_COOKIE, resetRateLimit } from "@/lib/server/rateLimit";
+import { clearAllCaches } from "@/lib/server/cache";
+import { resetBudgets } from "@/lib/server/upstreamBudget";
 
 /** Pin RATE_LIMIT_MAX (and clear all buckets) for one test. */
 export function useRateLimit(max: number): void {
@@ -43,6 +45,21 @@ export function restoreRateLimit(): void {
 /** A Cookie header that puts a request in its own rate-limit bucket. */
 export function clientCookie(id: string): string {
   return `${CLIENT_ID_COOKIE}=${id.padEnd(16, "0").slice(0, 32)}`;
+}
+
+/**
+ * Reset the two module-level maps a route test can otherwise inherit.
+ *
+ * Both are process-wide by design — that is what makes them useful in
+ * production — and both silently break test isolation. The result cache lets a
+ * successful lookup in one test satisfy a later test that stubbed every
+ * upstream to fail; the upstream budget lets a stubbed 429 suppress a real
+ * call several tests later. Neither shows up as a clear failure, only as a
+ * test that passes or fails depending on what ran before it.
+ */
+export function resetServerState(): void {
+  clearAllCaches();
+  resetBudgets();
 }
 
 export function installMemoryLocalStorage(): void {

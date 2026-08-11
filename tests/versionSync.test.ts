@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import { APP_VERSION, APP_VERSION_SHORT, USER_AGENT } from "@/lib/version";
+import { APP_VERSION, APP_VERSION_BRANCH, USER_AGENT } from "@/lib/version";
 
 // The version used to be typed out by hand in eight places and had already
 // drifted three ways (package.json 1.3.0, the OpenAPI spec 1.4.0, the outbound
@@ -19,13 +20,13 @@ const read = (p: string) => readFileSync(join(root, p), "utf8");
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
 describe("version module", () => {
-  it("is a plain semver, with a major.minor short form and a UA derived from it", () => {
+  it("is a plain semver, with a major.minor branch label and a UA derived from it", () => {
     expect(APP_VERSION).toMatch(SEMVER);
-    expect(APP_VERSION_SHORT).toBe(APP_VERSION.split(".").slice(0, 2).join("."));
-    // The patch level is deliberately absent: a bugfix release should not read
-    // as a new client in a free upstream's logs.
-    expect(USER_AGENT).toBe(`HEAVEN-GeoIntel/${APP_VERSION_SHORT}`);
-    expect(USER_AGENT).not.toContain(APP_VERSION);
+    expect(APP_VERSION_BRANCH).toBe(APP_VERSION.split(".").slice(0, 2).join("."));
+    // The UA carries the FULL version. 2.0.x truncated it, which meant an
+    // upstream operator correlating a behaviour change to a release could not
+    // tell 2.0.0 from 2.0.1.
+    expect(USER_AGENT).toBe(`HEAVEN-GeoIntel/${APP_VERSION}`);
   });
 });
 
@@ -43,18 +44,18 @@ describe("every file outside the module graph agrees", () => {
     expect(lock.packages[""].version).toBe(APP_VERSION);
   });
 
-  it("docker-compose.yml tags the image with the current major.minor", () => {
-    expect(read("docker-compose.yml")).toContain(`image: heaven-geointel:${APP_VERSION_SHORT}`);
+  it("docker-compose.yml tags the image with the exact released version", () => {
+    expect(read("docker-compose.yml")).toContain(`image: heaven-geointel:${APP_VERSION}`);
   });
 
   it("the README's docker commands build and run that same tag", () => {
     const readme = read("README.md");
-    expect(readme).toContain(`docker build -t heaven-geointel:${APP_VERSION_SHORT} .`);
+    expect(readme).toContain(`docker build -t heaven-geointel:${APP_VERSION} .`);
     // Every `docker run` in the README must name the tag the build produced —
     // a stale one sends a new user to an image they never built.
-    const tags = readme.match(/heaven-geointel:\d+\.\d+/g) ?? [];
+    const tags = readme.match(/heaven-geointel:\d+\.\d+(?:\.\d+)?/g) ?? [];
     expect(tags.length).toBeGreaterThan(0);
-    expect(new Set(tags)).toEqual(new Set([`heaven-geointel:${APP_VERSION_SHORT}`]));
+    expect(new Set(tags)).toEqual(new Set([`heaven-geointel:${APP_VERSION}`]));
   });
 
   it("the README's version badge names this release", () => {
@@ -62,14 +63,14 @@ describe("every file outside the module graph agrees", () => {
   });
 
   it("the launcher banner shows the current version", () => {
-    expect(read("scripts/start.sh")).toContain(`Unified OSINT Platform  v${APP_VERSION_SHORT}`);
+    expect(read("scripts/start.sh")).toContain(`Unified OSINT Platform  v${APP_VERSION}`);
   });
 
-  it("SECURITY.md lists the current major.minor as supported", () => {
+  it("SECURITY.md lists the current release branch as supported", () => {
     // A supported-versions table that omits the release you just shipped tells
     // a reporter their finding is out of scope.
     expect(read("SECURITY.md")).toMatch(
-      new RegExp(`^\\|\\s*${APP_VERSION_SHORT.replace(".", "\\.")}\\.x\\s*\\|\\s*:white_check_mark:`, "m"),
+      new RegExp(`^\\|\\s*${APP_VERSION_BRANCH.replace(".", "\\.")}\\.x\\s*\\|\\s*:white_check_mark:`, "m"),
     );
   });
 
@@ -79,6 +80,31 @@ describe("every file outside the module graph agrees", () => {
     expect(read("CHANGELOG.md")).toMatch(
       new RegExp(`^## \\[${APP_VERSION.replace(/\./g, "\\.")}\\] — \\d{4}-\\d{2}-\\d{2}$`, "m"),
     );
+  });
+});
+
+describe("nothing under src/ labels a build with the branch", () => {
+  // The bug this guards: 2.0.1 shipped with a header, a boot line, a launcher
+  // banner and a User-Agent all reading "2.0", because they used the
+  // major.minor form. A screenshot of the app could not tell you which build
+  // took it. APP_VERSION_BRANCH describes a RANGE — it belongs to SECURITY.md's
+  // supported-versions table and nowhere else, so reaching for it inside src/
+  // is the drift, and this is where it gets caught.
+  it("APP_VERSION_BRANCH is never imported by application code", () => {
+    const hits = execFileSync(
+      "git",
+      ["grep", "-l", "APP_VERSION_BRANCH", "--", "src/"],
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    // Only the module that defines it.
+    expect(hits.split("\n").filter(Boolean)).toEqual(["src/lib/version.ts"]);
+  });
+
+  it.each([
+    ["the header", "src/app/page.tsx"],
+    ["the boot sequence", "src/components/shared/BootSequence.tsx"],
+  ])("%s renders the full semver", (_label, file) => {
+    expect(read(file)).toMatch(/v\$?\{APP_VERSION\}/);
   });
 });
 

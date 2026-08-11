@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/ip-lookup/route";
-import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
+import { useRateLimit, restoreRateLimit, clientCookie, resetServerState } from "./testUtils";
 
 // End-to-end handler test: drives the real POST through the shared middleware
 // (rate-limit → parseBody → IP validation → fetchSafe upstreams → threat/merge
@@ -23,7 +23,10 @@ afterAll(() => {
   delete process.env.HV_DATA_DIR;
   delete process.env.TRUST_PROXY;
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetServerState();
+});
 
 const resp = (status: number, body: unknown, ok = status >= 200 && status < 300) =>
   ({ ok, status, json: async () => body }) as unknown as Response;
@@ -99,9 +102,10 @@ describe("POST /api/ip-lookup — happy path with merged sources", () => {
 });
 
 describe("POST /api/ip-lookup — degraded upstreams", () => {
-  it("falls back gracefully (ip:null + error) when the geo source is unreachable", async () => {
+  it("fails only when nothing at all was learned", async () => {
     stubFetch([
       ["ip-api.com", resp(0, null, false)], // network-ish failure
+      ["ipwho.is", resp(0, null, false)],
       ["internetdb.shodan.io", resp(404, {})],
       ["api.greynoise.io", resp(404, {})],
     ]);
@@ -110,6 +114,126 @@ describe("POST /api/ip-lookup — degraded upstreams", () => {
     expect(json.ip).toBeNull();
     expect(json.error).toBeTruthy();
     expect(json.pivots.length).toBeGreaterThan(0); // pivots still offered
+  });
+
+  it("answers from ipwho.is when ip-api is down", async () => {
+    // The whole point of the fallback: ip-api's free tier is 45 requests per
+    // minute per source IP, and before this existed a burst of lookups turned
+    // every subsequent one into "IP LOOKUP FAILED".
+    stubFetch([
+      ["ip-api.com", resp(429, "over quota", false)],
+      ["ipwho.is", resp(200, {
+        success: true, type: "IPv4", country: "Australia", country_code: "AU",
+        region: "Queensland", city: "Brisbane", latitude: -27.4, longitude: 153,
+        connection: { asn: 13335, org: "Cloudflare", isp: "Cloudflare" },
+        timezone: { id: "Australia/Brisbane", utc: "+10:00" },
+      })],
+      ["internetdb.shodan.io", resp(404, {})],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "1.0.0.1" })).json();
+    expect(json.ip.city).toBe("Brisbane");
+    expect(json.ip.asn).toBe(13335);
+    expect(json.ip.utcOffset).toBe("UTC+10");
+    expect(json.error).toBeUndefined();
+    expect(json.sourceHealth.find((h: { source: string }) => h.source === "ipwho.is").ok).toBe(true);
+  });
+
+  it("never invents a risk flag the fallback cannot answer", async () => {
+    // ipwho.is publishes no proxy/hosting/mobile data. Rendering `false` there
+    // would be a false negative on a risk signal — worse than an empty cell.
+    stubFetch([
+      ["ip-api.com", resp(500, {})],
+      ["ipwho.is", resp(200, { success: true, country: "France", country_code: "FR" })],
+      ["internetdb.shodan.io", resp(404, {})],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "2.2.2.2" })).json();
+    expect(json.ip.isProxy).toBeNull();
+    expect(json.ip.isHosting).toBeNull();
+    expect(json.ip.isMobile).toBeNull();
+    expect(json.ip.reverse).toBeNull();
+  });
+
+  it("formats a negative UTC offset from the fallback's string form", async () => {
+    // ipwho.is reports "-05:00"; ip-api reports seconds. Both have to land on
+    // the same "UTC-5" so the field means one thing regardless of who answered.
+    stubFetch([
+      ["ip-api.com", resp(500, {})],
+      ["ipwho.is", resp(200, {
+        success: true, country: "Peru", country_code: "PE",
+        timezone: { id: "America/Lima", utc: "-05:00" },
+      })],
+      ["internetdb.shodan.io", resp(404, {})],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "4.4.4.4" })).json();
+    expect(json.ip.utcOffset).toBe("UTC-5");
+  });
+
+  it("still labels an IPv6 address when the fallback omits the type", async () => {
+    stubFetch([
+      ["ip-api.com", resp(500, {})],
+      ["ipwho.is", resp(200, { success: true, country: "Germany", country_code: "DE" })],
+      ["internetdb.shodan.io", resp(404, {})],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "2606:4700:4700::1111" })).json();
+    expect(json.ip.type).toBe("IPv6");
+  });
+
+  it("nulls the country code — and the flag — when the fallback omits it", async () => {
+    stubFetch([
+      ["ip-api.com", resp(500, {})],
+      ["ipwho.is", resp(200, { success: true, city: "Nowhere" })],
+      ["internetdb.shodan.io", resp(404, {})],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "5.5.5.5" })).json();
+    expect(json.ip.countryCode).toBeNull();
+    expect(json.ip.flagEmoji).toBeNull();
+    expect(json.ip.utcOffset).toBeNull();
+  });
+
+  it("surfaces the fallback's own message, and a generic one when it has none", async () => {
+    stubFetch([
+      ["ip-api.com", resp(500, {})],
+      ["ipwho.is", resp(200, { success: false, message: "Reserved range" })],
+      ["internetdb.shodan.io", resp(404, {})],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    let json = await (await post({ ip: "6.6.6.6" })).json();
+    expect(json.sourceHealth.find((h: { source: string }) => h.source === "ipwho.is").error)
+      .toBe("Reserved range");
+
+    // 200 + success:false + no message: the HTTP call succeeded, so there is no
+    // status to fall back on either.
+    stubFetch([
+      ["ip-api.com", resp(500, {})],
+      ["ipwho.is", resp(200, { success: false })],
+      ["internetdb.shodan.io", resp(404, {})],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    json = await (await post({ ip: "7.7.7.7" })).json();
+    expect(json.sourceHealth.find((h: { source: string }) => h.source === "ipwho.is").error)
+      .toBe("lookup failed");
+  });
+
+  it("keeps exposure data when geo is gone entirely", async () => {
+    // Shodan answered. Discarding open ports and CVEs because a geolocation
+    // provider was busy is throwing away the more actionable half of the result.
+    stubFetch([
+      ["ip-api.com", resp(500, {})],
+      ["ipwho.is", resp(500, {})],
+      ["internetdb.shodan.io", resp(200, { ports: [22, 443], vulns: ["CVE-2021-1234"], hostnames: [], tags: [] })],
+      ["api.greynoise.io", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "3.3.3.3" })).json();
+    expect(json.ip.ports).toEqual([22, 443]);
+    expect(json.ip.vulns).toEqual(["CVE-2021-1234"]);
+    expect(json.ip.city).toBeNull();
+    expect(json.error).toContain("geolocation unavailable");
+    expect(json.threatScore).toBeGreaterThan(0);
   });
 });
 

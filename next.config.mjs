@@ -65,7 +65,18 @@ if (httpsDeploy) {
 }
 const CSP = cspDirectives.join("; ");
 
+// `output: "standalone"` emits a self-contained .next/standalone/server.js with
+// only the modules the app actually reaches — a release artifact someone can
+// download and run with plain `node`, no npm install. It is OFF by default and
+// gated behind an env var rather than switched on globally, because the
+// Dockerfile deliberately copies a normal build (see its header comment) and the
+// dev server has no use for it. .github/workflows/release.yml sets this for the
+// artifact build only, so `npm run build` locally and `docker build` are
+// byte-for-byte what they were.
+const standalone = process.env.BUILD_STANDALONE === "1";
+
 const nextConfig = {
+  ...(standalone ? { output: "standalone" } : {}),
   // Next 16's `next dev` blocks cross-origin requests to dev internals (HMR,
   // /_next/*). This ONLY affects DEV mode AND only when the browser's Origin
   // differs from the host you loaded — i.e. it never bites when you open the

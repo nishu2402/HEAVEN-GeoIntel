@@ -1,10 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { APP_VERSION_SHORT } from "@/lib/version";
+import { APP_VERSION } from "@/lib/version";
 
 const lines = [
-  `[+] HEAVEN-GeoIntel v${APP_VERSION_SHORT} — Unified OSINT Platform`,
+  `[+] HEAVEN-GeoIntel v${APP_VERSION} — Unified OSINT Platform`,
   "[+] Loading libphonenumber-js database (240+ countries)...",
   "[+] Bundled datasets: country · NPA · MCC/MNC · disposable domains [ OK ]",
   "[+] Offline analysis engine: READY",

@@ -39,6 +39,9 @@ function git(...args) {
 const results = [];
 const check = (ok, label, detail) => results.push({ ok, label, detail });
 
+/** Things worth seeing before publishing, none of which should stop a release. */
+const notes = [];
+
 // The version literal is parsed rather than imported: importing a TS module
 // from plain Node needs the resolve hook, and this script has to run even when
 // the tree is in a state where that would fail.
@@ -91,26 +94,51 @@ if (tagged) {
 }
 
 // ── The dependencies ────────────────────────────────────────────────────────
-// A release page that says "0 vulnerabilities" should be checked, not typed.
-let advisories = null;
+// Delegated to scripts/audit-gate.mjs rather than calling `npm audit` again,
+// so this and the release workflow cannot drift into two different policies.
+// The whole point of a pre-flight is that it fails here instead of after the
+// tag is pushed, which it can only do if it applies the same rule.
+let audit = null;
 try {
-  execFileSync("npm", ["audit", "--json"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-  advisories = 0;
-} catch (err) {
-  // npm audit exits non-zero when it finds something; the report is still on stdout.
+  const run = () => execFileSync(process.execPath, [join(ROOT, "scripts/audit-gate.mjs"), "--json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    maxBuffer: 32 * 1024 * 1024,
+  });
   try {
-    advisories = JSON.parse(err.stdout ?? "{}").metadata?.vulnerabilities?.total ?? null;
-  } catch {
-    advisories = null;
+    audit = JSON.parse(run());
+  } catch (err) {
+    // The gate exits 1 when something blocks; the report is still on stdout.
+    audit = JSON.parse(err.stdout ?? "");
   }
+} catch {
+  audit = null;
 }
-check(advisories === 0, "npm audit reports 0 vulnerabilities", advisories === null ? "audit could not be read" : `${advisories} advisory/advisories`);
+
+check(
+  audit !== null && audit.blocking.length === 0,
+  "no advisory reaches the published artifact",
+  audit === null
+    ? "the audit gate could not be run — see: npm run audit"
+    : `${audit.blocking.length} blocking: ${audit.blocking.map((a) => `${a.package} (${a.severity})`).join(", ")}`,
+);
+
+// Not a check: dev-only advisories never block a release, but the release page
+// prints the count, so the person publishing should see it first.
+if (audit?.reported.length) {
+  notes.push(`${audit.reported.length} dev-only advisory/advisories will be listed on the release page (npm run audit)`);
+}
+for (const s of audit?.suppressed ?? []) {
+  notes.push(`allowlisted until ${s.expires}: ${s.package} ${s.id}`);
+}
 
 // ── Report ──────────────────────────────────────────────────────────────────
 console.log(`\nRelease pre-flight — ${tag}\n`);
 for (const { ok, label, detail } of results) {
   console.log(`  ${ok ? "✔" : "✘"} ${label}${ok || !detail ? "" : `\n      ${detail}`}`);
 }
+for (const note of notes) console.log(`  · ${note}`);
 
 const failed = results.filter((r) => !r.ok).length;
 console.log(failed === 0 ? `\nReady to publish ${tag}.\n` : `\n${failed} check(s) failed — do not publish ${tag} yet.\n`);

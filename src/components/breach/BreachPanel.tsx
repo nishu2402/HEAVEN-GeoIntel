@@ -366,7 +366,7 @@ function BdOnlyPanel({
               <CredentialCard key={i} entry={entry} index={i} />
             ))}
             {bd!.results.length > 10 && (
-              <div className="text-[13px] font-mono text-[#00ff41]/50 text-center border border-[#00ff41]/15 py-2">
+              <div className="text-[13px] font-mono text-[#00ff41]/54 text-center border border-[#00ff41]/15 py-2">
                 + {bd!.results.length - 10} more records (showing first 10)
               </div>
             )}
@@ -392,7 +392,7 @@ function BdOnlyPanel({
                 <ExternalLink className="w-3 h-3 text-[#00d9ff]/65 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-mono font-bold text-[#00d9ff]/85 truncate">{l.label}</div>
-                  <div className="text-[11px] font-mono text-[#00ff41]/45 truncate">{l.note}</div>
+                  <div className="text-[11px] font-mono text-[#00ff41]/54 truncate">{l.note}</div>
                 </div>
               </a>
             ))}
@@ -511,7 +511,7 @@ export default function BreachPanel({
 
         {xonData.breachCount > 0 && xonData.xposedDataTypes.length > 0 && (
           <div className="text-right shrink-0">
-            <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50">Unique Data Types</div>
+            <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54">Unique Data Types</div>
             <div className="font-mono text-sm font-bold text-[#00d9ff] mt-0.5">
               {xonData.xposedDataTypes.length}
             </div>
@@ -566,7 +566,7 @@ export default function BreachPanel({
         <div className="space-y-3">
           <div className="flex items-center gap-2 border-b border-[#ff3e3e]/30 pb-2">
             <Lock className="w-3 h-3 text-[#ff3e3e]" />
-            <span className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/80 font-semibold">
+            <span className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/92 font-semibold">
               ACTUAL CREDENTIAL HASHES — BreachDirectory · {bdData.found} record{bdData.found !== 1 ? "s" : ""} found
             </span>
           </div>
@@ -579,7 +579,7 @@ export default function BreachPanel({
               <CredentialCard key={i} entry={entry} index={i} />
             ))}
             {bdData.results.length > 10 && (
-              <div className="text-[13px] font-mono text-[#00ff41]/50 text-center border border-[#00ff41]/15 py-2">
+              <div className="text-[13px] font-mono text-[#00ff41]/54 text-center border border-[#00ff41]/15 py-2">
                 + {bdData.results.length - 10} more records (showing first 10)
               </div>
             )}
@@ -668,7 +668,7 @@ export default function BreachPanel({
 
       {/* Clean state footer */}
       {xonData.breachCount === 0 && (
-        <div className="text-[13px] font-mono text-[#00ff41]/50 border-t border-[#00ff41]/15 pt-3">
+        <div className="text-[13px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/15 pt-3">
           Use the OSINT matrix below to cross-check HaveIBeenPwned, Dehashed, IntelligenceX, and LeakCheck.
         </div>
       )}

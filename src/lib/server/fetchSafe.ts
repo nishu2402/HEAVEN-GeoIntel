@@ -23,6 +23,16 @@ export interface FetchResult<T> extends SourceMeta {
   data?: T;
   /** Set when ok === false: a short, user-safe reason (never a stack trace). */
   error?: string;
+  /**
+   * Only the response headers the caller named in `readHeaders`, lower-cased.
+   *
+   * Opt-in rather than "all of them": several providers put quota state in
+   * headers we genuinely need (see upstreamBudget), but response headers can
+   * also carry cookies and provider-side identifiers, and this object gets
+   * passed around inside route handlers. Naming the headers keeps that to
+   * exactly what was asked for.
+   */
+  headers?: Record<string, string>;
 }
 
 interface Options {
@@ -32,6 +42,8 @@ interface Options {
   init?: RequestInit;
   /** Treat a non-2xx status as a soft result (still parse) instead of error. */
   allowNon2xx?: boolean;
+  /** Response headers to capture into `FetchResult.headers`, case-insensitive. */
+  readHeaders?: readonly string[];
 }
 
 const DEFAULT_TIMEOUT = 7000;
@@ -64,18 +76,53 @@ export function describeError(err: unknown): string {
  * throws — failures come back as { ok:false, error, source, fetchedAt, ms }.
  */
 export async function fetchJson<T>(url: string, opts: Options): Promise<FetchResult<T>> {
-  const { source, timeoutMs = DEFAULT_TIMEOUT, init, allowNon2xx } = opts;
+  const { source, timeoutMs = DEFAULT_TIMEOUT, init, allowNon2xx, readHeaders } = opts;
   const started = Date.now();
   try {
     const res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
     const ms = Date.now() - started;
+    // Captured before any early return: a 429 is exactly when a provider's
+    // quota headers matter most, and that is the path that returns first.
+    //
+    // `res.headers &&` because the body is the point and the headers are
+    // garnish — a duck-typed response that carries only `status` and `json`
+    // must still deliver its data rather than failing as "unreachable".
+    const headers = readHeaders?.length && res.headers
+      ? Object.fromEntries(
+          readHeaders
+            .map((h) => [h.toLowerCase(), res.headers.get(h)] as const)
+            .filter((e): e is readonly [string, string] => e[1] !== null),
+        )
+      : undefined;
     if (!res.ok && !allowNon2xx) {
-      return { ok: false, status: res.status, error: reason(res.status), source, fetchedAt: Date.now(), ms };
+      return { ok: false, status: res.status, error: reason(res.status), source, fetchedAt: Date.now(), ms, headers };
     }
     let data: T | undefined;
     try { data = (await res.json()) as T; }
-    catch { return { ok: false, status: res.status, error: "invalid JSON from source", source, fetchedAt: Date.now(), ms }; }
-    return { ok: res.ok, status: res.status, data, source, fetchedAt: Date.now(), ms };
+    catch {
+      // A body that will not parse is a symptom, not the cause, whenever the
+      // status already explains itself: ip-api answers its 429 with plain text,
+      // and reporting "invalid JSON from source" sent the reader looking for a
+      // parser bug instead of a rate limit. The status wins when it has
+      // something to say.
+      const error = res.ok ? "invalid JSON from source" : reason(res.status);
+      return { ok: false, status: res.status, error, source, fetchedAt: Date.now(), ms, headers };
+    }
+    return {
+      ok: res.ok,
+      status: res.status,
+      data,
+      source,
+      fetchedAt: Date.now(),
+      ms,
+      // `allowNon2xx` means "parse it anyway", not "pretend it was fine". Without
+      // this the caller got ok:false and no reason, and the UI rendered a dead
+      // source with an empty explanation — the exact silent N/A this module
+      // exists to prevent. Callers that treat a given non-2xx as success (a 404
+      // from GreyNoise means "not observed") simply ignore it.
+      error: res.ok ? undefined : reason(res.status),
+      headers,
+    };
   } catch (err) {
     const ms = Date.now() - started;
     return { ok: false, status: 0, error: reason(0, err), source, fetchedAt: Date.now(), ms };

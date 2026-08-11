@@ -90,7 +90,7 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
     }
     return (
       <div className="terminal-card p-5 border" style={{ borderColor: "#ff4d6d50" }}>
-        <div className="text-[13px] uppercase tracking-widest text-[#ff4d6d]/70 mb-2">[ IP LOOKUP FAILED ]</div>
+        <div className="text-[13px] uppercase tracking-widest text-[#ff4d6d]/87 mb-2">[ IP LOOKUP FAILED ]</div>
         <div className="font-mono text-sm text-[#ff4d6d]">{data.error ?? "No data"}</div>
       </div>
     );
@@ -210,7 +210,7 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
           )}
           {ip.vulns && (
             <div>
-              <div className="text-[11px] uppercase tracking-widest text-[#ff4d6d]/80 mb-1.5 flex items-center gap-1"><Bug className="w-3 h-3" /> Known CVEs ({ip.vulns.length})</div>
+              <div className="text-[11px] uppercase tracking-widest text-[#ff4d6d]/87 mb-1.5 flex items-center gap-1"><Bug className="w-3 h-3" /> Known CVEs ({ip.vulns.length})</div>
               <div className="flex flex-wrap gap-1.5">
                 {ip.vulns.slice(0, 40).map((v) => (
                   <a key={v} href={`https://nvd.nist.gov/vuln/detail/${encodeURIComponent(v)}`} target="_blank" rel="noopener noreferrer"

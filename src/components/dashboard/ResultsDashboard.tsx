@@ -207,7 +207,7 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
 
         {/* Data source status strip */}
         <div className="flex items-center gap-3 pt-1 border-t border-[#00ff41]/10 flex-wrap">
-          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/50 font-mono">DATA SOURCES</div>
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 font-mono">DATA SOURCES</div>
           <div className="flex gap-2 flex-wrap">
             {[
               { label: "libphonenumber",  ok: true },
@@ -225,8 +225,8 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
                   s.ok
                     ? "text-[#00ff41] border-[#00ff41]/30 bg-[#00ff41]/5"
                     : "configured" in s && s.configured
-                    ? "text-[#ff3e3e]/60 border-[#ff3e3e]/20"
-                    : "text-[#00ff41]/45 border-[#00ff41]/10"
+                    ? "text-[#ff3e3e]/92 border-[#ff3e3e]/20"
+                    : "text-[#00ff41]/54 border-[#00ff41]/10"
                 }`}
               >
                 {s.ok ? "✓" : "·"} {s.label}
@@ -234,7 +234,7 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
             ))}
           </div>
           {activeSourcesCount <= 1 && configuredCount === 0 && (
-            <span className="text-[12px] text-[#ffaa00]/60 font-mono">
+            <span className="text-[12px] text-[#ffaa00]/64 font-mono">
               + carrier/breach/identity APIs: see .env.local for free-tier keys
             </span>
           )}

@@ -201,7 +201,7 @@ if [ -f "$SCRIPT_DIR/banner.sh" ]; then
   hv_banner
 else
   echo -e "${GREEN}==============================================================${NC}"
-  echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v2.0${NC}"
+  echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v2.1.0${NC}"
   echo -e "${GREEN}==============================================================${NC}"
 fi
 echo ""

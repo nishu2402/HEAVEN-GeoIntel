@@ -27,7 +27,8 @@ export function boolFromEnv(name: string, fallback = false): boolean {
 }
 
 const MINUTE = 60_000;
-const DAY = 24 * 60 * MINUTE;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
 export interface RateLimitConfig {
   /** Requests allowed per window, per client. */
@@ -71,6 +72,23 @@ export function emailCacheConfig(): CacheConfig {
   return {
     ttlMs: intFromEnv("EMAIL_CACHE_TTL_MS", phoneCacheConfig().ttlMs, 0, 30 * DAY),
     maxEntries: intFromEnv("EMAIL_CACHE_MAX_ENTRIES", 500, 1, 1_000_000),
+  };
+}
+
+/**
+ * IP-lookup result cache.
+ *
+ * Shorter by default than phone or email (1 h vs 24 h) because an IP's
+ * *exposure* is the volatile part of the answer: a host's open ports and
+ * GreyNoise classification can change within a day, while a phone number's
+ * carrier and country do not. Long enough to cover a working session — which
+ * is what protects ip-api.com's 45-requests-per-minute budget from a repeated
+ * lookup, a page refresh, or a shared result link being opened again.
+ */
+export function ipCacheConfig(): CacheConfig {
+  return {
+    ttlMs: intFromEnv("IP_CACHE_TTL_MS", HOUR, 0, 30 * DAY),
+    maxEntries: intFromEnv("IP_CACHE_MAX_ENTRIES", 500, 1, 1_000_000),
   };
 }
 

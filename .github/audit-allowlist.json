@@ -1,0 +1,23 @@
+{
+  "$comment": [
+    "Time-boxed suppressions for `npm run audit` (scripts/audit-gate.mjs).",
+    "",
+    "Only reach for this when an advisory that reaches the published artifact has",
+    "NO fix published upstream. Everything dev-only is already non-blocking, so an",
+    "entry here is never the way to quieten eslint or vitest noise.",
+    "",
+    "Each entry:",
+    "  package   the npm package name exactly as `npm audit` reports it",
+    "  advisory  the GHSA id (preferred) or npm's numeric advisory source id",
+    "  reason    why shipping with it is acceptable — the reachability argument,",
+    "            not 'no fix yet'. This is the sentence a reader will judge.",
+    "  added     ISO date the suppression was made",
+    "  expires   ISO date it stops suppressing. Keep it short (30-90 days): past",
+    "            that date the advisory blocks releases again, on purpose, so the",
+    "            decision gets re-made rather than inherited.",
+    "",
+    "An entry that no longer matches anything is reported as stale — delete it.",
+    "The healthy state of this file is an empty `allow` array."
+  ],
+  "allow": []
+}

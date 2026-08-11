@@ -76,7 +76,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
 
       {found && d.sources.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/45">
+          <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/54">
             Named breaches ({d.sources.length})
           </div>
           <div className="flex flex-wrap gap-1">
@@ -86,7 +86,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
                 className="text-[11px] font-mono text-[#00d9ff]/85 px-1.5 py-0.5 border border-[#00d9ff]/25"
               >
                 {s.name}
-                {s.date && <span className="text-[#00d9ff]/50"> · {s.date}</span>}
+                {s.date && <span className="text-[#00d9ff]/60"> · {s.date}</span>}
               </span>
             ))}
           </div>
@@ -95,7 +95,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
 
       {found && d.fields.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/45 flex items-center gap-1">
+          <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/54 flex items-center gap-1">
             <Tag className="w-2.5 h-2.5" /> Exposed field types
           </div>
           <div className="flex flex-wrap gap-1">
@@ -106,7 +106,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
                   key={f}
                   className={
                     hot
-                      ? "text-[11px] font-mono text-[#ff3e3e]/90 px-1.5 py-0.5 border border-[#ff3e3e]/35 bg-[#ff3e3e]/[0.06]"
+                      ? "text-[11px] font-mono text-[#ff3e3e]/92 px-1.5 py-0.5 border border-[#ff3e3e]/35 bg-[#ff3e3e]/[0.06]"
                       : "text-[11px] font-mono text-[#00ff41]/70 px-1.5 py-0.5 border border-[#00ff41]/20"
                   }
                 >
@@ -116,7 +116,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
             })}
           </div>
           {risky.length > 0 && (
-            <div className="text-[12px] font-mono text-[#ff3e3e]/80">
+            <div className="text-[12px] font-mono text-[#ff3e3e]/92">
               {risky.length} high-sensitivity field type{risky.length === 1 ? " was" : "s were"} exposed
               in at least one of these breaches.
             </div>
@@ -124,7 +124,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
         </div>
       )}
 
-      <div className="text-[12px] font-mono text-[#00ff41]/45 border-t border-[#00ff41]/10 pt-3">
+      <div className="text-[12px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-3">
         LeakCheck&apos;s public tier reports which breaches mention an identifier and which
         field types they held — never the values. Field types are aggregated across all
         matching records, so a listed type may come from any one of the breaches above.

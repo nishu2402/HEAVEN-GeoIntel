@@ -66,7 +66,7 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
       >
         <Search className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden sm:inline text-[10px] px-1 py-0.5 rounded bg-[var(--hv-glass-border)]">⌘K</kbd>
+        <kbd className="hidden sm:inline text-[10px] px-1 py-0.5 rounded bg-[var(--hv-glass-border)] text-[var(--hv-ink)]">⌘K</kbd>
       </button>
 
       {open && (
@@ -91,7 +91,7 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
                 placeholder="Type a phone / email / username / IP / domain, or a command…"
                 className="flex-1 bg-transparent py-3.5 text-sm font-mono text-[var(--hv-ink)] placeholder:text-[var(--hv-ink-dim)] outline-none"
               />
-              <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--hv-glass-border)] text-[var(--hv-ink-dim)]">ESC</kbd>
+              <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--hv-glass-border)] text-[var(--hv-ink)]">ESC</kbd>
             </div>
 
             <Command.List className="max-h-[50vh] overflow-y-auto p-2">

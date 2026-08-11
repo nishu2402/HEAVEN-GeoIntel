@@ -10,7 +10,7 @@ import { POST as ipPOST } from "@/app/api/ip-lookup/route";
 import { POST as usernamePOST } from "@/app/api/username-lookup/route";
 import { POST as casesPOST } from "@/app/api/cases/route";
 import { POST as bulkPOST } from "@/app/api/bulk-lookup/route";
-import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
+import { useRateLimit, restoreRateLimit, clientCookie, resetServerState } from "./testUtils";
 
 // Sparse-payload pass: what happens when an upstream answers 200 but omits the
 // optional fields. Real APIs do this constantly (free tiers, partial records),
@@ -29,6 +29,7 @@ afterAll(() => {
   delete process.env.HV_DATA_DIR;
 });
 afterEach(() => {
+  resetServerState();
   vi.unstubAllGlobals();
   KEYS.forEach((k) => delete process.env[k]);
   restoreRateLimit();
@@ -283,8 +284,9 @@ describe("ip: sparse geo payloads", () => {
     expect(json.ip.type).toBe("IPv6");
   });
 
-  it("reports a generic reason when the geo source fails without one", async () => {
-    // allowNon2xx is off for ip-api, so a 500 yields ok:false with a reason.
+  it("reports a generic reason when every source fails without one", async () => {
+    // 500 from ip-api, and the fallback plus both exposure sources answer 404
+    // via the stub's default — nothing was learned, so this is a real failure.
     stub([["ip-api.com", resp(500, {})]]);
     const json = await (await ip()).json();
     expect(json.ip).toBeNull();

@@ -535,11 +535,11 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40 scroll-mt-24"
         >
           <div className="flex items-center justify-between">
-            <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/50 flex items-center gap-1.5">
+            <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/60 flex items-center gap-1.5">
               <User className="w-3 h-3" />
               FULLCONTACT ENRICHMENT — additional identity data
             </div>
-            <span className="text-[#00d9ff]/25 font-mono text-[11px]">1,000+ data sources</span>
+            <span className="text-[#00d9ff]/60 font-mono text-[11px]">1,000+ data sources</span>
           </div>
 
           {/* Age / gender — not shown in header */}
@@ -553,7 +553,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           {/* Social profiles */}
           {fcData.profiles.length > 0 && (
             <div>
-              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-2">SOCIAL PROFILES</div>
+              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-2">SOCIAL PROFILES</div>
               <div className="flex flex-wrap gap-1.5">
                 {fcData.profiles.map((p) => (
                   <a
@@ -576,7 +576,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[#00ff41]/10 pt-3">
               {fcData.otherEmails.length > 0 && (
                 <div>
-                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
+                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-1.5 flex items-center gap-1">
                     <Mail className="w-2.5 h-2.5" /> OTHER EMAILS
                   </div>
                   {fcData.otherEmails.map((e, i) => (
@@ -589,7 +589,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
               )}
               {fcData.phones.length > 0 && (
                 <div>
-                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5 flex items-center gap-1">
+                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-1.5 flex items-center gap-1">
                     <Phone className="w-2.5 h-2.5" /> PHONE NUMBERS
                   </div>
                   {fcData.phones.map((p, i) => (
@@ -606,7 +606,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           {/* Employment history */}
           {fcData.employment.length > 0 && (
             <div className="border-t border-[#00ff41]/10 pt-3">
-              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-2 flex items-center gap-1">
+              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-2 flex items-center gap-1">
                 <Briefcase className="w-2.5 h-2.5" /> EMPLOYMENT HISTORY
               </div>
               <div className="space-y-1">
@@ -644,7 +644,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           transition={{ delay: 0.25 }}
           className="terminal-card p-4 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.03]"
         >
-          <div className="text-[12px] uppercase tracking-widest text-[#ff3e3e]/70 mb-3 flex items-center gap-1.5">
+          <div className="text-[12px] uppercase tracking-widest text-[#ff3e3e]/92 mb-3 flex items-center gap-1.5">
             <AlertTriangle className="w-3 h-3" /> ADDITIONAL RISK FLAGS — EmailRep.io
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -714,7 +714,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
               {gravatar.profileUrl && <InfoRow label="Profile URL" value={gravatar.profileUrl} />}
               {gravatar.accounts.length > 0 && (
                 <div className="pt-2">
-                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5">LINKED ACCOUNTS</div>
+                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-1.5">LINKED ACCOUNTS</div>
                   <div className="flex flex-wrap gap-1.5">
                     {gravatar.accounts.map((acc) => (
                       <a
@@ -766,7 +766,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
               <InfoRow label="Last Seen" value={repData.lastSeen ?? "N/A"} />
               {platforms.length > 0 && (
                 <div className="pt-2">
-                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/35 mb-1.5">REGISTERED PLATFORMS</div>
+                  <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-1.5">REGISTERED PLATFORMS</div>
                   <div className="flex flex-wrap gap-1.5">
                     {platforms.map((p) => (
                       <span key={p} className="text-[13px] font-mono border border-[#00ff41]/30 bg-[#00ff41]/5 text-[#00ff41] px-2 py-0.5">

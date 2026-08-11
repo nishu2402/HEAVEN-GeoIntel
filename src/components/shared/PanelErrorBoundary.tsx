@@ -44,11 +44,11 @@ export default class PanelErrorBoundary extends Component<Props, State> {
           aria-live="polite"
           className="terminal-card p-4 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.04] space-y-2"
         >
-          <div className="flex items-center gap-2 text-[12px] uppercase tracking-widest text-[#ff3e3e]/85 font-mono">
+          <div className="flex items-center gap-2 text-[12px] uppercase tracking-widest text-[#ff3e3e]/92 font-mono">
             <AlertTriangle className="w-3.5 h-3.5" />
             PANEL ERROR — {this.props.label}
           </div>
-          <p className="text-[13px] font-mono text-[#ff3e3e]/75 leading-snug">
+          <p className="text-[13px] font-mono text-[#ff3e3e]/92 leading-snug">
             This panel failed to render. The rest of the dashboard is fine. The
             full error has been logged to the browser console.
           </p>

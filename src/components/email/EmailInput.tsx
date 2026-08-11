@@ -63,7 +63,7 @@ export default function EmailInput({ onLookup, onClear, loading }: Props) {
             "flex-1 h-12 px-4 border text-sm font-mono font-bold tracking-widest transition-all flex items-center justify-center gap-2",
             validation === "valid" && !loading
               ? "border-[#00ff41] text-[#00ff41] hover:bg-[#00ff41] hover:text-[#0a0a0a] hover:shadow-[0_0_20px_rgba(0,255,65,0.4)] cursor-pointer"
-              : "border-[#00ff41]/20 text-[#00ff41]/30 cursor-not-allowed"
+              : "border-[#00ff41]/20 text-[#00ff41]/54 cursor-not-allowed"
           )}
         >
           <Search className="w-4 h-4" />
@@ -75,7 +75,7 @@ export default function EmailInput({ onLookup, onClear, loading }: Props) {
             type="button"
             onClick={handleClear}
             title="Clear"
-            className="h-12 px-4 border border-[#00ff41]/25 text-[#00ff41]/50 hover:text-[#ff3e3e] hover:border-[#ff3e3e]/50 transition-all font-mono"
+            className="h-12 px-4 border border-[#00ff41]/25 text-[#00ff41]/54 hover:text-[#ff3e3e] hover:border-[#ff3e3e]/50 transition-all font-mono"
           >
             <X className="w-4 h-4" />
           </button>
@@ -95,7 +95,7 @@ export default function EmailInput({ onLookup, onClear, loading }: Props) {
           </span>
         )}
         {validation === "empty" && (
-          <span className="text-[#00ff41]/40">
+          <span className="text-[#00ff41]/54">
             _ Enter an email address · breach data, reputation, social profiles, identity
           </span>
         )}
