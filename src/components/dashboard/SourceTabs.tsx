@@ -56,7 +56,7 @@ export default function SourceTabs({ sources }: Props) {
             <TabsTrigger
               key={key}
               value={key}
-              className="rounded-none text-xs font-mono data-[state=active]:bg-[#00ff41]/10 data-[state=active]:text-[#00ff41] data-[state=active]:shadow-none text-[#00ff41]/50 py-2.5 flex items-center gap-2 border-r border-[#00ff41]/10 last:border-r-0"
+              className="rounded-none text-xs font-mono data-[state=active]:bg-[#00ff41]/10 data-[state=active]:text-[#00ff41] data-[state=active]:shadow-none text-[#00ff41]/54 py-2.5 flex items-center gap-2 border-r border-[#00ff41]/10 last:border-r-0"
             >
               <StatusDot ok={src.ok} error={src.error} />
               {SOURCE_LABELS[key]}
@@ -72,12 +72,14 @@ export default function SourceTabs({ sources }: Props) {
             <div className="border border-t-0 border-[#00ff41]/20 bg-[#050505] p-4">
               {src.error === "NOT_CONFIGURED" ? (
                 <div className="text-center py-6">
-                  <div className="text-[#555] text-xs uppercase tracking-widest mb-1">NOT CONFIGURED</div>
-                  <div className="text-[#333] text-xs font-mono">Set {SOURCE_ENV_HINT[key]} in .env.local</div>
+                  {/* Was #555 / #333 on #050505 — 2.7:1 and 1.6:1. The env-var
+                      name is the one thing an analyst needs to read here. */}
+                  <div className="text-[var(--hv-muted-ink)] text-xs uppercase tracking-widest mb-1">NOT CONFIGURED</div>
+                  <div className="text-[var(--hv-muted-ink)] text-xs font-mono">Set {SOURCE_ENV_HINT[key]} in .env.local</div>
                 </div>
               ) : !src.ok ? (
                 <div className="text-[#ff3e3e] text-xs font-mono">
-                  <span className="text-[#ff3e3e]/60">[ERROR] </span>
+                  <span className="text-[#ff3e3e]/92">[ERROR] </span>
                   {src.error ?? "Unknown error"}
                 </div>
               ) : (

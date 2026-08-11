@@ -22,7 +22,7 @@ function CopyBtn({ value }: { value: string }) {
         setDone(true);
         setTimeout(() => setDone(false), 1200);
       }}
-      className="shrink-0 p-1 text-[#00ff41]/35 hover:text-[#00ff41] transition-colors"
+      className="shrink-0 p-1 text-[#00ff41]/54 hover:text-[#00ff41] transition-colors"
       title="Copy"
     >
       {done ? <Check className="w-3 h-3 text-[#00ff41]" /> : <Copy className="w-3 h-3" />}
@@ -113,7 +113,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
               {type.label}
             </span>
             {aggregated.lineType && aggregated.lineType.toUpperCase() !== type.label && (
-              <span className="text-[11px] font-mono text-[#00ff41]/45 px-1.5 py-0.5 border border-[#00ff41]/15">
+              <span className="text-[11px] font-mono text-[#00ff41]/54 px-1.5 py-0.5 border border-[#00ff41]/15">
                 API: {aggregated.lineType}
               </span>
             )}
@@ -143,7 +143,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
           {segments.map((seg, i) => (
             <span key={i} style={{ color: seg.color }} className="font-bold">
               {seg.value}
-              {i < segments.length - 1 && <span className="text-[#00ff41]/30 mx-1">·</span>}
+              {i < segments.length - 1 && <span className="text-[#00ff41]/54 mx-1">·</span>}
             </span>
           ))}
         </div>
@@ -153,7 +153,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
             <div key={i} className="border border-[#00ff41]/10 p-2 space-y-0.5">
               <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/55">{seg.label}</div>
               <div className="font-mono font-bold text-sm" style={{ color: seg.color }}>{seg.value}</div>
-              <div className="text-[11px] text-[#00ff41]/50">{seg.description}</div>
+              <div className="text-[11px] text-[#00ff41]/54">{seg.description}</div>
             </div>
           ))}
         </div>
@@ -181,7 +181,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
         {analysis.carrierPrefix && (
           <div className="text-[12px] text-[#00ff41]/60 font-mono">
             Central office (NXX): <span className="text-[#00d9ff] font-semibold">{analysis.carrierPrefix}</span>
-            <span className="ml-2 text-[#00ff41]/40">— switching exchange / carrier block</span>
+            <span className="ml-2 text-[#00ff41]/54">— switching exchange / carrier block</span>
           </div>
         )}
       </div>
@@ -196,7 +196,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
               className={`text-[12px] font-mono px-2 py-1 border flex items-center gap-1.5 ${
                 c.value
                   ? "border-[#00ff41]/35 text-[#00ff41] bg-[#00ff41]/5"
-                  : "border-[#ff3e3e]/35 text-[#ff3e3e]/80 bg-[#ff3e3e]/5"
+                  : "border-[#ff3e3e]/35 text-[#ff3e3e]/92 bg-[#ff3e3e]/5"
               }`}
               title={c.note}
             >
@@ -217,9 +217,9 @@ export default function NumberAnatomyPanel({ data }: Props) {
               className="flex items-center gap-2 border border-[#00ff41]/10 px-2.5 py-1.5 hover:border-[#00ff41]/30 hover:bg-[#00ff41]/[0.04] transition-colors"
             >
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/45 leading-tight">{f.label}</div>
+                <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/54 leading-tight">{f.label}</div>
                 <div className="font-mono text-sm text-[#00d9ff] truncate" title={f.value}>{f.value}</div>
-                {f.note && <div className="text-[11px] text-[#00ff41]/40 leading-tight">{f.note}</div>}
+                {f.note && <div className="text-[11px] text-[#00ff41]/54 leading-tight">{f.note}</div>}
               </div>
               <CopyBtn value={f.value} />
             </div>

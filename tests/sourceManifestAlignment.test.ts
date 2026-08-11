@@ -8,8 +8,8 @@ import { POST as emailPOST } from "@/app/api/email-lookup/route";
 import { POST as usernamePOST } from "@/app/api/username-lookup/route";
 import { POST as ipPOST } from "@/app/api/ip-lookup/route";
 import { POST as domainPOST } from "@/app/api/domain-lookup/route";
-import { SOURCES_BY_ID, sourcesForMode } from "@/lib/sources/manifest";
-import { restoreRateLimit } from "./testUtils";
+import { SOURCES, SOURCES_BY_ID, sourcesForMode } from "@/lib/sources/manifest";
+import { restoreRateLimit, resetServerState } from "./testUtils";
 import type { Mode } from "@/lib/client/modes";
 
 // The manifest is only useful if the ids in it are the SAME ids the routes
@@ -30,6 +30,7 @@ afterAll(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   restoreRateLimit();
+  resetServerState();
 });
 
 const resp = (status: number, body: unknown, ok = status >= 200 && status < 300) =>
@@ -85,11 +86,36 @@ describe("route source ids match the manifest", () => {
 
     it(`${mode}: every source the manifest declares is actually reported`, async () => {
       const reported = new Set(await healthFor(handler, path, body));
-      for (const s of sourcesForMode(mode)) {
+      // A `standby` source is only called when its primary is unavailable, so a
+      // healthy run genuinely does not report it. Everything else must appear.
+      for (const s of sourcesForMode(mode).filter((s) => !s.standby)) {
         expect(reported.has(s.id), `manifest declares "${s.id}" for ${mode} but the route never reports it`).toBe(true);
       }
     });
   }
+
+  it("a standby source really is reached when its primary fails", async () => {
+    // `standby` exempts a source from the "must be reported" check above, so
+    // without this it would be a one-word way to declare a source that is never
+    // called at all. Every standby has to prove it wakes up.
+    const standbys = SOURCES.filter((s) => s.standby);
+    expect(standbys.length).toBeGreaterThan(0);
+
+    // Fail the preferred geo provider; everything else answers normally.
+    vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => {
+      const s = String(u);
+      if (s.includes("ip-api.com")) return resp(500, {});
+      if (s.includes("ipwho.is")) return resp(200, { success: true, country: "Norway", country_code: "NO" });
+      return resp(200, {});
+    }));
+    const json = (await (await post(ipPOST, "http://localhost/api/ip-lookup", { ip: "93.184.219.2" })).json()) as {
+      sourceHealth: Array<{ source: string; ok: boolean }>;
+    };
+    const reported = new Set(json.sourceHealth.map((h) => h.source));
+    for (const s of standbys) {
+      expect(reported.has(s.id), `"${s.id}" is declared standby but is never reached`).toBe(true);
+    }
+  });
 
   it("covers every lookup mode declared in the manifest", () => {
     const modesInManifest = new Set(sourcesForMode("phone").concat(

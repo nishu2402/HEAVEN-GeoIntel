@@ -150,10 +150,14 @@ export default function AddToCase({ entities, edges, snapshot }: Props) {
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
+        // This button sits between result panels, on the page background — so it
+        // uses the --hv-*-page tokens. With --hv-ink-dim / --hv-glass-border it
+        // measured 1.9:1 text and 1.0:1 border on the light theme's paper, i.e.
+        // an invisible control on a fully-rendered result.
         className={`flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-widest px-3 py-1 rounded border transition-all ${
           added
-            ? "border-[var(--hv-green)] text-[var(--hv-green)] bg-[var(--hv-green)]/10"
-            : "border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)]"
+            ? "border-[var(--hv-page-green)] text-[var(--hv-page-green)] bg-[var(--hv-page-green)]/10"
+            : "border-[var(--hv-border-page)] text-[var(--hv-ink-page-dim)] hover:text-[var(--hv-page-cyan)] hover:border-[var(--hv-page-cyan)]"
         }`}
       >
         {added

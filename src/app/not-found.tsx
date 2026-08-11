@@ -8,16 +8,16 @@ export default function NotFound() {
         <LogoLockup size={28} className="text-sm" />
 
         <div className="space-y-2">
-          <div className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/60">
+          <div className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/92">
             [ 404 — TARGET NOT FOUND ]
           </div>
-          <div className="text-4xl font-bold text-[#ff3e3e]/80">404</div>
+          <div className="text-4xl font-bold text-[#ff3e3e]/92">404</div>
           <div className="text-sm text-[#00ff41]/60">
             The requested path does not exist in this system.
           </div>
         </div>
 
-        <div className="text-xs text-[#00ff41]/40 font-mono space-y-1">
+        <div className="text-xs text-[#00ff41]/54 font-mono space-y-1">
           <div>[ERROR] Route resolution failed</div>
           <div>[INFO]  Available targets: /</div>
         </div>

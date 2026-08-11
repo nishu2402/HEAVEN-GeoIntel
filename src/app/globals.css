@@ -65,6 +65,31 @@
     --hv-glass-border: rgba(120, 255, 190, 0.16);
     --hv-glass-hi:     rgba(34, 211, 238, 0.35);
     --hv-pop-bg:       #0a0f1c;   /* OPAQUE popover/overlay surface (no bleed-through) */
+
+    /* ── "On the page" tokens ──────────────────────────────────────────────
+       A handful of controls (the skip link, the provenance strip, the
+       add-to-case button) render on the PAGE BACKGROUND, not inside a panel.
+       In this theme the page is dark, so they are identical to the panel
+       tokens; the light theme overrides them to dark ink. Anything painted
+       outside a .glass / .terminal-card / .glass-pop must use these, or it
+       becomes invisible the moment the page turns white. */
+    --hv-ink-page:      #d6ffe6;
+    --hv-ink-page-dim:  #7fae93;
+    /* 0.45, not the panel border's 0.16: a panel edge is decoration sitting on
+       a lit surface, but this outlines a standalone button on the bare page,
+       where 0.16 composites to 1.4:1 and the control has no visible boundary.
+       WCAG wants 3:1 for a component boundary; this is 3.8:1. */
+    --hv-border-page:   rgba(120, 255, 190, 0.45);
+    --hv-page-green:    #00ff85;
+    --hv-page-cyan:     #22d3ee;
+    --hv-page-amber:    #fbbf24;
+    --hv-page-red:      #ff4d6d;
+    --hv-page-slate:    #7a8aa0;
+
+    /* Muted chrome that must stay legible on whatever surface it lands on.
+       Replaces the hardcoded #333/#555/#888 greys these badges used to carry. */
+    --hv-muted-ink:     #a8b6c8;
+    --hv-muted-border:  #5b6675;
     --hv-card-shadow:  0 10px 40px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(120,255,190,0.04);
     --hv-grid:         rgba(0, 255, 133, 0.05);
     --hv-scan:         rgba(0, 0, 0, 0.10);
@@ -72,9 +97,22 @@
   }
 
   /* ── Light theme = bright ambient backdrop + dark "glass" panels ──
-     Every surface that holds text stays dark, so the neon accent palette and
-     the light ink both keep full contrast (no per-component colour rewrite).
-     shadcn tokens stay dark so Radix popovers/selects match the panels. */
+     Panels stay dark so the neon accent palette keeps full contrast without a
+     per-component colour rewrite; shadcn tokens stay dark so Radix
+     popovers/selects match the panels.
+
+     Two things this theme originally got wrong, both measured and fixed:
+
+     1. "Every surface that holds text stays dark" was not true. Controls that
+        render between panels — the skip link, the provenance strip, the
+        add-to-case button — sat on the #e9edf6 page wearing --hv-ink-dim
+        (#8fb6a4), which is 1.9:1. The --hv-*-page tokens below are the dark
+        counterparts those controls now use.
+     2. The panels were only 90% opaque, so the bright page lifted them to
+        #222734 — noticeably paler than the dark theme's #090d18. Greys that
+        clear AA on one landed at 4.0-4.2:1 on the other. At 96% the panel
+        composites to #121521 and the two themes agree to within a tenth of a
+        ratio point. */
   [data-theme="light"] {
     --background: 240 30% 4%;
     --foreground: 150 80% 88%;
@@ -110,12 +148,28 @@
     --hv-amber:  #fbbf24;
     --hv-red:    #ff5d7a;
 
-    /* dark glass panels that float on the light page */
-    --hv-glass-bg:     rgba(12, 17, 30, 0.90);
-    --hv-glass-bg-2:   rgba(8, 12, 24, 0.94);
+    /* dark glass panels that float on the light page.
+       0.96/0.975 rather than 0.90/0.94 — see note above. */
+    --hv-glass-bg:     rgba(9, 12, 24, 0.96);
+    --hv-glass-bg-2:   rgba(6, 9, 20, 0.975);
     --hv-glass-border: rgba(120, 255, 190, 0.22);
     --hv-glass-hi:     rgba(34, 211, 238, 0.45);
     --hv-pop-bg:       #0c1120;   /* OPAQUE popover surface (dark even in light theme — panels stay dark) */
+
+    /* ── "On the page" tokens — the dark counterparts ──
+       Ratios against the #e9edf6 page: ink 13.4:1, dim 6.0:1, green 5.6:1,
+       cyan 5.8:1, amber 5.7:1, red 6.2:1, slate 5.9:1, border 3.1:1. */
+    --hv-ink-page:      #16233a;
+    --hv-ink-page-dim:  #445c6e;
+    --hv-border-page:   #6f8194;
+    --hv-page-green:    #046c3b;
+    --hv-page-cyan:     #0f6378;
+    --hv-page-amber:    #7a5600;
+    --hv-page-red:      #ad0f33;
+    --hv-page-slate:    #4b5b70;
+
+    --hv-muted-ink:     #a8b6c8;
+    --hv-muted-border:  #5b6675;
     --hv-card-shadow:  0 18px 48px -16px rgba(15, 23, 42, 0.45), 0 2px 8px -2px rgba(15,23,42,0.25);
     --hv-grid:         rgba(40, 60, 100, 0.08);
     --hv-scan:         rgba(0, 0, 0, 0.015);
@@ -215,8 +269,12 @@ body::after {
 .badge-invalid     { border-color: var(--hv-red);    color: var(--hv-red);    background: color-mix(in srgb, var(--hv-red) 9%, transparent); }
 .badge-warn        { border-color: var(--hv-amber);  color: var(--hv-amber);  background: color-mix(in srgb, var(--hv-amber) 9%, transparent); }
 .badge-info        { border-color: var(--hv-cyan);   color: var(--hv-cyan);   background: color-mix(in srgb, var(--hv-cyan) 9%, transparent); }
-.badge-neutral     { border-color: #555; color: #888; background: rgba(100,100,100,0.07); }
-.badge-unconfigured{ border-color: #333; color: #555; background: transparent; }
+/* These two were the only badges wearing hardcoded greys (#333/#555/#888).
+   They read as "inactive", but #555 on a panel is 2.4:1 — inactive is not the
+   same as unreadable, and a source the analyst has NOT configured is exactly
+   the thing they need to be able to read. Token-driven and AA-clean now. */
+.badge-neutral     { border-color: var(--hv-muted-border); color: var(--hv-muted-ink); background: rgba(100,100,100,0.07); }
+.badge-unconfigured{ border-color: var(--hv-muted-border); color: var(--hv-muted-ink); background: transparent; }
 
 /* ── Glass card (new) ── the workhorse surface ── */
 .glass {

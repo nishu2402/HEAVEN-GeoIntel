@@ -49,7 +49,7 @@ git add -A && git commit -m "chore: release vx.y.z"
 git tag -a vx.y.z -m "HEAVEN-GeoIntel vx.y.z"
 ```
 
-## 4. Verify the tag
+## 4. Verify the tag, then push
 
 ```bash
 npm run release:verify
@@ -66,34 +66,38 @@ Only push once it passes:
 git push && git push origin vx.y.z
 ```
 
-## 5. Publish the GitHub release
+## 5. The release publishes itself
 
-**Releases → Draft a new release.** Keep these consistent with every release
-before it — the list page shows the title and nothing else, so the title is the
-whole first impression:
+Pushing the tag triggers
+[`.github/workflows/release.yml`](./workflows/release.yml). There is nothing to
+click. It:
 
-| Field | Value |
-|---|---|
-| Tag | `vx.y.z` — the existing tag, not a new one |
-| Target | leave as the tag |
-| Title | `HEAVEN vx.y.z` |
-| Description | written from the CHANGELOG section — see below |
-| Set as the latest release | ✅ for a normal release; ❌ when publishing an older version after a newer one |
-| Set as a pre-release | ❌ unless the version carries a `-rc`/`-beta` suffix |
+1. **Re-verifies the tag** — the same check `release:verify` runs locally, but
+   from the tagged commit, where it cannot be skipped. If `src/lib/version.ts`
+   or `package.json` disagrees with the tag name, or the CHANGELOG has no dated
+   section for it, the workflow fails and no release is created.
+2. **Runs the full gate** against that commit — lint, type-check, 100% coverage,
+   production build, `npm audit`. A release page that claims zero
+   vulnerabilities is checked rather than typed.
+3. **Packages** a source tarball (`git archive` from the tag), a runnable
+   standalone bundle (`node server.js`, no `npm install`), an SPDX SBOM, and a
+   `SHA256SUMS.txt` covering all three.
+4. **Publishes** as `HEAVEN vx.y.z`, with the body generated from this version's
+   CHANGELOG section, marked latest — or as a pre-release if the version carries
+   a `-rc`/`-beta`/`-alpha` suffix.
 
-A release description is not a copy of the changelog. It should open with a
-poster and a badge row, then read in this order:
+To re-publish an existing tag without moving it, run the workflow manually from
+the Actions tab and pass the tag name.
 
-1. **Overview** — what this release *is*, in two or three sentences, and why the
-   version number moved.
-2. **At a glance** — a before/after table. A reader decides whether to care here.
-3. **What's new**, grouped by area, each item saying what changed *and why it
+The release body comes from the CHANGELOG, so the quality of the release page is
+the quality of that section. Write it to read in this order:
+
+1. **What this release is**, in two or three sentences, and why the version
+   number moved.
+2. **What changed**, grouped by area, each item saying what changed *and why it
    mattered*. Numbers must be measured, not estimated.
-4. **Breaking changes** — old → new as a table, or an explicit "none".
-5. **Upgrading** — numbered steps, including "nothing to migrate" when that is
-   the answer. This is what a major release owes its users.
-6. **Verified at release** — the gate table, so the claims above are checkable.
-7. **Installation**, **documentation links**, and the acceptable-use scope.
+3. **Breaking changes** — old → new, or an explicit "none".
+4. **Upgrading** — including "nothing to migrate" when that is the answer.
 
 Disclose what is *not* fixed. A release page that only lists wins reads like
 marketing, and the next reader finds the omission anyway.
@@ -103,6 +107,8 @@ marketing, and the next reader finds the omission anyway.
 - Check the poster renders on the release page. It is pinned to
   `raw.githubusercontent.com/<owner>/<repo>/vx.y.z/public/brand/poster.svg`, so
   it only resolves once the tag is pushed.
+- Download one asset and run `sha256sum -c SHA256SUMS.txt`. The workflow
+  generates the sums; nobody has ever checked they match until someone does.
 - If an earlier release page stated something this one fixes, add a one-line
   update pointing forward to this version. Do not rewrite the old page — a
   release note is a record of what shipped.

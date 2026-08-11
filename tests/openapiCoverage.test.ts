@@ -103,8 +103,11 @@ describe("source manifest", () => {
   });
 
   it("selects the sources a mode actually fans out to", () => {
+    // ipwho.is sits second on purpose: it is the geo standby, reached only when
+    // ip-api has spent its 45-per-minute budget, and the panel lists sources in
+    // this order.
     expect(sourcesForMode("ip").map((s) => s.id)).toEqual([
-      "ip-api.com", "Shodan InternetDB", "GreyNoise Community",
+      "ip-api.com", "ipwho.is", "Shodan InternetDB", "GreyNoise Community",
     ]);
     expect(sourcesForMode("domain").map((s) => s.id)).toEqual([
       "dns", "whois", "subdomains", "wayback",

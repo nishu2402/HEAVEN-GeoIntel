@@ -1,6 +1,6 @@
 {
   "name": "heaven-geointel",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -21,6 +21,7 @@
     "install-global": "bash scripts/install-global.sh",
     "uninstall-global": "bash scripts/uninstall-global.sh",
     "doctor": "bash scripts/start.sh --doctor",
+    "audit": "node scripts/audit-gate.mjs",
     "release:verify": "node scripts/release-verify.mjs",
     "screenshots": "node scripts/capture-screenshots.mjs",
     "brand": "npm run brand:poster && node scripts/generate-brand-assets.mjs",

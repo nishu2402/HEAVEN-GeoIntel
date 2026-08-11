@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
     <source media="(prefers-color-scheme: dark)" srcset="public/brand/poster.svg"/>
-    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 5 identifier types, 8 workspace modes, 13 of 21 sources need no API key, 24 of 43 username sites auto-verified, 17 API operations, 100% test coverage"/>
+    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 5 identifier types, 8 workspace modes, 14 of 22 sources need no API key, 24 of 43 username sites auto-verified, 17 API operations, 100% test coverage"/>
   </picture>
 </p>
 
@@ -49,7 +49,7 @@
 <div align="center">
 
   <p>
-    <img src="https://img.shields.io/badge/Version-2.0.1-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
+    <img src="https://img.shields.io/badge/Version-2.1.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
     <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
     <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
@@ -364,12 +364,12 @@ docker compose up -d
 open http://localhost:3000          # macOS — Linux: xdg-open, Windows: start
 
 # Plain Docker (no compose)
-docker build -t heaven-geointel:2.0 .
-docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:2.0
+docker build -t heaven-geointel:2.1.0 .
+docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:2.1.0
 
 # …with API keys (omit --env-file entirely if you have no .env.local —
 # docker run fails on a missing env file, it does not skip it)
-docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:2.0
+docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:2.1.0
 ```
 
 <div align="center">
@@ -513,7 +513,7 @@ Enter a handle and HEAVEN-GeoIntel checks **43 sites** for it. **24 are auto-ver
 
 Both are **free, no-key**, and validate input before any outbound request.
 
-### ⦿ IP intelligence (`ip-api` · Shodan InternetDB · GreyNoise)
+### ⦿ IP intelligence (`ip-api` → `ipwho.is` · Shodan InternetDB · GreyNoise)
 
 | Section | Fields |
 |---|---|
@@ -524,6 +524,15 @@ Both are **free, no-key**, and validate input before any outbound request.
 | **Pivots** | Shodan · Censys · AbuseIPDB · VirusTotal · GreyNoise · IPinfo · Spur · BGP.he.net · Google sweep |
 
 Accepts IPv4 and IPv6.
+
+Geolocation has two providers because it needs one. ip-api.com's free tier is
+45 requests per minute per source IP; when that runs out — or the host is down —
+`ipwho.is` answers instead, on an unrelated quota. The tool tracks what each
+provider reports about its own budget and stops calling one that has none left,
+which is what keeps a one-minute throttle from escalating into the hour-long ban
+providers hand out for sustained over-limit traffic. `ipwho.is` publishes no
+proxy/hosting/mobile flags, so those come back `null` rather than a fabricated
+`false`, and the source strip always says which provider answered.
 
 ### 🌐 Domain intelligence (DNS-over-HTTPS · RDAP · Certspotter)
 
@@ -758,7 +767,7 @@ POST /api/email-lookup  { email }    → offline classification + name inference
 
 POST /api/username-lookup { username } → 24 auto-verified + 19 manual → found / notfound / unverified / manual
                                        ‖ GitHub · GitLab · HN · Reddit profiles · LeakCheck (free)
-POST /api/ip-lookup     { ip }       → ip-api: geo · ASN · ISP · reverse DNS · proxy/hosting/mobile + risk
+POST /api/ip-lookup     { ip }       → ip-api (→ ipwho.is when throttled): geo · ASN · ISP · reverse DNS + risk
 POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT) ‖ RDAP whois ‖
                                        Certspotter subdomains (crt.sh supplements only when sparse,
                                        on a 2.5 s budget) ‖ SPF/DMARC posture
@@ -981,7 +990,7 @@ HEAVEN-GeoIntel/
 | **Animation / Viz** | Framer Motion · Canvas API (katakana rain · QR) · hand-rolled SVG link graph |
 | **Breach / Infostealer** | Hudson Rock Cavalier (free) · XposedOrNot (free) · LeakCheck public (free) · BreachDirectory via RapidAPI |
 | **Username OSINT** | 43-site parallel existence checks (server-side, no key) |
-| **IP / Domain OSINT** | ip-api · Cloudflare DNS-over-HTTPS · RDAP · crt.sh (all free · no key) |
+| **IP / Domain OSINT** | ip-api · ipwho.is · Cloudflare DNS-over-HTTPS · RDAP · crt.sh (all free · no key) |
 | **Identity / Reputation** | FullContact · Gravatar · EmailRep.io · Hunter.io |
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
 | **Persistence** | In-memory cache (24 h · 1000 phone / 500 email entries, FIFO) · file-backed cases (`.data/`) |
@@ -1035,7 +1044,7 @@ threshold in `vitest.config.ts`:
 npm run brand:poster
 ```
 
-So "13/21 keyless sources" cannot become a lie by adding a 22nd source, and
+So "14/22 keyless sources" cannot become a lie by adding a 23rd source, and
 `tests/posterAssets.test.ts` fails the build if the committed artwork is older than the
 registries it quotes. It ships in three files — `poster.svg` (dark), `poster-light.svg`
 (GitHub switches with your theme) and `poster-still.svg` for print — is one
@@ -1049,10 +1058,10 @@ the same numbers as this page:
 ```text
 ╭────────────────────────────────────────────────────────────────────╮
 │   ▄▀▀▀▀▀▄                                                          │
-│  ▐  █ █  ▌   HEAVEN-GeoIntel  v2.0.1                               │
+│  ▐  █ █  ▌   HEAVEN-GeoIntel  v2.1.0                               │
 │  ▐  ███  ▌   UNIFIED OSINT PLATFORM                                │
 │  ▐  █ █  ▌                                                         │
-│   ▀▄▄▄▄▄▀    5 identifiers · 8 modes · 13/21 sources need no key   │
+│   ▀▄▄▄▄▄▀    5 identifiers · 8 modes · 14/22 sources need no key   │
 ╰────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1095,7 +1104,7 @@ fail over decoration.
 | `npm run screenshots` | Regenerate README screenshots (needs the dev server running) |
 | `npm run brand:poster` | Regenerate the README poster + the terminal banner from the live registries (no browser needed) |
 | `npm run brand` | The above, plus every raster asset (favicon · app icons · OG image · hero) — needs Chrome |
-| `npm run release:verify` | Release pre-flight — checks the **git tag** itself declares the version being released, which no test can see ([checklist](.github/RELEASE_CHECKLIST.md)) |
+| `npm run release:verify` | Release pre-flight — checks the **git tag** itself declares the version being released, which no test can see. Pushing the tag then runs [`release.yml`](.github/workflows/release.yml), which re-checks it in CI and publishes the release ([checklist](.github/RELEASE_CHECKLIST.md)) |
 | `docker compose up -d` · `down` · `logs -f geointel` | Container lifecycle |
 
 </div>

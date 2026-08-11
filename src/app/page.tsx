@@ -9,6 +9,7 @@ import type {
 } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 import { MODES, type Mode } from "@/lib/client/modes";
+import { postLookup } from "@/lib/client/postLookup";
 import type { GraphEntity } from "@/components/graph/LinkGraph";
 
 import PhoneInput from "@/components/phone/PhoneInput";
@@ -46,7 +47,7 @@ import PanelErrorBoundary from "@/components/shared/PanelErrorBoundary";
 import ConsentGate from "@/components/shared/ConsentGate";
 import Logo, { LogoLockup } from "@/components/shared/Logo";
 import RecentLookups from "@/components/shared/RecentLookups";
-import { APP_VERSION_SHORT } from "@/lib/version";
+import { APP_VERSION } from "@/lib/version";
 import { pushLookup } from "@/lib/client/lookupHistory";
 import { getSessionGraph, saveSessionGraph } from "@/lib/client/sessionGraph";
 import { saveToHistory } from "@/components/dashboard/HistorySidebar";
@@ -55,7 +56,6 @@ const MatrixRain = dynamic(() => import("@/components/shared/MatrixRain"), { ssr
 const HistorySidebar = dynamic(() => import("@/components/dashboard/HistorySidebar"), { ssr: false });
 
 type Status = "idle" | "loading" | "done" | "error";
-interface ApiErrorResponse { error?: string }
 
 const BOOTED_KEY = "hv-booted-v1";
 
@@ -173,55 +173,40 @@ function PageContent() {
   const runLookup = useCallback(async (number: string) => {
     setPhoneStatus("loading"); setPhoneResult(null); setPhoneErr(""); setCurrentE164(number);
     syncUrl("phone", number);
-    try {
-      const res = await fetch("/api/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number }) });
-      const json = (await res.json()) as LookupResponse | ApiErrorResponse;
-      if (!res.ok) { setPhoneErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setPhoneStatus("error"); return; }
-      const data = json as LookupResponse;
-      setPhoneResult(data); setPhoneStatus("done");
-      addEntities(entitiesFromPhone(data));
-      saveToHistory({ e164: data.input.e164, country: data.input.country, countryCallingCode: data.input.countryCallingCode, timestamp: Date.now(), flagEmoji: countryToFlagEmoji(data.input.country) });
-    } catch { setPhoneErr("Couldn't reach the server. Check your connection and try again."); setPhoneStatus("error"); }
+    const out = await postLookup<LookupResponse>("/api/lookup", { number });
+    if (!out.ok) { setPhoneErr(out.error); setPhoneStatus("error"); return; }
+    const data = out.data;
+    setPhoneResult(data); setPhoneStatus("done");
+    addEntities(entitiesFromPhone(data));
+    saveToHistory({ e164: data.input.e164, country: data.input.country, countryCallingCode: data.input.countryCallingCode, timestamp: Date.now(), flagEmoji: countryToFlagEmoji(data.input.country) });
   }, [syncUrl, addEntities]);
 
   const runEmail = useCallback(async (email: string) => {
     setEmailStatus("loading"); setEmailResult(null); setEmailErr(""); syncUrl("email", email);
-    try {
-      const res = await fetch("/api/email-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
-      const json = (await res.json()) as EmailLookupResponse | ApiErrorResponse;
-      if (!res.ok) { setEmailErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setEmailStatus("error"); return; }
-      setEmailResult(json as EmailLookupResponse); setEmailStatus("done"); addEntities(entitiesFromEmail(json as EmailLookupResponse));
-    } catch { setEmailErr("Couldn't reach the server. Check your connection and try again."); setEmailStatus("error"); }
+    const out = await postLookup<EmailLookupResponse>("/api/email-lookup", { email });
+    if (!out.ok) { setEmailErr(out.error); setEmailStatus("error"); return; }
+    setEmailResult(out.data); setEmailStatus("done"); addEntities(entitiesFromEmail(out.data));
   }, [syncUrl, addEntities]);
 
   const runUsername = useCallback(async (username: string) => {
     setUserStatus("loading"); setUserResult(null); setUserErr(""); syncUrl("username", username);
-    try {
-      const res = await fetch("/api/username-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username }) });
-      const json = (await res.json()) as UsernameLookupResponse | ApiErrorResponse;
-      if (!res.ok) { setUserErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setUserStatus("error"); return; }
-      setUserResult(json as UsernameLookupResponse); setUserStatus("done"); addEntities(entitiesFromUsername(json as UsernameLookupResponse));
-    } catch { setUserErr("Couldn't reach the server. Check your connection and try again."); setUserStatus("error"); }
+    const out = await postLookup<UsernameLookupResponse>("/api/username-lookup", { username });
+    if (!out.ok) { setUserErr(out.error); setUserStatus("error"); return; }
+    setUserResult(out.data); setUserStatus("done"); addEntities(entitiesFromUsername(out.data));
   }, [syncUrl, addEntities]);
 
   const runIp = useCallback(async (ipAddr: string) => {
     setIpStatus("loading"); setIpResult(null); setIpErr(""); syncUrl("ip", ipAddr);
-    try {
-      const res = await fetch("/api/ip-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ip: ipAddr }) });
-      const json = (await res.json()) as IpLookupResponse | ApiErrorResponse;
-      if (!res.ok) { setIpErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setIpStatus("error"); return; }
-      setIpResult(json as IpLookupResponse); setIpStatus("done"); addEntities(entitiesFromIp(json as IpLookupResponse));
-    } catch { setIpErr("Couldn't reach the server. Check your connection and try again."); setIpStatus("error"); }
+    const out = await postLookup<IpLookupResponse>("/api/ip-lookup", { ip: ipAddr });
+    if (!out.ok) { setIpErr(out.error); setIpStatus("error"); return; }
+    setIpResult(out.data); setIpStatus("done"); addEntities(entitiesFromIp(out.data));
   }, [syncUrl, addEntities]);
 
   const runDomain = useCallback(async (domain: string) => {
     setDomStatus("loading"); setDomResult(null); setDomErr(""); syncUrl("domain", domain);
-    try {
-      const res = await fetch("/api/domain-lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain }) });
-      const json = (await res.json()) as DomainLookupResponse | ApiErrorResponse;
-      if (!res.ok) { setDomErr((json as ApiErrorResponse).error ?? `HTTP ${res.status}`); setDomStatus("error"); return; }
-      setDomResult(json as DomainLookupResponse); setDomStatus("done"); addEntities(entitiesFromDomain(json as DomainLookupResponse));
-    } catch { setDomErr("Couldn't reach the server. Check your connection and try again."); setDomStatus("error"); }
+    const out = await postLookup<DomainLookupResponse>("/api/domain-lookup", { domain });
+    if (!out.ok) { setDomErr(out.error); setDomStatus("error"); return; }
+    setDomResult(out.data); setDomStatus("done"); addEntities(entitiesFromDomain(out.data));
   }, [syncUrl, addEntities]);
 
   // Run whatever a shared/bookmarked URL points at: ?mode=…&q=… (defaults to phone
@@ -311,7 +296,7 @@ function PageContent() {
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-[var(--hv-ink-dim)] font-mono">
               <Shield className="w-3 h-3" /> DEFENSIVE OSINT
             </div>
-            <div className="text-[11px] text-[var(--hv-ink-dim)] font-mono hidden sm:block">v{APP_VERSION_SHORT}</div>
+            <div className="text-[11px] text-[var(--hv-ink-dim)] font-mono hidden sm:block">v{APP_VERSION}</div>
           </div>
         </header>
 
@@ -347,7 +332,7 @@ function PageContent() {
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]">[ TARGET ACQUISITION ]</div>
                   <div className="text-[11px] font-mono text-[var(--hv-ink-dim)] hidden sm:block">
-                    press <kbd className="px-1 py-0.5 rounded bg-[var(--hv-glass-border)]">⌘K</kbd> for command palette
+                    press <kbd className="px-1 py-0.5 rounded bg-[var(--hv-glass-border)] text-[var(--hv-ink)]">⌘K</kbd> for command palette
                   </div>
                 </div>
                 {/* 8-mode switcher */}
@@ -421,7 +406,7 @@ function PageContent() {
             || (mode === "username" && userStatus === "error" && userErr) || (mode === "ip" && ipStatus === "error" && ipErr)
             || (mode === "domain" && domStatus === "error" && domErr)) && (
             <div className="mt-6 terminal-card p-5 border" style={{ borderColor: "#ff4d6d50" }}>
-              <div className="text-[13px] uppercase tracking-widest text-[#ff4d6d]/70 mb-2">[ LOOKUP FAILED ]</div>
+              <div className="text-[13px] uppercase tracking-widest text-[#ff4d6d]/87 mb-2">[ LOOKUP FAILED ]</div>
               <div className="text-[#ff4d6d] font-mono text-sm">
                 <span className="opacity-60">[ERROR] </span>
                 {mode === "phone" ? phoneErr : mode === "email" ? emailErr : mode === "username" ? userErr : mode === "ip" ? ipErr : domErr}
