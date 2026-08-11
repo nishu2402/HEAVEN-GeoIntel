@@ -19,6 +19,14 @@
 # persistent case store (runtime data)
 /.data/
 
+# Scan output written by the sibling HEAVEN pentest tool when it is run from
+# this directory. Nothing in this repo reads `data/` — no import, no script, no
+# config — and six of these files were committed to a PUBLIC repo by accident in
+# c52d841 (engagement db, audit log with source IPs, target scan reports).
+# Ignoring the path stops the next `git add -A` repeating it; the files already
+# committed have to be removed deliberately.
+/data/
+
 # Throwaway data dir used by the test run (see vitest.config.ts `env`),
 # so tests can never write into the real /.data.
 /.vitest-data/

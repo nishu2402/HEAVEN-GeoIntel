@@ -7,7 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_Nothing yet._
+CI only — no change to the application, its API, or the published image's
+contents. The `v2.1.0` image itself published, signed and attested correctly;
+what follows is about the workflow around it.
+
+### Fixed
+
+- **The ghcr.io publish job no longer fails after a successful push.** The
+  v2.1.0 tag run built, pushed and signed the image, then died on its last step
+  with `Resource not accessible by integration`. `anchore/sbom-action` defaults
+  to attaching its SBOM to the GitHub Release for the tag, which needs
+  `contents: write`; the job holds `contents: read`. It had passed for v2.0.0
+  and v2.0.1 only because no release existed for it to find — release.yml
+  starting to publish releases is what exposed it. The action is now told not to
+  attach, rather than the token being widened: the image already carries an SBOM
+  as an OCI attestation, release.yml attaches a source SBOM to the release, and
+  the workflow keeps a third copy as a build artifact.
+- **The `main` build no longer times out.** It was killed at 30 minutes with
+  linux/arm64 still emulating `npm ci` under QEMU — 17 seconds on amd64 against
+  minutes on arm64, with total build time drifting from 1m47s at v2.0.0 to past
+  the limit. Each architecture now builds natively on its own runner and the two
+  are merged into one manifest list by digest.
+
+### Changed
+
+- Tagging a release starts this workflow twice on one commit (a push to `main`
+  and a push of the tag). The two runs raced for a single `type=gha` cache scope
+  and each slowed the other down; they are now serialised on the commit SHA, so
+  the second finishes off the first's cache.
+- Layer caches are scoped per platform. Sharing one scope had each architecture
+  evict the other's layers, so neither ever hit.
+- The publish job asserts that the merged manifest really does carry both
+  architectures and both attestations, instead of assuming the merge preserved
+  them.
+- `.dockerignore` is an allowlist. `COPY . .` was sending `tests/`, `docs/`
+  screenshots, `coverage/` and stray scan output into the build — 13 MB, now
+  2.3 MB — and any edit to a test file invalidated the `next build` layer behind
+  it. Nothing the image needs was removed; the built image serves `/api/health`
+  and `public/` assets identically.
+- `data/` is git-ignored. It holds scan output written by the sibling HEAVEN
+  pentest tool; nothing in this repo reads it.
+
+### Added
+
+- `tests/dockerPublish.test.ts` — 14 assertions pinning the above, each verified
+  to fail when its regression is reintroduced.
 
 ## [2.1.0] — 2026-08-11
 
