@@ -4,10 +4,12 @@ import {
   clearAllCaches,
   getCached,
   getCachedEmail,
+  getCachedIp,
   setCached,
   setCachedEmail,
+  setCachedIp,
 } from "@/lib/server/cache";
-import type { EmailLookupResponse, LookupResponse } from "@/lib/types";
+import type { EmailLookupResponse, IpLookupResponse, LookupResponse } from "@/lib/types";
 
 // In-memory phone-lookup cache: 24h TTL, 1000-entry cap with oldest-first
 // eviction. The store is module-global (no reset export), so every test uses
@@ -112,16 +114,21 @@ describe("email cache", () => {
 });
 
 describe("clearAllCaches", () => {
-  it("empties both caches — the hook that makes a newly-added API key take effect", () => {
+  it("empties every cache — the hook that makes a newly-added API key take effect", () => {
     setCached("+1555", mk("+1555"));
     setCachedEmail("k@x.test", { email: "k@x.test" } as unknown as EmailLookupResponse);
+    setCachedIp("1.1.1.1", { input: "1.1.1.1" } as unknown as IpLookupResponse);
     expect(cacheStats().phone).toBeGreaterThan(0);
     expect(cacheStats().email).toBeGreaterThan(0);
+    expect(cacheStats().ip).toBeGreaterThan(0);
 
     clearAllCaches();
 
-    expect(cacheStats()).toEqual({ phone: 0, email: 0 });
+    // A cache added later that nobody wired into clearAllCaches would keep
+    // serving pre-key answers — the exact defect this hook exists to prevent.
+    expect(cacheStats()).toEqual({ phone: 0, email: 0, ip: 0 });
     expect(getCached("+1555")).toBeNull();
     expect(getCachedEmail("k@x.test")).toBeNull();
+    expect(getCachedIp("1.1.1.1")).toBeNull();
   });
 });

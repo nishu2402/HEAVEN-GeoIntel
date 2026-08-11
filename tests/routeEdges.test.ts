@@ -12,7 +12,7 @@ import { GET as sourcesGET } from "@/app/api/sources/route";
 import { setCached } from "@/lib/server/cache";
 import { setKey } from "@/lib/server/keyStore";
 import { mark, resetHealth } from "@/lib/server/sourceHealth";
-import { restoreRateLimit } from "./testUtils";
+import { restoreRateLimit, resetServerState } from "./testUtils";
 import type { LookupResponse } from "@/lib/types";
 
 // Error and edge paths across the remaining routes — the branches that only run
@@ -28,6 +28,7 @@ afterAll(() => {
   delete process.env.HV_DATA_DIR;
 });
 afterEach(() => {
+  resetServerState();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   restoreRateLimit();
@@ -163,20 +164,26 @@ describe("ip-lookup upstream failures", () => {
     expect(json.sourceHealth.find((h: { source: string }) => h.source.includes("ip-api")).ok).toBe(false);
   });
 
-  it("surfaces ip-api's own failure message", async () => {
+  it("surfaces ip-api's own failure message in its source health", async () => {
+    // ip-api answers 200 with `status: "fail"` for its own errors. That is the
+    // provider's message about the provider, so it belongs on the source strip
+    // — the top-level `error` describes the lookup as a whole.
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
       String(u).includes("ip-api.com")
         ? resp(200, { status: "fail", message: "reserved range" })
         : resp(404, {})));
     const json = await (await post(ipPOST, "http://localhost/api/ip-lookup", { ip: "9.9.9.9" })).json();
-    expect(json.error).toBe("reserved range");
+    const health = json.sourceHealth.find((h: { source: string }) => h.source.includes("ip-api"));
+    expect(health.ok).toBe(false);
+    expect(health.error).toBe("reserved range");
   });
 
   it("falls back to a generic message when ip-api fails without one", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
       String(u).includes("ip-api.com") ? resp(200, { status: "fail" }) : resp(404, {})));
     const json = await (await post(ipPOST, "http://localhost/api/ip-lookup", { ip: "9.9.9.8" })).json();
-    expect(json.error).toBe("Lookup failed");
+    const health = json.sourceHealth.find((h: { source: string }) => h.source.includes("ip-api"));
+    expect(health.error).toBe("lookup failed");
   });
 
   it("parses an AS string that carries no organisation", async () => {

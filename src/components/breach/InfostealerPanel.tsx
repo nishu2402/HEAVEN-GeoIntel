@@ -73,7 +73,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
               <span className="text-2xl font-bold font-mono" style={{ color: borderColor }}>
                 {d.total} INFECTION{d.total === 1 ? "" : "S"}
               </span>
-              <span className="text-[12px] font-mono text-[#ff3e3e]/80">
+              <span className="text-[12px] font-mono text-[#ff3e3e]/92">
                 this {subject} was captured by an info-stealer running on a victim&apos;s device
               </span>
             </div>
@@ -121,10 +121,10 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
                   </span>
                 )}
                 {s.computerName && (
-                  <span className="text-[#00ff41]/50">· {s.computerName}</span>
+                  <span className="text-[#00ff41]/54">· {s.computerName}</span>
                 )}
                 {s.ip && (
-                  <span className="text-[#00ff41]/50 flex items-center gap-1">
+                  <span className="text-[#00ff41]/54 flex items-center gap-1">
                     <Globe className="w-3 h-3" /> {s.ip}
                   </span>
                 )}
@@ -132,7 +132,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
 
               {s.topLogins.length > 0 && (
                 <div className="space-y-1">
-                  <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/45 flex items-center gap-1">
+                  <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/54 flex items-center gap-1">
                     <Eye className="w-2.5 h-2.5" /> Sites this credential was used on
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -147,7 +147,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
 
               {s.topPasswords.length > 0 && (
                 <div className="space-y-1">
-                  <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/45 flex items-center gap-1">
+                  <div className="text-[11px] uppercase tracking-widest text-[#00ff41]/54 flex items-center gap-1">
                     <Lock className="w-2.5 h-2.5" /> Sample captured passwords (Hudson Rock obfuscation)
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -165,7 +165,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
       )}
 
       {!found && (
-        <div className="text-[12px] font-mono text-[#00ff41]/45 border-t border-[#00ff41]/10 pt-3">
+        <div className="text-[12px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-3">
           Hudson Rock indexes ~26M infected devices. A clean result here is genuinely a
           good sign — but does not rule out other types of breaches. Check the breach
           panel above for credential leaks.

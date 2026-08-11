@@ -127,14 +127,14 @@ export default function BulkLookup() {
         spellCheck={false}
         aria-label="Bulk phone-number input"
         placeholder={"+14155552671\n+447911123456\n+919876543210"}
-        className="w-full bg-[#0a0a0a] border border-[#00ff41]/25 focus:border-[#00ff41]/55 focus:outline-none px-3 py-2 font-mono text-sm text-[#00ff41] placeholder:text-[#00ff41]/25 resize-y"
+        className="w-full bg-[#0a0a0a] border border-[#00ff41]/25 focus:border-[#00ff41]/55 focus:outline-none px-3 py-2 font-mono text-sm text-[#00ff41] placeholder:text-[#00ff41]/54 resize-y"
       />
 
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={run}
           disabled={busy || numbers.length === 0 || tooMany}
-          className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-widest border border-[#00ff41]/55 text-[#00ff41] px-4 py-2 hover:bg-[#00ff41]/10 disabled:border-[#00ff41]/15 disabled:text-[#00ff41]/35 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-widest border border-[#00ff41]/55 text-[#00ff41] px-4 py-2 hover:bg-[#00ff41]/10 disabled:border-[#00ff41]/15 disabled:text-[#00ff41]/54 disabled:cursor-not-allowed transition-colors"
         >
           {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListChecks className="w-3 h-3" />}
           {busy ? "ANALYSING…" : `RUN BULK (${numbers.length})`}
@@ -159,7 +159,7 @@ export default function BulkLookup() {
       </div>
 
       {errorMsg && (
-        <div className="text-[13px] font-mono text-[#ff3e3e]/85 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.05] px-3 py-2">
+        <div className="text-[13px] font-mono text-[#ff3e3e]/92 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.05] px-3 py-2">
           {errorMsg}
         </div>
       )}
@@ -169,7 +169,7 @@ export default function BulkLookup() {
           <div className="text-[12px] font-mono text-[#00ff41]/65 flex flex-wrap gap-3">
             <span className="text-[#00ff41]">✓ {okCount} OK</span>
             {errCount > 0 && <span className="text-[#ff3e3e]">✗ {errCount} failed</span>}
-            <span className="text-[#00ff41]/45">— bulk mode is offline-only; rerun individual numbers in the PHONE tab for full enrichment.</span>
+            <span className="text-[#00ff41]/54">— bulk mode is offline-only; rerun individual numbers in the PHONE tab for full enrichment.</span>
           </div>
 
           <div className="border border-[#00ff41]/15 overflow-x-auto">
@@ -192,7 +192,7 @@ export default function BulkLookup() {
                     key={i}
                     className={`border-t border-[#00ff41]/10 ${r.ok ? "" : "bg-[#ff3e3e]/[0.04]"}`}
                   >
-                    <td className="px-2 py-1.5 text-[#00ff41]/45">{i + 1}</td>
+                    <td className="px-2 py-1.5 text-[#00ff41]/54">{i + 1}</td>
                     <td className="px-2 py-1.5 text-[#00ff41]/75">{r.input}</td>
                     <td className="px-2 py-1.5 text-[#00d9ff]">{r.e164 ?? "—"}</td>
                     <td className="px-2 py-1.5 text-[#00ff41]/65">{r.country ?? "—"}</td>
@@ -202,7 +202,7 @@ export default function BulkLookup() {
                     <td className="px-2 py-1.5 text-[#00ff41]/65">
                       {r.npaRegion ? `${r.npaRegion}${r.npaState ? `, ${r.npaState}` : ""}` : "—"}
                       {r.cached && <span className="ml-1 text-[#ffaa00]/65">[c]</span>}
-                      {!r.ok && r.error && <span className="text-[#ff3e3e]/75">{r.error}</span>}
+                      {!r.ok && r.error && <span className="text-[#ff3e3e]/92">{r.error}</span>}
                     </td>
                   </tr>
                 ))}

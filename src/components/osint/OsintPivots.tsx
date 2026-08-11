@@ -42,7 +42,7 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
   const digits   = e164.replace(/\D/g, "");
   const ccLc     = (country || "us").toLowerCase();
   const noPlus   = e164.replace(/^\+/, "");
-  const C = { id: "#00d9ff", msg: "#25D366", intel: "#ff3e3e", spam: "#ff8800", carrier: "#888", search: "#00ff41" };
+  const C = { id: "#00d9ff", msg: "#25D366", intel: "#ff3e3e", spam: "#ff8800", carrier: "#a8b6c8", search: "#00ff41" };
 
   return [
     // ── IDENTITY / REVERSE LOOKUP (the number goes into the URL) ───────────────
@@ -68,8 +68,8 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
     // ── MESSAGING — is the number registered? ──────────────────────────────────
     { label: "WhatsApp",          description: "Opens chat if registered — 2B+ users",                 url: `https://wa.me/${digits}`,                                      category: "messaging", color: C.msg, access: "free" },
     { label: "Telegram",          description: "Deep link — opens app if registered (mobile)",         url: `tg://resolve?phone=${digits}`,                                 category: "messaging", color: "#2AABEE", access: "free" },
-    { label: "Signal",            description: "Deep link — requires Signal installed",                url: `https://signal.me/#p/${enc}`,                                  category: "messaging", color: "#3A76F0", access: "free" },
-    { label: "Viber",             description: "Deep link — opens chat if registered",                 url: `viber://chat?number=${digits}`,                                category: "messaging", color: "#7360f2", access: "free" },
+    { label: "Signal",            description: "Deep link — requires Signal installed",                url: `https://signal.me/#p/${enc}`,                                  category: "messaging", color: "#6d9bff", access: "free" },
+    { label: "Viber",             description: "Deep link — opens chat if registered",                 url: `viber://chat?number=${digits}`,                                category: "messaging", color: "#8f7cff", access: "free" },
     { label: "iMessage",          description: "macOS/iOS Messages shows blue if registered",          url: `sms:${e164}`,                                                  category: "messaging", color: "#34C759", access: "free" },
     { label: "Line",              description: "Popular in JP/TH/TW/ID",                               url: `https://line.me/R/ti/p/~${digits}`,                            category: "messaging", color: "#00C300", access: "free" },
 
@@ -103,7 +103,7 @@ const CATEGORY_META: Record<PivotCategory, { label: string; color: string }> = {
   identity:  { label: "IDENTITY / REVERSE LOOKUP",     color: "#00d9ff" },
   messaging: { label: "MESSAGING — IS IT REGISTERED?", color: "#25D366" },
   spam:      { label: "SPAM / ABUSE REPORTS",           color: "#ff8800" },
-  carrier:   { label: "CARRIER / HLR / TELECOM",        color: "#888"    },
+  carrier:   { label: "CARRIER / HLR / TELECOM",        color: "#a8b6c8" },
   search:    { label: "SEARCH ENGINES (BROAD)",         color: "#00ff41" },
 };
 
@@ -153,17 +153,17 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
   return (
     <div className="terminal-card p-4 space-y-3">
       <div className="flex items-center justify-between border-b border-[#00ff41]/15 pb-2 flex-wrap gap-2">
-        <div className="text-xs uppercase tracking-widest text-[#00ff41]/55">
+        <div className="text-xs uppercase tracking-widest text-[#00ff41]/85">
           [ OSINT PIVOT MATRIX ] — {totalShown} / {links.length} shown
         </div>
-        <div className="text-[11px] text-[#00ff41]/30 italic">
+        <div className="text-[11px] text-[#00ff41]/75 italic">
           Opens in new tab. Use within your authorised scope.
         </div>
       </div>
 
       {/* Access-tier filter chips */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] uppercase tracking-widest text-[#00ff41]/45 font-mono">Filter:</span>
+        <span className="text-[11px] uppercase tracking-widest text-[#00ff41]/85 font-mono">Filter:</span>
         {(Object.keys(ACCESS_META) as AccessTier[]).map((t) => {
           const meta = ACCESS_META[t];
           const isActive = activeFilters.has(t);
@@ -173,8 +173,11 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
               onClick={() => toggleFilter(t)}
               className="text-[11px] font-mono font-bold px-2 py-0.5 border tracking-widest transition-all"
               style={{
-                color: isActive ? meta.color : meta.color + "55",
-                borderColor: isActive ? meta.color + "75" : meta.color + "25",
+                // d9 = 85%. An inactive filter still has to be readable to be
+                // clickable, and `paid` (#ff6600) is the darkest of the four —
+                // it only clears 4.5:1 on the panel from 83% up.
+                color: isActive ? meta.color : meta.color + "d9",
+                borderColor: isActive ? meta.color + "75" : meta.color + "55",
                 backgroundColor: isActive ? meta.bg : "transparent",
               }}
               title={isActive ? "Click to hide" : "Click to show"}
@@ -190,8 +193,8 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
           <div key={cat} className="space-y-1.5">
             <button
               onClick={() => toggleCollapse(cat)}
-              className="w-full flex items-center justify-between gap-2 text-[12px] uppercase tracking-widest font-mono pb-0.5 hover:opacity-100 opacity-80 transition-opacity"
-              style={{ color: CATEGORY_META[cat].color + "85" }}
+              className="w-full flex items-center justify-between gap-2 text-[12px] uppercase tracking-widest font-mono pb-0.5 hover:opacity-100 opacity-95 transition-opacity"
+              style={{ color: CATEGORY_META[cat].color }}
             >
               <span className="flex items-center gap-1">
                 {collapsed.has(cat) ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -224,10 +227,10 @@ export default function OsintPivots({ e164, national, country = "us" }: Props) {
                             {accessMeta.label}
                           </span>
                           {link.usOnly && (
-                            <span className="text-[10px] text-[#00ff41]/30 font-normal">[US]</span>
+                            <span className="text-[10px] text-[#00ff41]/75 font-normal">[US]</span>
                           )}
                         </div>
-                        <div className="text-[12px] text-[#00ff41]/55 mt-0.5 leading-tight line-clamp-2">
+                        <div className="text-[12px] text-[#00ff41]/85 mt-0.5 leading-tight line-clamp-2">
                           {link.description}
                         </div>
                       </div>

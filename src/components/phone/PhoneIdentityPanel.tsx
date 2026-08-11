@@ -68,7 +68,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
           <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/65 flex items-center gap-1.5">
             <User className="w-3 h-3" /> IDENTITY — OWNER PROFILE
           </div>
-          <span className="text-[11px] font-mono text-[#00ff41]/35">No automatic enrichment — try free lookups below</span>
+          <span className="text-[11px] font-mono text-[#00ff41]/54">No automatic enrichment — try free lookups below</span>
         </div>
 
         <p className="text-[13px] font-mono text-[#00ff41]/60 leading-snug">
@@ -79,7 +79,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
         </p>
 
         {!fcConfigured && (
-          <p className="text-[11px] font-mono text-[#00ff41]/35 border-t border-[#00ff41]/10 pt-2">
+          <p className="text-[11px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-2">
             Want in-app enrichment? Add <code className="text-[#00ff41]/65">FULLCONTACT_API_KEY</code>{" "}
             to <code className="text-[#00ff41]/65">.env.local</code> for inline name/employer/social-profile data.
           </p>
@@ -155,7 +155,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
       {/* Social profiles */}
       {profiles.length > 0 && (
         <div className="border-t border-[#00ff41]/10 pt-3">
-          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/45 mb-2">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-2">
             SOCIAL PROFILES — {profiles.length} linked account{profiles.length === 1 ? "" : "s"}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -190,7 +190,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
       {/* Linked emails — merge FullContact + IPQS associated emails, dedup */}
       {(otherEmails.length > 0 || ipqsEmails.length > 0) && (
         <div className="border-t border-[#00ff41]/10 pt-3">
-          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/45 mb-1.5 flex items-center gap-1">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-1.5 flex items-center gap-1">
             <Mail className="w-2.5 h-2.5" /> LINKED EMAIL ADDRESSES
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -219,7 +219,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
       {/* Linked phones */}
       {otherPhones.length > 0 && (
         <div className="border-t border-[#00ff41]/10 pt-3">
-          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/45 mb-1.5 flex items-center gap-1">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-1.5 flex items-center gap-1">
             <Phone className="w-2.5 h-2.5" /> ALSO REGISTERED TO
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -236,7 +236,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
       {/* Employment */}
       {employment.length > 0 && (
         <div className="border-t border-[#00ff41]/10 pt-3">
-          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/45 mb-2 flex items-center gap-1">
+          <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-2 flex items-center gap-1">
             <Building2 className="w-2.5 h-2.5" /> EMPLOYMENT HISTORY
           </div>
           <div className="space-y-1">

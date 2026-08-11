@@ -186,7 +186,12 @@ Then, in order:
    than the working copy. A tag one commit early is invisible to every other
    check and publishes a release whose contents contradict its own name — it has
    happened here twice.
-8. Push, then write the release notes from the CHANGELOG section.
+8. Push the tag. [`.github/workflows/release.yml`](./.github/workflows/release.yml)
+   takes it from there — it re-runs the tag check and the full gate against the
+   tagged commit, packages the source tarball, the standalone bundle, the SBOM
+   and `SHA256SUMS.txt`, and publishes the release as `HEAVEN vx.y.z` with the
+   body taken from this version's CHANGELOG section. Nothing is published if any
+   step fails, so the release page cannot claim a gate that did not pass.
 
 The full procedure, including the conventions for the GitHub release page
 itself, is in [`.github/RELEASE_CHECKLIST.md`](./.github/RELEASE_CHECKLIST.md).

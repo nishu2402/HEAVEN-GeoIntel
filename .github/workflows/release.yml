@@ -1,0 +1,296 @@
+name: Release
+
+# Publishes the GitHub release for a version tag.
+#
+# Why this exists: the release used to be assembled by hand from
+# .github/RELEASE_CHECKLIST.md, and the step that kept going wrong was invisible
+# to every test in the repo — the TAG. `tests/versionSync.test.ts` proves the
+# working tree is self-consistent, but a tag is created outside the tree, so a
+# perfectly consistent checkout can still be published under a tag pointing at
+# the commit *before* the version bump. That happened twice: v2.0.0 landed on a
+# commit before its own doc fixes, and v2.0.1 on a commit still declaring 2.0.0
+# and still carrying the vulnerable lockfile the release claimed to fix.
+#
+# So the first job here re-derives the version from the tagged tree and refuses
+# to go on if it disagrees with the tag name. Nothing is published until the full
+# gate — lint, type-check, 100% coverage, build, npm audit — has passed against
+# the exact commit being released.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, e.g. v2.1.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ── 1. Does the tag tell the truth? ────────────────────────────────────────
+  verify:
+    name: Verify the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: The tag name, src/lib/version.ts and package.json must agree
+        id: v
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag || github.ref_name }}"
+          TAG_VERSION="${TAG#v}"
+
+          # Parsed with a regex rather than imported: this must run before any
+          # dependency is installed, and src/lib/version.ts is TypeScript.
+          SRC_VERSION=$(sed -n 's/.*APP_VERSION = "\([^"]*\)".*/\1/p' src/lib/version.ts | head -1)
+          PKG_VERSION=$(node -p "require('./package.json').version")
+
+          echo "tag=$TAG_VERSION  src/lib/version.ts=$SRC_VERSION  package.json=$PKG_VERSION"
+
+          if [ "$TAG_VERSION" != "$SRC_VERSION" ] || [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $TAG points at a commit declaring $SRC_VERSION (package.json $PKG_VERSION)." \
+                 "Retag the commit that contains the bump: git tag -f -a $TAG -m \"HEAVEN-GeoIntel $TAG\" <commit>"
+            exit 1
+          fi
+
+          if ! grep -qE "^## \[${TAG_VERSION//./\\.}\] — [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no dated '## [$TAG_VERSION] — YYYY-MM-DD' section."
+            exit 1
+          fi
+
+          # A -rc/-beta/-alpha suffix publishes as a pre-release rather than latest.
+          case "$TAG_VERSION" in
+            *-*) echo "prerelease=true"  >> "$GITHUB_OUTPUT" ;;
+            *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"             >> "$GITHUB_OUTPUT"
+
+  # ── 2. The same gate a contributor runs, against the tagged commit ─────────
+  gate:
+    name: Quality gate
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      advisories_reported: ${{ steps.audit.outputs.reported }}
+      badge_message: ${{ steps.audit.outputs.badge_message }}
+      badge_color: ${{ steps.audit.outputs.badge_color }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test with the 100% coverage gate
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      # A release page that claims "0 vulnerabilities" should be checked, not
+      # typed — so the badge on that page is rendered from this step's output.
+      #
+      # Not a bare `npm audit --audit-level=…`. This gate runs AFTER the tag is
+      # pushed, and its input is the advisory database, which changes without
+      # anyone touching this repo: a `low` advisory published overnight against
+      # an eslint transitive would fail a release for something that cannot
+      # reach a user. scripts/audit-gate.mjs blocks on reachability instead —
+      # anything in the production tree that `.next/standalone` bundles, plus
+      # anything `critical` — and reports the rest onto the release page.
+      # `npm run audit` runs the identical policy locally.
+      - name: Dependency advisories
+        id: audit
+        run: node scripts/audit-gate.mjs --github
+
+  # ── 3. Build the artifacts the release page will carry ────────────────────
+  package:
+    name: Package artifacts
+    needs: [verify, gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      # Source of truth for what shipped, straight from git — no build output,
+      # no node_modules, reproducible from the tag alone.
+      - name: Source tarball
+        env:
+          V: ${{ needs.verify.outputs.version }}
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          git archive --format=tar.gz \
+            --prefix="heaven-geointel-${V}/" \
+            -o "dist/heaven-geointel-${V}-source.tar.gz" "${TAG}"
+
+      # Download, extract, `node server.js` — no npm install. This is the
+      # artifact a user who just wants to run the tool actually wants.
+      - name: Standalone runtime bundle
+        env:
+          V: ${{ needs.verify.outputs.version }}
+          BUILD_STANDALONE: "1"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          set -euo pipefail
+          npm run build
+          STAGE="heaven-geointel-${V}-standalone"
+          mkdir -p "$STAGE"
+          cp -r .next/standalone/. "$STAGE/"
+          # `standalone` omits both of these on purpose — they are served, not imported.
+          mkdir -p "$STAGE/.next"
+          cp -r .next/static "$STAGE/.next/static"
+          cp -r public "$STAGE/public"
+          cp README.md LICENSE CHANGELOG.md SECURITY.md "$STAGE/"
+          cat > "$STAGE/RUN.md" <<EOF
+          # HEAVEN-GeoIntel ${V} — standalone bundle
+
+          Self-contained. Needs Node.js 20.9+ and nothing else — no \`npm install\`.
+
+              PORT=3000 node server.js
+
+          Then open http://localhost:3000.
+
+          No API keys are required; the keyless sources work out of the box, and
+          optional keys can be added at runtime from the in-app console. This
+          bundle is the same build the release was gated on.
+          EOF
+          tar -czf "dist/${STAGE}.tar.gz" "$STAGE"
+
+      - name: SBOM (SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: dist/heaven-geointel-${{ needs.verify.outputs.version }}.spdx.json
+
+      # GitHub shows a sha256 next to each asset, but a signed-off checksum file
+      # in the release itself is what someone verifying offline actually uses.
+      - name: SHA256SUMS
+        run: |
+          set -euo pipefail
+          cd dist && sha256sum ./* > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+          retention-days: 7
+
+  # ── 4. Publish ────────────────────────────────────────────────────────────
+  publish:
+    name: Publish the release
+    needs: [verify, gate, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist
+
+      # The release body is the CHANGELOG section for this version — one source
+      # of truth, so the page and the file can never describe different releases.
+      - name: Build the release notes
+        env:
+          V: ${{ needs.verify.outputs.version }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          REPO: ${{ github.repository }}
+          # Measured by the gate job, not typed here. A hardcoded "0" badge is a
+          # claim the page cannot back up the first time it stops being true.
+          BADGE_MSG: ${{ needs.gate.outputs.badge_message }}
+          BADGE_COLOR: ${{ needs.gate.outputs.badge_color }}
+          REPORTED: ${{ needs.gate.outputs.advisories_reported }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          {
+            printf '<p align="center">\n'
+            printf '  <img width="100%%" src="https://raw.githubusercontent.com/%s/%s/public/brand/poster.svg" alt="HEAVEN-GeoIntel %s"/>\n' "$REPO" "$TAG" "$V"
+            printf '</p>\n\n'
+            printf '<p align="center">\n'
+            printf '  <img src="https://img.shields.io/badge/Version-%s-00FF85?style=flat-square" alt="Version"/>\n' "$V"
+            printf '  <img src="https://img.shields.io/badge/Coverage-100%%25-00C853?style=flat-square" alt="Coverage"/>\n'
+            printf '  <img src="https://img.shields.io/badge/Vulnerabilities-%s-%s?style=flat-square" alt="Vulnerabilities"/>\n' "$BADGE_MSG" "$BADGE_COLOR"
+            printf '</p>\n\n'
+            # Everything between this version's heading and the next `## [` heading.
+            awk -v v="## [$V]" '
+              index($0, v) == 1 { on = 1; next }
+              on && /^## \[/     { exit }
+              on                 { print }
+            ' CHANGELOG.md
+            printf '\n---\n\n## Install\n\n'
+            printf 'Download `heaven-geointel-%s-standalone.tar.gz` — it runs on Node.js 20.9+ with no `npm install`:\n\n' "$V"
+            printf '```bash\ntar -xzf heaven-geointel-%s-standalone.tar.gz\ncd heaven-geointel-%s-standalone\nnode server.js\n```\n\n' "$V" "$V"
+            printf 'Or from source:\n\n'
+            printf '```bash\ngit clone --branch %s https://github.com/%s.git\ncd %s\nnpm install\nbash scripts/start.sh\n```\n\n' "$TAG" "$REPO" "${REPO#*/}"
+            printf '**No API keys are required** — the keyless sources work out of the box; optional keys unlock the rest and can be added at runtime from the in-app console.\n\n'
+            printf '## Verifying the download\n\n```bash\nsha256sum -c SHA256SUMS.txt\n```\n\n'
+            printf 'Every asset was produced by this workflow from the `%s` tag, after the full gate passed: lint, type-check, 100%% coverage, production build, and a dependency-advisory check that blocks on anything reaching the bundled runtime.\n\n' "$TAG"
+            # Stated rather than quietly folded into a green badge: the badge
+            # already says "0 shipped · N dev-only", and a reader who wants the
+            # list should not have to ask for it.
+            if [ "${REPORTED:-0}" != "0" ] && [ -n "${REPORTED:-}" ]; then
+              printf '> **%s dev-only advisory/advisories** were open in the build toolchain at release time (eslint/vitest/build chain). None is bundled into the artifacts above or reachable by anyone running the tool. The full list is in the [release workflow run](%s).\n\n' "$REPORTED" "$RUN_URL"
+            fi
+            printf '## Scope and acceptable use\n\n'
+            printf 'HEAVEN-GeoIntel returns **publicly-derivable metadata only**. It performs no real-time location lookup and no device tracking, and a source that is unreachable is reported as unreachable rather than filled in. The acceptable-use policy is part of [`LICENSE`](LICENSE) and applies to every use of this software.\n\n'
+            printf -- '---\n\n**Full changelog:** [`CHANGELOG.md`](https://github.com/%s/blob/%s/CHANGELOG.md)\n' "$REPO" "$TAG"
+          } > RELEASE_NOTES.md
+          echo "--- notes preview ---"; head -40 RELEASE_NOTES.md
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.verify.outputs.tag }}
+          # Matches every release before it — the list page shows the title and
+          # nothing else, so this is the whole first impression.
+          name: HEAVEN ${{ needs.verify.outputs.tag }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ needs.verify.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.verify.outputs.prerelease == 'false' }}
+          files: dist/*
+          fail_on_unmatched_files: true

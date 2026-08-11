@@ -67,7 +67,7 @@ export default function HelpPopover() {
                 </div>
               </div>
               <div>
-                <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--hv-magenta)]/70 mb-1.5">Keyboard</div>
+                <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--hv-magenta)]/74 mb-1.5">Keyboard</div>
                 <div className="space-y-1">
                   {SHORTCUTS.map(([k, desc]) => (
                     <div key={k} className="flex items-baseline gap-2">

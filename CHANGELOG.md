@@ -9,6 +9,157 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 _Nothing yet._
 
+## [2.1.0] — 2026-08-11
+
+**Four defects a passing test suite could not see: IP lookups that failed in
+bursts, a version the UI truncated, a light theme that hid its own controls, and
+a release process nothing automated.** One source was added (`ipwho.is`, keyless);
+no API surface changed — the routes, the on-disk case format and the OpenAPI
+document are identical to 2.0.1. **Upgrading is a reinstall; there is nothing to
+migrate.**
+
+### Fixed
+
+- **IP lookups failed in bursts, and retrying made it worse.** ip-api.com's free
+  tier allows **45 requests per minute per source IP** and reports what is left in
+  an `X-Rl` header on every response. The app ignored it, treated the geo source as
+  mandatory, and so the 46th lookup in a minute showed `[ IP LOOKUP FAILED ]` — with
+  Shodan's ports and CVEs and GreyNoise's classification fetched, then discarded.
+  The natural response to a failing button is to press it again, and ip-api's
+  documented answer to sustained over-limit traffic is a **one-hour ban on the source
+  IP**, which is how "some IP lookups fail" became "the tool is broken for an hour".
+  Four changes, none of which is a retry loop:
+  - The budget is now respected rather than discovered. `upstreamBudget` records what
+    a provider says about its own quota and stops calling it once spent — a request
+    never sent cannot earn a ban. Applies to Shodan and GreyNoise too, which have
+    their own limits.
+  - `ipwho.is` (HTTPS, keyless, separate quota) answers when ip-api cannot. Its
+    fields are narrower, so `isProxy`/`isHosting`/`isMobile`/`reverse` come back
+    `null` rather than a fabricated `false` — an invented negative on a risk flag is
+    worse than an empty cell.
+  - A dead geo provider no longer voids the whole lookup. IP mode was the only route
+    that discarded a response when one upstream failed; it now returns what it has
+    with per-source provenance, and fails only when nothing was learned.
+  - IP results are cached (1 h, `IP_CACHE_TTL_MS`), like phone and email already
+    were, so a repeat lookup, a refresh or a re-opened share link costs no quota.
+
+- **A server error told the user to check their internet connection.** All five
+  lookup runners called `res.json()` before checking `res.ok`, inside a `try` whose
+  `catch` read *"Couldn't reach the server. Check your connection and try again."*
+  Any error response without a JSON body — an HTML 500 page, a 502 from a reverse
+  proxy, an empty body — threw at the parse and landed there, so the one message
+  that sends someone to reboot their router was shown precisely when the fault was
+  ours. `postLookup` now reads the body defensively and distinguishes the two, and
+  rewrites the 429 as *"Too many lookups in a row. Try again in 37s."* instead of
+  quoting an environment variable at the analyst.
+
+- **A rate-limited source showed no reason for being down.** `fetchJson` set its
+  `error` field only on the path that `allowNon2xx` skips, so GreyNoise answering
+  429 produced a red source with an empty tooltip. Non-2xx now always carries a
+  reason, and a body that fails to parse on a non-2xx reports the status rather than
+  `invalid JSON from source` — ip-api answers its 429 in plain text, which sent the
+  reader hunting for a parser bug instead of a rate limit.
+
+- **The app displayed `v2.0` while running 2.0.1 — every version surface now shows
+  the full semver.** `src/lib/version.ts` exported an `APP_VERSION_SHORT`
+  (`major.minor`) and the header, the boot sequence, the launcher banner, the Docker
+  tag and the outbound `User-Agent` all used it. The stated reason was that a patch
+  release should not read as a new client in a free upstream's logs — but it
+  recreated the exact problem the module exists to prevent. A screenshot of the app
+  could not tell you which build produced it, which is how bugs actually get
+  reported, and an upstream operator correlating a behaviour change to a release
+  could not tell 2.0.0 from 2.0.1 either. The short form survives as
+  `APP_VERSION_BRANCH` for the one place that genuinely means a *range* — the
+  supported-versions table in [`SECURITY.md`](SECURITY.md). `versionSync` now fails
+  if anything under `src/` imports it.
+
+- **Light theme: controls rendered between panels were invisible.** The theme was
+  built on "every surface that holds text stays dark", and that was not true. The
+  skip link, the provenance strip (`SourceStrip`) and the add-to-case button render
+  on the page background, and they wore `--hv-ink-dim` (`#8fb6a4`) and
+  `--hv-glass-border` on `#e9edf6` paper — **1.9:1 text and 1.0:1 border**, measured
+  on a live render. "ADD TO CASE" was a working button occupying blank space. A new
+  `--hv-*-page` token set gives those controls dark ink (13.4:1) and darkened status
+  accents (5.6–6.2:1), and the components that sit outside a panel now use it.
+
+- **Light theme: panels were paler than the dark theme's, so greys failed on one
+  and passed on the other.** At 90% opacity the bright page lifted the panel to
+  `#222734` against the dark theme's `#090d18`. Mid-greys landed at 4.0–4.2:1 in
+  light and ~5.5:1 in dark, so checking a colour in dark mode said nothing about
+  light mode. Panels are now 96% opaque (`#121521`) and the two themes agree to
+  within a tenth of a ratio point.
+
+- **93 text colours across 24 components were below AA at their chosen opacity.**
+  A house style of alpha-modulated accents (`text-[#00ff41]/30`, `/45`, `/55`) put
+  descriptions, hints and category headers between 1.8:1 and 4.4:1 — in **both**
+  themes, not just light. Each was recomputed against the composited panel and
+  raised to the minimum opacity that clears 4.5:1 for its own base colour rather
+  than to a blanket value. The OSINT pivot matrix's category headers stacked a 52%
+  hex alpha under an `opacity-80` wrapper for an effective 42%; Signal and Viber's
+  brand hues were under 4.5:1 at full opacity and were lightened.
+
+- **`.badge-neutral` and `.badge-unconfigured` carried hardcoded `#333`/`#555`/`#888`
+  with no theme variant.** "NOT CONFIGURED" and the env-var name that tells you how
+  to fix it measured 2.7:1 and **1.6:1** — the one thing an analyst needs to read in
+  that state. Both are token-driven now.
+
+### Added
+
+- **`ipwho.is` — a keyless standby geolocation source.** Reached only when
+  ip-api.com is out of budget or down, so a healthy lookup never calls it. The
+  manifest gained a `standby` flag to say so, and the alignment guard proves a
+  standby really is reached when its primary fails rather than being a declaration
+  nothing honours. **14 of 22 sources now need no API key.**
+
+- **`npm run audit` — a dependency gate that blocks on reachability, not severity.**
+  A bare `npm audit --audit-level=low` in a release workflow has a failure mode that
+  only appears once releases are automated: the gate runs *after* the tag is pushed
+  and its input is the advisory database, which changes with no commit to this repo.
+  A `low` advisory published overnight against an eslint transitive would fail a
+  release for something that cannot reach a single user, and the way out is to patch
+  a dev dependency, amend, force-move the tag and push again. `scripts/audit-gate.mjs`
+  blocks on anything in the production tree that `.next/standalone` bundles (any
+  severity) plus anything `critical`, and reports the rest onto the release page
+  instead of hiding it. `.github/audit-allowlist.json` is the escape hatch for a
+  shipped advisory with no upstream fix: each entry needs a reason and an `expires`
+  date, after which it stops suppressing — a suppression nobody renews is a decision
+  nobody re-made. The release page's "0 vulnerabilities" badge is now rendered from
+  this gate's measured output rather than typed by hand.
+
+- **`.github/workflows/release.yml` — the GitHub release is now built by CI, not by
+  hand.** Pushing a `v*` tag runs the full gate (lint, type-check, 100% coverage,
+  build, dependency advisories) and then, only if it passes, packages the release,
+  extracts the matching section from this file as the release notes, and publishes. It refuses to
+  publish a tag whose `src/lib/version.ts` disagrees with the tag name — the same
+  check `npm run release:verify` runs locally, enforced where it cannot be skipped.
+  Attached to every release: a reproducible source tarball, a runnable Next.js
+  standalone bundle, an SPDX SBOM, and `SHA256SUMS.txt` covering all three.
+
+- **`tests/upstreamBudget.test.ts`, `tests/postLookup.test.ts` and
+  `tests/releaseGate.test.ts` — 74 tests over the states a healthy run never
+  reaches.** A quota that is already spent, a provider banned for an hour, a 500
+  serving HTML, a production advisory, an expired suppression: none of these occur
+  when everything works, so a gate exercised only against a healthy tree is a gate
+  whose blocking paths are first tested on the day they fire.
+
+- **`tests/themeContrast.test.ts` — a WCAG guard over the token system.** It parses
+  `globals.css`, composites the translucent panels over their own page backgrounds
+  and asserts AA on both themes, so a token edit re-runs the arithmetic instead of
+  quietly invalidating a comment. It also asserts that the *panel* ink still fails on
+  the page background — documenting the trap rather than only avoiding it.
+
+### Security
+
+- **Four high-severity advisories patched** (lockfile only; all dev-tooling
+  transitives, none bundled into the app):
+  `brace-expansion` 5.0.8 → 5.0.9 ([GHSA-rgw5-rvv9-x895](https://github.com/advisories/GHSA-rgw5-rvv9-x895)
+  — unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation that 2.0.1
+  shipped), `js-yaml` 4.3.0 → 4.3.1 ([GHSA-5p4m-2wfm-xmqj](https://github.com/advisories/GHSA-5p4m-2wfm-xmqj)),
+  `nanoid` 3.3.16 → 3.3.18 ([GHSA-2v37-7h3g-55p8](https://github.com/advisories/GHSA-2v37-7h3g-55p8)),
+  and `undici` 7.28.0 → 7.29.0 (five advisories, including
+  [GHSA-8xcm-r25x-g524](https://github.com/advisories/GHSA-8xcm-r25x-g524) response
+  desynchronization). **`npm audit`, full tree and `--omit=dev`: 0 vulnerabilities.**
+
 ## [2.0.1] — 2026-08-02
 
 **A dependency security patch, and the documentation that describes it.** No application

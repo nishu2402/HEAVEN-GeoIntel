@@ -9,7 +9,7 @@ import { POST as domainPOST } from "@/app/api/domain-lookup/route";
 import { POST as ipPOST } from "@/app/api/ip-lookup/route";
 import { POST as usernamePOST } from "@/app/api/username-lookup/route";
 import { setCached } from "@/lib/server/cache";
-import { restoreRateLimit } from "./testUtils";
+import { restoreRateLimit, resetServerState } from "./testUtils";
 import type { LookupResponse } from "@/lib/types";
 
 // Second pass over the route error/merge paths: the enrichment branches that
@@ -25,6 +25,7 @@ afterAll(() => {
   delete process.env.HV_DATA_DIR;
 });
 afterEach(() => {
+  resetServerState();
   vi.unstubAllGlobals();
   restoreRateLimit();
 });

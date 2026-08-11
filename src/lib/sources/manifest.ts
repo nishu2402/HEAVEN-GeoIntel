@@ -30,6 +30,17 @@ export interface SourceDef {
   unlocks: string;
   /** Where to get credentials, for `key` sources. */
   signup?: string;
+  /**
+   * A fallback: called only when the preferred source for the same data is
+   * unavailable, so a healthy lookup never reports it.
+   *
+   * Without this flag the alignment guard — "every source the manifest declares
+   * must actually be reported" — has no way to tell a standby apart from a
+   * source that was wired into the manifest and then forgotten in the route.
+   * That guard is worth keeping strict, so the exception is declared here
+   * rather than special-cased in the test.
+   */
+  standby?: boolean;
 }
 
 export const SOURCES: SourceDef[] = [
@@ -70,6 +81,18 @@ export const SOURCES: SourceDef[] = [
     tier: "free",
     modes: ["ip"],
     unlocks: "IP geolocation · ASN · ISP · reverse DNS · proxy/hosting flags",
+  },
+  {
+    id: "ipwho.is",
+    name: "ipwho.is",
+    tier: "free",
+    modes: ["ip"],
+    standby: true,
+    // Standby, not an extra fanout call: only reached when ip-api has spent its
+    // 45-per-minute budget or is down. Narrower (no proxy/hosting/mobile flags
+    // and no reverse DNS), which is why it is second — but a location from the
+    // fallback beats a failed lookup from the preferred source.
+    unlocks: "Backup IP geolocation · ASN · ISP — used when ip-api.com is rate-limited",
   },
   {
     id: "Shodan InternetDB",

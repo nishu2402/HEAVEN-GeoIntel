@@ -5,7 +5,7 @@ import { installMemoryLocalStorage } from "./testUtils";
 import BootSequence from "@/components/shared/BootSequence";
 import MatrixRain from "@/components/shared/MatrixRain";
 import { FX_KEY, FX_EVENT } from "@/lib/client/effects";
-import { APP_VERSION_SHORT } from "@/lib/version";
+import { APP_VERSION } from "@/lib/version";
 
 beforeAll(() => {
   installMemoryLocalStorage();
@@ -30,7 +30,7 @@ describe("<BootSequence>", () => {
     const { container } = render(<BootSequence onDone={() => {}} />);
     // Asserted against the version module, not a literal — a release bump must
     // not have to remember this file.
-    expect(screen.getByText(new RegExp(`HEAVEN-GeoIntel v${APP_VERSION_SHORT}`))).toBeTruthy();
+    expect(screen.getByText(new RegExp(`HEAVEN-GeoIntel v${APP_VERSION}`))).toBeTruthy();
     expect(screen.getByText(/SYSTEM READY/).className).toMatch(/glow-green/);
     // the blank line renders a non-breaking space rather than collapsing
     const spacer = container.querySelector(".h-3")!;

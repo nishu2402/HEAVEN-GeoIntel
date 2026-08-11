@@ -31,7 +31,7 @@ export default function CountryPanel({ intel }: Props) {
       transition={{ duration: 0.3, delay: 0.1 }}
       className="terminal-card p-4 space-y-3"
     >
-      <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/50 border-b border-[#00ff41]/15 pb-2">
+      <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/54 border-b border-[#00ff41]/15 pb-2">
         [ COUNTRY INTELLIGENCE ]
       </div>
 
@@ -40,7 +40,7 @@ export default function CountryPanel({ intel }: Props) {
         <span className="text-4xl">{intel.flagEmoji}</span>
         <div>
           <div className="text-lg font-bold text-[#00ff41] glow-green">{intel.name}</div>
-          <div className="text-xs text-[#00ff41]/50">{intel.officialName}</div>
+          <div className="text-xs text-[#00ff41]/54">{intel.officialName}</div>
         </div>
       </div>
 

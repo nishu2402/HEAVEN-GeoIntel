@@ -86,10 +86,13 @@ export default function RootLayout({
         <script id="theme-init">{THEME_INIT}</script>
       </head>
       <body className="min-h-screen antialiased font-mono">
-        {/* Skip link — invisible until keyboard-focused, jumps past header straight to main */}
+        {/* Skip link — invisible until keyboard-focused, jumps past header straight
+            to main. Coloured with --hv-page-green rather than --hv-green: it lands
+            on the page background, where the neon green is 1.1:1 against the light
+            theme's paper. */}
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:bg-[var(--hv-page-0)] focus:border focus:border-[var(--hv-green)] focus:text-[var(--hv-green)] focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:bg-[var(--hv-page-0)] focus:border focus:border-[var(--hv-page-green)] focus:text-[var(--hv-page-green)] focus:font-mono focus:text-xs focus:uppercase focus:tracking-widest"
         >
           Skip to main content
         </a>

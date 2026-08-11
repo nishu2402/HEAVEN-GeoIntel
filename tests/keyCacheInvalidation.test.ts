@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { clearAllKeys, clearKey, setKey } from "@/lib/server/keyStore";
-import { cacheStats, getCached, setCached, setCachedEmail } from "@/lib/server/cache";
-import type { EmailLookupResponse, LookupResponse } from "@/lib/types";
+import { cacheStats, getCached, setCached, setCachedEmail, setCachedIp } from "@/lib/server/cache";
+import type { EmailLookupResponse, IpLookupResponse, LookupResponse } from "@/lib/types";
 
 // Regression test for the P1 defect: a result fetched with no API keys stayed
 // cached for 24 h, so adding a key in the UI appeared to do nothing and users
@@ -23,31 +23,33 @@ afterEach(() => {
 function seedCaches(): void {
   setCached("+14155552671", { threatScore: 0 } as unknown as LookupResponse);
   setCachedEmail("t@example.test", { email: "t@example.test" } as unknown as EmailLookupResponse);
+  setCachedIp("8.8.8.8", { input: "8.8.8.8" } as unknown as IpLookupResponse);
   expect(cacheStats().phone).toBeGreaterThan(0);
   expect(cacheStats().email).toBeGreaterThan(0);
+  expect(cacheStats().ip).toBeGreaterThan(0);
 }
 
 describe("adding or removing an API key invalidates cached results", () => {
-  it("drops both caches when a key is stored", async () => {
+  it("drops every cache when a key is stored", async () => {
     seedCaches();
     expect(await setKey("IPQS_API_KEY", "new-key-value")).toBe(true);
-    expect(cacheStats()).toEqual({ phone: 0, email: 0 });
+    expect(cacheStats()).toEqual({ phone: 0, email: 0, ip: 0 });
     // The next lookup must re-fetch rather than serve the keyless answer.
     expect(getCached("+14155552671")).toBeNull();
   });
 
-  it("drops both caches when a key is removed", async () => {
+  it("drops every cache when a key is removed", async () => {
     await setKey("IPQS_API_KEY", "value");
     seedCaches();
     expect(await clearKey("IPQS_API_KEY")).toBe(true);
-    expect(cacheStats()).toEqual({ phone: 0, email: 0 });
+    expect(cacheStats()).toEqual({ phone: 0, email: 0, ip: 0 });
   });
 
-  it("drops both caches when every key is cleared", async () => {
+  it("drops every cache when every key is cleared", async () => {
     await setKey("IPQS_API_KEY", "value");
     seedCaches();
     await clearAllKeys();
-    expect(cacheStats()).toEqual({ phone: 0, email: 0 });
+    expect(cacheStats()).toEqual({ phone: 0, email: 0, ip: 0 });
   });
 
   it("leaves the caches alone when the mutation was rejected", async () => {
@@ -67,6 +69,6 @@ describe("adding or removing an API key invalidates cached results", () => {
     // The name is valid but absent — the store is a no-op, yet dropping the
     // caches is harmless and keeps the rule simple: valid mutation ⇒ invalidate.
     expect(await clearKey("HUNTER_API_KEY")).toBe(true);
-    expect(cacheStats()).toEqual({ phone: 0, email: 0 });
+    expect(cacheStats()).toEqual({ phone: 0, email: 0, ip: 0 });
   });
 });
