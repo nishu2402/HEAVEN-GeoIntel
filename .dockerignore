@@ -1,16 +1,40 @@
-.git
-.github
-.next
-.claude
-.vscode
-node_modules
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.DS_Store
-Screenshot
-*.local
-.env*.local
-README.md
-Dockerfile
-docker-compose.yml
+# ── Docker build context ─────────────────────────────────────────────────────
+#
+# An allowlist, not a denylist. The builder stage does `COPY . .`, so every path
+# that reaches this context is both shipped into a layer and part of that
+# layer's cache key — which means a denylist has two failure modes that both bit
+# this repo:
+#
+#   • Cache. Editing a test file or adding a screenshot changed `COPY . .` and
+#     invalidated `next build` behind it. The slowest stage in the image was
+#     being rebuilt from scratch by changes it cannot even observe.
+#   • Data. `data/` and `.data/` hold case stores, audit logs and scan reports.
+#     They were landing in the builder layer and, with `cache-to: mode=max`,
+#     in the exported build cache. Nothing published them, but nothing needed
+#     them either.
+#
+# Listing what to keep fails safe: something new and irrelevant is excluded by
+# default, and a genuinely required file announces itself by breaking the build
+# immediately rather than by quietly bloating every image.
+#
+# `*` matches one path segment, so it excludes top-level entries only; anything
+# under a re-included directory was never excluded and needs no rule of its own.
+
+# Exclude everything at the root…
+*
+
+# …then re-admit exactly what `next build` reads.
+!package.json
+!package-lock.json
+!next.config.mjs
+!tsconfig.json
+!next-env.d.ts
+!postcss.config.mjs
+!tailwind.config.ts
+!src
+!public
+
+# Belt and braces for things that can appear *inside* the allowed trees.
+**/.DS_Store
+**/*.local
+**/node_modules

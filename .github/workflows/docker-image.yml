@@ -10,21 +10,151 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+# Tagging a release pushes `main` and the tag within the same second, so this
+# workflow starts TWICE on the same commit and builds a byte-identical image
+# both times. Unserialised, the two runs fought over one `type=gha` cache scope
+# and each made the other slower — on v2.1.0 the `main` run crossed the
+# 30-minute timeout mid-build and was killed. Keyed on the SHA, the second run
+# now waits for the first and then finishes off a warm cache.
+#
+# `cancel-in-progress: false` because neither run is redundant: one carries the
+# branch tags (`main`, `latest`), the other the version tags.
+concurrency:
+  group: docker-${{ github.sha }}
+  cancel-in-progress: false
+
 jobs:
-  build-and-push:
+  # ── 0. One lowercase image reference, defined once ──────────────────────────
+  #
+  # OCI references must be lowercase and `github.repository` is not
+  # (nishu2402/HEAVEN-GeoIntel). metadata-action lowercases the tags it
+  # generates, but the bare `name=` of a push-by-digest output and the argument
+  # to `imagetools create` are ours to get right — so the rule lives in exactly
+  # one place instead of being re-derived in each job that needs it.
+  prepare:
+    name: Resolve the image name
     runs-on: ubuntu-latest
+    permissions:
+      contents: read   # stated, not inherited — this job needs nothing else
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+    steps:
+      - id: name
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "image=${REGISTRY}/${REPO,,}" >> "$GITHUB_OUTPUT"
+
+  # ── 1. One build per architecture, each on its own native runner ────────────
+  #
+  # This was a single job building linux/amd64 and linux/arm64 together behind
+  # QEMU. Emulated arm64 is not a little slower, it is 20-50x slower: in the
+  # v2.1.0 run `npm ci` finished in 17 seconds on amd64 and was still running on
+  # arm64 four minutes later, and total build time had drifted from 1m47s at
+  # v2.0.0 to over 30 minutes. The timeout was not the bug — emulating a Node
+  # toolchain was.
+  #
+  # GitHub's arm64 runners are free for public repositories, so each
+  # architecture now compiles on its own hardware, in parallel, natively.
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
-      id-token: write   # OIDC token for cosign keyless signing
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Labels and annotations only. Tags belong to the manifest list and are
+      # applied once, in the publish job — tagging both architectures here would
+      # have each overwrite the other under the same name.
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.prepare.outputs.image }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          # Untagged, addressed only by digest. The publish job binds the tags
+          # to a manifest list referencing both architectures.
+          outputs: type=image,name=${{ needs.prepare.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+          # Per-platform scopes. Sharing one scope would have each architecture
+          # evict the other's layers on every run, so neither would ever hit.
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          # Attach an SBOM + SLSA provenance to each architecture image as OCI
+          # attestations. `imagetools create` carries them onto the manifest
+          # list; the publish job asserts that it did.
+          sbom: true
+          provenance: mode=max
+
+      - name: Export the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/digests
+          # The filename IS the payload — the publish job globs the directory
+          # and needs nothing but the digests.
+          touch "/tmp/digests/${DIGEST#sha256:}"
+          echo "PLATFORM_SLUG=${PLATFORM//\//-}" >> "$GITHUB_ENV"
+
+      - name: Upload the digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ env.PLATFORM_SLUG }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── 2. Bind the tags to a manifest list covering both architectures ─────────
+  publish:
+    name: Publish the manifest
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write   # OIDC token for cosign keyless signing
+    timeout-minutes: 15
+
+    steps:
+      - name: Download the digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,7 +170,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ needs.prepare.outputs.image }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -49,44 +179,87 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          # Attach an SBOM + SLSA provenance to the image as OCI attestations.
-          sbom: true
-          provenance: mode=max
+      - name: Create the manifest list and push
+        working-directory: /tmp/digests
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2046 # word splitting is how both lists are built
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Resolve the manifest digest
+        id: digest
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          d=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" \
+                --format '{{json .Manifest}}' | jq -r '.digest')
+          echo "ref=${IMAGE}@${d}" >> "$GITHUB_OUTPUT"
+
+      # Assert, rather than assume, that the merge produced what we claim to
+      # publish. A manifest list is exactly the place where an architecture or
+      # an attestation goes missing quietly, and "signed multi-arch image with
+      # an SBOM" is a promise on the release page.
+      - name: Verify the published manifest
+        env:
+          REF: ${{ steps.digest.outputs.ref }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "$REF" --format '{{json .Manifest}}' > /tmp/manifest.json
+
+          arches=$(jq -r '[.manifests[].platform | select(.architecture != "unknown")
+                           | "\(.os)/\(.architecture)"] | sort | join(",")' /tmp/manifest.json)
+          attestations=$(jq '[.manifests[] | select(.annotations["vnd.docker.reference.type"]
+                             == "attestation-manifest")] | length' /tmp/manifest.json)
+
+          echo "architectures: ${arches}"
+          echo "attestations:  ${attestations}"
+
+          [ "$arches" = "linux/amd64,linux/arm64" ] || {
+            echo "::error::expected both architectures, got: ${arches}"; exit 1; }
+          [ "$attestations" -ge 2 ] || {
+            echo "::error::SBOM/provenance attestations did not survive the merge"; exit 1; }
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
-      # OCI references must be lowercase, but the repo name (github.repository)
-      # can contain capitals (HEAVEN-GeoIntel). metadata-action lowercases the
-      # build tags automatically; cosign/syft do not, so build the ref ourselves.
-      - name: Compute lowercase image reference
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-        run: echo "IMAGE_REF=${REGISTRY}/${IMAGE_NAME,,}@${DIGEST}" >> "$GITHUB_ENV"
-
-      - name: Sign the image (keyless, OIDC)
-        run: cosign sign --yes "${IMAGE_REF}"
+      # One signature over the manifest-list digest covers every architecture
+      # under it.
+      - name: Sign the manifest (keyless, OIDC)
+        run: cosign sign --yes "${{ steps.digest.outputs.ref }}"
 
       - name: Generate SBOM artifact (SPDX JSON)
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ env.IMAGE_REF }}
+          image: ${{ steps.digest.outputs.ref }}
           format: spdx-json
           output-file: sbom.spdx.json
+          # This job holds `contents: read` deliberately. The action's default
+          # is to ALSO attach the SBOM to the GitHub Release matching the tag,
+          # which needs `contents: write` — and the first time a release
+          # actually existed for it to find (v2.1.0, once release.yml started
+          # publishing them) that attach 403'd and failed the whole job, after
+          # the image had already been built, pushed and signed.
+          #
+          # Nothing is lost by declining. The image carries its own SBOM as an
+          # OCI attestation (`sbom: true`, asserted above), release.yml attaches
+          # a source-tree SBOM to the release, and the step below keeps this one
+          # as a build artifact. A fourth copy is not worth write access to the
+          # repository from a job that also holds `packages: write` and a
+          # signing identity.
+          upload-release-assets: false
+          # Let the explicit step below own the artifact and its name, instead
+          # of also emitting one called `<owner>-<repo>_sha256_<digest>.spdx`.
+          upload-artifact: false
 
       - name: Upload SBOM as a build artifact
         uses: actions/upload-artifact@v4
         with:
           name: sbom-spdx
           path: sbom.spdx.json
+          if-no-files-found: error
