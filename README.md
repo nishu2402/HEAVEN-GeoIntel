@@ -34,27 +34,37 @@
 <table>
   <tr>
     <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/phone-results.png" alt="Phone OSINT result dashboard" width="100%"/>
-      <br/><sub><b>Phone dashboard.</b> Carrier, line type, country and threat score, all computed offline.</sub>
+      <img src="./docs/screenshots/phone-results.png" alt="Phone OSINT result dashboard with the mode bar, threat score and exports" width="100%"/>
+      <br/><sub><b>Phone dashboard.</b> All eleven modes across the top, and any number scored offline the moment you run it.</sub>
     </td>
     <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix of reverse-lookup, messaging and search links" width="100%"/>
-      <br/><sub><b>OSINT pivots.</b> 37 reverse-lookup, messaging and search links, deduplicated across sources.</sub>
+      <img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix of reverse-lookup, messaging and search links with access-tier filters" width="100%"/>
+      <br/><sub><b>OSINT pivots.</b> Thirty-seven reverse-lookup, messaging and spam links, filtered by access tier.</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/breach-intel.png" alt="Credential breach and infostealer search" width="100%"/>
-      <br/><sub><b>Breach and infostealer.</b> One-click lookups across free credential databases and Hudson Rock.</sub>
+      <img src="./docs/screenshots/breach-intel.png" alt="Unified breach view merging results across sources above the free credential lookups" width="100%"/>
+      <br/><sub><b>Unified breach view.</b> One row per breach, merged across every source that answered, over the free no-key lookups.</sub>
     </td>
     <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/bulk-mode.png" alt="Bulk lookup mode" width="100%"/>
-      <br/><sub><b>Bulk mode.</b> Score up to 25 numbers in one pass, then export the table.</sub>
+      <img src="./docs/screenshots/number-intel.png" alt="Number anatomy panel showing country code, area code, subscriber digits and standard formats" width="100%"/>
+      <br/><sub><b>Number anatomy.</b> Country code, area code and subscriber digits broken out, with libphonenumber checks and standard formats.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <img src="./docs/screenshots/command-palette.png" alt="Command palette listing all eleven lookup modes" width="100%"/>
+      <br/><sub><b>Command palette.</b> Press ⌘K to reach any of the eleven modes, from phone and email to wallet, hash and image.</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <img src="./docs/screenshots/bulk-mode.png" alt="Bulk mode scoring a batch of phone numbers offline" width="100%"/>
+      <br/><sub><b>Bulk mode.</b> Paste up to twenty-five numbers, score them offline in one pass, then export the table.</sub>
     </td>
   </tr>
 </table>
 
-<sub>To refresh these, run <code>npm run dev</code> in one terminal and <code>npm run screenshots</code> in another. The <a href="./scripts/capture-screenshots.mjs">capture script</a> drives your system Chrome and writes high-DPI PNGs into <a href="./docs/screenshots/"><code>docs/screenshots/</code></a>.</sub>
+<sub>Every shot is captured at one fixed viewport, so the grid stays even. To refresh them, run <code>npm run dev</code> in one terminal and <code>npm run screenshots</code> in another. The <a href="./scripts/capture-screenshots.mjs">capture script</a> drives your system Chrome and writes high-DPI PNGs into <a href="./docs/screenshots/"><code>docs/screenshots/</code></a>.</sub>
 
 ---
 
