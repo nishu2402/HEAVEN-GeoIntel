@@ -39,6 +39,9 @@ function git(...args) {
 const results = [];
 const check = (ok, label, detail) => results.push({ ok, label, detail });
 
+/** Escape a string for literal use inside a RegExp (backslash first). */
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /** Things worth seeing before publishing, none of which should stop a release. */
 const notes = [];
 
@@ -63,7 +66,7 @@ check(
 );
 
 check(
-  new RegExp(`^## \\[${version.replace(/\./g, "\\.")}\\] — \\d{4}-\\d{2}-\\d{2}$`, "m").test(read("CHANGELOG.md")),
+  new RegExp(`^## \\[${escapeRegExp(version)}\\] — \\d{4}-\\d{2}-\\d{2}$`, "m").test(read("CHANGELOG.md")),
   "CHANGELOG has a dated section for this version",
   `no "## [${version}] — YYYY-MM-DD" heading`,
 );
@@ -79,7 +82,7 @@ if (tagged) {
   check(
     atTag === version,
     `${tag} points at a commit declaring ${version}`,
-    `it points at ${tagged.slice(0, 7)}, which declares ${atTag ?? "nothing readable"} — retag with: git tag -f -a ${tag} -m "…" HEAD`,
+    `it points at ${tagged.slice(0, 7)}, which declares ${atTag ?? "nothing readable"}. Retag with: git tag -f -a ${tag} -m "…" HEAD`,
   );
 
   const pkgAtTag = git("show", `${tag}:package.json`);
@@ -120,7 +123,7 @@ check(
   audit !== null && audit.blocking.length === 0,
   "no advisory reaches the published artifact",
   audit === null
-    ? "the audit gate could not be run — see: npm run audit"
+    ? "the audit gate could not be run; see: npm run audit"
     : `${audit.blocking.length} blocking: ${audit.blocking.map((a) => `${a.package} (${a.severity})`).join(", ")}`,
 );
 
@@ -134,12 +137,12 @@ for (const s of audit?.suppressed ?? []) {
 }
 
 // ── Report ──────────────────────────────────────────────────────────────────
-console.log(`\nRelease pre-flight — ${tag}\n`);
+console.log(`\nRelease pre-flight: ${tag}\n`);
 for (const { ok, label, detail } of results) {
   console.log(`  ${ok ? "✔" : "✘"} ${label}${ok || !detail ? "" : `\n      ${detail}`}`);
 }
 for (const note of notes) console.log(`  · ${note}`);
 
 const failed = results.filter((r) => !r.ok).length;
-console.log(failed === 0 ? `\nReady to publish ${tag}.\n` : `\n${failed} check(s) failed — do not publish ${tag} yet.\n`);
+console.log(failed === 0 ? `\nReady to publish ${tag}.\n` : `\n${failed} check(s) failed. Do not publish ${tag} yet.\n`);
 process.exit(failed === 0 ? 0 : 1);

@@ -231,7 +231,7 @@ describe("<LinkGraph> derived links", () => {
 // ── CasesPanel: the optional lock ────────────────────────────────────────────
 
 describe("<CasesPanel> when the case store is locked", () => {
-  it("shows only the unlock form — no list, no wipe, no export", async () => {
+  it("shows only the unlock form: no list, no wipe, no export", async () => {
     stubApi(() => jsonRes({ error: "Case store locked", locked: true }, 401));
     render(<CasesPanel />);
     expect(await screen.findByText(/CASE STORE LOCKED/)).toBeTruthy();
@@ -325,7 +325,7 @@ describe("<CasesPanel> renders the persisted graph and history", () => {
     };
     stubApi(() => jsonRes({ cases: [rich] }));
     const { container } = await act(async () => render(<CasesPanel />));
-    expect(await screen.findByText(/CHANGE HISTORY — 2 snapshots/)).toBeTruthy();
+    expect(await screen.findByText(/CHANGE HISTORY: 2 snapshots/)).toBeTruthy();
     expect(container.querySelectorAll('line[stroke-dasharray="5 4"]')).toHaveLength(1);
     expect(screen.getByText("8")).toBeTruthy();
   });

@@ -240,7 +240,7 @@ function classify() {
 // ── Output ──────────────────────────────────────────────────────────────────
 
 const line = (a) =>
-  `${a.severity.padEnd(8)} ${a.package}${a.range ? `@${a.range}` : ""} — ${a.title}` +
+  `${a.severity.padEnd(8)} ${a.package}${a.range ? `@${a.range}` : ""}: ${a.title}` +
   `${a.url ? `\n           ${a.url}` : ""}` +
   `${a.fixAvailable ? "" : "\n           no fix published upstream"}` +
   `${a.note ? `\n           ${a.note}` : ""}`;
@@ -264,10 +264,10 @@ function main() {
       for (const a of reported) console.log(`    ${line(a)}\n`);
     }
     for (const a of suppressed) {
-      console.log(`  – suppressed until ${a.expires}: ${a.package} ${a.id}\n           ${a.reason}\n`);
+      console.log(`  - suppressed until ${a.expires}: ${a.package} ${a.id}\n           ${a.reason}\n`);
     }
     for (const e of staleAllowlist) {
-      console.log(`  – stale allowlist entry (matches nothing): ${e.package ?? "?"} ${e.advisory ?? "?"} — remove it from ${ALLOWLIST}\n`);
+      console.log(`  - stale allowlist entry (matches nothing): ${e.package ?? "?"} ${e.advisory ?? "?"}. Remove it from ${ALLOWLIST}\n`);
     }
   }
 
@@ -307,7 +307,7 @@ function main() {
   if (blocking.length) {
     if (!asJson) {
       console.log(
-        `${blocking.length} advisory/advisories reach the published artifact — this release is blocked.\n` +
+        `${blocking.length} advisory/advisories reach the published artifact. This release is blocked.\n` +
           `Fix them (\`npm audit fix\`), or, if upstream has no fix, add a reasoned time-boxed entry to ${ALLOWLIST}.\n`,
       );
     }

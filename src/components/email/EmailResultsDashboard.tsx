@@ -9,10 +9,14 @@ import {
 } from "lucide-react";
 import type { EmailLookupResponse } from "@/lib/types";
 import { emailToUsernameCandidate } from "@/lib/data/usernameSites";
+import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
+import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
 import EmailOsintPivots from "@/components/email/EmailOsintPivots";
 import BreachPanel      from "@/components/breach/BreachPanel";
 import InfostealerPanel from "@/components/breach/InfostealerPanel";
 import LeakCheckPanel   from "@/components/breach/LeakCheckPanel";
+import BreachAggregatePanel from "@/components/breach/BreachAggregatePanel";
+import CredentialExposurePanel from "@/components/breach/CredentialExposurePanel";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import { cn, copyText, safeExternalUrl } from "@/lib/utils";
@@ -129,10 +133,19 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
   const now = new Date().toISOString();
 
   const xonData = xon?.ok ? xon.data : null;
+  // Prefer the server-computed union (enriched from the HIBP catalog); fall back
+  // to a client recompute only for a cached response from before that field.
+  const breachAgg = data.breachAggregate ?? aggregateBreaches({ xon, leakCheck, breachDirectory });
+  // The server computes this with COMB; a pre-COMB cached response falls back to
+  // breach + infostealer evidence (Hudson Rock's masked captures survive in the
+  // response, so unlike COMB they can be recomputed here). COMB itself can't be
+  // recomputed client-side, so it degrades to none for those old caches.
+  const credExposure = data.credentialExposure
+    ?? assessCredentialExposure(null, breachAgg.withPassword, stealerCredentialSummary(hudsonRock.data));
 
   const lines = [
     asciiLetterhead([
-      `${BRAND.name} — Email Intelligence Report`,
+      `${BRAND.name}: Email Intelligence Report`,
       BRAND.tagline,
       ``,
       `Generated   : ${now}`,
@@ -151,7 +164,30 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
     `  Role Address    : ${analysis.isRoleAddress ? "YES" : "No"}`,
     `  Guessed Name    : ${analysis.guessedName ?? "N/A"}`,
     ``,
-    `BREACH DATABASE — XposedOrNot`,
+    `UNIFIED BREACH VIEW: all sources merged`,
+    sep,
+    `  Unique Breaches : ${breachAgg.sourcesAnswered.length > 0 ? breachAgg.total : "N/A: no breach source answered"}`,
+    ...(breachAgg.total > 0 ? [
+      `  Sources         : ${breachAgg.sourcesReporting.join(", ")}`,
+      `  With Passwords  : ${breachAgg.withPassword}`,
+      ...(breachAgg.enrichedCount > 0 ? [`  Catalog Enriched: ${breachAgg.enrichedCount} (HIBP offline catalog)`] : []),
+      ...(breachAgg.dataClasses.length > 0 ? [`  Exposed Types   : ${breachAgg.dataClasses.join(", ")}`] : []),
+    ] : []),
+    ...(credExposure.exposed ? [
+      ``,
+      `PASSWORD EXPOSURE`,
+      sep,
+      `  Assessment      : ${credExposure.reuse === "likely" ? "PASSWORD REUSE LIKELY" : "PASSWORD EXPOSED"}`,
+      `  Password Breaches: ${credExposure.passwordBreaches}`,
+      ...(credExposure.pairs > 0 ? [
+        `  Leaked Passwords : ${credExposure.capped ? "at least " : ""}${credExposure.distinctPasswords} distinct (${credExposure.pairs} pairs, masked)`,
+      ] : []),
+      ...(credExposure.stealerLogs > 0 ? [
+        `  Stealer Captures : ${credExposure.stealerPasswords} distinct across ${credExposure.stealerLogs} infostealer log${credExposure.stealerLogs === 1 ? "" : "s"} (masked)`,
+      ] : []),
+    ] : []),
+    ``,
+    `BREACH DATABASE: XposedOrNot`,
     sep,
     `  Total Breaches  : ${xonData ? xonData.breachCount : "N/A"}`,
     ...(xonData && xonData.breaches.length > 0 ? [
@@ -167,9 +203,9 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
           `           PW Risk : ${b.passwordRisk}`,
           `           Verified: ${b.verified ? "Yes" : "No"}`,
         ].join("\n")),
-    ] : [`  Result          : ${xon?.ok ? "CLEAN — no breaches found" : (xon?.error ?? "N/A")}`]),
+    ] : [`  Result          : ${xon?.ok ? "CLEAN: no breaches found" : (xon?.error ?? "N/A")}`]),
     ``,
-    `CREDENTIAL HASHES — BreachDirectory`,
+    `CREDENTIAL HASHES: BreachDirectory`,
     sep,
     ...(breachDirectory?.ok && breachDirectory.data && breachDirectory.data.found > 0 ? [
       `  Records Found   : ${breachDirectory.data.found}`,
@@ -184,13 +220,13 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
       ].filter(Boolean).join("\n")),
     ] : [`  Status          : ${
       !breachDirectory?.ok && breachDirectory?.error === "NOT_CONFIGURED"
-        ? "NOT CONFIGURED — add RAPIDAPI_KEY to .env.local"
+        ? "NOT CONFIGURED: add RAPIDAPI_KEY to .env.local"
         : breachDirectory?.ok && breachDirectory.data?.found === 0
-        ? "CLEAN — no credentials found in BreachDirectory"
+        ? "CLEAN: no credentials found in BreachDirectory"
         : (breachDirectory?.error ?? "N/A")
     }`]),
     ``,
-    `INFOSTEALER EXPOSURE — Hudson Rock (free, no key)`,
+    `INFOSTEALER EXPOSURE: Hudson Rock (free, no key)`,
     sep,
     ...(hudsonRock.ok && hudsonRock.data
       ? hudsonRock.data.total > 0
@@ -207,10 +243,10 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
               st.topLogins.length ? `         Logins   : ${st.topLogins.join(", ")}` : "",
             ].filter(Boolean).join("\n")),
           ]
-        : [`  Result          : CLEAN — no infostealer infections recorded`]
+        : [`  Result          : CLEAN: no infostealer infections recorded`]
       : [`  Status          : ${hudsonRock.error ?? "N/A"}`]),
     ``,
-    `PUBLIC BREACH INDEX — LeakCheck (free, no key)`,
+    `PUBLIC BREACH INDEX: LeakCheck (free, no key)`,
     sep,
     ...(leakCheck.ok && leakCheck.data
       ? leakCheck.data.found > 0
@@ -219,10 +255,10 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
             `  Exposed Fields  : ${leakCheck.data.fields.join(", ") || "N/A"}`,
             `  Named Breaches  : ${leakCheck.data.sources.map((x) => x.date ? `${x.name} (${x.date})` : x.name).join(", ") || "N/A"}`,
           ]
-        : [`  Result          : NOT INDEXED — no breach records for this address`]
+        : [`  Result          : NOT INDEXED: no breach records for this address`]
       : [`  Status          : ${leakCheck.error ?? "N/A"}`]),
     ``,
-    `IDENTITY — FullContact Person Enrichment`,
+    `IDENTITY: FullContact Person Enrichment`,
     sep,
     ...(fullContact?.ok && fullContact.data ? [
       `  Full Name       : ${fullContact.data.fullName ?? "N/A"}`,
@@ -243,12 +279,12 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
         : "",
       ...(fullContact.data.employment.length > 0 ? [
         `  Employment:`,
-        ...fullContact.data.employment.map((e) => `    ${e.current ? "[CURRENT]" : "[PAST]"} ${e.name}${e.title ? ` — ${e.title}` : ""}`),
+        ...fullContact.data.employment.map((e) => `    ${e.current ? "[CURRENT]" : "[PAST]"} ${e.name}${e.title ? `: ${e.title}` : ""}`),
       ] : []),
     ].filter(Boolean) : [
       `  Status          : ${
         fullContact?.error === "NOT_CONFIGURED"
-          ? "NOT CONFIGURED — add FULLCONTACT_API_KEY to .env.local"
+          ? "NOT CONFIGURED: add FULLCONTACT_API_KEY to .env.local"
           : fullContact?.error === "NOT_FOUND"
           ? "No record found for this email"
           : (fullContact?.error ?? "N/A")
@@ -267,12 +303,12 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
       `  Linked Accounts : ${gravatar.accounts.map((a) => `${a.shortname}:${a.username}`).join(", ") || "None"}`,
     ] : []),
     ``,
-    `REPUTATION — EmailRep.io`,
+    `REPUTATION: EmailRep.io`,
     sep,
     ...(emailrep.ok && emailrep.data ? [
       `  Reputation      : ${emailrep.data.reputation.toUpperCase()}`,
       `  Suspicious      : ${emailrep.data.suspicious ? "YES" : "No"}`,
-      `  Credentials Leaked: ${emailrep.data.credentialsLeaked ? "YES — CRITICAL" : "No"}`,
+      `  Credentials Leaked: ${emailrep.data.credentialsLeaked ? "YES: CRITICAL" : "No"}`,
       `  Data Breach     : ${emailrep.data.dataBreach ? "YES" : "No"}`,
       `  Malicious Activity: ${emailrep.data.maliciousActivity ? "YES" : "No"}`,
       `  Spam            : ${emailrep.data.spam ? "YES" : "No"}`,
@@ -282,7 +318,7 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
       `  Profiles        : ${emailrep.data.profiles.join(", ") || "None"}`,
     ] : [`  Status          : ${emailrep.ok ? "No data" : (emailrep.error ?? "Error")}`]),
     ``,
-    `EMAIL VALIDATION — Abstract API`,
+    `EMAIL VALIDATION: Abstract API`,
     sep,
     ...(abstract.ok && abstract.data ? [
       `  Deliverability  : ${abstract.data.deliverability}`,
@@ -291,7 +327,7 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
       `  MX Found        : ${abstract.data.isMxFound ? "Yes" : "No"}`,
     ] : [`  Status          : ${abstract.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : (abstract.error ?? "Error")}`]),
     ``,
-    `DELIVERABILITY — Hunter.io`,
+    `DELIVERABILITY: Hunter.io`,
     sep,
     ...(hunter.ok && hunter.data ? [
       `  Result          : ${hunter.data.result.toUpperCase()}`,
@@ -300,7 +336,7 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
     ] : [`  Status          : ${hunter.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : (hunter.error ?? "Error")}`]),
     ``,
     sep,
-    `Report generated by ${BRAND.name} — for authorized use only.`,
+    `Report generated by ${BRAND.name}: for authorized use only.`,
     `All intelligence should be verified before use in assessments.`,
   ];
 
@@ -374,8 +410,13 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
   ];
 
   // ── At-a-glance summary + section jump ──
-  const xonData = xon?.ok ? xon.data : null;
-  const breachCount = xonData ? xonData.breachCount : null;
+  // Prefer the server's enriched union; recompute only for an old cached shape.
+  const breachAgg = data.breachAggregate ?? aggregateBreaches({ xon, leakCheck, breachDirectory });
+  const credExposure = data.credentialExposure
+    ?? assessCredentialExposure(null, breachAgg.withPassword, stealerCredentialSummary(hudsonRock.data));
+  // The at-a-glance number is the union across every breach source that
+  // answered, not XposedOrNot's share of it. `null` only when nothing answered.
+  const breachCount = breachAgg.sourcesAnswered.length > 0 ? breachAgg.total : null;
   const threatColor = threatScore >= 70 ? "#ff1a1a" : threatScore >= 40 ? "#ff6600" : threatScore >= 20 ? "#ffaa00" : "#00ff41";
   const glanceTiles = [
     { label: "Provider", value: analysis.providerType.toUpperCase(), accent: provColor },
@@ -386,7 +427,8 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
   ];
   const jump: JumpItem[] = [
     ...(fcData ? [{ id: "sec-identity", label: "Identity" }] : []),
-    { id: "sec-breach", label: "Breach" },
+    { id: "sec-breach-all", label: "All breaches" },
+    { id: "sec-breach", label: "Breach detail" },
     { id: "sec-infostealer", label: "Infostealer" },
     { id: "sec-leakcheck", label: "Breach index" },
     { id: "sec-class", label: "Classification" },
@@ -537,7 +579,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           <div className="flex items-center justify-between">
             <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/60 flex items-center gap-1.5">
               <User className="w-3 h-3" />
-              FULLCONTACT ENRICHMENT — additional identity data
+              FULLCONTACT ENRICHMENT: additional identity data
             </div>
             <span className="text-[#00d9ff]/60 font-mono text-[11px]">1,000+ data sources</span>
           </div>
@@ -616,7 +658,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
                       {emp.current ? "▶" : "·"}
                     </span>
                     <span className={cn("flex items-center gap-1.5 flex-wrap", emp.current ? "text-[#00ff41]/80" : "text-[#888]")}>
-                      {emp.name}{emp.title ? ` — ${emp.title}` : ""}
+                      {emp.name}{emp.title ? `: ${emp.title}` : ""}
                       {emp.current && <Badge text="CURRENT" color="#00ff41" />}
                     </span>
                   </div>
@@ -627,7 +669,13 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
         </motion.div>
       )}
 
-      {/* ── BREACH DATABASE — Primary intelligence ── */}
+      {/* ── UNIFIED BREACH VIEW — every source merged, deduplicated ── */}
+      <section id="sec-breach-all" className="scroll-mt-24 space-y-4">
+        <BreachAggregatePanel aggregate={breachAgg} subject="email address" />
+        <CredentialExposurePanel exposure={credExposure} subject="email address" />
+      </section>
+
+      {/* ── BREACH DATABASE — per-source detail, kept for provenance ── */}
       <section id="sec-breach" className="scroll-mt-24"><BreachPanel xon={xon} breachDirectory={breachDirectory} /></section>
 
       {/* Hudson Rock and LeakCheck are keyless, so both render on every email
@@ -645,7 +693,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           className="terminal-card p-4 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.03]"
         >
           <div className="text-[12px] uppercase tracking-widest text-[#ff3e3e]/92 mb-3 flex items-center gap-1.5">
-            <AlertTriangle className="w-3 h-3" /> ADDITIONAL RISK FLAGS — EmailRep.io
+            <AlertTriangle className="w-3 h-3" /> ADDITIONAL RISK FLAGS: EmailRep.io
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {repData.credentialsLeaked && (
@@ -683,16 +731,16 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
         <div className="terminal-card p-4 space-y-1">
           <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
             {PROVIDER_ICONS[analysis.providerType]}
-            EMAIL CLASSIFICATION — offline
+            EMAIL CLASSIFICATION: offline
           </div>
           <InfoRow label="Provider" value={analysis.providerName} accent={provColor} />
           <InfoRow label="Type" value={analysis.providerType.toUpperCase()} accent={provColor} />
           <InfoRow label="Domain" value={analysis.domain} />
           <InfoRow label="Username" value={analysis.username} />
-          <InfoRow label="Disposable" value={analysis.isDisposable ? "YES — THROWAWAY" : "No"} accent={analysis.isDisposable ? "#ff3e3e" : "#00ff41"} />
-          <InfoRow label="Privacy" value={analysis.isPrivacyFocused ? "YES — Encrypted / Anonymous" : "No"} accent={analysis.isPrivacyFocused ? "#888" : "#00ff41"} />
+          <InfoRow label="Disposable" value={analysis.isDisposable ? "YES: THROWAWAY" : "No"} accent={analysis.isDisposable ? "#ff3e3e" : "#00ff41"} />
+          <InfoRow label="Privacy" value={analysis.isPrivacyFocused ? "YES: Encrypted / Anonymous" : "No"} accent={analysis.isPrivacyFocused ? "#888" : "#00ff41"} />
           <InfoRow label="Webmail" value={analysis.isWebmail ? "Yes" : "No"} />
-          <InfoRow label="Role Address" value={analysis.isRoleAddress ? "YES — generic inbox" : "No"} accent={analysis.isRoleAddress ? "#ffaa00" : "#00ff41"} />
+          <InfoRow label="Role Address" value={analysis.isRoleAddress ? "YES: generic inbox" : "No"} accent={analysis.isRoleAddress ? "#ffaa00" : "#00ff41"} />
           {analysis.guessedName && (
             <InfoRow label="Inferred Name" value={`${analysis.guessedName} (pattern)`} accent="#00d9ff" />
           )}
@@ -702,7 +750,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
         <div className="terminal-card p-4 space-y-1">
           <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
             <User className="w-3 h-3" />
-            GRAVATAR PROFILE — real identity
+            GRAVATAR PROFILE: real identity
           </div>
           {gravatar.found ? (
             <>
@@ -734,7 +782,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
             </>
           ) : (
             <div className="text-center py-6 text-[#00ff41]/65 font-mono text-xs">
-              No Gravatar profile — email not linked to a public profile.
+              No Gravatar profile: email not linked to a public profile.
             </div>
           )}
         </div>
@@ -746,7 +794,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
         {/* EmailRep.io */}
         <div className="terminal-card p-4 space-y-1">
           <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
-            <Shield className="w-3 h-3" /> REPUTATION — EmailRep.io
+            <Shield className="w-3 h-3" /> REPUTATION: EmailRep.io
           </div>
           {repData ? (
             <>
@@ -780,9 +828,9 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           ) : (
             <div className="text-center py-6 text-[#888] text-xs font-mono">
               {emailrep.error === "NOT_CONFIGURED"
-                ? "Add EMAILREP_API_KEY — free tier available"
+                ? "Add EMAILREP_API_KEY: free tier available"
                 : emailrep.error === "RATE_LIMITED"
-                ? "Rate limited — try again shortly"
+                ? "Rate limited: try again shortly"
                 : "EmailRep.io did not return data"}
             </div>
           )}
@@ -792,7 +840,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
         <div className="space-y-4">
           <div className="terminal-card p-4 space-y-1">
             <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3 h-3" /> VALIDATION — Abstract API
+              <CheckCircle2 className="w-3 h-3" /> VALIDATION: Abstract API
             </div>
             {abstractData ? (
               <>
@@ -810,14 +858,14 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
               </>
             ) : (
               <div className="text-center py-3 text-[#888] text-[13px] font-mono">
-                {abstract.error === "NOT_CONFIGURED" ? "Add ABSTRACT_API_KEY — free 250/month" : abstract.error ?? "No data"}
+                {abstract.error === "NOT_CONFIGURED" ? "Add ABSTRACT_API_KEY: free 250/month" : abstract.error ?? "No data"}
               </div>
             )}
           </div>
 
           <div className="terminal-card p-4 space-y-1">
             <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 mb-3 flex items-center gap-1.5">
-              <Hash className="w-3 h-3" /> DELIVERABILITY — Hunter.io
+              <Hash className="w-3 h-3" /> DELIVERABILITY: Hunter.io
             </div>
             {hunterData ? (
               <>
@@ -832,11 +880,11 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
                 <InfoRow label="Disposable" value={hunterData.disposable ? "YES" : "No"} accent={hunterData.disposable ? "#ff3e3e" : "#00ff41"} />
                 <InfoRow label="Accept All" value={hunterData.acceptAll ? "Yes (catch-all)" : "No"} />
                 <InfoRow label="Blocked" value={hunterData.block ? "YES" : "No"} accent={hunterData.block ? "#ff3e3e" : "#00ff41"} />
-                {hunterData.gibberish && <InfoRow label="Gibberish" value="YES — fake-looking" accent="#ffaa00" />}
+                {hunterData.gibberish && <InfoRow label="Gibberish" value="YES: fake-looking" accent="#ffaa00" />}
               </>
             ) : (
               <div className="text-center py-3 text-[#888] text-[13px] font-mono">
-                {hunter.error === "NOT_CONFIGURED" ? "Add HUNTER_API_KEY — free 25/month" : hunter.error ?? "No data"}
+                {hunter.error === "NOT_CONFIGURED" ? "Add HUNTER_API_KEY: free 25/month" : hunter.error ?? "No data"}
               </div>
             )}
           </div>

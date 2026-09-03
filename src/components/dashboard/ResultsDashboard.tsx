@@ -7,6 +7,8 @@ import {
 import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
 import type { LookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
+import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
+import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
 import SourceTabs            from "@/components/dashboard/SourceTabs";
 import OsintPivots           from "@/components/osint/OsintPivots";
 import NumberAnatomyPanel    from "@/components/phone/NumberAnatomyPanel";
@@ -20,6 +22,8 @@ import QrCodePanel           from "@/components/osint/QrCodePanel";
 import BreachPanel           from "@/components/breach/BreachPanel";
 import InfostealerPanel      from "@/components/breach/InfostealerPanel";
 import LeakCheckPanel         from "@/components/breach/LeakCheckPanel";
+import BreachAggregatePanel  from "@/components/breach/BreachAggregatePanel";
+import CredentialExposurePanel from "@/components/breach/CredentialExposurePanel";
 import ShareButton           from "@/components/shared/ShareButton";
 import ReportExport          from "@/components/shared/ReportExport";
 import PanelErrorBoundary    from "@/components/shared/PanelErrorBoundary";
@@ -118,8 +122,14 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
   ];
 
   // ── At-a-glance quick answers (the facts otherwise buried across ~12 panels) ──
-  const bd = sources.breachDirectory;
-  const bdFound = bd.ok && bd.data ? bd.data.found : null;
+  // Phone breach exposure, merged across the keyless index (LeakCheck) and the
+  // keyed hash source (BreachDirectory), so the headline is not gated on a key.
+  // Prefer the server's catalog-enriched union; recompute only for a cached
+  // response from before that field existed.
+  const breachAgg = data.breachAggregate ?? aggregateBreaches({ leakCheck: sources.leakCheck, breachDirectory: sources.breachDirectory });
+  const credExposure = data.credentialExposure
+    ?? assessCredentialExposure(null, breachAgg.withPassword, stealerCredentialSummary(sources.hudsonRock.data));
+  const breachTotal = breachAgg.sourcesAnswered.length > 0 ? breachAgg.total : null;
   const hr = sources.hudsonRock;
   const hrTotal = hr.ok && hr.data ? hr.data.total : null;
   const npa = data.analysis.npaInfo;
@@ -127,12 +137,13 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
     { label: "Line type", value: aggregated.lineType || aggregated.typeDescription || "Unknown" },
     { label: "Carrier", value: aggregated.carrier ?? "—" },
     { label: "Location", value: npa?.region ? `${npa.region}${npa.stateAbbr ? `, ${npa.stateAbbr}` : ""}` : aggregated.countryName },
-    { label: "Breach", value: bdFound != null ? (bdFound > 0 ? `${bdFound} found` : "None") : "Needs key", accent: bdFound && bdFound > 0 ? "#ff3e3e" : undefined },
+    { label: "Breach", value: breachTotal != null ? (breachTotal > 0 ? `${breachTotal} found` : "None") : "Needs key", accent: breachTotal && breachTotal > 0 ? "#ff3e3e" : undefined },
     { label: <Term k="infostealer">Infostealer</Term>, value: hrTotal != null ? (hrTotal > 0 ? `${hrTotal} device${hrTotal > 1 ? "s" : ""}` : "None") : "—", accent: hrTotal && hrTotal > 0 ? "#ff3e3e" : undefined },
   ];
   const JUMP: JumpItem[] = [
     { id: "sec-identity", label: "Identity" },
-    { id: "sec-breach", label: "Breach" },
+    { id: "sec-breach-all", label: "All breaches" },
+    { id: "sec-breach", label: "Breach detail" },
     { id: "sec-infostealer", label: "Infostealer" },
     { id: "sec-leakcheck", label: "Breach index" },
     { id: "sec-pentest", label: "Pentest" },
@@ -247,6 +258,12 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
       {/* ── IDENTITY (FullContact + CNAM + free-lookup action center) ───────── */}
       <section id="sec-identity" className="scroll-mt-24"><PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} onUsernameSweep={onUsernameSweep} onEmailLookup={onEmailLookup} /></PanelErrorBoundary></section>
 
+      {/* ── UNIFIED BREACH VIEW — every breach source merged, deduplicated ── */}
+      <section id="sec-breach-all" className="scroll-mt-24 space-y-4"><PanelErrorBoundary label="Unified breach view">
+        <BreachAggregatePanel aggregate={breachAgg} subject="phone number" />
+        <CredentialExposurePanel exposure={credExposure} subject="phone number" />
+      </PanelErrorBoundary></section>
+
       {/* ── BREACH DATA (BreachDirectory + free-lookup action center) ──────── */}
       <section id="sec-breach" className="scroll-mt-24"><PanelErrorBoundary label="Breach search">
         <BreachPanel
@@ -296,7 +313,7 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
       {/* ── Raw source data ─────────────────────────────────────────────────── */}
       <section id="sec-raw" className="space-y-2 scroll-mt-24">
         <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">
-          [ RAW SOURCE DATA ] — API responses
+          [ RAW SOURCE DATA ]: API responses
         </div>
         <PanelErrorBoundary label="Raw sources"><SourceTabs sources={sources} /></PanelErrorBoundary>
       </section>

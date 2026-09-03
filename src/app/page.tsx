@@ -5,10 +5,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Shield, AtSign, Network, Globe } from "lucide-react";
 import type {
-  LookupResponse, EmailLookupResponse, UsernameLookupResponse, IpLookupResponse, DomainLookupResponse,
+  LookupResponse, EmailLookupResponse, UsernameLookupResponse, IpLookupResponse, DomainLookupResponse, WalletLookupResponse, HashLookupResponse,
 } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
-import { MODES, type Mode } from "@/lib/client/modes";
+import { MODES, toMode, detectMode, type Mode } from "@/lib/client/modes";
 import { postLookup } from "@/lib/client/postLookup";
 import type { GraphEntity } from "@/components/graph/LinkGraph";
 
@@ -20,7 +20,11 @@ import EmailResultsDashboard from "@/components/email/EmailResultsDashboard";
 import UsernameResultsDashboard from "@/components/username/UsernameResultsDashboard";
 import IpResultsDashboard from "@/components/network/IpResultsDashboard";
 import DomainResultsDashboard from "@/components/network/DomainResultsDashboard";
+import WalletResultsDashboard from "@/components/wallet/WalletResultsDashboard";
+import HashResultsDashboard from "@/components/hash/HashResultsDashboard";
 import CasesPanel from "@/components/cases/CasesPanel";
+import ImageExifPanel from "@/components/image/ImageExifPanel";
+import EmailHeaderTracePanel from "@/components/email/EmailHeaderTracePanel";
 import AddToCase from "@/components/shared/AddToCase";
 import {
   entitiesFromPhone, entitiesFromEmail, entitiesFromUsername, entitiesFromIp, entitiesFromDomain,
@@ -42,6 +46,7 @@ import ThemeToggle from "@/components/shared/ThemeToggle";
 import EffectsToggle from "@/components/shared/EffectsToggle";
 import SourcesPanel from "@/components/shared/SourcesPanel";
 import HelpPopover from "@/components/shared/HelpPopover";
+import OpsecPanel from "@/components/shared/OpsecPanel";
 import CommandPalette from "@/components/shared/CommandPalette";
 import PanelErrorBoundary from "@/components/shared/PanelErrorBoundary";
 import ConsentGate from "@/components/shared/ConsentGate";
@@ -109,6 +114,14 @@ function PageContent() {
   const [domStatus, setDomStatus] = useState<Status>("idle");
   const [domResult, setDomResult] = useState<DomainLookupResponse | null>(null);
   const [domErr, setDomErr] = useState("");
+
+  const [walletStatus, setWalletStatus] = useState<Status>("idle");
+  const [walletResult, setWalletResult] = useState<WalletLookupResponse | null>(null);
+  const [walletErr, setWalletErr] = useState("");
+
+  const [hashStatus, setHashStatus] = useState<Status>("idle");
+  const [hashResult, setHashResult] = useState<HashLookupResponse | null>(null);
+  const [hashErr, setHashErr] = useState("");
 
   // Session graph — every successful lookup seeds it with the primary identifier
   // AND the identifiers that result derived (a domain's IPs, an IP's reverse host,
@@ -209,19 +222,65 @@ function PageContent() {
     setDomResult(out.data); setDomStatus("done"); addEntities(entitiesFromDomain(out.data));
   }, [syncUrl, addEntities]);
 
+  const runWallet = useCallback(async (address: string) => {
+    setWalletStatus("loading"); setWalletResult(null); setWalletErr(""); syncUrl("wallet", address);
+    const out = await postLookup<WalletLookupResponse>("/api/wallet-lookup", { address });
+    if (!out.ok) { setWalletErr(out.error); setWalletStatus("error"); return; }
+    setWalletResult(out.data); setWalletStatus("done");
+  }, [syncUrl]);
+
+  const runHash = useCallback(async (hash: string) => {
+    setHashStatus("loading"); setHashResult(null); setHashErr(""); syncUrl("hash", hash);
+    const out = await postLookup<HashLookupResponse>("/api/hash-lookup", { hash });
+    if (!out.ok) { setHashErr(out.error); setHashStatus("error"); return; }
+    setHashResult(out.data); setHashStatus("done");
+  }, [syncUrl]);
+
   // Run whatever a shared/bookmarked URL points at: ?mode=…&q=… (defaults to phone
   // for a bare ?q= so older phone share links still work).
+  //
+  // The mode is restored even with no `q`. Bulk, Graph and Cases take no single
+  // query, so a link copied from one of those screens carries only ?mode=… —
+  // and used to open on Phone, which made "COPY LINK" misleading on exactly the
+  // three screens an analyst is most likely to be sharing with a colleague.
   const runDeep = useCallback(() => {
     const q = searchParams.get("q");
+    const urlMode = toMode(searchParams.get("mode"));
+    if (urlMode) setMode(urlMode);
     if (!q) return;
-    switch (searchParams.get("mode")) {
-      case "email":    setMode("email");    void runEmail(q);    break;
-      case "username": setMode("username"); void runUsername(q); break;
-      case "ip":       setMode("ip");       void runIp(q);       break;
-      case "domain":   setMode("domain");   void runDomain(q);   break;
-      default:         void runLookup(q);
+    switch (urlMode) {
+      case "email":    void runEmail(q);    break;
+      case "username": void runUsername(q); break;
+      case "ip":       void runIp(q);       break;
+      case "domain":   void runDomain(q);   break;
+      case "wallet":   void runWallet(q);   break;
+      case "hash":     void runHash(q);     break;
+      // A bare ?q= (an old phone share link) and ?mode=phone both land here.
+      // A `q` alongside a non-lookup mode is nonsense we simply ignore.
+      case "image": case "bulk": case "graph": case "cases": break;
+      default:         setMode("phone"); void runLookup(q);
     }
-  }, [searchParams, runLookup, runEmail, runUsername, runIp, runDomain]);
+  }, [searchParams, runLookup, runEmail, runUsername, runIp, runDomain, runWallet, runHash]);
+
+  // Switching tabs rewrites the URL, so COPY LINK reflects the screen you are
+  // actually on. Bulk, Graph and Cases take no query, so they carry ?mode= only;
+  // a lookup tab re-attaches its own identifier when one is already loaded, so
+  // flipping away to Graph and back does not silently drop the shareable result.
+  const selectMode = useCallback((next: Mode) => {
+    setMode(next);
+    const query =
+      next === "phone"    ? currentE164 :
+      next === "email"    ? emailResult?.email ?? "" :
+      next === "username" ? userResult?.username ?? "" :
+      next === "ip"       ? ipResult?.input ?? "" :
+      next === "domain"   ? domResult?.domain ?? "" :
+      next === "wallet"   ? walletResult?.input ?? "" :
+      next === "hash"     ? hashResult?.input ?? "" : "";
+    const p = new URLSearchParams();
+    p.set("mode", next);
+    if (query) p.set("q", query);
+    router.replace(`?${p.toString()}`, { scroll: false });
+  }, [router, currentE164, emailResult, userResult, ipResult, domResult, walletResult, hashResult]);
 
   const handleBootDone = useCallback(() => {
     setBooted(true);
@@ -254,7 +313,9 @@ function PageContent() {
     else if (m === "username") void runUsername(value);
     else if (m === "ip") void runIp(value);
     else if (m === "domain") void runDomain(value);
-  }, [runLookup, runEmail, runUsername, runIp, runDomain]);
+    else if (m === "wallet") void runWallet(value);
+    else if (m === "hash") void runHash(value);
+  }, [runLookup, runEmail, runUsername, runIp, runDomain, runWallet, runHash]);
 
   // Keyboard shortcuts: 1–8 switch mode, "/" focuses the input. Ignored while the
   // user is typing or holding a modifier (so ⌘K and normal input still work).
@@ -263,9 +324,9 @@ function PageContent() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
-      if (e.key >= "1" && e.key <= "8") {
+      if (e.key >= "1" && e.key <= "9") {
         const m = MODES[Number(e.key) - 1];
-        if (m) { e.preventDefault(); setMode(m.id); }
+        if (m) { e.preventDefault(); selectMode(m.id); }
       } else if (e.key === "/") {
         const input = document.querySelector<HTMLElement>("main input, main textarea");
         if (input) { e.preventDefault(); input.focus(); }
@@ -273,7 +334,7 @@ function PageContent() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [selectMode]);
 
   return (
     <>
@@ -290,6 +351,7 @@ function PageContent() {
             <CommandPalette onMode={setMode} onQuickLookup={onQuickLookup} />
             <RecentLookups onRun={onQuickLookup} />
             <SourcesPanel />
+            <OpsecPanel />
             <HelpPopover />
             <EffectsToggle />
             <ThemeToggle />
@@ -314,7 +376,7 @@ function PageContent() {
                     <span className="gradient-text">GeoIntel</span>
                   </div>
                   <div className="text-[11px] uppercase tracking-widest text-[var(--hv-ink-dim)] mt-0.5">
-                    [ SYSTEM INIT ] — Unified OSINT Platform
+                    [ SYSTEM INIT ]: Unified OSINT Platform
                   </div>
                 </div>
               </div>
@@ -335,10 +397,10 @@ function PageContent() {
                     press <kbd className="px-1 py-0.5 rounded bg-[var(--hv-glass-border)] text-[var(--hv-ink)]">⌘K</kbd> for command palette
                   </div>
                 </div>
-                {/* 8-mode switcher */}
+                {/* 9-mode switcher */}
                 <div className="flex flex-wrap gap-1.5 font-mono text-sm" role="tablist" aria-label="Lookup mode">
                   {MODES.map((m) => (
-                    <button key={m.id} onClick={() => setMode(m.id)} role="tab" aria-selected={mode === m.id}
+                    <button key={m.id} onClick={() => selectMode(m.id)} role="tab" aria-selected={mode === m.id}
                       className={`px-3 py-2 rounded-md border tracking-widest uppercase transition-all text-xs sm:text-sm focus:outline-none ${
                         mode === m.id
                           ? "border-[var(--hv-green)] text-[var(--hv-green)] bg-[var(--hv-green)]/10 shadow-[0_0_14px_-2px_var(--hv-green)]"
@@ -352,7 +414,7 @@ function PageContent() {
 
               {mode === "phone" && (
                 <>
-                  <PhoneInput onLookup={runLookup} onClear={phoneStatus !== "idle" || phoneResult ? () => { setPhoneStatus("idle"); setPhoneResult(null); setPhoneErr(""); setCurrentE164(""); router.replace("/", { scroll: false }); } : undefined} loading={phoneStatus === "loading"} />
+                  <PhoneInput onLookup={runLookup} activeNumber={currentE164} onClear={phoneStatus !== "idle" || phoneResult ? () => { setPhoneStatus("idle"); setPhoneResult(null); setPhoneErr(""); setCurrentE164(""); router.replace("/", { scroll: false }); } : undefined} loading={phoneStatus === "loading"} />
                   {phoneStatus === "idle" && !phoneResult && <ExampleChips items={["+1 415 555 2671", "+44 7911 123456", "+91 98765 43210"]} onPick={runLookup} />}
                 </>
               )}
@@ -364,10 +426,10 @@ function PageContent() {
               )}
               {mode === "username" && (
                 <>
-                  <SimpleLookupInput placeholder="username / handle (no @)" hint="Pulls rich profiles from GitHub, GitLab, Hacker News & Reddit + sweeps dozens more sites — never a false positive."
+                  <SimpleLookupInput placeholder="username / handle (no @)" hint="Pulls rich profiles from GitHub, GitLab, Hacker News, Reddit & Bluesky + sweeps dozens more sites: never a false positive."
                     icon={<AtSign className="w-4 h-4" />} loading={userStatus === "loading"} onLookup={runUsername}
                     onClear={userStatus !== "idle" ? () => { setUserStatus("idle"); setUserResult(null); setUserErr(""); router.replace("/", { scroll: false }); } : undefined}
-                    validate={(v) => /^[a-zA-Z0-9._-]{2,40}$/.test(v.replace(/^@/, "")) ? null : "2–40 chars: letters, digits, . _ -"} />
+                    validate={(v) => /^[a-zA-Z0-9._-]{2,40}$/.test(v.replace(/^@/, "")) ? null : "2-40 chars: letters, digits, . _ -"} />
                   {userStatus === "idle" && <ExampleChips items={["torvalds", "octocat"]} onPick={runUsername} />}
                 </>
               )}
@@ -381,13 +443,32 @@ function PageContent() {
               )}
               {mode === "domain" && (
                 <>
-                  <SimpleLookupInput placeholder="example.com" hint="DNS, WHOIS, SPF/DMARC, subdomains (cert transparency). Free, no key."
+                  <SimpleLookupInput placeholder="example.com" hint="DNS, WHOIS, SPF/DMARC, subdomains, live security headers + TLS. Free, no key."
                     icon={<Globe className="w-4 h-4" />} loading={domStatus === "loading"} onLookup={runDomain}
                     onClear={domStatus !== "idle" ? () => { setDomStatus("idle"); setDomResult(null); setDomErr(""); router.replace("/", { scroll: false }); } : undefined} />
                   {domStatus === "idle" && <ExampleChips items={["github.com", "cloudflare.com"]} onPick={runDomain} />}
                 </>
               )}
+              {mode === "wallet" && (
+                <>
+                  <SimpleLookupInput placeholder="0x… (ETH) or bc1… / 1… / 3… (BTC)" hint="Balance, transaction count + activity straight from the public ledger. Free, no key."
+                    icon={<Network className="w-4 h-4" />} loading={walletStatus === "loading"} onLookup={runWallet}
+                    onClear={walletStatus !== "idle" ? () => { setWalletStatus("idle"); setWalletResult(null); setWalletErr(""); router.replace("/", { scroll: false }); } : undefined}
+                    validate={(v) => detectMode(v.trim()) === "wallet" ? null : "Enter a BTC or ETH address"} />
+                  {walletStatus === "idle" && <ExampleChips items={["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"]} onPick={runWallet} />}
+                </>
+              )}
+              {mode === "hash" && (
+                <>
+                  <SimpleLookupInput placeholder="MD5 / SHA-1 / SHA-256 hex digest" hint="Known-software (NSRL) reputation from CIRCL hashlookup, plus verdict-engine pivots. Free, no key."
+                    icon={<Network className="w-4 h-4" />} loading={hashStatus === "loading"} onLookup={runHash}
+                    onClear={hashStatus !== "idle" ? () => { setHashStatus("idle"); setHashResult(null); setHashErr(""); router.replace("/", { scroll: false }); } : undefined}
+                    validate={(v) => detectMode(v.trim()) === "hash" ? null : "Enter a 32/40/64-char hex hash"} />
+                  {hashStatus === "idle" && <ExampleChips items={["8ed4b4ed952526d89899e723f3488de4", "da39a3ee5e6b4b0d3255bfef95601890afd80709"]} onPick={runHash} />}
+                </>
+              )}
               {mode === "bulk" && <BulkLookup />}
+              {mode === "image" && <PanelErrorBoundary label="Image EXIF"><ImageExifPanel /></PanelErrorBoundary>}
             </div>
           )}
 
@@ -396,20 +477,27 @@ function PageContent() {
             <div className="mb-4"><HistorySidebar onSelect={runLookup} currentE164={currentE164} /></div>
           )}
 
+          {/* Email header trace — always available in email mode (no lookup needed) */}
+          {!isBooting && mode === "email" && (
+            <div className="mb-4"><PanelErrorBoundary label="Header trace"><EmailHeaderTracePanel onIpLookup={(ip) => { setMode("ip"); void runIp(ip); }} /></PanelErrorBoundary></div>
+          )}
+
           {/* Loading states */}
           {((mode === "phone" && phoneStatus === "loading") || (mode === "email" && emailStatus === "loading")
             || (mode === "username" && userStatus === "loading") || (mode === "ip" && ipStatus === "loading")
-            || (mode === "domain" && domStatus === "loading")) && <><ScanProgress mode={mode} /><LoadingSkeletons /></>}
+            || (mode === "domain" && domStatus === "loading") || (mode === "wallet" && walletStatus === "loading")
+            || (mode === "hash" && hashStatus === "loading")) && <><ScanProgress mode={mode} /><LoadingSkeletons /></>}
 
           {/* Errors */}
           {((mode === "phone" && phoneStatus === "error" && phoneErr) || (mode === "email" && emailStatus === "error" && emailErr)
             || (mode === "username" && userStatus === "error" && userErr) || (mode === "ip" && ipStatus === "error" && ipErr)
-            || (mode === "domain" && domStatus === "error" && domErr)) && (
+            || (mode === "domain" && domStatus === "error" && domErr) || (mode === "wallet" && walletStatus === "error" && walletErr)
+            || (mode === "hash" && hashStatus === "error" && hashErr)) && (
             <div className="mt-6 terminal-card p-5 border" style={{ borderColor: "#ff4d6d50" }}>
               <div className="text-[13px] uppercase tracking-widest text-[#ff4d6d]/87 mb-2">[ LOOKUP FAILED ]</div>
               <div className="text-[#ff4d6d] font-mono text-sm">
                 <span className="opacity-60">[ERROR] </span>
-                {mode === "phone" ? phoneErr : mode === "email" ? emailErr : mode === "username" ? userErr : mode === "ip" ? ipErr : domErr}
+                {mode === "phone" ? phoneErr : mode === "email" ? emailErr : mode === "username" ? userErr : mode === "ip" ? ipErr : mode === "domain" ? domErr : mode === "wallet" ? walletErr : hashErr}
               </div>
             </div>
           )}
@@ -420,6 +508,9 @@ function PageContent() {
           {mode === "username" && userStatus === "done"  && userResult  && <PanelErrorBoundary label="Username results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromUsername(userResult)} edges={edgesFromPivots({ kind: "username", value: userResult.username }, pivotsFromUsername(userResult))} snapshot={{ kind: "username", value: userResult.username, facts: factsFromUsername(userResult), fromCache: userResult.cachedAt !== undefined }} /></div><UsernameResultsDashboard data={userResult} /><div className="mt-4"><AutoPivots pivots={pivotsFromUsername(userResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
           {mode === "ip"       && ipStatus === "done"    && ipResult    && <PanelErrorBoundary label="IP results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromIp(ipResult)} edges={edgesFromPivots({ kind: "ip", value: ipResult.input }, pivotsFromIp(ipResult))} snapshot={{ kind: "ip", value: ipResult.input, facts: factsFromIp(ipResult), fromCache: ipResult.cachedAt !== undefined }} /></div><IpResultsDashboard data={ipResult} onDomainLookup={(d) => { setMode("domain"); void runDomain(d); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromIp(ipResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
           {mode === "domain"   && domStatus === "done"   && domResult   && <PanelErrorBoundary label="Domain results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromDomain(domResult)} edges={edgesFromPivots({ kind: "domain", value: domResult.domain }, pivotsFromDomain(domResult))} snapshot={{ kind: "domain", value: domResult.domain, facts: factsFromDomain(domResult), fromCache: domResult.cachedAt !== undefined }} /></div><DomainResultsDashboard data={domResult} onIpLookup={(v) => { setMode("ip"); void runIp(v); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromDomain(domResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
+
+          {mode === "wallet"   && walletStatus === "done" && walletResult && <PanelErrorBoundary label="Wallet results"><WalletResultsDashboard data={walletResult} /></PanelErrorBoundary>}
+          {mode === "hash"     && hashStatus === "done"   && hashResult   && <PanelErrorBoundary label="Hash results"><HashResultsDashboard data={hashResult} /></PanelErrorBoundary>}
 
           {!isBooting && mode === "graph" && (
             <div className="mt-6"><PanelErrorBoundary label="Graph"><LinkGraph entities={sessionEntities} title="SESSION LINK GRAPH" onChange={setSessionEntities} /></PanelErrorBoundary></div>
@@ -432,7 +523,7 @@ function PageContent() {
             OSINT METADATA ONLY · NO REAL-TIME LOCATION · USE RESPONSIBLY
           </div>
           <div className="text-center text-[11px] font-mono text-[var(--hv-ink-dim)] opacity-60 mt-1 tracking-wide">
-            Phone · Email · Username · IP · Domain · Link-analysis · Persistent cases · Offline-first
+            Phone · Email · Username · IP · Domain · Wallet · Hash · Image/EXIF · Link-analysis · Persistent cases · Offline-first
           </div>
           <div className="text-center text-[11px] font-mono text-[var(--hv-ink-dim)] mt-2 tracking-wide">
             Created &amp; developed by <span className="text-[var(--hv-cyan)] font-bold">Nisarg Chasmawala (Shroff)</span>

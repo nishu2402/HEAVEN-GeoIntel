@@ -6,7 +6,7 @@ import { analyzeEmail } from "@/lib/analysis/emailAnalysis";
 // project's core rule is "no false positives", so the name-guesser in particular
 // must stay conservative (only an explicit first.last pattern yields a name).
 
-describe("analyzeEmail — field extraction", () => {
+describe("analyzeEmail: field extraction", () => {
   it("splits username/domain/tld and normalises case + whitespace", () => {
     const a = analyzeEmail("  John.Doe@Example.COM  ");
     expect(a.email).toBe("john.doe@example.com");
@@ -17,7 +17,7 @@ describe("analyzeEmail — field extraction", () => {
   });
 });
 
-describe("analyzeEmail — provider classification", () => {
+describe("analyzeEmail: provider classification", () => {
   it("flags disposable domains", () => {
     for (const d of ["mailinator.com", "guerrillamail.com", "10minutemail.com"]) {
       const a = analyzeEmail(`x@${d}`);
@@ -73,7 +73,7 @@ describe("analyzeEmail — provider classification", () => {
   });
 });
 
-describe("analyzeEmail — role addresses & name guessing (no false positives)", () => {
+describe("analyzeEmail: role addresses & name guessing (no false positives)", () => {
   it("detects role addresses and never guesses a name for them", () => {
     for (const p of ["support", "admin", "info", "noreply"]) {
       const a = analyzeEmail(`${p}@example.io`);

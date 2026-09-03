@@ -43,7 +43,7 @@ describe("GET /api/cases", () => {
   });
 });
 
-describe("POST /api/cases — happy-path actions", () => {
+describe("POST /api/cases: happy-path actions", () => {
   it("creates, renames, sets notes, adds and removes an entity", async () => {
     const created = await (await POST(req({ action: "create", name: "Op Aurora" }))).json();
     expect(created.case.name).toBe("Op Aurora");
@@ -73,7 +73,7 @@ describe("POST /api/cases — happy-path actions", () => {
   });
 });
 
-describe("POST /api/cases — merge", () => {
+describe("POST /api/cases: merge", () => {
   it("merges a source case into the target and deletes the source", async () => {
     const target = await (await POST(req({ action: "create", name: "Target" }))).json();
     await POST(req({ action: "addEntity", id: target.case.id, kind: "phone", value: "+14155552671" }));
@@ -102,7 +102,7 @@ describe("POST /api/cases — merge", () => {
   });
 });
 
-describe("POST /api/cases — validation + error mapping", () => {
+describe("POST /api/cases: validation + error mapping", () => {
   it("400 on invalid JSON", async () => {
     const res = await POST(req("{ broken"));
     expect(res.status).toBe(400);

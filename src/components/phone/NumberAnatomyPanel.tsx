@@ -44,7 +44,7 @@ function getPrimaryType(data: LookupResponse): TypeMeta {
   if (analysis.isTollFree)               return { label: "TOLL-FREE",        color: "#00d9ff", icon: <Building2 className="w-4 h-4" />,    description: "Inbound calls billed to the organization, not the caller. Almost always a business or service line." };
   if (analysis.isSharedCost)             return { label: "SHARED COST",      color: "#ffaa00", icon: <Building2 className="w-4 h-4" />,    description: "Caller and recipient share the cost. Common for support and helpdesk lines." };
   if (analysis.isPersonalNumber)         return { label: "PERSONAL NUMBER",  color: "#888",    icon: <PhoneIcon className="w-4 h-4" />,    description: "A reroute-anywhere personal number. Owner controls forwarding behind the scenes." };
-  if (analysis.isPager)                  return { label: "PAGER",            color: "#888",    icon: <Radio className="w-4 h-4" />,        description: "Legacy pager number — extremely rare in 2026." };
+  if (analysis.isPager)                  return { label: "PAGER",            color: "#888",    icon: <Radio className="w-4 h-4" />,        description: "Legacy pager number: extremely rare in 2026." };
   if (aggregated.isMobile === true)      return { label: "MOBILE",           color: "#00ff41", icon: <Smartphone className="w-4 h-4" />,   description: "Confirmed mobile SIM. Reachable 24/7. SMS deliverable, SIM-swap surface present." };
   if (aggregated.isFixedLine === true)   return { label: "FIXED LINE",       color: "#00d9ff", icon: <Building2 className="w-4 h-4" />,    description: "Confirmed landline. Reachable at a static location. Frequently a residence or office." };
   if (aggregated.isAmbiguousType)        return { label: "MOBILE OR FIXED",  color: "#888",    icon: <PhoneIcon className="w-4 h-4" />,    description: "libphonenumber cannot tell mobile from landline by structure in this country. Carrier-API check needed." };
@@ -84,7 +84,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
 
   // Format rows — primary 4 + permutations rolled into one collapsible block via tabs
   const formats: { label: string; value: string; note?: string }[] = [
-    { label: "E.164",              value: aggregated.formatE164,          note: "ITU canonical — use in APIs" },
+    { label: "E.164",              value: aggregated.formatE164,          note: "ITU canonical: use in APIs" },
     { label: "International",      value: aggregated.formatInternational, note: "Display with spaces" },
     { label: "National",           value: aggregated.formatNational,      note: "Local format" },
     { label: "RFC 3966",           value: aggregated.formatRfc3966,       note: "tel: URI for click-to-call" },
@@ -98,7 +98,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
       className="terminal-card p-4 sm:p-5 space-y-5"
     >
       <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/65 border-b border-[#00ff41]/15 pb-2 flex items-center gap-2">
-        <Hash className="w-3.5 h-3.5" /> [ NUMBER ANATOMY ] — structure, type, formats
+        <Hash className="w-3.5 h-3.5" /> [ NUMBER ANATOMY ]: structure, type, formats
       </div>
 
       {/* ── TYPE banner ─────────────────────────────────────────────── */}
@@ -181,7 +181,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
         {analysis.carrierPrefix && (
           <div className="text-[12px] text-[#00ff41]/60 font-mono">
             Central office (NXX): <span className="text-[#00d9ff] font-semibold">{analysis.carrierPrefix}</span>
-            <span className="ml-2 text-[#00ff41]/54">— switching exchange / carrier block</span>
+            <span className="ml-2 text-[#00ff41]/54">(switching exchange / carrier block)</span>
           </div>
         )}
       </div>

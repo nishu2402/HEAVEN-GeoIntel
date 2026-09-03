@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { isHost } from "./urlMatch";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,7 +38,7 @@ function stub(map: Array<[string, Response | (() => never)]>) {
       if (u.includes(needle)) return typeof r === "function" ? r() : r;
     }
     // Unstubbed upstreams behave like a keyless install with nothing found.
-    if (u.includes("gravatar.com")) return resp(404, {});
+    if (isHost(u, "gravatar.com")) return resp(404, {});
     return resp(200, { Error: "Not found" });
   }));
 }
@@ -135,7 +136,7 @@ describe("EmailRep.io", () => {
     expect(d.profiles).toEqual([]);
   });
 
-  it("stays NOT_CONFIGURED without a key — the keyless tier only ever 429s", async () => {
+  it("stays NOT_CONFIGURED without a key: the keyless tier only ever 429s", async () => {
     stub([]);
     expect((await (await lookup()).json()).emailrep.error).toBe("NOT_CONFIGURED");
   });
@@ -426,17 +427,98 @@ describe("BreachDirectory (email)", () => {
 });
 
 describe("uniform source health", () => {
-  it("reports all nine email sources, skipping the unconfigured ones", async () => {
+  it("reports all ten email sources, skipping the unconfigured ones", async () => {
     stub([]);
     const health = (await (await lookup()).json()).sourceHealth as Array<{ source: string; skipped?: boolean }>;
     expect(health.map((h) => h.source).sort()).toEqual([
-      "abstract", "breachDirectory", "emailrep", "fullContact", "gravatar",
+      "abstract", "breachDirectory", "comb", "emailrep", "fullContact", "gravatar",
       "hudsonRock", "hunter", "leakCheck", "xon",
     ]);
-    // Keyless: Gravatar, XposedOrNot, Hudson Rock and LeakCheck all run; the
-    // five keyed ones are skipped.
+    // Keyless: Gravatar, XposedOrNot, Hudson Rock, LeakCheck and ProxyNova COMB
+    // all run; the five keyed ones are skipped.
     expect(health.filter((h) => h.skipped).map((h) => h.source).sort()).toEqual([
       "abstract", "breachDirectory", "emailrep", "fullContact", "hunter",
     ]);
+  });
+});
+
+describe("ProxyNova COMB: masked credential exposure", () => {
+  it("keeps only exact-login pairs and drives the credential-exposure block", async () => {
+    // COMB returns fuzzy filler plus one exact match; only the exact one counts.
+    stub([["api.proxynova.com", resp(200, {
+      count: 10000,
+      lines: [
+        "comb-target@example.test:hunter2",
+        "someoneelse@x.com:nope",   // fuzzy substring hit → dropped
+      ],
+    })]]);
+    const json = (await (await lookup("comb-target@example.test")).json()) as {
+      comb: { ok: boolean; data: { pairs: number; distinctPasswords: number; samples: string[] } };
+      credentialExposure: { exposed: boolean; pairs: number; samples: string[] };
+    };
+    expect(json.comb.data.pairs).toBe(1);
+    expect(json.comb.data.samples).toEqual(["h*****2"]);   // masked, never cleartext
+    expect(json.credentialExposure.exposed).toBe(true);
+    expect(json.credentialExposure.pairs).toBe(1);
+  });
+
+  it("treats a fuzzy-only page as clean, never a false positive", async () => {
+    stub([["api.proxynova.com", resp(200, { count: 10000, lines: ["9931@wes.com:9931"] })]]);
+    const json = (await (await lookup()).json()) as { comb: { data: { pairs: number } } };
+    expect(json.comb.data.pairs).toBe(0);
+  });
+
+  it("degrades to breach-only evidence when COMB is rate-limited", async () => {
+    // A failed COMB (no data) must not read as clean — credential exposure then
+    // rests on the breach password count alone.
+    stub([["api.proxynova.com", resp(429, {})]]);
+    const json = (await (await lookup()).json()) as {
+      comb: { ok: boolean; error: string };
+      credentialExposure: { exposed: boolean; pairs: number };
+    };
+    expect(json.comb.ok).toBe(false);
+    expect(json.comb.error).toBe("RATE_LIMITED");
+    expect(json.credentialExposure.pairs).toBe(0);
+    expect(json.credentialExposure.exposed).toBe(false);
+  });
+
+  it("counts Hudson Rock's exact-match infostealer captures as exposure", async () => {
+    // No COMB, no breaches — only a Cavalier search-by-email infection with
+    // masked captured passwords. It's an exact-identifier match, so it enriches
+    // the exposure view where COMB (email-substring) has nothing.
+    stub([["cavalier.hudsonrock.com", resp(200, {
+      stealers: [
+        { computer_name: "PC", top_passwords: ["I********6", "a***b"], top_logins: ["x@y.com"] },
+        { computer_name: "PC2", top_passwords: ["a***b"], top_logins: ["z@y.com"] },
+      ],
+    })]]);
+    const json = (await (await lookup()).json()) as {
+      credentialExposure: { exposed: boolean; pairs: number; stealerLogs: number; stealerPasswords: number; reuse: string };
+    };
+    expect(json.credentialExposure.exposed).toBe(true);
+    expect(json.credentialExposure.pairs).toBe(0);           // no COMB
+    expect(json.credentialExposure.stealerLogs).toBe(2);
+    expect(json.credentialExposure.stealerPasswords).toBe(2); // masked duplicate deduped
+    expect(json.credentialExposure.reuse).toBe("none");       // masked data never claims reuse
+  });
+});
+
+describe("server-computed breach union", () => {
+  it("enriches a name-only LeakCheck breach from the offline catalog", async () => {
+    // LeakCheck names "Adobe" with no data classes; the vendored HIBP catalog
+    // fills them in, so the union carries passwords the free source never sent.
+    stub([["leakcheck.io", resp(200, {
+      success: true, found: 1, fields: [], sources: [{ name: "Adobe", date: "2013-10-04" }],
+    })]]);
+    const json = (await (await lookup()).json()) as {
+      breachAggregate: { total: number; enrichedCount: number; withPassword: number; breaches: Array<{ name: string; enriched: boolean; dataClasses: string[] }> };
+    };
+    const agg = json.breachAggregate;
+    expect(agg.total).toBeGreaterThanOrEqual(1);
+    const adobe = agg.breaches.find((b) => b.name === "Adobe");
+    expect(adobe?.enriched).toBe(true);
+    expect(adobe?.dataClasses).toContain("Passwords");
+    expect(agg.withPassword).toBeGreaterThanOrEqual(1);
+    expect(agg.enrichedCount).toBeGreaterThanOrEqual(1);
   });
 });

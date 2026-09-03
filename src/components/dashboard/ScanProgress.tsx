@@ -40,7 +40,7 @@ export default function ScanProgress({ mode }: { mode: Mode }) {
       </div>
       {elapsed >= 8 && (
         <div className="text-[11px] font-mono text-[var(--hv-ink-dim)]">
-          Some free sources are slow or rate-limit bots — hang tight, results stream in as each responds.
+          Some free sources are slow or rate-limit bots: hang tight, results stream in as each responds.
         </div>
       )}
     </div>

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
-import { POST } from "@/app/api/domain-lookup/route";
+import { POST, joinTxtChunks } from "@/app/api/domain-lookup/route";
 import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
 
 // Drives the domain OSINT handler with every free upstream mocked: Cloudflare
@@ -103,7 +103,7 @@ const post = (payload: unknown) => {
   return POST(req as unknown as NextRequest);
 };
 
-describe("POST /api/domain-lookup — validation", () => {
+describe("POST /api/domain-lookup: validation", () => {
   it("400 on a malformed body", async () => {
     expect((await post({})).status).toBe(400);
   });
@@ -115,7 +115,7 @@ describe("POST /api/domain-lookup — validation", () => {
   });
 });
 
-describe("POST /api/domain-lookup — full recon merge", () => {
+describe("POST /api/domain-lookup: full recon merge", () => {
   it("merges DNS, email posture, DNSSEC, WHOIS, subdomains, and Wayback", async () => {
     stubDomainUpstreams();
     const res = await post({ domain: "acme.test" });
@@ -171,6 +171,50 @@ describe("POST /api/domain-lookup — full recon merge", () => {
     expect(j.subdomains).toEqual([]);
   });
 
+  it("flags dangling-CNAME subdomain-takeover candidates (apex + subdomain)", async () => {
+    // A DoH stub that returns a CNAME per name: the apex points at S3, one
+    // subdomain points at GitHub Pages, the rest resolve to nothing.
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      const u = new URL(String(url));
+      if (u.hostname === "cloudflare-dns.com") {
+        const name = u.searchParams.get("name") ?? "";
+        const type = u.searchParams.get("type") ?? "";
+        if (type === "A") return json({ Answer: [{ name, type: 1, TTL: 300, data: "104.20.0.1" }] });
+        if (type === "CNAME") {
+          // Apex returns the S3 target twice → the second is de-duplicated.
+          if (name === "acme.test") return json({ Answer: [
+            { name, type: 5, TTL: 300, data: "assets.s3.amazonaws.com" },
+            { name, type: 5, TTL: 300, data: "assets.s3.amazonaws.com" },
+          ] });
+          if (name === "vuln.acme.test") return json({ Answer: [{ name, type: 5, TTL: 300, data: "victim.github.io" }] });
+          // A benign CNAME that matches no takeover-prone service.
+          if (name === "a.acme.test") return json({ Answer: [{ name, type: 5, TTL: 300, data: "cdn.example.net" }] });
+          return json({ Answer: [] });
+        }
+        return json({ Answer: [] });
+      }
+      if (u.hostname === "api.certspotter.com") {
+        return json([{ dns_names: ["vuln.acme.test", "a.acme.test", "b.acme.test", "c.acme.test", "d.acme.test"] }]);
+      }
+      if (u.hostname === "rdap.org") return json({}, 404);
+      if (u.hostname === "archive.org") return json({ archived_snapshots: {} });
+      throw new TypeError("unexpected fetch: " + u.href);
+    }));
+
+    const j = await (await post({ domain: "acme.test" })).json();
+    const byName = Object.fromEntries(j.takeoverCandidates.map((c: { name: string; service: string }) => [c.name, c.service]));
+    expect(byName["acme.test"]).toBe("AWS S3");
+    expect(byName["vuln.acme.test"]).toBe("GitHub Pages");
+    expect(j.takeoverCandidates).toHaveLength(2);
+    expect(j.takeoverCandidates[0]).toHaveProperty("fingerprint");
+  });
+
+  it("returns no takeover candidates when nothing dangles", async () => {
+    stubDomainUpstreams();
+    const j = await (await post({ domain: "acme.test" })).json();
+    expect(j.takeoverCandidates).toEqual([]);
+  });
+
   it("normalizes a full URL (scheme/path/www) down to the bare domain", async () => {
     stubDomainUpstreams();
     const res = await post({ domain: "https://www.ACME.test/some/path?x=1" });
@@ -179,7 +223,7 @@ describe("POST /api/domain-lookup — full recon merge", () => {
   });
 });
 
-describe("POST /api/domain-lookup — rate limiting", () => {
+describe("POST /api/domain-lookup: rate limiting", () => {
   afterEach(restoreRateLimit);
 
   it("allows MAX requests then 429s the next from the same client", async () => {
@@ -194,5 +238,32 @@ describe("POST /api/domain-lookup — rate limiting", () => {
     for (let i = 0; i < 9; i++) last = await POST(req() as unknown as NextRequest);
     expect(last.status).toBe(200);
     expect((await POST(req() as unknown as NextRequest)).status).toBe(429);
+  });
+});
+
+// ── TXT reassembly (RFC 1035 §3.3.14) ────────────────────────────────────────
+// A TXT record is one or more character-strings, each capped at 255 bytes, and
+// the value is their concatenation. DoH renders that as adjacent quoted runs.
+// Stripping only the outer quotes left the join visible mid-value, so
+// github.com's SPF read `ip4:62.253.2" "27.114` for what is really
+// `ip4:62.253.227.114` — an analyst copying that netblock got an address that
+// does not exist.
+describe("joinTxtChunks", () => {
+  it("concatenates the character-strings of a split record", () => {
+    expect(joinTxtChunks('"v=spf1 a ip4:62.253.2" "27.114 ~all"'))
+      .toBe("v=spf1 a ip4:62.253.227.114 ~all");
+  });
+
+  it("unwraps a single-chunk record", () => {
+    expect(joinTxtChunks('"v=spf1 -all"')).toBe("v=spf1 -all");
+  });
+
+  it("passes through a value that carries no quoted runs", () => {
+    // Some resolvers hand back the bare string; it is already the value.
+    expect(joinTxtChunks("v=spf1 -all")).toBe("v=spf1 -all");
+  });
+
+  it("unescapes an escaped quote inside a chunk", () => {
+    expect(joinTxtChunks('"say \\"hi\\""')).toBe('say "hi"');
   });
 });

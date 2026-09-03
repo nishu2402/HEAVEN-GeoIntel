@@ -80,7 +80,7 @@ describe("Markdown report", () => {
 
   it("calls a single snapshot a BASELINE, not 'no change'", async () => {
     const md = await buildCaseMarkdown(withGraph());
-    expect(md).toContain("_Baseline only — re-run this identifier to see what changes._");
+    expect(md).toContain("_Baseline only: re-run this identifier to see what changes._");
   });
 
   it("says so explicitly when nothing moved across several snapshots", async () => {

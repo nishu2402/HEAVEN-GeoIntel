@@ -99,7 +99,7 @@ describe("<Term>", () => {
     expect(screen.getByText("the network id").tagName.toLowerCase()).toBe("abbr");
   });
 
-  it("renders plain text (no <abbr>) for an unknown term — child label, then the raw key", () => {
+  it("renders plain text (no <abbr>) for an unknown term: child label, then the raw key", () => {
     const { rerender, container } = render(<Term k="ZZZ">just text</Term>);
     expect(screen.getByText("just text")).toBeTruthy();
     expect(container.querySelector("abbr")).toBeNull();

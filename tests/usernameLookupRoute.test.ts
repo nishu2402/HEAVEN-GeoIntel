@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { isHost } from "./urlMatch";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,7 +32,7 @@ const mk = (status: number, jsonBody: unknown, text: string) =>
 function stubAllSites(siteStatus: number, githubFound: boolean) {
   vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
     const u = String(url);
-    if (u.includes("api.github.com")) {
+    if (isHost(u, "api.github.com")) {
       return githubFound
         ? mk(200, { login: "u", id: 1, html_url: "https://github.com/u", name: "U", public_repos: 1, followers: 1, created_at: "2015-01-01T00:00:00Z" }, "")
         : mk(404, { message: "Not Found" }, "");
@@ -50,7 +51,7 @@ const post = (payload: unknown) => {
   return POST(req as unknown as NextRequest);
 };
 
-describe("POST /api/username-lookup — validation", () => {
+describe("POST /api/username-lookup: validation", () => {
   it("400 on malformed body", async () => {
     const res = await post({});
     expect(res.status).toBe(400);
@@ -63,7 +64,7 @@ describe("POST /api/username-lookup — validation", () => {
   });
 });
 
-describe("POST /api/username-lookup — no false positives", () => {
+describe("POST /api/username-lookup: no false positives", () => {
   it("a nonexistent handle (every site 404) yields 0 found and no profiles", async () => {
     stubAllSites(404, false);
     const res = await post({ username: "definitelynotarealhandle999" });
@@ -98,12 +99,12 @@ describe("POST /api/username-lookup — no false positives", () => {
   });
 });
 
-describe("POST /api/username-lookup — rich API profiles", () => {
+describe("POST /api/username-lookup: rich API profiles", () => {
   it("verifies GitHub/GitLab/Hacker News/Reddit via their public APIs and synthesises identity", async () => {
     // Every sweep site 404s (no bare hits) so the assertions isolate the rich tier.
     vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
       const u = String(url);
-      if (u.includes("api.github.com")) {
+      if (isHost(u, "api.github.com")) {
         return mk(200, { login: "torvalds", name: "Linus Torvalds", location: "Portland", public_repos: 8, followers: 9, following: 0, created_at: "2011-09-03T00:00:00Z", avatar_url: "https://avatars.githubusercontent.com/u/1", html_url: "https://github.com/torvalds" }, "");
       }
       if (u.includes("gitlab.com/api")) {
@@ -126,11 +127,11 @@ describe("POST /api/username-lookup — rich API profiles", () => {
     expect(json.identity.avatars).toHaveLength(1);
   });
 
-  it("drops a rich provider that 404s / returns a malformed body — never a false profile", async () => {
+  it("drops a rich provider that 404s / returns a malformed body: never a false profile", async () => {
     vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
       const u = String(url);
       if (u.includes("hacker-news")) return mk(200, { id: "realuser", karma: 5, created: 1160418111 }, "");
-      if (u.includes("api.github.com")) return mk(404, { message: "Not Found" }, "");
+      if (isHost(u, "api.github.com")) return mk(404, { message: "Not Found" }, "");
       if (u.includes("gitlab.com/api")) return mk(200, [], ""); // exists nowhere → empty array
       if (u.includes("reddit.com/user")) return mk(403, {}, "blocked"); // datacenter block
       return mk(404, {}, "");

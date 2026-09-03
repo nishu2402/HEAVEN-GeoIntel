@@ -16,5 +16,11 @@ export function dataDir(): string {
 
 /** A file inside the data directory. */
 export function dataFile(name: string): string {
-  return path.join(dataDir(), name);
+  // `dataDir()` is resolved at runtime (it honours the HV_DATA_DIR override), so
+  // its value is deliberately not statically known. Without this opt-out
+  // Turbopack's build tracer assumes the worst and pulls the entire project
+  // (source + public/) into the server output, bloating the standalone bundle.
+  // Runtime state is read/written per request, never at build time, so there is
+  // nothing for the tracer to include here.
+  return path.join(/* turbopackIgnore: true */ dataDir(), name);
 }

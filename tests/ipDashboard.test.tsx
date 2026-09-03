@@ -62,6 +62,15 @@ describe("<IpResultsDashboard> non-routable / error", () => {
   });
 });
 
+describe("<IpResultsDashboard> RIPEstat enrichment", () => {
+  it("renders abuse contact, prefix and ASN prefix count when present", () => {
+    render(<IpResultsDashboard data={resp({ ip: ipData({ abuseContact: "abuse@as15169.net", prefix: "8.8.8.0/24", announcedPrefixes: 42 }) })} />);
+    expect(screen.getByText("abuse@as15169.net")).toBeTruthy();
+    expect(screen.getByText("8.8.8.0/24")).toBeTruthy();
+    expect(screen.getByText("42 announced")).toBeTruthy();
+  });
+});
+
 describe("<IpResultsDashboard> full result", () => {
   it("renders geo, network, exposure and pivots", () => {
     render(<IpResultsDashboard data={resp()} />);
@@ -78,6 +87,9 @@ describe("<IpResultsDashboard> full result", () => {
     expect(screen.getByText("CVE-2021-1234")).toBeTruthy();
     expect(screen.getByText("cdn")).toBeTruthy();
     expect(screen.getByText("Censys")).toBeTruthy();
+    // RIPEstat enrichment self-hides when absent (this fixture has none of it).
+    expect(screen.queryByText("Abuse contact")).toBeNull();
+    expect(screen.queryByText("Prefix")).toBeNull();
     expect(screen.getByText(/View on OpenStreetMap/)).toBeTruthy();
     // GreyNoise chip with RIOT + SCANNER suffixes
     expect(screen.getByText(/GREYNOISE: BENIGN · RIOT · SCANNER/)).toBeTruthy();
@@ -177,7 +189,7 @@ describe("<IpResultsDashboard> full result", () => {
 
   it("renders country without a code and timezone without an offset", () => {
     render(<IpResultsDashboard data={resp({ ip: ipData({ countryCode: null, utcOffset: null }) })} />);
-    expect(screen.getAllByText("United States").length).toBeGreaterThan(0); // no "(US)" — glance tile + geo row
+    expect(screen.getAllByText("United States").length).toBeGreaterThan(0); // no "(US)": glance tile + geo row
     expect(screen.queryByText(/United States \(/)).toBeNull();               // no parenthetical code
     expect(screen.getByText("America/Los_Angeles")).toBeTruthy();            // no "(-08:00)"
   });

@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: CI only reads the checkout. Stating it here (rather than
+# inheriting the repository/organisation default, which can be read-write) means
+# a compromised action or dependency in this workflow cannot push code, open
+# releases, or write packages with the job's GITHUB_TOKEN.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Lint · Type-check · Build · Test

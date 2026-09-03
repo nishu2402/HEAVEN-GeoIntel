@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { APP_VERSION, APP_VERSION_BRANCH, USER_AGENT } from "@/lib/version";
+import { escapeRegExp } from "./escapeRegExp";
 
 // The version used to be typed out by hand in eight places and had already
 // drifted three ways (package.json 1.3.0, the OpenAPI spec 1.4.0, the outbound
@@ -78,7 +79,7 @@ describe("every file outside the module graph agrees", () => {
     // Guards the release step itself: bumping package.json without writing the
     // changelog entry is the easiest half of a release to forget.
     expect(read("CHANGELOG.md")).toMatch(
-      new RegExp(`^## \\[${APP_VERSION.replace(/\./g, "\\.")}\\] — \\d{4}-\\d{2}-\\d{2}$`, "m"),
+      new RegExp(`^## \\[${escapeRegExp(APP_VERSION)}\\] — \\d{4}-\\d{2}-\\d{2}$`, "m"),
     );
   });
 });

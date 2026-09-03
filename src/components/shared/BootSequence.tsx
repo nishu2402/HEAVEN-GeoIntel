@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { APP_VERSION } from "@/lib/version";
 
 const lines = [
-  `[+] HEAVEN-GeoIntel v${APP_VERSION} — Unified OSINT Platform`,
+  `[+] HEAVEN-GeoIntel v${APP_VERSION}: Unified OSINT Platform`,
   "[+] Loading libphonenumber-js database (240+ countries)...",
   "[+] Bundled datasets: country · NPA · MCC/MNC · disposable domains [ OK ]",
   "[+] Offline analysis engine: READY",
@@ -14,7 +14,7 @@ const lines = [
   "[*] Link-analysis graph + persistent cases: initialized",
   "[*] Matrix rain canvas: active",
   "",
-  "[✓] SYSTEM READY — pick a mode or press ⌘K to begin.",
+  "[✓] SYSTEM READY: pick a mode or press ⌘K to begin.",
 ];
 
 export default function BootSequence({ onDone }: { onDone: () => void }) {

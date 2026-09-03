@@ -48,12 +48,12 @@ export default function ConsentGate() {
           <span className="font-mono uppercase tracking-widest text-sm font-bold">Authorized use only</span>
         </div>
         <div className="text-sm font-mono text-[var(--hv-ink-dim)] space-y-2 leading-relaxed">
-          <p>HEAVEN-GeoIntel aggregates <span className="text-[var(--hv-ink)]">publicly available metadata</span> for lawful OSINT — security research, fraud investigation, and authorized assessments.</p>
+          <p>HEAVEN-GeoIntel aggregates <span className="text-[var(--hv-ink)]">publicly available metadata</span> for lawful OSINT: security research, fraud investigation, and authorized assessments.</p>
           <p>By continuing you confirm you will use it <span className="text-[var(--hv-ink)]">only where you have a lawful basis</span>, and never for stalking, harassment, doxxing, or any unlawful purpose. It provides <span className="text-[var(--hv-ink)]">no real-time location or device tracking</span>.</p>
         </div>
         <div className="flex justify-end">
           <button onClick={accept} className="btn-neon px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest">
-            I Understand — Continue
+            I Understand: Continue
           </button>
         </div>
       </div>

@@ -28,8 +28,8 @@ const SOURCE_ENV_HINT: Record<SourceKey, string> = {
   twilio: "TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN",
   breachDirectory: "RAPIDAPI_KEY",
   fullContact: "FULLCONTACT_API_KEY",
-  hudsonRock: "(no key — free)",
-  leakCheck: "(no key — free)",
+  hudsonRock: "(no key: free)",
+  leakCheck: "(no key: free)",
 };
 
 function StatusDot({ ok, error }: { ok: boolean; error?: string }) {

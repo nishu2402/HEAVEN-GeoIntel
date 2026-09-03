@@ -44,7 +44,7 @@ export function detectHash(hash: string): HashInfo {
       bits: 160,
       crackable: "easy",
       color: "#ff6600",
-      note: "MySQL SHA-1 double hash — crackable with specialized wordlists.",
+      note: "MySQL SHA-1 double hash: crackable with specialized wordlists.",
       bestTool: HASHKILLER,
     };
   }
@@ -56,7 +56,7 @@ export function detectHash(hash: string): HashInfo {
       bits: null,
       crackable: "trivial",
       color: "#ff1a1a",
-      note: "Partial password shown — original may be fully known in breach DB",
+      note: "Partial password shown: original may be fully known in breach DB",
       bestTool: CRACKSTATION,
     };
   }
@@ -68,7 +68,7 @@ export function detectHash(hash: string): HashInfo {
       bits: null,
       crackable: "infeasible",
       color: "#00ff41",
-      note: "bcrypt — adaptive cost function, GPU-resistant. Brute-force impractical.",
+      note: "bcrypt: adaptive cost function, GPU-resistant. Brute-force impractical.",
       bestTool: HASHES_COM,
     };
   }
@@ -80,7 +80,7 @@ export function detectHash(hash: string): HashInfo {
       bits: 128,
       crackable: "easy",
       color: "#ff6600",
-      note: "MD5crypt — crackable with dictionary + Hashcat rules in hours.",
+      note: "MD5crypt: crackable with dictionary + Hashcat rules in hours.",
       bestTool: CRACKSTATION,
     };
   }
@@ -92,7 +92,7 @@ export function detectHash(hash: string): HashInfo {
       bits: 256,
       crackable: "hard",
       color: "#ffaa00",
-      note: "SHA-256crypt — iterated hash, GPU cracking is slow but possible.",
+      note: "SHA-256crypt: iterated hash, GPU cracking is slow but possible.",
       bestTool: HASHES_COM,
     };
   }
@@ -104,7 +104,7 @@ export function detectHash(hash: string): HashInfo {
       bits: 512,
       crackable: "hard",
       color: "#ffaa00",
-      note: "SHA-512crypt — strong. Very slow to crack, but weak passwords fall.",
+      note: "SHA-512crypt: strong. Very slow to crack, but weak passwords fall.",
       bestTool: HASHES_COM,
     };
   }
@@ -116,7 +116,7 @@ export function detectHash(hash: string): HashInfo {
       bits: null,
       crackable: "infeasible",
       color: "#00ff41",
-      note: "scrypt — memory-hard, GPU/ASIC resistant.",
+      note: "scrypt: memory-hard, GPU/ASIC resistant.",
       bestTool: HASHES_COM,
     };
   }
@@ -128,7 +128,7 @@ export function detectHash(hash: string): HashInfo {
       bits: null,
       crackable: "infeasible",
       color: "#00ff41",
-      note: "Argon2 — winner of PHC, state-of-the-art. GPU cracking not feasible.",
+      note: "Argon2: winner of PHC, state-of-the-art. GPU cracking not feasible.",
       bestTool: HASHES_COM,
     };
   }
@@ -140,7 +140,7 @@ export function detectHash(hash: string): HashInfo {
       bits: null,
       crackable: "hard",
       color: "#ffaa00",
-      note: "PBKDF2 — iterated HMAC. Crackable with weak passwords + long time.",
+      note: "PBKDF2: iterated HMAC. Crackable with weak passwords + long time.",
       bestTool: HASHES_COM,
     };
   }
@@ -157,7 +157,7 @@ export function detectHash(hash: string): HashInfo {
           bits: 128,
           crackable: "trivial",
           color: "#ff1a1a",
-          note: "MD5 or NTLM — 32-char hex. Rainbow tables crack most in seconds.",
+          note: "MD5 or NTLM: 32-char hex. Rainbow tables crack most in seconds.",
           bestTool: CRACKSTATION,
         };
       case 40:
@@ -166,7 +166,7 @@ export function detectHash(hash: string): HashInfo {
           bits: 160,
           crackable: "easy",
           color: "#ff3e3e",
-          note: "SHA-1 — crackable with CrackStation for common passwords instantly.",
+          note: "SHA-1: crackable with CrackStation for common passwords instantly.",
           bestTool: CRACKSTATION,
         };
       case 56:
@@ -175,7 +175,7 @@ export function detectHash(hash: string): HashInfo {
           bits: 224,
           crackable: "easy",
           color: "#ff6600",
-          note: "SHA-224 — unsalted, crackable with Hashcat dictionary attack.",
+          note: "SHA-224: unsalted, crackable with Hashcat dictionary attack.",
           bestTool: HASHKILLER,
         };
       case 64:
@@ -184,7 +184,7 @@ export function detectHash(hash: string): HashInfo {
           bits: 256,
           crackable: "hard",
           color: "#ffaa00",
-          note: "SHA-256 — unsalted. Strong passwords survive. Weak ones fall to GPU.",
+          note: "SHA-256: unsalted. Strong passwords survive. Weak ones fall to GPU.",
           bestTool: HASHES_COM,
         };
       case 96:
@@ -193,7 +193,7 @@ export function detectHash(hash: string): HashInfo {
           bits: 384,
           crackable: "hard",
           color: "#ffaa00",
-          note: "SHA-384 — rarely cracked, but unsalted weak passwords are vulnerable.",
+          note: "SHA-384: rarely cracked, but unsalted weak passwords are vulnerable.",
           bestTool: HASHES_COM,
         };
       case 128:
@@ -202,7 +202,7 @@ export function detectHash(hash: string): HashInfo {
           bits: 512,
           crackable: "hard",
           color: "#ffaa00",
-          note: "SHA-512 — unsalted. GPU cracking possible for dictionary words.",
+          note: "SHA-512: unsalted. GPU cracking possible for dictionary words.",
           bestTool: HASHES_COM,
         };
     }
@@ -215,7 +215,7 @@ export function detectHash(hash: string): HashInfo {
       bits: 56,
       crackable: "trivial",
       color: "#ff1a1a",
-      note: "DES crypt — 56-bit key. Completely broken. Crack in minutes.",
+      note: "DES crypt: 56-bit key. Completely broken. Crack in minutes.",
       bestTool: CRACKSTATION,
     };
   }
@@ -229,17 +229,17 @@ function unknown(): HashInfo {
     bits: null,
     crackable: "unknown",
     color: "#555",
-    note: "Format not recognized — paste into a hash identifier for analysis.",
+    note: "Format not recognized: paste into a hash identifier for analysis.",
     bestTool: HASHES_COM,
   };
 }
 
 export const CRACK_DIFFICULTY_LABEL: Record<HashInfo["crackable"], string> = {
-  trivial:    "TRIVIAL — seconds",
-  easy:       "EASY — minutes to hours",
-  hard:       "HARD — GPU farm required",
-  infeasible: "INFEASIBLE — not crackable",
-  unknown:    "UNKNOWN — identify hash first",
+  trivial:    "TRIVIAL: seconds",
+  easy:       "EASY: minutes to hours",
+  hard:       "HARD: GPU farm required",
+  infeasible: "INFEASIBLE: not crackable",
+  unknown:    "UNKNOWN: identify hash first",
 };
 
 export const CRACK_DIFFICULTY_COLOR: Record<HashInfo["crackable"], string> = {

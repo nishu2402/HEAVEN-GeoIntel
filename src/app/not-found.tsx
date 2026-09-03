@@ -9,7 +9,7 @@ export default function NotFound() {
 
         <div className="space-y-2">
           <div className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/92">
-            [ 404 — TARGET NOT FOUND ]
+            [ 404: TARGET NOT FOUND ]
           </div>
           <div className="text-4xl font-bold text-[#ff3e3e]/92">404</div>
           <div className="text-sm text-[#00ff41]/60">

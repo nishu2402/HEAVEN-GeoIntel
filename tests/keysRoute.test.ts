@@ -42,8 +42,8 @@ describe("GET /api/keys", () => {
   });
 });
 
-describe("POST /api/keys — set", () => {
-  it("stores a valid key and reports it as configured via UI — never echoing the value", async () => {
+describe("POST /api/keys: set", () => {
+  it("stores a valid key and reports it as configured via UI: never echoing the value", async () => {
     const res = await postReq({ name: "IPQS_API_KEY", value: "super-secret-123" });
     expect(res.status).toBe(200);
     const json = await res.json();

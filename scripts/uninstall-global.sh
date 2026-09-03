@@ -26,7 +26,7 @@ DATA_DIR="${HV_DATA_DIR:-$PROJECT_DIR/.data}"
 
 usage() {
   cat <<'USAGE'
-HEAVEN-GeoIntel — Global Command Uninstaller
+HEAVEN-GeoIntel: Global Command Uninstaller
 
   bash scripts/uninstall-global.sh [--purge-data] [--yes]
 
@@ -40,7 +40,7 @@ HEAVEN-GeoIntel — Global Command Uninstaller
   --help          This message.
 
 Not touched by either mode: .env.local (your API keys on disk), node_modules,
-the build output, and the repository itself — delete the project folder when
+the build output, and the repository itself. Delete the project folder when
 you want those gone.
 USAGE
 }
@@ -66,7 +66,7 @@ if [ -f "$SCRIPT_DIR/banner.sh" ]; then
   hv_banner
   echo ""
 fi
-echo "  HEAVEN-GeoIntel — Global Command Uninstaller"
+echo "  HEAVEN-GeoIntel: Global Command Uninstaller"
 echo "------------------------------------------------------------------"
 echo ""
 
@@ -76,7 +76,7 @@ if [ -e "$INSTALL_PATH" ]; then
     echo "[ok] Removed $INSTALL_PATH"
     REMOVED=1
   elif command -v sudo >/dev/null 2>&1; then
-    echo "[!] $INSTALL_PATH is root-owned — removing with sudo (may prompt)..."
+    echo "[!] $INSTALL_PATH is root-owned, removing with sudo (may prompt)..."
     if sudo rm -f "$INSTALL_PATH" 2>/dev/null && [ ! -e "$INSTALL_PATH" ]; then
       echo "[ok] Removed $INSTALL_PATH (sudo)"
       REMOVED=1
@@ -132,7 +132,7 @@ done
 if [ "$PURGE" -eq 1 ]; then
   echo ""
   if [ ! -d "$DATA_DIR" ]; then
-    echo "[+] No data directory at $DATA_DIR — nothing to purge."
+    echo "[+] No data directory at $DATA_DIR, nothing to purge."
   else
     CASES="?"; [ -f "$DATA_DIR/cases.json" ] && CASES="$(grep -o '"id"' "$DATA_DIR/cases.json" 2>/dev/null | wc -l | tr -d ' ')"
     echo "[!] About to permanently delete: $DATA_DIR"
@@ -151,7 +151,7 @@ if [ "$PURGE" -eq 1 ]; then
       [ "$REPLY_CLEAN" = "yes" ] && ANSWER="y"
     else
       # Non-interactive with no --yes: refuse rather than guess.
-      echo "    Not a terminal and --yes not given — keeping the data."
+      echo "    Not a terminal and --yes not given, keeping the data."
     fi
     if [ "$ANSWER" = "y" ]; then
       if rm -rf "$DATA_DIR" 2>/dev/null && [ ! -d "$DATA_DIR" ]; then
@@ -180,7 +180,7 @@ if [ "$LEFT" -eq 1 ]; then
 elif [ "$REMOVED" -eq 1 ]; then
   echo "[ok] Fully uninstalled. Open a new terminal (or re-source your RC) to apply."
 else
-  echo "[+] Nothing to remove — 'geointel' was not installed."
+  echo "[+] Nothing to remove: 'geointel' was not installed."
 fi
 
 # Say what is deliberately still on disk, so "uninstalled" isn't ambiguous.

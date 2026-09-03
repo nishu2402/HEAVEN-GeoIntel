@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { escapeRegExp } from "./escapeRegExp";
 
 // ── The ghcr.io publish workflow ─────────────────────────────────────────────
 //
@@ -52,7 +53,7 @@ describe("the SBOM step cannot 403 the job again", () => {
     expect(code).toMatch(/if-no-files-found:\s*error/);
   });
 
-  it("never grants contents: write — the other way to fix it, and the wrong one", () => {
+  it("never grants contents: write: the other way to fix it, and the wrong one", () => {
     // Widening the token would also have made the job pass. This job pushes
     // packages and holds a signing identity; write access to the repository is
     // not something it should acquire to save a duplicate file.
@@ -60,7 +61,7 @@ describe("the SBOM step cannot 403 the job again", () => {
     expect(code).toMatch(/contents:\s*read/);
   });
 
-  it("still signs and still attests — the failure must not have cost us those", () => {
+  it("still signs and still attests: the failure must not have cost us those", () => {
     expect(code).toMatch(/cosign sign --yes/);
     expect(code).toMatch(/sbom:\s*true/);
     expect(code).toMatch(/provenance:\s*mode=max/);
@@ -136,13 +137,13 @@ describe("the build context stays an allowlist", () => {
 
     expect(copied).toContain("public");
     for (const path of copied) {
-      expect(dockerignore).toMatch(new RegExp(`^!${path.replace(/\./g, "\\.")}$`, "m"));
+      expect(dockerignore).toMatch(new RegExp(`^!${escapeRegExp(path)}$`, "m"));
     }
   });
 
   it("admits what the dependency stage installs from", () => {
     for (const f of ["package.json", "package-lock.json"]) {
-      expect(dockerignore).toMatch(new RegExp(`^!${f.replace(/\./g, "\\.")}$`, "m"));
+      expect(dockerignore).toMatch(new RegExp(`^!${escapeRegExp(f)}$`, "m"));
     }
   });
 
@@ -150,7 +151,7 @@ describe("the build context stays an allowlist", () => {
     // `data/` and `.data/` hold case stores, audit logs and scan reports. `*`
     // already excludes them; this fails if someone re-admits them by hand.
     for (const dir of ["data", ".data", "tests", "docs", "coverage", "e2e"]) {
-      expect(dockerignore).not.toMatch(new RegExp(`^!${dir.replace(/\./g, "\\.")}(/|$)`, "m"));
+      expect(dockerignore).not.toMatch(new RegExp(`^!${escapeRegExp(dir)}(/|$)`, "m"));
     }
   });
 });

@@ -51,7 +51,7 @@ const post = (payload: unknown) => {
   return POST(req as unknown as NextRequest);
 };
 
-describe("POST /api/ip-lookup — input validation", () => {
+describe("POST /api/ip-lookup: input validation", () => {
   it("400 on a malformed body", async () => {
     const res = await post({});
     expect(res.status).toBe(400);
@@ -65,7 +65,7 @@ describe("POST /api/ip-lookup — input validation", () => {
   });
 });
 
-describe("POST /api/ip-lookup — happy path with merged sources", () => {
+describe("POST /api/ip-lookup: happy path with merged sources", () => {
   it("returns geo + Shodan exposure + GreyNoise, computes threat, and attaches provenance", async () => {
     stubFetch([
       ["ip-api.com", resp(200, {
@@ -76,6 +76,9 @@ describe("POST /api/ip-lookup — happy path with merged sources", () => {
       })],
       ["internetdb.shodan.io", resp(200, { ports: [443, 853], vulns: ["CVE-2021-1234"], hostnames: ["dns.google"], tags: ["cloud"] })],
       ["api.greynoise.io", resp(200, { classification: "benign", noise: true, riot: true, name: "Google Public DNS" })],
+      // One RIPEstat payload carrying every field, served for all three of its
+      // endpoints (abuse-contact-finder, network-info, announced-prefixes).
+      ["stat.ripe.net", resp(200, { data: { abuse_contacts: ["network-abuse@google.com"], prefix: "8.8.8.0/24", asns: ["15169"], prefixes: [{ prefix: "8.8.8.0/24" }, { prefix: "8.8.4.0/24" }] } })],
     ]);
 
     const res = await post({ ip: "8.8.8.8" });
@@ -90,18 +93,23 @@ describe("POST /api/ip-lookup — happy path with merged sources", () => {
     expect(json.ip.vulns).toEqual(["CVE-2021-1234"]);
     expect(json.ip.greyNoise.classification).toBe("benign");
 
+    // RIPEstat enrichment
+    expect(json.ip.abuseContact).toBe("network-abuse@google.com");
+    expect(json.ip.prefix).toBe("8.8.8.0/24");
+    expect(json.ip.announcedPrefixes).toBe(2);
+
     // hosting(35) capped under the known-CVE signal (60 + 5) => 65 / MODERATE
     expect(json.threatScore).toBe(65);
     expect(json.threatLabel).toBe("MODERATE");
 
-    // provenance: all three sources present and marked ok
-    expect(json.sources).toHaveLength(3);
+    // provenance: geo + Shodan + GreyNoise + RIPEstat, all marked ok
+    expect(json.sources).toHaveLength(4);
     expect(json.sources.every((s: { ok: boolean }) => s.ok)).toBe(true);
     expect(json.pivots.length).toBeGreaterThan(0);
   });
 });
 
-describe("POST /api/ip-lookup — degraded upstreams", () => {
+describe("POST /api/ip-lookup: degraded upstreams", () => {
   it("fails only when nothing at all was learned", async () => {
     stubFetch([
       ["ip-api.com", resp(0, null, false)], // network-ish failure
@@ -182,7 +190,7 @@ describe("POST /api/ip-lookup — degraded upstreams", () => {
     expect(json.ip.type).toBe("IPv6");
   });
 
-  it("nulls the country code — and the flag — when the fallback omits it", async () => {
+  it("nulls the country code: and the flag: when the fallback omits it", async () => {
     stubFetch([
       ["ip-api.com", resp(500, {})],
       ["ipwho.is", resp(200, { success: true, city: "Nowhere" })],
@@ -237,7 +245,7 @@ describe("POST /api/ip-lookup — degraded upstreams", () => {
   });
 });
 
-describe("POST /api/ip-lookup — offline scope classification", () => {
+describe("POST /api/ip-lookup: offline scope classification", () => {
   it("short-circuits a private (RFC 1918) address with NO upstream calls", async () => {
     // fetch is left un-stubbed: any upstream call would throw. A non-routable
     // address must be answered entirely offline.
@@ -276,7 +284,7 @@ describe("POST /api/ip-lookup — offline scope classification", () => {
   });
 });
 
-describe("POST /api/ip-lookup — rate limiting", () => {
+describe("POST /api/ip-lookup: rate limiting", () => {
   afterEach(restoreRateLimit);
 
   it("allows MAX requests then 429s the next from the same client", async () => {

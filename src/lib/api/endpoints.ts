@@ -106,7 +106,7 @@ export const ENDPOINTS: EndpointDef[] = [
         name: "username",
         type: "string",
         required: true,
-        description: "Handle without a leading @. 2–40 chars: letters, digits, dot, underscore, hyphen.",
+        description: "Handle without a leading @. 2-40 chars: letters, digits, dot, underscore, hyphen.",
         example: "torvalds",
       },
     ],
@@ -157,11 +157,51 @@ export const ENDPOINTS: EndpointDef[] = [
     errors: IDENTIFIER_ERRORS,
   },
   {
+    path: "/api/wallet-lookup",
+    method: "post",
+    summary: "Crypto wallet OSINT lookup",
+    description:
+      "Detects the chain from the address and reads the public ledger: Bitcoin balance + activity from mempool.space, or Ethereum balance + transaction count from a public JSON-RPC. Keyless, factual, no false-positive surface.",
+    tag: "lookup",
+    rateLimited: true,
+    body: [
+      {
+        name: "address",
+        type: "string",
+        required: true,
+        description: "A Bitcoin (legacy/bech32) or Ethereum (0x…) address.",
+        example: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      },
+    ],
+    responseDescription: "Chain, balance, activity and explorer pivots.",
+    errors: [{ status: 400, description: "Not a recognised BTC or ETH address." }],
+  },
+  {
+    path: "/api/hash-lookup",
+    method: "post",
+    summary: "File-hash / IOC OSINT lookup",
+    description:
+      "Detects the algorithm (MD5/SHA-1/SHA-256) and queries CIRCL hashlookup for known-software (NSRL) reputation. A hit clears the hash as catalogued benign software; a miss is reported as unknown, never as a detection, with malware-verdict engines offered as pivots. Keyless, no false-positive surface.",
+    tag: "lookup",
+    rateLimited: true,
+    body: [
+      {
+        name: "hash",
+        type: "string",
+        required: true,
+        description: "A 32-char MD5, 40-char SHA-1 or 64-char SHA-256 hex digest.",
+        example: "8ed4b4ed952526d89899e723f3488de4",
+      },
+    ],
+    responseDescription: "Algorithm, known-software reputation and verdict-engine pivots.",
+    errors: [{ status: 400, description: "Not a recognised MD5, SHA-1 or SHA-256 hash." }],
+  },
+  {
     path: "/api/bulk-lookup",
     method: "post",
     summary: "Bulk phone triage",
     description:
-      "Offline analysis for many numbers at once, suitable for CSV export. Deliberately does NOT fan out to paid APIs per row — it uses offline analysis plus any result already in the cache.",
+      "Offline analysis for many numbers at once, suitable for CSV export. Deliberately does NOT fan out to paid APIs per row: it uses offline analysis plus any result already in the cache.",
     tag: "lookup",
     rateLimited: true,
     body: [
@@ -230,9 +270,9 @@ export const ENDPOINTS: EndpointDef[] = [
     method: "get",
     summary: "Which optional API keys are configured",
     description:
-      "Returns a map of key name to where it is configured — \"ui\", \"env\" or null. Key VALUES are never returned by any endpoint.",
+      "Returns a map of key name to where it is configured: \"ui\", \"env\" or null. Key VALUES are never returned by any endpoint.",
     tag: "config",
-    responseDescription: "`{ keys, names }` — provenance map plus the allow-list of key names.",
+    responseDescription: "`{ keys, names }`: provenance map plus the allow-list of key names.",
   },
   {
     path: "/api/keys",

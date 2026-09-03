@@ -23,10 +23,10 @@
 // screenshot is how bugs actually get reported. Every surface now carries the
 // full semver. `APP_VERSION_BRANCH` survives for the one place that genuinely
 // means a *range* rather than a build: the supported-versions table in
-// SECURITY.md, where "2.1.x" is the claim being made.
+// SECURITY.md, where "3.0.x" is the claim being made.
 
 /** Full semver, as published. Matches `version` in package.json. */
-export const APP_VERSION = "2.1.0";
+export const APP_VERSION = "3.0.0";
 
 /**
  * `major.minor` — the release *branch*, not a build.

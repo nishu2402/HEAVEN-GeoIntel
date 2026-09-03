@@ -24,7 +24,7 @@ function timeAgo(ts: number, now: number): string {
 export default function RecentLookups({ onRun }: { onRun: (kind: LookupKind, value: string) => void }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<LookupItem[]>([]);
-  const [now, setNow] = useState(0); // set via effects/handlers — keeps render pure
+  const [now, setNow] = useState(0); // set via effects/handlers: keeps render pure
   const ref = useRef<HTMLDivElement | null>(null);
 
   // Load + keep in sync with pushLookup/clearLookups (same tab) and other tabs.
@@ -90,7 +90,7 @@ export default function RecentLookups({ onRun }: { onRun: (kind: LookupKind, val
               </div>
               <div className="text-xs font-mono text-[var(--hv-ink)]">No lookups yet</div>
               <div className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-relaxed">
-                Run a phone, email, username,<br />IP or domain search — it lands here.
+                Run a phone, email, username,<br />IP or domain search: it lands here.
               </div>
             </div>
           ) : (

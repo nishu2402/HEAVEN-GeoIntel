@@ -22,7 +22,7 @@ const VOIP_HINTS: { match: (digits: string) => boolean; provider: string }[] = [
 // India: leading digit of the 10-digit mobile number identifies the operator group
 // Source: TRAI National Numbering Plan. These are starting digits AFTER the +91 country code.
 const INDIA_MOBILE_GROUPS: { prefix: RegExp; carrier: string }[] = [
-  { prefix: /^9[0-9]/,    carrier: "Jio / Airtel / Vi (mixed pool — 9-series)" },
+  { prefix: /^9[0-9]/,    carrier: "Jio / Airtel / Vi (mixed pool: 9-series)" },
   { prefix: /^8[0-9]/,    carrier: "Mixed operators (8-series)" },
   { prefix: /^7[0-9]/,    carrier: "Mixed operators (7-series)" },
   { prefix: /^6[0-9]/,    carrier: "Newer allocations (6-series, mostly Jio)" },
@@ -55,16 +55,16 @@ export function deriveOfflineReputation(analysis: PhoneAnalysis): OfflineReputat
   for (const hint of VOIP_HINTS) {
     if (hint.match(digits)) {
       signals.push(hint.provider);
-      inferredCarrier = hint.provider; // first match wins — we break immediately
+      inferredCarrier = hint.provider; // first match wins: we break immediately
       break;
     }
   }
 
-  // India carrier group hint — strip the optional leading "0" some carriers
-  // include in the national format ("09876543210" → "9876543210").
+  // India carrier group hint. `subscriberNumber` is now the national
+  // significant number, so the trunk "0" this used to strip by hand is already
+  // gone — see the derivation in phoneAnalysis.
   if (analysis.country === "IN" && analysis.subscriberNumber) {
-    const stripped = analysis.subscriberNumber.replace(/^0+/, "");
-    const group = INDIA_MOBILE_GROUPS.find((g) => g.prefix.test(stripped));
+    const group = INDIA_MOBILE_GROUPS.find((g) => g.prefix.test(analysis.subscriberNumber));
     if (group) {
       inferredCarrier = group.carrier;
       signals.push(`Group: ${group.carrier}`);

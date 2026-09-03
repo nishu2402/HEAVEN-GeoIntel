@@ -60,7 +60,7 @@ const post = (payload: unknown) => {
   return POST(req as unknown as NextRequest);
 };
 
-describe("POST /api/email-lookup — input validation", () => {
+describe("POST /api/email-lookup: input validation", () => {
   it("400 on a body with no email field", async () => {
     const res = await post({});
     expect(res.status).toBe(400);
@@ -80,7 +80,7 @@ describe("POST /api/email-lookup — input validation", () => {
   });
 });
 
-describe("POST /api/email-lookup — offline happy path (no paid keys)", () => {
+describe("POST /api/email-lookup: offline happy path (no paid keys)", () => {
   it("classifies the address, merges Gravatar, and marks keyed sources NOT_CONFIGURED", async () => {
     stubFetch([
       ["gravatar.com", resp(200, {
@@ -135,7 +135,7 @@ describe("POST /api/email-lookup — offline happy path (no paid keys)", () => {
   });
 });
 
-describe("POST /api/email-lookup — breach parsing", () => {
+describe("POST /api/email-lookup: breach parsing", () => {
   it("parses XposedOrNot breach details and configured BreachDirectory hits", async () => {
     process.env.RAPIDAPI_KEY = "test-rapid";
     stubFetch([
@@ -172,7 +172,7 @@ describe("POST /api/email-lookup — breach parsing", () => {
   });
 });
 
-describe("POST /api/email-lookup — rate limiting", () => {
+describe("POST /api/email-lookup: rate limiting", () => {
   afterEach(restoreRateLimit);
 
   it("allows MAX requests then 429s the next from the same client", async () => {

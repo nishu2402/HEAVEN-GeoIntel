@@ -15,6 +15,9 @@ import { describeError } from "@/lib/server/fetchSafe";
 import { USER_AGENT } from "@/lib/version";
 import { hudsonRockFor } from "@/lib/server/hudsonRock";
 import { fetchLeakCheck } from "@/lib/server/leakCheck";
+import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
+import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
+import { breachCatalog } from "@/lib/data/breachCatalog";
 import type { CountryIntel } from "@/lib/data/countryIntel";
 import type {
   LookupResponse,
@@ -41,8 +44,12 @@ async function fetchNumVerify(e164: string): Promise<SourceResult<NumVerifyData>
     // HTTP-only, so on the free tier this request (with the access_key in the
     // query string) travels in cleartext. Documented as a known limitation in
     // SECURITY.md; for sensitive work use a paid HTTPS plan or omit NumVerify.
+    //
+    // Both interpolated values are percent-encoded: the key is operator-supplied
+    // (via the key store) and the number derives from request input, so encoding
+    // stops either from injecting extra query parameters or altering the request.
     const res = await fetch(
-      `http://apilayer.net/api/validate?access_key=${key}&number=${number}&format=1`,
+      `http://apilayer.net/api/validate?access_key=${encodeURIComponent(key)}&number=${encodeURIComponent(number)}&format=1`,
       { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
@@ -59,8 +66,13 @@ async function fetchIpqs(e164: string): Promise<SourceResult<IpqsData>> {
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const encoded = encodeURIComponent(e164);
+    // The key is placed in the URL PATH. Percent-encoding it is what stops a
+    // key value (operator-supplied, so untrusted to this code) from smuggling a
+    // "/" or "../" into the path and redirecting the request to another endpoint
+    // on the host — the server-side request forgery this fetch would otherwise
+    // enable.
     const res = await fetch(
-      `https://www.ipqualityscore.com/api/json/phone/${key}/${encoded}?strictness=1&allow_prepaid=true`,
+      `https://www.ipqualityscore.com/api/json/phone/${encodeURIComponent(key)}/${encoded}?strictness=1&allow_prepaid=true`,
       { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
@@ -77,7 +89,7 @@ async function fetchAbstract(e164: string): Promise<SourceResult<AbstractData>> 
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const res = await fetch(
-      `https://phonevalidation.abstractapi.com/v1/?api_key=${key}&phone=${encodeURIComponent(e164)}`,
+      `https://phonevalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(key)}&phone=${encodeURIComponent(e164)}`,
       { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
@@ -462,9 +474,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const offline = deriveOfflineReputation(analysis);
 
+  // Server-computed union: LeakCheck's named breaches plus BreachDirectory's
+  // credential sources, deduplicated and enriched from the offline HIBP catalog.
+  // COMB is email-only (an exact-login match is undefined for a phone number),
+  // so credential exposure here rests on the breach password evidence plus Hudson
+  // Rock's infostealer captures — Cavalier's search-by-username accepts a phone
+  // number and matches it exactly, giving real credential evidence without COMB.
+  const breachAggregate = aggregateBreaches(
+    { leakCheck: sources.leakCheck, breachDirectory: sources.breachDirectory },
+    breachCatalog(),
+  );
+  const credentialExposure = assessCredentialExposure(
+    null,
+    breachAggregate.withPassword,
+    stealerCredentialSummary(sources.hudsonRock.data),
+  );
+
   const response: LookupResponse = {
     input, analysis, countryIntel, offline, sources, sourceHealth: health,
-    aggregated, threatScore, threatLabel,
+    aggregated, threatScore, threatLabel, breachAggregate, credentialExposure,
   };
   setCached(e164, response);
 

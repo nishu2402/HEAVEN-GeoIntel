@@ -142,9 +142,9 @@ function addHudsonRock(
   for (const s of stealers) {
     // Masked on the free tier — validFor() rejects those, so only a genuinely
     // unmasked address survives to become a pivot.
-    p.add("ip", s.ip, "Hudson Rock — infected machine IP", "related");
+    p.add("ip", s.ip, "Hudson Rock: infected machine IP", "related");
     for (const login of s.topLogins) {
-      p.add("email", login, "Hudson Rock — credential captured on the same machine", "related");
+      p.add("email", login, "Hudson Rock: credential captured on the same machine", "related");
     }
   }
 }
@@ -155,7 +155,7 @@ function addLeakCheck(p: Pivots, sources: { name: string }[]): void {
     const name = normalise("domain", s.name);
     // Only names that ARE a domain ("Trello.com"); plain labels like
     // "Stealer Logs" are not pivotable and are skipped rather than mangled.
-    if (validFor("domain", name)) p.add("domain", name, "LeakCheck — breached site", "related");
+    if (validFor("domain", name)) p.add("domain", name, "LeakCheck: breached site", "related");
   }
 }
 
@@ -183,16 +183,16 @@ export function pivotsFromPhone(d: LookupResponse): PivotSuggestion[] {
 
   const fc = d.sources.fullContact.ok ? d.sources.fullContact.data : undefined;
   if (fc) {
-    for (const e of fc.otherEmails ?? []) p.add("email", e, "FullContact — linked email", "confirmed");
+    for (const e of fc.otherEmails ?? []) p.add("email", e, "FullContact: linked email", "confirmed");
     for (const prof of fc.profiles ?? []) {
-      p.add("username", prof.username, `FullContact — ${prof.platform} profile`, "confirmed");
+      p.add("username", prof.username, `FullContact: ${prof.platform} profile`, "confirmed");
     }
   }
 
   // IPQS returns addresses it has seen paired with the number.
   const ipqs = d.sources.ipqs.ok ? d.sources.ipqs.data : undefined;
   for (const e of ipqs?.associated_email_addresses?.emails ?? []) {
-    p.add("email", e, "IPQualityScore — associated email", "confirmed");
+    p.add("email", e, "IPQualityScore: associated email", "confirmed");
   }
 
   const hr = d.sources.hudsonRock.ok ? d.sources.hudsonRock.data : undefined;
@@ -213,19 +213,19 @@ export function pivotsFromEmail(d: EmailLookupResponse): PivotSuggestion[] {
   p.add("domain", d.analysis.domain, "Email domain", "related");
 
   if (d.gravatar.found) {
-    p.add("username", d.gravatar.preferredUsername, "Gravatar — profile handle", "confirmed");
+    p.add("username", d.gravatar.preferredUsername, "Gravatar: profile handle", "confirmed");
     for (const a of d.gravatar.accounts) {
-      p.add("username", a.username, `Gravatar — linked ${a.shortname || "account"}`, "confirmed");
-      p.addHost(a.url, `Gravatar — linked ${a.shortname || "account"}`, "related");
+      p.add("username", a.username, `Gravatar: linked ${a.shortname || "account"}`, "confirmed");
+      p.addHost(a.url, `Gravatar: linked ${a.shortname || "account"}`, "related");
     }
   }
 
   const fc = d.fullContact.ok ? d.fullContact.data : undefined;
   if (fc) {
-    for (const e of fc.otherEmails ?? []) p.add("email", e, "FullContact — linked email", "confirmed");
-    for (const ph of fc.phones ?? []) p.add("phone", ph, "FullContact — linked phone", "confirmed");
+    for (const e of fc.otherEmails ?? []) p.add("email", e, "FullContact: linked email", "confirmed");
+    for (const ph of fc.phones ?? []) p.add("phone", ph, "FullContact: linked phone", "confirmed");
     for (const prof of fc.profiles ?? []) {
-      p.add("username", prof.username, `FullContact — ${prof.platform} profile`, "confirmed");
+      p.add("username", prof.username, `FullContact: ${prof.platform} profile`, "confirmed");
     }
   }
 
@@ -234,7 +234,7 @@ export function pivotsFromEmail(d: EmailLookupResponse): PivotSuggestion[] {
 
   const xon = d.xon.ok ? d.xon.data : undefined;
   for (const b of xon?.breaches ?? []) {
-    p.add("domain", b.domain, `XposedOrNot — breached site (${b.breach})`, "related");
+    p.add("domain", b.domain, `XposedOrNot: breached site (${b.breach})`, "related");
   }
 
   const lc = d.leakCheck.ok ? d.leakCheck.data : undefined;
@@ -242,7 +242,7 @@ export function pivotsFromEmail(d: EmailLookupResponse): PivotSuggestion[] {
 
   // EmailRep names the mail host that accepts this address.
   const rep = d.emailrep.ok ? d.emailrep.data : undefined;
-  p.addHost(rep?.primaryMx, "EmailRep — primary MX host", "related");
+  p.addHost(rep?.primaryMx, "EmailRep: primary MX host", "related");
 
   return p.done();
 }
@@ -253,7 +253,7 @@ export function pivotsFromUsername(d: UsernameLookupResponse): PivotSuggestion[]
   // A confirmed profile whose login differs from the query (case, or a rename)
   // is a distinct handle worth sweeping on its own.
   for (const prof of d.profiles) {
-    p.add("username", prof.handle, `${prof.platform} — confirmed account handle`, "confirmed");
+    p.add("username", prof.handle, `${prof.platform}: confirmed account handle`, "confirmed");
   }
 
   const lc = d.leakCheck.ok ? d.leakCheck.data : undefined;
@@ -268,7 +268,7 @@ export function pivotsFromIp(d: IpLookupResponse): PivotSuggestion[] {
 
   p.add("domain", ipToDomainPivot(d.ip.reverse), "Reverse DNS (PTR)", "confirmed");
   for (const h of d.ip.hostnames ?? []) {
-    p.add("domain", h, "Shodan InternetDB — hostname on this IP", "confirmed");
+    p.add("domain", h, "Shodan InternetDB: hostname on this IP", "confirmed");
   }
   return p.done();
 }
@@ -277,21 +277,21 @@ export function pivotsFromDomain(d: DomainLookupResponse, subdomainCap = 8): Piv
   const p = new Pivots("domain", d.domain);
 
   for (const ip of ipsFromRecords([...d.dns.a, ...d.dns.aaaa])) {
-    p.add("ip", ip, "DNS — A/AAAA record", "confirmed");
+    p.add("ip", ip, "DNS: A/AAAA record", "confirmed");
   }
   for (const mx of d.dns.mx) {
-    p.addHost(mx.value, "DNS — MX host (mail provider)", "related");
+    p.addHost(mx.value, "DNS: MX host (mail provider)", "related");
   }
   for (const ns of d.dns.ns) {
-    p.addHost(ns.value, "DNS — nameserver", "related");
+    p.addHost(ns.value, "DNS: nameserver", "related");
   }
   for (const c of d.dns.cname) {
-    p.addHost(c.value, "DNS — CNAME target", "confirmed");
+    p.addHost(c.value, "DNS: CNAME target", "confirmed");
   }
   // Subdomains are the longest list on the page; cap so the panel stays
   // actionable rather than becoming a second copy of the subdomain table.
   for (const sub of d.subdomains.slice(0, subdomainCap)) {
-    p.add("domain", sub, "Certificate transparency — subdomain", "confirmed");
+    p.add("domain", sub, "Certificate transparency: subdomain", "confirmed");
   }
   return p.done();
 }

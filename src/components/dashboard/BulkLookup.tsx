@@ -75,7 +75,7 @@ export default function BulkLookup() {
       return;
     }
     if (tooMany) {
-      setErrorMsg(`Max ${MAX_BULK} numbers per batch — got ${numbers.length}.`);
+      setErrorMsg(`Max ${MAX_BULK} numbers per batch: got ${numbers.length}.`);
       return;
     }
     /* v8 ignore stop */
@@ -94,7 +94,7 @@ export default function BulkLookup() {
       }
       setRows(json.rows);
     } catch {
-      setErrorMsg("Network error — is the dev server running?");
+      setErrorMsg("Network error: is the dev server running?");
     } finally {
       setBusy(false);
     }
@@ -118,7 +118,7 @@ export default function BulkLookup() {
   return (
     <div className="space-y-3">
       <label className="block text-[12px] uppercase tracking-widest text-[#00ff41]/55 font-mono">
-        Paste up to {MAX_BULK} phone numbers — one per line, or comma-separated
+        Paste up to {MAX_BULK} phone numbers: one per line, or comma-separated
       </label>
       <textarea
         value={input}
@@ -153,7 +153,7 @@ export default function BulkLookup() {
         {tooMany && (
           <span className="text-[12px] font-mono text-[#ff3e3e] flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
-            {numbers.length} pasted — max is {MAX_BULK}
+            {numbers.length} pasted: max is {MAX_BULK}
           </span>
         )}
       </div>
@@ -169,7 +169,7 @@ export default function BulkLookup() {
           <div className="text-[12px] font-mono text-[#00ff41]/65 flex flex-wrap gap-3">
             <span className="text-[#00ff41]">✓ {okCount} OK</span>
             {errCount > 0 && <span className="text-[#ff3e3e]">✗ {errCount} failed</span>}
-            <span className="text-[#00ff41]/54">— bulk mode is offline-only; rerun individual numbers in the PHONE tab for full enrichment.</span>
+            <span className="text-[#00ff41]/54">bulk mode is offline-only; rerun individual numbers in the PHONE tab for full enrichment.</span>
           </div>
 
           <div className="border border-[#00ff41]/15 overflow-x-auto">

@@ -107,10 +107,10 @@ describe("source manifest", () => {
     // ip-api has spent its 45-per-minute budget, and the panel lists sources in
     // this order.
     expect(sourcesForMode("ip").map((s) => s.id)).toEqual([
-      "ip-api.com", "ipwho.is", "Shodan InternetDB", "GreyNoise Community",
+      "ip-api.com", "ipwho.is", "Shodan InternetDB", "GreyNoise Community", "ripestat",
     ]);
     expect(sourcesForMode("domain").map((s) => s.id)).toEqual([
-      "dns", "whois", "subdomains", "wayback",
+      "dns", "whois", "subdomains", "http", "wayback",
     ]);
     // Phone is the mode with the most keyed sources. Keyless it now runs two —
     // Hudson Rock and LeakCheck — which is the whole point of Phase 3.2.

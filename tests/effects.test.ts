@@ -49,7 +49,16 @@ describe("effects setting", () => {
   });
 
   it("never throws if storage is unavailable", () => {
-    (globalThis as unknown as Record<string, unknown>).localStorage = undefined;
+    // Simulate unavailable storage (SSR, private mode) with a stub whose access
+    // throws. Assigning `undefined` instead would, on Node >= 24, leave the
+    // native `localStorage` accessor in place; reading it then falls back to the
+    // unconfigured web-storage getter and prints a spurious ExperimentalWarning.
+    // A throwing stub exercises the same catch paths without hitting that getter.
+    const failing = () => { throw new Error("unavailable"); };
+    (globalThis as unknown as Record<string, unknown>).localStorage = {
+      getItem: failing,
+      setItem: failing,
+    };
     expect(() => effectsEnabled()).not.toThrow();
     expect(() => setEffects(true)).not.toThrow();
   });

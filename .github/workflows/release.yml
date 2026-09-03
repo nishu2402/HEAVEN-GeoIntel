@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to (re)publish, e.g. v2.1.0"
+        description: "Existing tag to (re)publish, e.g. v3.0.0"
         required: true
 
 permissions:
@@ -179,9 +179,9 @@ jobs:
           cp -r public "$STAGE/public"
           cp README.md LICENSE CHANGELOG.md SECURITY.md "$STAGE/"
           cat > "$STAGE/RUN.md" <<EOF
-          # HEAVEN-GeoIntel ${V} — standalone bundle
+          # HEAVEN-GeoIntel ${V} standalone bundle
 
-          Self-contained. Needs Node.js 20.9+ and nothing else — no \`npm install\`.
+          Self-contained. Needs Node.js 20.9+ and nothing else (no \`npm install\`).
 
               PORT=3000 node server.js
 
@@ -262,11 +262,11 @@ jobs:
               on                 { print }
             ' CHANGELOG.md
             printf '\n---\n\n## Install\n\n'
-            printf 'Download `heaven-geointel-%s-standalone.tar.gz` — it runs on Node.js 20.9+ with no `npm install`:\n\n' "$V"
+            printf 'Download `heaven-geointel-%s-standalone.tar.gz`. It runs on Node.js 20.9+ with no `npm install`:\n\n' "$V"
             printf '```bash\ntar -xzf heaven-geointel-%s-standalone.tar.gz\ncd heaven-geointel-%s-standalone\nnode server.js\n```\n\n' "$V" "$V"
             printf 'Or from source:\n\n'
             printf '```bash\ngit clone --branch %s https://github.com/%s.git\ncd %s\nnpm install\nbash scripts/start.sh\n```\n\n' "$TAG" "$REPO" "${REPO#*/}"
-            printf '**No API keys are required** — the keyless sources work out of the box; optional keys unlock the rest and can be added at runtime from the in-app console.\n\n'
+            printf '**No API keys are required**. The keyless sources work out of the box; optional keys unlock the rest and can be added at runtime from the in-app console.\n\n'
             printf '## Verifying the download\n\n```bash\nsha256sum -c SHA256SUMS.txt\n```\n\n'
             printf 'Every asset was produced by this workflow from the `%s` tag, after the full gate passed: lint, type-check, 100%% coverage, production build, and a dependency-advisory check that blocks on anything reaching the bundled runtime.\n\n' "$TAG"
             # Stated rather than quietly folded into a green badge: the badge

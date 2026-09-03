@@ -11,6 +11,8 @@ import Tilt3D from "@/components/shared/Tilt3D";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import Term from "@/components/shared/Term";
+import UniversalReportExport from "@/components/shared/UniversalReportExport";
+import { buildIpReport } from "@/lib/analysis/report";
 
 interface Props {
   data: IpLookupResponse;
@@ -83,7 +85,7 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
           </div>
           <div className="font-mono text-sm text-[var(--hv-ink-dim)]">{c.description}</div>
           <div className="font-mono text-[11px] text-[var(--hv-ink-dim)] mt-2 opacity-70">
-            No geolocation attempted — this address is not a unique public host.
+            No geolocation attempted: this address is not a unique public host.
           </div>
         </div>
       );
@@ -165,6 +167,8 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
 
       <GlanceCard tiles={glanceTiles} jump={jump} />
 
+      <div className="flex justify-end"><UniversalReportExport model={buildIpReport(data)} /></div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div id="sec-geo" className="terminal-card p-4 space-y-1 scroll-mt-24">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-3 flex items-center gap-1.5"><MapPin className="w-3 h-3" /> GEOLOCATION</div>
@@ -190,13 +194,17 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
           <Row label="ISP" value={ip.isp} accent="var(--hv-cyan)" />
           <Row label="Organization" value={ip.org} />
           <Row label="Reverse DNS" value={ip.reverse} accent="var(--hv-magenta)" />
+          {/* RIPEstat RIR routing/abuse enrichment (keyless). Rows self-hide when absent. */}
+          <Row label="Prefix" value={ip.prefix} accent="var(--hv-cyan)" />
+          <Row label="ASN prefixes" value={ip.announcedPrefixes != null ? `${ip.announcedPrefixes} announced` : null} />
+          <Row label="Abuse contact" value={ip.abuseContact} accent="#fb923c" />
         </div>
       </div>
 
       {hasExposure && (
         <div id="sec-exposure" className="terminal-card p-4 space-y-3 scroll-mt-24">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-            <Server className="w-3 h-3" /> INTERNET EXPOSURE — Shodan InternetDB
+            <Server className="w-3 h-3" /> INTERNET EXPOSURE: Shodan InternetDB
           </div>
           {ip.ports && (
             <div>
@@ -240,7 +248,7 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
       )}
 
       <div id="sec-pivots" className="terminal-card p-4 space-y-2 scroll-mt-24">
-        <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Shield className="w-3 h-3" /> DEEPEN — free pivots (no key)</div>
+        <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Shield className="w-3 h-3" /> DEEPEN: free pivots (no key)</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {data.pivots.map((p) => (
             <a key={p.label} href={p.url} target="_blank" rel="noopener noreferrer"

@@ -29,6 +29,7 @@ vi.mock("@/components/osint/CountryPanel", mockPanel("CountryPanel"));
 vi.mock("@/components/osint/LocationPanel", mockPanel("LocationPanel"));
 vi.mock("@/components/osint/QrCodePanel", mockPanel("QrCodePanel"));
 vi.mock("@/components/breach/BreachPanel", mockPanel("BreachPanel"));
+vi.mock("@/components/breach/BreachAggregatePanel", mockPanel("BreachAggregatePanel"));
 vi.mock("@/components/breach/InfostealerPanel", mockPanel("InfostealerPanel"));
 
 import ResultsDashboard from "@/components/dashboard/ResultsDashboard";
@@ -71,6 +72,7 @@ const lookup = (over: {
   sources: {
     numverify: offS(), ipqs: offS(), abstract: offS(), twilio: offS(),
     breachDirectory: offS(), fullContact: offS(), hudsonRock: okS({ total: 0, stealers: [] }),
+    leakCheck: offS(),
     ...over.sources,
   } as never,
   threatScore: over.threat?.[0] ?? 12, threatLabel: over.threat?.[1] ?? "LOW RISK",
@@ -80,7 +82,7 @@ const lookup = (over: {
 describe("<ResultsDashboard>", () => {
   it("renders the header, threat score, glance tiles and every child panel", () => {
     render(<ResultsDashboard data={lookup({
-      sources: { breachDirectory: okS({ found: 2 }), hudsonRock: okS({ total: 3, stealers: [] }) },
+      sources: { breachDirectory: okS({ found: 2, sources: ["Adobe", "Canva"] }), hudsonRock: okS({ total: 3, stealers: [] }) },
       npaInfo: { region: "Bay Area", stateAbbr: "CA" },
       countryIntel: { name: "United States" },
     })} />);
@@ -89,7 +91,7 @@ describe("<ResultsDashboard>", () => {
     expect(screen.getByText("✓ VALID")).toBeTruthy();
     // glance tiles
     expect(screen.getByText("Bay Area, CA")).toBeTruthy();     // npa location
-    expect(screen.getByText("2 found")).toBeTruthy();           // breach
+    expect(screen.getByText("2 found")).toBeTruthy();           // breach: union of named breaches
     expect(screen.getByText("3 devices")).toBeTruthy();         // infostealer plural
     // SIM data present → real SIM panel (stub), country intel present → CountryPanel
     expect(screen.getByTestId("SimIntelPanel")).toBeTruthy();

@@ -1,0 +1,88 @@
+name: link-health
+
+# The outbound OSINT catalogs rot from the outside. Sites retire a URL shape
+# (peekyou.com/phone/{n} became a Cloudflare block, who-called.co.uk removed its
+# number pages) and nothing in the repo changes, so no push-triggered job would
+# ever notice. A schedule is the only trigger that matches how this breaks.
+#
+# It cannot live in ci.yml: this makes real requests to third-party sites, so it
+# is slow, occasionally flaky, and must never gate a pull request.
+
+on:
+  schedule:
+    # 06:20 UTC on Mondays. Off the hour on purpose — the top of the hour is
+    # when GitHub's scheduler is most congested and runs get delayed.
+    - cron: "20 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Probe every outbound link
+        id: probe
+        run: |
+          set -o pipefail
+          npm run links:check 2>&1 | tee link-report.txt
+
+      # `if: failure()` on the step above would also catch an npm or network
+      # fault and file an issue blaming the sites. Checking the report for the
+      # checker's own DEAD/DOWN verdict keeps the issue about link rot.
+      - name: Open an issue when links are dead
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = '';
+            try { report = fs.readFileSync('link-report.txt', 'utf8'); } catch { report = '(no report produced)'; }
+            const dead = report.split('\n').filter((l) => /\b(DEAD|DOWN)\b/.test(l));
+            if (dead.length === 0) {
+              core.setFailed('links:check failed without reporting a dead link. See the run log.');
+              return;
+            }
+            const title = `Link rot: ${dead.length} outbound target(s) failing`;
+            const body = [
+              'The weekly link probe found outbound OSINT targets that no longer resolve.',
+              '',
+              '```',
+              ...dead.slice(0, 50),
+              '```',
+              '',
+              `Full report: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join('\n');
+
+            // Reuse the open issue rather than filing a new one every Monday.
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'link-rot',
+            });
+            if (open.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: open[0].number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['link-rot'],
+              });
+            }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: link-report
+          path: link-report.txt
+          retention-days: 30

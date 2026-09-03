@@ -19,7 +19,7 @@ GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BO
 
 usage() {
   cat <<'USAGE'
-HEAVEN-GeoIntel — one-command startup
+HEAVEN-GeoIntel: one-command startup
 
   bash scripts/start.sh [flag]      (or just: geointel [flag])
 
@@ -125,7 +125,7 @@ if [ "$MODE" = "doctor" ]; then
   if command -v node >/dev/null 2>&1; then
     echo -e "  ${GREEN}[ok]${NC} Node $(node -v)"
   else
-    echo -e "  ${RED}[x]${NC} Node.js not found — install Node 20.9+ from https://nodejs.org"
+    echo -e "  ${RED}[x]${NC} Node.js not found. Install Node 20.9+ from https://nodejs.org"
   fi
 
   # 2) Active interface + LAN IP
@@ -135,12 +135,12 @@ if [ "$MODE" = "doctor" ]; then
   if [ -n "$LAN_IP" ]; then
     echo -e "  ${GREEN}[ok]${NC} LAN IP: ${BOLD}$LAN_IP${NC}  (interface ${IFC:-?}, gateway ${GW:-?})"
   else
-    echo -e "  ${RED}[x]${NC} No LAN IPv4 found — are you connected to Wi-Fi/Ethernet?"
+    echo -e "  ${RED}[x]${NC} No LAN IPv4 found. Are you connected to Wi-Fi/Ethernet?"
   fi
 
   # 3) Active VPN tunnel (can hijack the route so the phone can't reach you)
   if ifconfig 2>/dev/null | grep -A3 '^utun' | grep -q 'inet '; then
-    echo -e "  ${YELLOW}[!]${NC} A VPN tunnel (utun) is active — VPNs often block LAN device-to-device traffic."
+    echo -e "  ${YELLOW}[!]${NC} A VPN tunnel (utun) is active. VPNs often block LAN device-to-device traffic."
     echo -e "       Try disconnecting the VPN while you test the phone."
   else
     echo -e "  ${GREEN}[ok]${NC} No active VPN tunnel."
@@ -154,31 +154,31 @@ if [ "$MODE" = "doctor" ]; then
     if echo "$FW_STATE" | grep -qi "enabled"; then
       echo -e "  ${YELLOW}[!]${NC} macOS firewall is ON."
       if /usr/libexec/ApplicationFirewall/socketfilterfw --listapps 2>/dev/null | grep -qF "$NODE_BIN"; then
-        echo -e "       ${GREEN}node is allowed to accept incoming connections — good.${NC}"
+        echo -e "       ${GREEN}node is allowed to accept incoming connections, good.${NC}"
         echo -e "       ${YELLOW}NOTE:${NC} the allow-rule is tied to THIS exact path:"
         echo -e "         $NODE_BIN"
         echo -e "       If you upgrade Node, re-allow it (the path changes):"
         echo -e "         ${CYAN}sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add \"\$(readlink -f \$(command -v node))\" --unblockapp \"\$(readlink -f \$(command -v node))\"${NC}"
       else
-        echo -e "       ${RED}node is NOT in the firewall allow-list — incoming LAN connections are blocked.${NC}"
+        echo -e "       ${RED}node is NOT in the firewall allow-list. Incoming LAN connections are blocked.${NC}"
         echo -e "       Allow it (one time):"
         echo -e "         ${CYAN}sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add \"$NODE_BIN\" --unblockapp \"$NODE_BIN\"${NC}"
       fi
       echo "$FW_STEALTH" | grep -qi "on" && \
         echo -e "       ${YELLOW}Stealth mode is ON${NC} (drops probes/ping). TCP to an allowed app still works."
     else
-      echo -e "  ${GREEN}[ok]${NC} macOS firewall is OFF — not blocking anything."
+      echo -e "  ${GREEN}[ok]${NC} macOS firewall is OFF, not blocking anything."
     fi
   fi
 
   echo ""
   echo -e "  ${BOLD}If localhost works but your PHONE can't load the Network URL,${NC}"
-  echo -e "  ${BOLD}the server is fine — the block is your network. Check, in order:${NC}"
+  echo -e "  ${BOLD}the server is fine. The block is your network. Check, in order:${NC}"
   echo -e "   1. Phone and Mac on the ${BOLD}same Wi-Fi${NC} (not cellular, not a separate"
   echo -e "      \"Guest\" SSID). Guest networks isolate devices by design."
   echo -e "   2. Router \"${BOLD}AP isolation${NC}\" / \"client isolation\" / \"AP+\" must be OFF."
   echo -e "      (Common on mesh systems and ISP routers. Toggle it in router settings.)"
-  echo -e "   3. Type the IP ${BOLD}exactly${NC}: ${CYAN}http://$LAN_IP:<port>${NC} — never ${RED}0.0.0.0${NC}"
+  echo -e "   3. Type the IP ${BOLD}exactly${NC}: ${CYAN}http://$LAN_IP:<port>${NC}, never ${RED}0.0.0.0${NC}"
   echo -e "      (0.0.0.0 means \"all interfaces\" to the server; it is NOT an address a"
   echo -e "       phone can open.)"
   echo -e "   4. Quick proof from the phone's browser: open ${CYAN}http://$LAN_IP:<port>${NC}"
@@ -201,7 +201,7 @@ if [ -f "$SCRIPT_DIR/banner.sh" ]; then
   hv_banner
 else
   echo -e "${GREEN}==============================================================${NC}"
-  echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v2.1.0${NC}"
+  echo -e "${GREEN}       HEAVEN-GeoIntel - Unified OSINT Platform  v3.0.0${NC}"
   echo -e "${GREEN}==============================================================${NC}"
 fi
 echo ""
@@ -250,7 +250,7 @@ LAN_IP="$(detect_lan_ip)"
 # ════════════════════════════════════════════════════════════════════════════
 if [ "$MODE" = "dev" ]; then
   echo ""
-  echo -e "${YELLOW}[dev] Hot-reload mode — LOCAL ONLY (not reachable from other devices).${NC}"
+  echo -e "${YELLOW}[dev] Hot-reload mode: LOCAL ONLY (not reachable from other devices).${NC}"
   echo -e "${CYAN}  Local:    http://localhost:$PORT${NC}"
   echo -e "${YELLOW}  For phone/LAN access use production mode: bash scripts/start.sh${NC}"
   echo ""
@@ -344,7 +344,7 @@ else
   echo -e "  ${RED}[x]${NC} On this Mac:  $URL_LOCAL  (HTTP $LOCAL_CODE)"
 fi
 if [ -z "$LAN_IP" ]; then
-  echo -e "  ${YELLOW}[!]${NC} No LAN IP detected — connect to Wi-Fi/Ethernet for phone access."
+  echo -e "  ${YELLOW}[!]${NC} No LAN IP detected. Connect to Wi-Fi/Ethernet for phone access."
 elif [ "$NET_CODE" = "200" ]; then
   echo -e "  ${GREEN}[ok]${NC} From phone:   ${CYAN}${BOLD}$URL_NET${NC}   ${BOLD}<-- open THIS on your phone${NC}"
   echo -e "       (server verified reachable on the LAN IP)"

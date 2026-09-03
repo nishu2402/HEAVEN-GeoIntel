@@ -86,12 +86,12 @@ export default function EmailInput({ onLookup, onClear, loading }: Props) {
       <div className="text-sm font-mono">
         {validation === "valid" && (
           <span className="text-[#00ff41]">
-            ✓ Valid — will scan: <span className="glow-green">{trimmed}</span>
+            ✓ Valid: will scan: <span className="glow-green">{trimmed}</span>
           </span>
         )}
         {validation === "invalid" && trimmed && (
           <span className="text-[#ff3e3e]">
-            ✗ Not a valid email address — check format (user@domain.tld)
+            ✗ Not a valid email address: check format (user@domain.tld)
           </span>
         )}
         {validation === "empty" && (

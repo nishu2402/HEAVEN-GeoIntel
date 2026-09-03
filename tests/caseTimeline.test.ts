@@ -33,4 +33,20 @@ describe("caseTimeline", () => {
   it("returns just the created marker for an empty case", () => {
     expect(caseTimeline(mkCase(42, []))).toEqual([{ at: 42, type: "created", label: "Case created" }]);
   });
+
+  it("merges derived links and lookup snapshots into the chronological stream", () => {
+    const c: InvestigationCase = {
+      ...mkCase(100, [ent("domain", "example.com", 200)]),
+      edges: [{ from: { kind: "domain", value: "example.com" }, to: { kind: "ip", value: "93.184.216.34" }, reason: "A record", addedAt: 300 }],
+      snapshots: [
+        { kind: "domain", value: "example.com", takenAt: 400, facts: { subdomains: 5, breaches: 2 }, fromCache: true },
+        { kind: "ip", value: "93.184.216.34", takenAt: 500, facts: {} }, // no tracked facts
+      ],
+    };
+    const t = caseTimeline(c);
+    expect(t.map((e) => e.type)).toEqual(["created", "entity", "edge", "snapshot", "snapshot"]);
+    expect(t[2]).toMatchObject({ type: "edge", label: "example.com → 93.184.216.34", detail: "A record" });
+    expect(t[3]).toMatchObject({ type: "snapshot", label: "example.com", entityKind: "domain", detail: "subdomains 5 · breaches 2", fromCache: true });
+    expect(t[4].detail).toBe("no tracked facts"); // empty facts summary
+  });
 });

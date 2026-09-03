@@ -48,11 +48,11 @@ export default function CountryPanel({ intel }: Props) {
       <div className="space-y-0">
         <Row label="Capital" value={intel.capital} />
         <Row label="Continent" value={intel.continent} />
-        <Row label="Region" value={`${intel.region} — ${intel.subregion}`} />
+        <Row label="Region" value={`${intel.region}: ${intel.subregion}`} />
         <Row label="Population" value={formatNumber(intel.population)} />
         <Row
           label="Currency"
-          value={`${intel.currency.symbol} ${intel.currency.code} — ${intel.currency.name}`}
+          value={`${intel.currency.symbol} ${intel.currency.code}: ${intel.currency.name}`}
         />
         <Row label="Languages" value={intel.languages.join(", ")} />
         <Row label="Calling Code" value={intel.callingCode} />
