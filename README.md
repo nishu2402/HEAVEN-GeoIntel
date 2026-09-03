@@ -16,6 +16,41 @@
 
 ---
 
+<div align="center">
+
+  <p>
+    <img src="https://img.shields.io/badge/Version-3.0.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
+    <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
+    <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
+    <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
+    <img src="https://img.shields.io/badge/API_Keys-Zero_Required-44FF88?style=for-the-badge&logo=checkmarx&logoColor=black" alt="Zero API Keys"/>
+    <img src="https://img.shields.io/badge/License-MIT-FF3333?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License"/>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/Identifiers-Phone_·_Email_·_Username_·_IP_·_Domain-BF5FFF?style=flat-square&logo=target&logoColor=white" alt="Identifier types"/>
+    <img src="https://img.shields.io/badge/Modes-11_(incl._Graph_+_Cases)-00D9D9?style=flat-square&logo=hexo&logoColor=black" alt="Modes"/>
+    <img src="https://img.shields.io/badge/Command_Palette-%E2%8C%98K-44FF88?style=flat-square&logo=raycast&logoColor=black" alt="Command palette"/>
+    <img src="https://img.shields.io/badge/Themes-Light_+_Dark-FFAA00?style=flat-square&logo=tailwindcss&logoColor=black" alt="Themes"/>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/Phone_Pivots-37_across_6_access_tiers-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
+    <img src="https://img.shields.io/badge/Username-38_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/>
+    <img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/>
+    <img src="https://img.shields.io/badge/NPA_Database-400%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
+    <img src="https://img.shields.io/badge/Rate_Limit-60_req%2Fmin%2Fclient_(tunable)-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/github/stars/nishu2402/HEAVEN-GeoIntel?style=social" alt="Stars"/>
+    <img src="https://img.shields.io/github/forks/nishu2402/HEAVEN-GeoIntel?style=social" alt="Forks"/>
+  </p>
+
+</div>
+
+---
+
 > ### ⚠️ Acceptable use
 >
 > **HEAVEN-GeoIntel returns publicly-derivable metadata only.** It does **not** and **cannot** provide real-time GPS, live device tracking, or SS7 interception.
@@ -26,6 +61,23 @@
 > - In ways that comply with the laws of **both your jurisdiction and the target's**.
 >
 > Stalking, harassment, doxing, domestic abuse, and any non-consensual surveillance are **explicitly prohibited** by the [LICENSE](./LICENSE). Misuse is the sole responsibility of the user.
+
+---
+
+<a id="authors"></a>
+## 👾 Authors
+
+### Nisarg Chasmawala · Alias: **HEAVEN**
+
+<div align="center">
+
+| | Detail |
+|---|---|
+| 🔗 **LinkedIn** | [linkedin.com/in/nisarg-chasmawala](https://www.linkedin.com/in/nisarg-chasmawala) |
+| 🐙 **GitHub** | [github.com/nishu2402](https://github.com/nishu2402) |
+| 🎯 **Role** | Offensive Security Engineer · Penetration Tester · OSINT Analyst |
+
+</div>
 
 ---
 
@@ -65,58 +117,6 @@
 </table>
 
 <sub>Every shot is captured at one fixed viewport, so the grid stays even. To refresh them, run <code>npm run dev</code> in one terminal and <code>npm run screenshots</code> in another. The <a href="./scripts/capture-screenshots.mjs">capture script</a> drives your system Chrome and writes high-DPI PNGs into <a href="./docs/screenshots/"><code>docs/screenshots/</code></a>.</sub>
-
----
-
-<div align="center">
-
-  <p>
-    <img src="https://img.shields.io/badge/Version-3.0.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
-    <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
-    <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
-    <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
-    <img src="https://img.shields.io/badge/API_Keys-Zero_Required-44FF88?style=for-the-badge&logo=checkmarx&logoColor=black" alt="Zero API Keys"/>
-    <img src="https://img.shields.io/badge/License-MIT-FF3333?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License"/>
-  </p>
-
-  <p>
-    <img src="https://img.shields.io/badge/Identifiers-Phone_·_Email_·_Username_·_IP_·_Domain-BF5FFF?style=flat-square&logo=target&logoColor=white" alt="Identifier types"/>
-    <img src="https://img.shields.io/badge/Modes-11_(incl._Graph_+_Cases)-00D9D9?style=flat-square&logo=hexo&logoColor=black" alt="Modes"/>
-    <img src="https://img.shields.io/badge/Command_Palette-%E2%8C%98K-44FF88?style=flat-square&logo=raycast&logoColor=black" alt="Command palette"/>
-    <img src="https://img.shields.io/badge/Themes-Light_+_Dark-FFAA00?style=flat-square&logo=tailwindcss&logoColor=black" alt="Themes"/>
-  </p>
-
-  <p>
-    <img src="https://img.shields.io/badge/Phone_Pivots-37_across_6_access_tiers-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
-    <img src="https://img.shields.io/badge/Username-38_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/>
-    <img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/>
-    <img src="https://img.shields.io/badge/NPA_Database-400%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
-    <img src="https://img.shields.io/badge/Rate_Limit-60_req%2Fmin%2Fclient_(tunable)-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
-  </p>
-
-  <p>
-    <img src="https://img.shields.io/github/stars/nishu2402/HEAVEN-GeoIntel?style=social" alt="Stars"/>
-    <img src="https://img.shields.io/github/forks/nishu2402/HEAVEN-GeoIntel?style=social" alt="Forks"/>
-  </p>
-
-</div>
-
----
-
-<a id="authors"></a>
-## 👾 Authors
-
-### Nisarg Chasmawala · Alias: **HEAVEN**
-
-<div align="center">
-
-| | Detail |
-|---|---|
-| 🔗 **LinkedIn** | [linkedin.com/in/nisarg-chasmawala](https://www.linkedin.com/in/nisarg-chasmawala) |
-| 🐙 **GitHub** | [github.com/nishu2402](https://github.com/nishu2402) |
-| 🎯 **Role** | Offensive Security Engineer · Penetration Tester · OSINT Analyst |
-
-</div>
 
 ---
 
