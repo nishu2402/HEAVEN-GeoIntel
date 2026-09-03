@@ -33,6 +33,7 @@ const resp = (over: Partial<UsernameLookupResponse> = {}): UsernameLookupRespons
   },
   pivots: [{ label: "Google dork", url: "https://google.com/search?q=neo" }],
   leakCheck: { ok: false, error: "NOT_CONFIGURED" },
+  hudsonRock: { ok: false, error: "NOT_CONFIGURED" },
   ...over,
 });
 
@@ -122,7 +123,9 @@ describe("<UsernameResultsDashboard>", () => {
     const { container } = render(<UsernameResultsDashboard data={resp()} />);
     const imgs = container.querySelectorAll("img");
     expect(imgs.length).toBeGreaterThan(0);
-    fireEvent.error(imgs[0]!);
+    // Fire on every image so both the decorative Avatar and the resolved-identity
+    // avatar exercise their onError-hide handlers.
+    imgs.forEach((img) => fireEvent.error(img));
     expect(container.querySelectorAll("img").length).toBeLessThan(imgs.length);
   });
 

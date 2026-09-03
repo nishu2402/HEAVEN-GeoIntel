@@ -11,6 +11,10 @@ import { resolveKey } from "@/lib/server/keyStore";
 import { describeError } from "@/lib/server/fetchSafe";
 import { hudsonRockFor } from "@/lib/server/hudsonRock";
 import { fetchLeakCheck } from "@/lib/server/leakCheck";
+import { fetchComb } from "@/lib/server/proxyNova";
+import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
+import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
+import { breachCatalog } from "@/lib/data/breachCatalog";
 import { USER_AGENT } from "@/lib/version";
 import type {
   EmailLookupResponse,
@@ -182,7 +186,7 @@ async function fetchAbstractEmail(email: string): Promise<SourceResult<AbstractE
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const res = await fetch(
-      `https://emailvalidation.abstractapi.com/v1/?api_key=${key}&email=${encodeURIComponent(email)}`,
+      `https://emailvalidation.abstractapi.com/v1/?api_key=${encodeURIComponent(key)}&email=${encodeURIComponent(email)}`,
       { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
@@ -230,7 +234,7 @@ async function fetchHunter(email: string): Promise<SourceResult<HunterData>> {
   if (!key) return { ok: false, error: "NOT_CONFIGURED" };
   try {
     const res = await fetch(
-      `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${key}`,
+      `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${encodeURIComponent(key)}`,
       { signal: AbortSignal.timeout(8000), next: { revalidate: 0 } }
     );
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
@@ -574,7 +578,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // search-by-username one the phone route uses rejects an address with 400.
     hudsonRock: hudsonRockFor(email, "email"),
     leakCheck: fetchLeakCheck(email, "email"),
+    // ProxyNova COMB — keyless credential-pair exposure, email only. The module
+    // keeps exact-login matches only and masks every password server-side.
+    comb: fetchComb(email),
   });
+
+  // The union is computed HERE, on the server, so it can be enriched from the
+  // vendored HIBP catalog (which never reaches the browser bundle) and so the
+  // report and the panel show one number. The client recomputes it only when an
+  // old cached response lacks this field.
+  const breachAggregate = aggregateBreaches(
+    { xon: results.xon, leakCheck: results.leakCheck, breachDirectory: results.breachDirectory },
+    breachCatalog(),
+  );
+  // A failed COMB call has no data, so `?? null` degrades it to "no COMB
+  // evidence" — assessCredentialExposure then rests on the breach password
+  // count and Hudson Rock's captured credentials, never reading a failure as a
+  // clean result. Cavalier's search-by-email captures are exact-match, so they
+  // enrich the exposure view without COMB's substring risk.
+  const credentialExposure = assessCredentialExposure(
+    results.comb.data ?? null,
+    breachAggregate.withPassword,
+    stealerCredentialSummary(results.hudsonRock.data),
+  );
 
   const response: EmailLookupResponse = {
     email,
@@ -590,6 +616,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     fullContact: results.fullContact,
     hudsonRock: results.hudsonRock,
     leakCheck: results.leakCheck,
+    comb: results.comb,
+    breachAggregate,
+    credentialExposure,
     sourceHealth: health,
   };
 

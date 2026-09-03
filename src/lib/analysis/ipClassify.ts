@@ -40,40 +40,40 @@ interface Range {
   rfc: string;
 }
 
-const PRIVATE_DESC = "Internal/private network address — not routable on the public internet.";
-const DOC_DESC = "Reserved for documentation/examples — never assigned to a real host.";
+const PRIVATE_DESC = "Internal/private network address: not routable on the public internet.";
+const DOC_DESC = "Reserved for documentation/examples: never assigned to a real host.";
 
 // IPv4 special-purpose blocks. Order is specific-first; the blocks are disjoint
 // so the first containing range wins.
 const V4_RANGES: Range[] = [
-  { cidr: "0.0.0.0/8",       scope: "unspecified",   label: '"This" network',              description: 'The "this host on this network" block — not a routable destination.', rfc: "RFC 1122" },
+  { cidr: "0.0.0.0/8",       scope: "unspecified",   label: '"This" network',              description: 'The "this host on this network" block: not a routable destination.', rfc: "RFC 1122" },
   { cidr: "10.0.0.0/8",      scope: "private",       label: "Private (RFC 1918)",          description: PRIVATE_DESC, rfc: "RFC 1918" },
-  { cidr: "100.64.0.0/10",   scope: "cgnat",         label: "Carrier-grade NAT",           description: "Shared CGNAT address space inside an ISP — not a unique public host.", rfc: "RFC 6598" },
-  { cidr: "127.0.0.0/8",     scope: "loopback",      label: "Loopback",                    description: "Loopback address — always refers to the local machine.", rfc: "RFC 1122" },
-  { cidr: "169.254.0.0/16",  scope: "link-local",    label: "Link-local (APIPA)",          description: "Auto-configured link-local address — only valid on the local segment.", rfc: "RFC 3927" },
+  { cidr: "100.64.0.0/10",   scope: "cgnat",         label: "Carrier-grade NAT",           description: "Shared CGNAT address space inside an ISP: not a unique public host.", rfc: "RFC 6598" },
+  { cidr: "127.0.0.0/8",     scope: "loopback",      label: "Loopback",                    description: "Loopback address: always refers to the local machine.", rfc: "RFC 1122" },
+  { cidr: "169.254.0.0/16",  scope: "link-local",    label: "Link-local (APIPA)",          description: "Auto-configured link-local address: only valid on the local segment.", rfc: "RFC 3927" },
   { cidr: "172.16.0.0/12",   scope: "private",       label: "Private (RFC 1918)",          description: PRIVATE_DESC, rfc: "RFC 1918" },
-  { cidr: "192.0.0.0/24",    scope: "protocol",      label: "IETF protocol assignments",   description: "Reserved for IETF protocol assignments — not a normal host.", rfc: "RFC 6890" },
+  { cidr: "192.0.0.0/24",    scope: "protocol",      label: "IETF protocol assignments",   description: "Reserved for IETF protocol assignments: not a normal host.", rfc: "RFC 6890" },
   { cidr: "192.0.2.0/24",    scope: "documentation", label: "Documentation (TEST-NET-1)",  description: DOC_DESC, rfc: "RFC 5737" },
-  { cidr: "192.88.99.0/24",  scope: "protocol",      label: "6to4 relay anycast (deprecated)", description: "Former 6to4 relay anycast block — deprecated.", rfc: "RFC 7526" },
+  { cidr: "192.88.99.0/24",  scope: "protocol",      label: "6to4 relay anycast (deprecated)", description: "Former 6to4 relay anycast block: deprecated.", rfc: "RFC 7526" },
   { cidr: "192.168.0.0/16",  scope: "private",       label: "Private (RFC 1918)",          description: PRIVATE_DESC, rfc: "RFC 1918" },
-  { cidr: "198.18.0.0/15",   scope: "benchmarking",  label: "Benchmarking",                description: "Reserved for network benchmarking — not a real host.", rfc: "RFC 2544" },
+  { cidr: "198.18.0.0/15",   scope: "benchmarking",  label: "Benchmarking",                description: "Reserved for network benchmarking: not a real host.", rfc: "RFC 2544" },
   { cidr: "198.51.100.0/24", scope: "documentation", label: "Documentation (TEST-NET-2)",  description: DOC_DESC, rfc: "RFC 5737" },
   { cidr: "203.0.113.0/24",  scope: "documentation", label: "Documentation (TEST-NET-3)",  description: DOC_DESC, rfc: "RFC 5737" },
-  { cidr: "224.0.0.0/4",     scope: "multicast",     label: "Multicast",                   description: "Multicast group address — not a single unicast host.", rfc: "RFC 5771" },
+  { cidr: "224.0.0.0/4",     scope: "multicast",     label: "Multicast",                   description: "Multicast group address: not a single unicast host.", rfc: "RFC 5771" },
   { cidr: "240.0.0.0/4",     scope: "reserved",      label: "Reserved",                    description: "Reserved for future use (includes the 255.255.255.255 broadcast).", rfc: "RFC 1112" },
 ];
 
 // IPv6 special-purpose blocks. Exact /128 addresses are listed before the wider
 // prefixes so they match first.
 const V6_RANGES: Range[] = [
-  { cidr: "::1/128",       scope: "loopback",      label: "Loopback",              description: "IPv6 loopback — always the local machine.", rfc: "RFC 4291" },
-  { cidr: "::/128",        scope: "unspecified",   label: "Unspecified",           description: "The unspecified address (::) — not a routable destination.", rfc: "RFC 4291" },
-  { cidr: "::ffff:0:0/96", scope: "translation",   label: "IPv4-mapped",           description: "IPv4-mapped IPv6 address — represents an IPv4 host.", rfc: "RFC 4291" },
+  { cidr: "::1/128",       scope: "loopback",      label: "Loopback",              description: "IPv6 loopback: always the local machine.", rfc: "RFC 4291" },
+  { cidr: "::/128",        scope: "unspecified",   label: "Unspecified",           description: "The unspecified address (::): not a routable destination.", rfc: "RFC 4291" },
+  { cidr: "::ffff:0:0/96", scope: "translation",   label: "IPv4-mapped",           description: "IPv4-mapped IPv6 address: represents an IPv4 host.", rfc: "RFC 4291" },
   { cidr: "64:ff9b::/96",  scope: "translation",   label: "IPv4/IPv6 translation", description: "NAT64 translation prefix (well-known).", rfc: "RFC 6052" },
   { cidr: "2001:db8::/32", scope: "documentation", label: "Documentation",         description: DOC_DESC, rfc: "RFC 3849" },
-  { cidr: "fc00::/7",      scope: "unique-local",  label: "Unique local (ULA)",    description: "Private IPv6 range — not routable on the public internet.", rfc: "RFC 4193" },
-  { cidr: "fe80::/10",     scope: "link-local",    label: "Link-local",            description: "Link-local address — only valid on the local segment.", rfc: "RFC 4291" },
-  { cidr: "ff00::/8",      scope: "multicast",     label: "Multicast",             description: "Multicast group address — not a single unicast host.", rfc: "RFC 4291" },
+  { cidr: "fc00::/7",      scope: "unique-local",  label: "Unique local (ULA)",    description: "Private IPv6 range: not routable on the public internet.", rfc: "RFC 4193" },
+  { cidr: "fe80::/10",     scope: "link-local",    label: "Link-local",            description: "Link-local address: only valid on the local segment.", rfc: "RFC 4291" },
+  { cidr: "ff00::/8",      scope: "multicast",     label: "Multicast",             description: "Multicast group address: not a single unicast host.", rfc: "RFC 4291" },
 ];
 
 // Addresses are represented as unit arrays (4 octets for IPv4, 8 hextets for

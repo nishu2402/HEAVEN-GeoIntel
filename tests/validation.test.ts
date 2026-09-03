@@ -41,7 +41,7 @@ describe("parseBody", () => {
   });
 });
 
-describe("body schemas — bounds", () => {
+describe("body schemas: bounds", () => {
   it("emailBody enforces 3..254", () => {
     expect(emailBody.safeParse({ email: "a@b" }).success).toBe(true);
     expect(emailBody.safeParse({ email: "ab" }).success).toBe(false);

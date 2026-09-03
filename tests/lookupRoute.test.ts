@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { isHost } from "./urlMatch";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -60,7 +61,7 @@ const post = (payload: unknown) => {
   return POST(req as unknown as NextRequest);
 };
 
-describe("POST /api/lookup — input validation", () => {
+describe("POST /api/lookup: input validation", () => {
   it("400 on a body with no number field", async () => {
     const res = await post({});
     expect(res.status).toBe(400);
@@ -81,7 +82,7 @@ describe("POST /api/lookup — input validation", () => {
   });
 });
 
-describe("POST /api/lookup — offline happy path (no provider keys)", () => {
+describe("POST /api/lookup: offline happy path (no provider keys)", () => {
   it("returns full offline analysis with all paid sources NOT_CONFIGURED and CLEAN threat", async () => {
     stubFetch([["cavalier.hudsonrock.com", hudsonClean]]);
 
@@ -112,7 +113,7 @@ describe("POST /api/lookup — offline happy path (no provider keys)", () => {
   });
 });
 
-describe("POST /api/lookup — enrichment merge + threat scoring", () => {
+describe("POST /api/lookup: enrichment merge + threat scoring", () => {
   it("merges IPQS/breach/Hudson Rock into a CRITICAL score with a resolved carrier", async () => {
     process.env.IPQS_API_KEY = "test-ipqs";
     process.env.RAPIDAPI_KEY = "test-rapid";
@@ -161,10 +162,10 @@ describe("POST /api/lookup — enrichment merge + threat scoring", () => {
   });
 });
 
-describe("POST /api/lookup — caching", () => {
+describe("POST /api/lookup: caching", () => {
   it("serves the second identical lookup from cache without re-calling upstreams", async () => {
     const fetchMock = vi.fn(async (url: string | URL) => {
-      if (String(url).includes("cavalier.hudsonrock.com")) return hudsonClean;
+      if (isHost(url, "cavalier.hudsonrock.com")) return hudsonClean;
       throw new TypeError("unexpected fetch");
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -182,7 +183,7 @@ describe("POST /api/lookup — caching", () => {
   });
 });
 
-describe("POST /api/lookup — rate limiting", () => {
+describe("POST /api/lookup: rate limiting", () => {
   afterEach(restoreRateLimit);
 
   const req = (cookie: string) => () => new Request("http://localhost/api/lookup", {
@@ -204,7 +205,7 @@ describe("POST /api/lookup — rate limiting", () => {
     expect(over.headers.get("X-RateLimit-Scope")).toBe("client");
   });
 
-  it("does not let one exhausted client throttle another — the P1 defect", async () => {
+  it("does not let one exhausted client throttle another: the P1 defect", async () => {
     useRateLimit(2);
     stubFetch([["cavalier.hudsonrock.com", hudsonClean]]);
     const a = req(clientCookie("browserAAA"));

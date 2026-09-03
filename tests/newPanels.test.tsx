@@ -35,7 +35,7 @@ describe("<LeakCheckPanel>", () => {
     expect(screen.getByText(/1 high-sensitivity field type was exposed/)).toBeTruthy();
   });
 
-  it("renders NOT INDEXED for a clean answer — never as an error", () => {
+  it("renders NOT INDEXED for a clean answer: never as an error", () => {
     render(<LeakCheckPanel subject="phone number" source={lc({ found: 0 })} />);
     expect(screen.getByText("NOT INDEXED")).toBeTruthy();
     expect(screen.getByText(/no breach records for this phone number/)).toBeTruthy();
@@ -75,7 +75,7 @@ describe("<AutoPivots>", () => {
 
   it("separates confirmed links from related ones", () => {
     render(<AutoPivots
-      pivots={[pv({ strength: "confirmed", kind: "username", value: "ada", reason: "Gravatar — profile handle" }), pv()]}
+      pivots={[pv({ strength: "confirmed", kind: "username", value: "ada", reason: "Gravatar: profile handle" }), pv()]}
       onRun={() => {}}
     />);
     expect(screen.getByText("Confirmed links (1)")).toBeTruthy();
@@ -92,7 +92,7 @@ describe("<AutoPivots>", () => {
 
   it("runs the right mode and value when a chip is clicked", () => {
     const onRun = vi.fn();
-    render(<AutoPivots pivots={[pv({ kind: "ip", value: "8.8.8.8", reason: "DNS — A/AAAA record" })]} onRun={onRun} />);
+    render(<AutoPivots pivots={[pv({ kind: "ip", value: "8.8.8.8", reason: "DNS: A/AAAA record" })]} onRun={onRun} />);
     fireEvent.click(screen.getByRole("button", { name: /Run IP lookup on 8\.8\.8\.8/ }));
     expect(onRun).toHaveBeenCalledWith("ip", "8.8.8.8");
   });
@@ -122,13 +122,13 @@ const sn = (over: Partial<CaseSnapshot> = {}): CaseSnapshot =>
 describe("<CaseChanges>", () => {
   it("explains the loop when there are no snapshots yet", () => {
     render(<CaseChanges snapshots={[]} />);
-    expect(screen.getByText(/CHANGE HISTORY — 0 snapshots/)).toBeTruthy();
+    expect(screen.getByText(/CHANGE HISTORY: 0 snapshots/)).toBeTruthy();
     expect(screen.getByText(/Pin a lookup to this case/)).toBeTruthy();
   });
 
   it("calls a lone snapshot a baseline rather than 'no change'", () => {
     render(<CaseChanges snapshots={[sn({ facts: { subdomains: 3 } })]} />);
-    expect(screen.getByText(/CHANGE HISTORY — 1 snapshot$/)).toBeTruthy();
+    expect(screen.getByText(/CHANGE HISTORY: 1 snapshot$/)).toBeTruthy();
     expect(screen.getByText(/Baseline recorded/)).toBeTruthy();
   });
 

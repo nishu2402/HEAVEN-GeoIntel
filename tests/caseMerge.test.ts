@@ -38,13 +38,13 @@ describe("mergeCaseInto", () => {
     const source = mkCase("Source", "source findings", [ent("domain", "x.com", 200)]);
     const { entities, notes } = mergeCaseInto(target, source);
     expect(entities.map((e) => e.value)).toEqual(["8.8.8.8", "x.com"]);
-    expect(notes).toBe('target findings\n\n— Merged from "Source" —\nsource findings');
+    expect(notes).toBe('target findings\n\n[ Merged from "Source" ]\nsource findings');
   });
 
   it("omits the leading gap when the target has no notes of its own", () => {
     const target = mkCase("Target", "", []);
     const source = mkCase("Source", "src findings", []);
-    expect(mergeCaseInto(target, source).notes).toBe('— Merged from "Source" —\nsrc findings');
+    expect(mergeCaseInto(target, source).notes).toBe('[ Merged from "Source" ]\nsrc findings');
   });
 
   it("leaves the target notes untouched when the source has only whitespace notes", () => {

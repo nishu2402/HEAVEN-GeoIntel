@@ -27,7 +27,7 @@ export default function NumberPermutations({ data }: Props) {
 
   // Build every plausible format the number might appear as in databases/forms
   const formats: { label: string; value: string; note?: string }[] = [
-    { label: "E.164 (canonical)", value: e164, note: "ITU standard — use in APIs" },
+    { label: "E.164 (canonical)", value: e164, note: "ITU standard: use in APIs" },
     { label: "International spaced", value: intl },
     { label: "National format", value: national },
     { label: "All digits (no +)", value: allDigits, note: "Common in database dumps" },
@@ -51,7 +51,7 @@ export default function NumberPermutations({ data }: Props) {
   return (
     <div className="terminal-card p-4 space-y-3">
       <div className="text-xs uppercase tracking-widest text-[#00ff41]/54 border-b border-[#00ff41]/15 pb-2">
-        [ NUMBER PERMUTATIONS ] — all database formats
+        [ NUMBER PERMUTATIONS ]: all database formats
       </div>
       <div className="text-[13px] text-[#00ff41]/55">
         Every format this number may appear as in leaks, forms, or databases. Copy and search each.

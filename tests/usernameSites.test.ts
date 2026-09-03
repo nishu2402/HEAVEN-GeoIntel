@@ -28,13 +28,19 @@ describe("usernameSites catalog", () => {
     //   (b) an anti-bot challenge (Cloudflare/Anubis/Fastly) that 403s our
     //       keyless server fetch for real and fake users alike — a status check
     //       there only ever yields "unknown" noise.
+    //
+    // Re-measured across 8 known-real and 6 known-absent handles rather than a
+    // single pair — which is what kept Kaggle, Last.fm and Telegram here.
+    // Kaggle returns 200 for absent handles too (false positives); Last.fm and
+    // Telegram misreport real accounts as missing (false negatives). One
+    // sample each had made all three look promotable.
     const mustBeManual = [
       // (a) 200-for-everyone SPAs / bot-walls
-      "Instagram", "TikTok", "X / Twitter", "Telegram", "Threads",
-      "Bluesky", "Pinterest", "Spotify", "PyPI", "Replit", "Kaggle",
-      "Trello", "Twitch", "Xbox Gamertag",
+      "Instagram", "TikTok", "Telegram", "Threads",
+      "Pinterest", "Spotify", "PyPI", "Replit", "Kaggle",
+      "Twitch", "Xbox Gamertag",
       // (b) anti-bot challenge that blocks our fetch (was falsely "status" before)
-      "npm", "Codeberg", "CodePen", "Product Hunt", "Last.fm",
+      "npm", "CodePen", "Product Hunt", "Last.fm",
     ];
     for (const name of mustBeManual) {
       const site = USERNAME_SITES.find((s) => s.name === name);
@@ -47,14 +53,31 @@ describe("usernameSites catalog", () => {
     // Each verified with a live probe: 200 for a known-real handle, 404 for a
     // known-nonexistent one. Medium is probed via its RSS feed (see profile URL).
     for (const name of [
-      "Docker Hub", "Mastodon (.social)", "VK", "YouTube", "SoundCloud",
-      "DeviantArt", "Flickr", "Vimeo", "Medium", "Patreon", "Chess.com",
-      "Lichess", "Roblox", "itch.io", "Tumblr", "Keybase", "Linktree",
+      "Docker Hub", "VK", "YouTube", "SoundCloud",
+      "DeviantArt", "Flickr", "Vimeo", "Medium", "Patreon",
+      "Roblox", "itch.io", "Tumblr", "Keybase", "Linktree",
       "Buy Me a Coffee", "Wattpad",
+      // Promoted out of `manual`: twitter.com answers a server-side GET with a
+      // clean 200/404 split — 8/8 real handles found, 6/6 absent handles not
+      // found, no false positives in either direction.
+      "X / Twitter",
+      // Trello was `manual` because trello.com/{u} is a client-rendered SPA that
+      // answers 200 for everyone. api.trello.com/1/members/{u} is keyless and
+      // splits cleanly, so the sweep probes the API and shows the pretty URL —
+      // the same arrangement Medium already uses for its RSS feed.
+      "Trello",
     ]) {
       const site = USERNAME_SITES.find((s) => s.name === name);
       expect(site?.check, name).toBe("status");
     }
+  });
+
+  it("Bluesky is verified by its public API, not by a sweep entry", () => {
+    // bsky.app is client-rendered: a status probe returns 200 for everyone, and
+    // a title-marker body probe was measured misclassifying real accounts. The
+    // AT Protocol appview answers definitively, so Bluesky is a rich profile
+    // provider (see analysis/usernameProfiles) rather than a "manual" link.
+    expect(USERNAME_SITES.find((s) => s.name === "Bluesky")).toBeUndefined();
   });
 
   it("Medium is probed via its (unwalled) RSS feed but linked to the pretty profile", () => {

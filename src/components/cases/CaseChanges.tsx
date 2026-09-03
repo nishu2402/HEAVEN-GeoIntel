@@ -46,7 +46,7 @@ export default function CaseChanges({ snapshots }: Props) {
   return (
     <div className="terminal-card p-4 space-y-3">
       <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-        <History className="w-3.5 h-3.5" /> CHANGE HISTORY — {snapshots.length} snapshot{snapshots.length === 1 ? "" : "s"}
+        <History className="w-3.5 h-3.5" /> CHANGE HISTORY: {snapshots.length} snapshot{snapshots.length === 1 ? "" : "s"}
       </div>
 
       {groups.length === 0 ? (
@@ -74,7 +74,7 @@ export default function CaseChanges({ snapshots }: Props) {
 
               {list.length === 1 ? (
                 <div className="text-[11px] font-mono text-[var(--hv-ink-dim)] pl-1">
-                  Baseline recorded — nothing to compare against yet.
+                  Baseline recorded: nothing to compare against yet.
                 </div>
               ) : rows.length === 0 ? (
                 <div className="text-[11px] font-mono text-[var(--hv-ink-dim)] pl-1">

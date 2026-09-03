@@ -10,6 +10,16 @@ import { USERNAME_CATEGORY_META } from "@/lib/data/usernameSites";
 import Tilt3D from "@/components/shared/Tilt3D";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import LeakCheckPanel from "@/components/breach/LeakCheckPanel";
+import InfostealerPanel from "@/components/breach/InfostealerPanel";
+import BreachAggregatePanel from "@/components/breach/BreachAggregatePanel";
+import CredentialExposurePanel from "@/components/breach/CredentialExposurePanel";
+import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
+import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
+import UniversalReportExport from "@/components/shared/UniversalReportExport";
+import ResolvedIdentityCard from "@/components/username/ResolvedIdentityCard";
+import ExtendedSitesPanel from "@/components/username/ExtendedSitesPanel";
+import AvatarCorrelationPanel from "@/components/username/AvatarCorrelationPanel";
+import { buildUsernameReport } from "@/lib/analysis/report";
 import { safeExternalUrl } from "@/lib/utils";
 
 interface Props { data: UsernameLookupResponse; }
@@ -107,6 +117,12 @@ export default function UsernameResultsDashboard({ data }: Props) {
   const identity = data.identity;
   const hasIdentity = identity.names.length + identity.locations.length + identity.avatars.length > 0;
 
+  // Catalog-enriched breach union for the handle, plus the fused credential view.
+  // Prefer the server's copy; recompute only for a cached response without it.
+  const breachAgg = data.breachAggregate ?? aggregateBreaches({ leakCheck: data.leakCheck });
+  const credExposure = data.credentialExposure
+    ?? assessCredentialExposure(null, breachAgg.withPassword, stealerCredentialSummary(data.hudsonRock.data));
+
   // Quick category tally across confirmed accounts (rich profiles + sweep hits).
   const catTally = useMemo(() => {
     const m = new Map<string, number>();
@@ -177,10 +193,18 @@ export default function UsernameResultsDashboard({ data }: Props) {
         </div>
       </Tilt3D>
 
+      <div className="flex justify-end"><UniversalReportExport model={buildUsernameReport(data)} /></div>
+
+      {/* Distilled most-likely identity with a corroboration-based confidence (self-hides when empty). */}
+      <ResolvedIdentityCard identity={identity} />
+
+      {/* Same-photo-across-platforms perceptual match (self-hides when nothing correlates). */}
+      <AvatarCorrelationPanel avatars={identity.avatars} />
+
       {hasIdentity && (
         <div className="terminal-card p-4 space-y-3">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-magenta)] flex items-center gap-1.5">
-            <Fingerprint className="w-3.5 h-3.5" /> IDENTITY SIGNALS — synthesised from verified profiles
+            <Fingerprint className="w-3.5 h-3.5" /> IDENTITY SIGNALS: synthesised from verified profiles
           </div>
           {identity.avatars.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
@@ -220,7 +244,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
       {data.profiles.length > 0 && (
         <div className="terminal-card p-4 space-y-2">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-green)] flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED PROFILES ({data.profiles.length}) — API-confirmed
+            <CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED PROFILES ({data.profiles.length}): API-confirmed
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {data.profiles.map((p) => <ProfileCard key={p.platform} p={p} />)}
@@ -232,7 +256,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
         const meta = USERNAME_CATEGORY_META[cat as keyof typeof USERNAME_CATEGORY_META] ?? { label: cat, color: "#00ff85" };
         return (
           <div key={cat} className="terminal-card p-4 space-y-2">
-            <div className="text-[12px] uppercase tracking-widest font-mono" style={{ color: meta.color }}>— {meta.label} — ({hits.length})</div>
+            <div className="text-[12px] uppercase tracking-widest font-mono" style={{ color: meta.color }}>{meta.label} ({hits.length})</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {hits.map((h) => (
                 <a key={h.site} href={h.url} target="_blank" rel="noopener noreferrer"
@@ -261,7 +285,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
       )}
 
       <div className="terminal-card p-4 space-y-2">
-        <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Search className="w-3 h-3" /> DEEPEN — free pivots</div>
+        <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Search className="w-3 h-3" /> DEEPEN: free pivots</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {data.pivots.map((p) => (
             <a key={p.label} href={p.url} target="_blank" rel="noopener noreferrer"
@@ -274,7 +298,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
 
         <div className="pt-2 space-y-1.5">
           <div className="text-[11px] uppercase tracking-widest text-[var(--hv-ink-dim)] font-mono flex items-center gap-1.5">
-            <Terminal className="w-3 h-3" /> CLI deep sweep — run locally for 400+ sites
+            <Terminal className="w-3 h-3" /> CLI deep sweep: run locally for 400+ sites
           </div>
           {[`sherlock ${data.username}`, `maigret ${data.username}`].map((cmd) => (
             <div key={cmd} className="flex items-center gap-2 rounded-md border border-[var(--hv-glass-border)] bg-[var(--hv-bg)]/40 px-3 py-2">
@@ -286,13 +310,20 @@ export default function UsernameResultsDashboard({ data }: Props) {
         </div>
 
         <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] pt-1">
-          <span className="text-[var(--hv-cyan)]">VERIFY →</span> = sites that can&rsquo;t be checked server-side (JS apps / bot-walls that answer 200 for everyone), so we never guess — open the link to confirm.
+          <span className="text-[var(--hv-cyan)]">VERIFY →</span> = sites that can&rsquo;t be checked server-side (JS apps / bot-walls that answer 200 for everyone), so we never guess: open the link to confirm.
           &nbsp;<span className="text-[var(--hv-amber)]">UNVERIFIED</span> = the site blocked our check or returned an ambiguous response.
         </p>
       </div>
 
+      {/* Breadth overlay — 600+ WhatsMyName sites as manual launch links, in-browser. */}
+      <ExtendedSitesPanel username={data.username} />
+
       {/* Breach exposure for the handle itself — keyless, so it renders on every
-          username sweep rather than only when a key is configured. */}
+          username sweep rather than only when a key is configured. The unified
+          view leads, with the per-source panels kept below for provenance. */}
+      <BreachAggregatePanel aggregate={breachAgg} subject="username" />
+      <CredentialExposurePanel exposure={credExposure} subject="username" />
+      <InfostealerPanel source={data.hudsonRock} subject="username" />
       <LeakCheckPanel source={data.leakCheck} subject="username" />
     </motion.div>
   );

@@ -50,7 +50,7 @@ describe("checkRateLimit (fixed window, per client)", () => {
     expect(over.retryAfter).toBeGreaterThan(0);
   });
 
-  it("tracks separate clients independently — the defect this replaced", () => {
+  it("tracks separate clients independently: the defect this replaced", () => {
     for (let i = 0; i < 10; i++) checkRateLimit("client-a");
     expect(checkRateLimit("client-a").allowed).toBe(false); // a exhausted
     expect(checkRateLimit("client-b").allowed).toBe(true); // b untouched

@@ -66,5 +66,5 @@ export function mergeCaseInto(target: InvestigationCase, source: InvestigationCa
   const tgtNotes = target.notes ?? "";
   if (!srcNotes) return { entities, edges, snapshots, notes: tgtNotes };
   const prefix = tgtNotes.trim() ? `${tgtNotes}\n\n` : "";
-  return { entities, edges, snapshots, notes: `${prefix}— Merged from "${source.name}" —\n${srcNotes}` };
+  return { entities, edges, snapshots, notes: `${prefix}[ Merged from "${source.name}" ]\n${srcNotes}` };
 }

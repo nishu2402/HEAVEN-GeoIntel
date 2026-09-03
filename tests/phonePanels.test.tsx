@@ -223,7 +223,7 @@ describe("<PhoneIdentityPanel>", () => {
     expect(onEmailLookup).toHaveBeenCalledWith("ada@x.com");
     expect(screen.getByText("ipqs@x.com")).toBeTruthy();
     expect(screen.getByText("+15551234")).toBeTruthy();
-    expect(screen.getByText(/Acme — Analyst/)).toBeTruthy();
+    expect(screen.getByText(/Acme: Analyst/)).toBeTruthy();
     expect(screen.getByText("Old")).toBeTruthy();
   });
 

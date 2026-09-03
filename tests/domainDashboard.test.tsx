@@ -23,6 +23,7 @@ const domainData = (over: Partial<DomainLookupResponse> = {}): DomainLookupRespo
   emailSecurity: { hasSpf: true, spf: "v=spf1 -all", hasDmarc: true, dmarcPolicy: "quarantine", hasMx: true },
   dnssec: true,
   wayback: { available: true, firstSnapshot: "2001-05-01", snapshotUrl: "https://web.archive.org/x" },
+  http: null,
   pivots: [{ label: "crt.sh", url: "https://crt.sh/?q=example.com", note: "certificate transparency" }],
   ...over,
 });
@@ -45,6 +46,19 @@ describe("<DomainResultsDashboard>", () => {
     expect(screen.getByText("www.example.com")).toBeTruthy();
     expect(screen.getByText("crt.sh")).toBeTruthy();
     expect(screen.getByText(/SPF: v=spf1 -all/)).toBeTruthy();
+  });
+
+  it("shows the offline catalog's known breaches for the domain when present", () => {
+    render(<DomainResultsDashboard data={domainData({
+      knownBreaches: [
+        { name: "Adobe", domain: "example.com", date: "2013-10-04", records: 152_000_000,
+          dataClasses: ["Passwords", "Email addresses"], verified: true },
+      ],
+    })} />);
+    expect(screen.getByText(/1 breach in the public catalog is recorded against example.com/)).toBeTruthy();
+    expect(screen.getByText("Adobe")).toBeTruthy();
+    // The jump chip appears only when there are breaches.
+    expect(screen.getAllByText("Breaches").length).toBeGreaterThan(0);
   });
 
   it("offers the IP pivot when an A record resolves and a handler is supplied", () => {
@@ -72,8 +86,8 @@ describe("<DomainResultsDashboard>", () => {
       subdomains: [],
     })} />);
     expect(screen.getByText(/No DNS records resolved/i)).toBeTruthy();
-    expect(screen.getByText(/No SPF — spoofable/)).toBeTruthy();
-    expect(screen.getByText(/No DMARC — spoofable/)).toBeTruthy();
+    expect(screen.getByText(/No SPF: spoofable/)).toBeTruthy();
+    expect(screen.getByText(/No DMARC: spoofable/)).toBeTruthy();
     expect(screen.getByText(/No mail servers/)).toBeTruthy();
     // no SPF string row when spf is null
     expect(screen.queryByText(/^SPF: /)).toBeNull();
@@ -85,7 +99,7 @@ describe("<DomainResultsDashboard>", () => {
       emailSecurity: { hasSpf: true, spf: "v=spf1", hasDmarc: true, dmarcPolicy: null, hasMx: true },
     })} />);
     expect(screen.getByText(/WHOIS unavailable/i)).toBeTruthy();
-    expect(screen.getByText(/Not signed — DNS responses are forgeable/)).toBeTruthy();
+    expect(screen.getByText(/Not signed: DNS responses are forgeable/)).toBeTruthy();
     // DMARC with no explicit policy falls back to "set"
     expect(screen.getByText(/policy: set/)).toBeTruthy();
   });
@@ -95,7 +109,7 @@ describe("<DomainResultsDashboard>", () => {
     expect(screen.queryByText(/via certificate transparency/i)).toBeNull();
   });
 
-  it("colours DMARC by policy — reject is the strongest", () => {
+  it("colours DMARC by policy: reject is the strongest", () => {
     render(<DomainResultsDashboard data={domainData({
       emailSecurity: { hasSpf: true, spf: null, hasDmarc: true, dmarcPolicy: "reject", hasMx: true },
     })} />);
@@ -117,5 +131,42 @@ describe("<DomainResultsDashboard>", () => {
         nameservers: [], statuses: [], registrantOrg: null, registrantCountry: null },
     })} />);
     expect(screen.getByText("garbage")).toBeTruthy();
+  });
+});
+
+describe("<DomainResultsDashboard>: live HTTP layer", () => {
+  const httpProbe = (grade: "A" | "B" | "C" | "D" | "F") => ({
+    url: "https://example.com/", status: 200, redirectChain: [], httpsRedirect: true,
+    security: {
+      checks: [{ name: "X-Content-Type-Options", present: true, value: "nosniff", score: 15, max: 15, note: "nosniff" }],
+      score: 15, max: 100, percent: 15, grade,
+    },
+    tech: [], disclosures: [], cookies: [], title: "Example Domain", tls: null,
+  });
+
+  it("shows the HTTP panel, the grade tile and the jump link when a probe ran", () => {
+    render(<DomainResultsDashboard data={domainData({ http: httpProbe("B") })} />);
+    expect(screen.getByText(/LIVE HTTP & TLS POSTURE/)).toBeTruthy();
+    expect(screen.getByText("HTTP hdrs")).toBeTruthy();
+    expect(screen.getByText("HTTP/TLS")).toBeTruthy();
+  });
+
+  it.each(["A", "B", "C", "D", "F"] as const)("paints the %s grade on the glance tile", (grade) => {
+    render(<DomainResultsDashboard data={domainData({ http: httpProbe(grade) })} />);
+    // The grade appears on the tile and again inside the panel's badge.
+    expect(screen.getAllByText(grade).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("omits the panel, the tile and the jump link when nothing answered on 443", () => {
+    render(<DomainResultsDashboard data={domainData({ http: null })} />);
+    expect(screen.queryByText(/LIVE HTTP & TLS POSTURE/)).toBeNull();
+    expect(screen.queryByText("HTTP hdrs")).toBeNull();
+    expect(screen.queryByText("HTTP/TLS")).toBeNull();
+  });
+
+  it("always offers the email permutation panel: it needs only the domain", () => {
+    render(<DomainResultsDashboard data={domainData({ http: null })} />);
+    expect(screen.getByText("EMAIL PERMUTATIONS")).toBeTruthy();
+    expect(screen.getByPlaceholderText("known.person@example.com")).toBeTruthy();
   });
 });

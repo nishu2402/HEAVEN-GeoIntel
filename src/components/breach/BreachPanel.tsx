@@ -325,13 +325,13 @@ function BdOnlyPanel({
             {isClean
               ? <ShieldCheck className="w-3 h-3 text-[#00ff41]" />
               : <ShieldAlert className="w-3 h-3" style={{ color: borderColor }} />}
-            CREDENTIAL BREACH SEARCH — phone number
+            CREDENTIAL BREACH SEARCH: phone number
           </div>
           {isClean && (
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold font-mono text-[#00ff41]">CLEAN (BreachDirectory)</span>
               <span className="text-xs font-mono text-[#00ff41]/60">
-                — no credential records for {subjectLabel} in BreachDirectory&apos;s 3.5B-record index
+               : no credential records for {subjectLabel} in BreachDirectory&apos;s 3.5B-record index
               </span>
             </div>
           )}
@@ -349,7 +349,7 @@ function BdOnlyPanel({
           )}
           {!configured && (
             <div className="text-[13px] font-mono text-[#00d9ff]/75">
-              No BreachDirectory key configured. Use the free lookups below — they need no API key.
+              No BreachDirectory key configured. Use the free lookups below: they need no API key.
             </div>
           )}
         </div>
@@ -378,7 +378,7 @@ function BdOnlyPanel({
       {freeLookups.length > 0 && (
         <div className="border-t border-[#00ff41]/10 pt-3 space-y-2">
           <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/65 flex items-center gap-1.5">
-            <Zap className="w-3 h-3" /> FREE BREACH LOOKUPS — one click, no key, no login
+            <Zap className="w-3 h-3" /> FREE BREACH LOOKUPS: one click, no key, no login
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {freeLookups.map((l) => (
@@ -432,7 +432,7 @@ function BdOnlyPanel({
 
 export default function BreachPanel({
   xon, breachDirectory,
-  headerLabel = "BREACH DATABASE — XposedOrNot · free · 1000+ sources",
+  headerLabel = "BREACH DATABASE: XposedOrNot · free · 1000+ sources",
   subjectLabel = "this email",
   e164,
 }: Props) {
@@ -448,7 +448,7 @@ export default function BreachPanel({
         </div>
         <div className="text-xs font-mono text-[#aaa]">
           {xon.error === "RATE_LIMITED"
-            ? "Rate limited — try again in a moment"
+            ? "Rate limited: try again in a moment"
             : `Could not reach XposedOrNot: ${xon.error ?? "unknown error"}`}
         </div>
       </div>
@@ -491,7 +491,7 @@ export default function BreachPanel({
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold font-mono text-[#00ff41]">CLEAN</span>
               <span className="text-xs font-mono text-[#00ff41]/60">
-                — no exposures across 1000+ breach databases
+               : no exposures across 1000+ breach databases
               </span>
             </div>
           ) : (
@@ -527,7 +527,7 @@ export default function BreachPanel({
             <span className="font-bold text-[#00d9ff]">What this means:</span> The badges below show
             WHICH types of data were stolen in each breach (e.g. &ldquo;Passwords&rdquo;, &ldquo;Phone Numbers&rdquo;).
             To see the <span className="text-[#00d9ff] font-bold">actual leaked credential hashes</span> for
-            this specific email, enable BreachDirectory below — it returns the real SHA-1/MD5 password hashes
+            this specific email, enable BreachDirectory below: it returns the real SHA-1/MD5 password hashes
             that can be cracked with one click.
           </div>
         </div>
@@ -538,7 +538,7 @@ export default function BreachPanel({
         <div className="flex items-center gap-2 p-3 border border-[#ff1a1a]/50 bg-[#ff1a1a]/[0.06]">
           <Key className="w-3.5 h-3.5 text-[#ff1a1a] shrink-0" />
           <span className="text-xs font-mono text-[#ff1a1a]">
-            CRITICAL — Plaintext passwords exposed. Assume this password AND all reused passwords are compromised.
+            CRITICAL: Plaintext passwords exposed. Assume this password AND all reused passwords are compromised.
           </span>
         </div>
       )}
@@ -546,7 +546,7 @@ export default function BreachPanel({
         <div className="flex items-center gap-2 p-3 border border-[#ff6600]/50 bg-[#ff6600]/[0.06]">
           <Key className="w-3.5 h-3.5 text-[#ff6600] shrink-0" />
           <span className="text-xs font-mono text-[#ff6600]">
-            HIGH RISK — MD5/SHA-1 hashes exposed. Crackable with rainbow tables or Hashcat in minutes to hours.
+            HIGH RISK: MD5/SHA-1 hashes exposed. Crackable with rainbow tables or Hashcat in minutes to hours.
           </span>
         </div>
       )}
@@ -567,7 +567,7 @@ export default function BreachPanel({
           <div className="flex items-center gap-2 border-b border-[#ff3e3e]/30 pb-2">
             <Lock className="w-3 h-3 text-[#ff3e3e]" />
             <span className="text-[13px] uppercase tracking-widest text-[#ff3e3e]/92 font-semibold">
-              ACTUAL CREDENTIAL HASHES — BreachDirectory · {bdData.found} record{bdData.found !== 1 ? "s" : ""} found
+              ACTUAL CREDENTIAL HASHES: BreachDirectory · {bdData.found} record{bdData.found !== 1 ? "s" : ""} found
             </span>
           </div>
           <p className="text-[13px] font-mono text-[#00ff41]/60 leading-relaxed">
@@ -588,7 +588,7 @@ export default function BreachPanel({
       ) : bdData && bdData.found === 0 ? (
         <div className="border border-[#00ff41]/15 p-3 space-y-1">
           <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60 flex items-center gap-1.5">
-            <Lock className="w-3 h-3" /> CREDENTIAL HASHES — BreachDirectory
+            <Lock className="w-3 h-3" /> CREDENTIAL HASHES: BreachDirectory
           </div>
           <div className="text-[13px] font-mono text-[#00ff41]/60">
             No credential records found in BreachDirectory for this email.
@@ -600,7 +600,7 @@ export default function BreachPanel({
           <div className="flex items-center gap-2">
             <Lock className="w-3.5 h-3.5 text-[#ffaa00]" />
             <span className="text-[13px] uppercase tracking-widest text-[#ffaa00] font-bold">
-              GET ACTUAL LEAKED PASSWORDS — BreachDirectory Setup
+              GET ACTUAL LEAKED PASSWORDS: BreachDirectory Setup
             </span>
           </div>
 
@@ -634,13 +634,15 @@ export default function BreachPanel({
           {(hasPlaintext || hasEasyCrack) && (
             <div className="space-y-2 border-t border-[#ffaa00]/20 pt-3">
               <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/60">
-                Meanwhile — paste hashes from HaveIBeenPwned or Dehashed into these:
+                Meanwhile: paste hashes from HaveIBeenPwned or Dehashed into these:
               </div>
               <div className="flex gap-2 flex-wrap">
                 {[
                   { label: "CrackStation",  url: "https://crackstation.net/" },
                   { label: "Hashes.com",    url: "https://hashes.com/en/decrypt/hash" },
-                  { label: "Hashkiller",    url: "https://hashkiller.io/listmanager" },
+                  // hashkiller.io replaced: its origin has been returning a
+                  // Cloudflare 522 (connection timed out) rather than serving.
+                  { label: "NTLM.pw",       url: "https://ntlm.pw/" },
                   { label: "Dehashed",      url: "https://dehashed.com" },
                 ].map(({ label, url }) => (
                   <a key={label} href={url} target="_blank" rel="noopener noreferrer"
@@ -658,7 +660,7 @@ export default function BreachPanel({
       {sorted.length > 0 && (
         <div className="space-y-3">
           <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60 border-b border-[#00ff41]/15 pb-2 font-semibold">
-            Breach Details — newest first
+            Breach Details: newest first
           </div>
           <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1 scrollbar-thin">
             {sorted.map((b, i) => <BreachRow key={b.breach + i} breach={b} index={i} />)}

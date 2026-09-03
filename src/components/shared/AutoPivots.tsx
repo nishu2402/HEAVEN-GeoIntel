@@ -59,7 +59,7 @@ export default function AutoPivots({ pivots, onRun }: Props) {
               type="button"
               onClick={() => onRun(p.kind as Mode, p.value)}
               title={`${KIND_LABEL[p.kind]} lookup · ${p.reason}`}
-              aria-label={`Run ${KIND_LABEL[p.kind]} lookup on ${p.value} — ${p.reason}`}
+              aria-label={`Run ${KIND_LABEL[p.kind]} lookup on ${p.value}: ${p.reason}`}
               className="group flex items-center gap-1.5 text-left px-2 py-1.5 rounded-md border border-[var(--hv-glass-border)] hover:border-[var(--hv-glass-hi)] transition-colors max-w-full"
             >
               <span className="text-[12px] shrink-0" aria-hidden>{KIND_GLYPH[p.kind]}</span>
@@ -81,7 +81,7 @@ export default function AutoPivots({ pivots, onRun }: Props) {
       className="terminal-card p-4 space-y-4"
     >
       <div className="text-[12px] uppercase tracking-widest text-[var(--hv-cyan)]/75 flex items-center gap-1.5">
-        <GitBranch className="w-3 h-3" /> AUTO-PIVOT — {pivots.length} identifier{pivots.length === 1 ? "" : "s"} this result handed us
+        <GitBranch className="w-3 h-3" /> AUTO-PIVOT: {pivots.length} identifier{pivots.length === 1 ? "" : "s"} this result handed us
       </div>
 
       {group(
@@ -94,7 +94,7 @@ export default function AutoPivots({ pivots, onRun }: Props) {
       {group(
         related,
         "Related",
-        "A real association that still needs your judgement — a mail host, a breached site, an infected machine.",
+        "A real association that still needs your judgement: a mail host, a breached site, an infected machine.",
         "var(--hv-ink-dim)",
       )}
 

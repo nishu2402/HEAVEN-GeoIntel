@@ -32,8 +32,8 @@ describe("<CountryPanel>", () => {
     expect(screen.getByText("United States")).toBeTruthy();
     expect(screen.getByText("United States of America")).toBeTruthy();
     expect(screen.getByText("Washington, D.C.")).toBeTruthy();
-    expect(screen.getByText("Americas — North America")).toBeTruthy();
-    expect(screen.getByText("$ USD — US Dollar")).toBeTruthy();
+    expect(screen.getByText("Americas: North America")).toBeTruthy();
+    expect(screen.getByText("$ USD: US Dollar")).toBeTruthy();
     expect(screen.getByText("→ Right side")).toBeTruthy();
     expect(screen.getByText("America/New_York")).toBeTruthy();
     expect(screen.getByText("America/Los_Angeles")).toBeTruthy();

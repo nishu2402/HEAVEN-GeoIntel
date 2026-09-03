@@ -41,7 +41,7 @@ describe("posterSvg", () => {
     expect(svg).toContain(BRAND.tagline.toUpperCase());
   });
 
-  it("is completely self-contained — GitHub will not fetch anything for it", () => {
+  it("is completely self-contained: GitHub will not fetch anything for it", () => {
     const svg = posterSvg(STATS);
     expect(svg).not.toMatch(/https?:\/\/(?!www\.w3\.org)/); // the xmlns is the only URL
     expect(svg).not.toContain("<image");

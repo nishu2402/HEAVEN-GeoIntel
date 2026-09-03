@@ -30,29 +30,29 @@ function generateTextReport(data: LookupResponse, letterhead = true): string {
 
   const sourceStatus = [
     `  libphonenumber-js : ACTIVE (offline, always available)`,
-    `  NumVerify         : ${sources.numverify.ok ? "ACTIVE" : sources.numverify.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.numverify.error}`}`,
-    `  IPQualityScore    : ${sources.ipqs.ok ? "ACTIVE" : sources.ipqs.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.ipqs.error}`}`,
-    `  AbstractAPI       : ${sources.abstract.ok ? "ACTIVE" : sources.abstract.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.abstract.error}`}`,
-    `  Twilio Lookup     : ${sources.twilio.ok ? "ACTIVE" : sources.twilio.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.twilio.error}`}`,
-    `  BreachDirectory   : ${sources.breachDirectory.ok ? "ACTIVE" : sources.breachDirectory.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.breachDirectory.error}`}`,
-    `  FullContact       : ${sources.fullContact.ok ? "ACTIVE" : sources.fullContact.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR — ${sources.fullContact.error}`}`,
+    `  NumVerify         : ${sources.numverify.ok ? "ACTIVE" : sources.numverify.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR: ${sources.numverify.error}`}`,
+    `  IPQualityScore    : ${sources.ipqs.ok ? "ACTIVE" : sources.ipqs.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR: ${sources.ipqs.error}`}`,
+    `  AbstractAPI       : ${sources.abstract.ok ? "ACTIVE" : sources.abstract.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR: ${sources.abstract.error}`}`,
+    `  Twilio Lookup     : ${sources.twilio.ok ? "ACTIVE" : sources.twilio.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR: ${sources.twilio.error}`}`,
+    `  BreachDirectory   : ${sources.breachDirectory.ok ? "ACTIVE" : sources.breachDirectory.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR: ${sources.breachDirectory.error}`}`,
+    `  FullContact       : ${sources.fullContact.ok ? "ACTIVE" : sources.fullContact.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : `ERROR: ${sources.fullContact.error}`}`,
   ].join("\n");
 
   const npa = analysis.npaInfo;
 
-  const title = `${BRAND.name} — Phone Intelligence Report`;
+  const title = `${BRAND.name}: Phone Intelligence Report`;
   const head = letterhead
     ? [asciiLetterhead([
         title,
         BRAND.tagline,
         "",
         `Generated   : ${now}`,
-        `Threat Score: ${threatScore}/100 — ${threatLabel}`,
+        `Threat Score: ${threatScore}/100 (${threatLabel})`,
       ])]
     : [
         title,
         `Generated   : ${now}`,
-        `Threat Score: ${threatScore}/100 — ${threatLabel}`,
+        `Threat Score: ${threatScore}/100 (${threatLabel})`,
       ];
 
   const lines = [
@@ -75,7 +75,9 @@ function generateTextReport(data: LookupResponse, letterhead = true): string {
     ...(npa ? [
       `  State / Province   : ${npa.state} (${npa.stateAbbr})`,
       `  Metro / Region     : ${npa.region}`,
-      `  Area Code (NPA)    : ${analysis.nationalNumber.slice(0, 3)}`,
+      // Inside the `npa ?` guard, so US/CA — the only branch where the
+      // analyzer populates areaCode at all. They are set together.
+      `  Area Code (NPA)    : ${analysis.areaCode}`,
     ] : []),
     ...(aggregated.region && aggregated.region !== aggregated.city ? [`  Region (API)       : ${aggregated.region}`] : []),
     ...(aggregated.city                                   ? [`  City (API)         : ${aggregated.city}`]   : []),
@@ -107,7 +109,7 @@ function generateTextReport(data: LookupResponse, letterhead = true): string {
     `  Caller Type        : ${val(aggregated.callerType)}`,
     `  Associated Emails  : ${val(aggregated.associatedEmails)}`,
     ``,
-    `IDENTITY ENRICHMENT — FullContact`,
+    `IDENTITY ENRICHMENT: FullContact`,
     separator,
     ...(fc ? [
       `  Full Name          : ${val(fc.fullName)}`,
@@ -122,13 +124,13 @@ function generateTextReport(data: LookupResponse, letterhead = true): string {
       `  Social Profiles    : ${fc.profiles.length > 0 ? fc.profiles.map((p) => `${p.platform}:${p.username || p.url}`).join(", ") : "N/A"}`,
       ...(fc.employment.length > 0 ? [
         `  Employment:`,
-        ...fc.employment.map((e) => `    ${e.current ? "[CURRENT]" : "[PAST]"} ${e.name}${e.title ? ` — ${e.title}` : ""}`),
+        ...fc.employment.map((e) => `    ${e.current ? "[CURRENT]" : "[PAST]"} ${e.name}${e.title ? `: ${e.title}` : ""}`),
       ] : []),
     ] : [
-      `  Status             : ${sources.fullContact.error === "NOT_CONFIGURED" ? "NOT CONFIGURED — add FULLCONTACT_API_KEY" : sources.fullContact.error === "NOT_FOUND" ? "No record found" : (sources.fullContact.error ?? "N/A")}`,
+      `  Status             : ${sources.fullContact.error === "NOT_CONFIGURED" ? "NOT CONFIGURED: add FULLCONTACT_API_KEY" : sources.fullContact.error === "NOT_FOUND" ? "No record found" : (sources.fullContact.error ?? "N/A")}`,
     ]),
     ``,
-    `BREACH DATABASE — BreachDirectory`,
+    `BREACH DATABASE: BreachDirectory`,
     separator,
     ...(bd && bd.found > 0 ? [
       `  Records Found      : ${bd.found}`,
@@ -142,7 +144,7 @@ function generateTextReport(data: LookupResponse, letterhead = true): string {
         r.hash     ? `         MD5     : ${r.hash}` : "",
       ].filter(Boolean).join("\n")),
     ] : [
-      `  Status             : ${sources.breachDirectory.error === "NOT_CONFIGURED" ? "NOT CONFIGURED — add RAPIDAPI_KEY" : bd && bd.found === 0 ? "CLEAN — no credential records found" : (sources.breachDirectory.error ?? "N/A")}`,
+      `  Status             : ${sources.breachDirectory.error === "NOT_CONFIGURED" ? "NOT CONFIGURED: add RAPIDAPI_KEY" : bd && bd.found === 0 ? "CLEAN: no credential records found" : (sources.breachDirectory.error ?? "N/A")}`,
     ]),
     ``,
     `RISK INTELLIGENCE`,
@@ -166,7 +168,7 @@ function generateTextReport(data: LookupResponse, letterhead = true): string {
     sourceStatus,
     ``,
     separator,
-    `Report generated by HEAVEN-GeoIntel — for authorized use only.`,
+    `Report generated by HEAVEN-GeoIntel: for authorized use only.`,
     `All intelligence should be verified before use in assessments.`,
   ];
 
@@ -183,7 +185,7 @@ function generateHtmlReport(data: LookupResponse): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${BRAND.name} Report — ${esc(data.input.e164)}</title>
+<title>${BRAND.name} Report: ${esc(data.input.e164)}</title>
 <style>
   body { background: #05060d; color: #d6ffe6; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
          padding: 40px 24px; max-width: 960px; margin: 0 auto; }
@@ -206,7 +208,7 @@ function generateHtmlReport(data: LookupResponse): string {
 ${logoSvg({ size: 54, idPrefix: "rpt" })}
 <div>
   <h1>${BRAND.name}</h1>
-  <p>${BRAND.tagline} — Intelligence Report</p>
+  <p>${BRAND.tagline}: Intelligence Report</p>
 </div>
 </header>
 <pre>${escaped}</pre>

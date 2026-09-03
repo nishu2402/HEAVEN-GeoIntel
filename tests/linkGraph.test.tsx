@@ -30,7 +30,7 @@ describe("<LinkGraph> read-only", () => {
   it("renders one node per entity with the legend, and ignores clicks (not editable)", () => {
     render(<LinkGraph entities={FIVE} title="SESSION LINK GRAPH" />);
     expect(screen.getByText(/session link graph/i)).toBeTruthy();
-    expect(screen.getByText(/— 5 nodes/i)).toBeTruthy();
+    expect(screen.getByText(/: 5 nodes/i)).toBeTruthy();
     // legend chip per kind present
     expect(screen.getByText(/PHONE \(1\)/)).toBeTruthy();
     expect(screen.getByText(/DOMAIN \(1\)/)).toBeTruthy();
@@ -45,7 +45,7 @@ describe("<LinkGraph> read-only", () => {
 
   it("uses the single-node angle branch for exactly one entity", () => {
     render(<LinkGraph entities={[{ kind: "ip", value: "1.1.1.1" }]} />);
-    expect(screen.getByText(/— 1 node$/i)).toBeTruthy();
+    expect(screen.getByText(/: 1 node$/i)).toBeTruthy();
   });
 
   it("omits legend chips for kinds with no nodes", () => {

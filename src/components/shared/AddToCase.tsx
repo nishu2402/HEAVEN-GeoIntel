@@ -172,7 +172,7 @@ export default function AddToCase({ entities, edges, snapshot }: Props) {
         >
           {diff.baseline ? (
             <div className="text-[var(--hv-ink-dim)]">
-              Baseline recorded — pin this lookup again later to see what changed.
+              Baseline recorded: pin this lookup again later to see what changed.
             </div>
           ) : diff.changes.length === 0 ? (
             <div className="text-[var(--hv-ink-dim)]">
@@ -194,7 +194,7 @@ export default function AddToCase({ entities, edges, snapshot }: Props) {
               ))}
               {diff.cacheInvolved && (
                 <div className="text-[var(--hv-amber)] opacity-80">
-                  One side came from the result cache — re-check after the TTL expires.
+                  One side came from the result cache: re-check after the TTL expires.
                 </div>
               )}
             </>
@@ -250,7 +250,7 @@ export default function AddToCase({ entities, edges, snapshot }: Props) {
                 ))}
               </div>
             ) : (
-              <div className="text-[11px] font-mono text-[var(--hv-ink-dim)] px-1 py-1.5">No cases yet — create one below.</div>
+              <div className="text-[11px] font-mono text-[var(--hv-ink-dim)] px-1 py-1.5">No cases yet: create one below.</div>
             )}
 
             <div className="flex gap-1 pt-1 border-t border-[var(--hv-glass-border)]">

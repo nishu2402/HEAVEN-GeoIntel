@@ -46,7 +46,7 @@ export default class PanelErrorBoundary extends Component<Props, State> {
         >
           <div className="flex items-center gap-2 text-[12px] uppercase tracking-widest text-[#ff3e3e]/92 font-mono">
             <AlertTriangle className="w-3.5 h-3.5" />
-            PANEL ERROR — {this.props.label}
+            PANEL ERROR: {this.props.label}
           </div>
           <p className="text-[13px] font-mono text-[#ff3e3e]/92 leading-snug">
             This panel failed to render. The rest of the dashboard is fine. The

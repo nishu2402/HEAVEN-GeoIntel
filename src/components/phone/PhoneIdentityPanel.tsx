@@ -66,14 +66,14 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
       >
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/65 flex items-center gap-1.5">
-            <User className="w-3 h-3" /> IDENTITY — OWNER PROFILE
+            <User className="w-3 h-3" /> IDENTITY: OWNER PROFILE
           </div>
-          <span className="text-[11px] font-mono text-[#00ff41]/54">No automatic enrichment — try free lookups below</span>
+          <span className="text-[11px] font-mono text-[#00ff41]/54">No automatic enrichment: try free lookups below</span>
         </div>
 
         <p className="text-[13px] font-mono text-[#00ff41]/60 leading-snug">
           No identity resolved through configured APIs. Scroll down to the{" "}
-          <span className="text-[#00d9ff]/85 font-bold">OSINT PIVOT MATRIX</span> — a
+          <span className="text-[#00d9ff]/85 font-bold">OSINT PIVOT MATRIX</span>: a
           single, deduplicated set of reverse-lookup, breach, spam and search links
           that take this number directly (no repeated or dead links).
         </p>
@@ -97,7 +97,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
     >
       <div className="flex items-center justify-between">
         <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/60 flex items-center gap-1.5">
-          <User className="w-3 h-3" /> IDENTITY — owner profile
+          <User className="w-3 h-3" /> IDENTITY: owner profile
         </div>
         <div className="flex gap-1.5">
           {fc && <Badge text="FULLCONTACT ✓" color="#00d9ff" />}
@@ -156,7 +156,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
       {profiles.length > 0 && (
         <div className="border-t border-[#00ff41]/10 pt-3">
           <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-2">
-            SOCIAL PROFILES — {profiles.length} linked account{profiles.length === 1 ? "" : "s"}
+            SOCIAL PROFILES: {profiles.length} linked account{profiles.length === 1 ? "" : "s"}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {profiles.map((p) => (
@@ -246,7 +246,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
                   {emp.current ? "▶" : "·"}
                 </span>
                 <span className={emp.current ? "text-[#00ff41]/85" : "text-[#888]"}>
-                  {emp.name}{emp.title ? ` — ${emp.title}` : ""}
+                  {emp.name}{emp.title ? `: ${emp.title}` : ""}
                   {emp.current && <span className="ml-2"><Badge text="CURRENT" color="#00ff41" /></span>}
                 </span>
               </div>

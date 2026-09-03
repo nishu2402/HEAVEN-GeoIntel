@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { isHost } from "./urlMatch";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -54,9 +55,9 @@ const geoOk = {
 function ipStub(shodan: unknown, greynoise: unknown, geo: Record<string, unknown> = geoOk) {
   vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => {
     const s = String(u);
-    if (s.includes("ip-api.com")) return resp(200, geo);
-    if (s.includes("internetdb.shodan.io")) return shodan as Response;
-    if (s.includes("greynoise.io")) return greynoise as Response;
+    if (isHost(s, "ip-api.com")) return resp(200, geo);
+    if (isHost(s, "internetdb.shodan.io")) return shodan as Response;
+    if (isHost(s, "greynoise.io")) return greynoise as Response;
     return resp(404, {});
   }));
 }
@@ -408,7 +409,7 @@ describe("domain: certificate-transparency subdomains", () => {
 describe("domain: Wayback probe", () => {
   it("reports the oldest snapshot", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      String(u).includes("archive.org")
+      isHost(u, "archive.org")
         ? resp(200, { archived_snapshots: { closest: { timestamp: "19981212000000", url: "http://web.archive.org/web/1998/x" } } })
         : resp(404, {})));
     const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb.test" })).json();
@@ -419,7 +420,7 @@ describe("domain: Wayback probe", () => {
 
   it("reports 'no snapshot' distinctly from 'archive unreachable'", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      String(u).includes("archive.org") ? resp(200, { archived_snapshots: {} }) : resp(404, {})));
+      isHost(u, "archive.org") ? resp(200, { archived_snapshots: {} }) : resp(404, {})));
     let json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb2.test" })).json();
     expect(json.wayback).toEqual({ available: false, firstSnapshot: null, snapshotUrl: null });
 
@@ -430,7 +431,7 @@ describe("domain: Wayback probe", () => {
 
   it("keeps an unparseable timestamp verbatim", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      String(u).includes("archive.org")
+      isHost(u, "archive.org")
         ? resp(200, { archived_snapshots: { closest: { timestamp: "odd" } } })
         : resp(404, {})));
     const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb4.test" })).json();

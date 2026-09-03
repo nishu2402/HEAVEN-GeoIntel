@@ -29,7 +29,7 @@ const resp = (status: number, body: unknown, headers: Record<string, string> = {
   }) as unknown as Response;
 
 describe("a provider we know nothing about", () => {
-  it("is always callable — silence is not evidence of an exhausted quota", () => {
+  it("is always callable: silence is not evidence of an exhausted quota", () => {
     expect(canSpend("never-seen")).toBe(true);
     expect(retryAfter("never-seen")).toBeNull();
   });
@@ -168,7 +168,7 @@ describe("fetchBudgeted", () => {
     // The caller sees an ordinary failure and needs no special case for it.
     expect(res.ok).toBe(false);
     expect(res.status).toBe(429);
-    expect(res.error).toMatch(/rate-limited by source — retrying in \d+s/);
+    expect(res.error).toMatch(/rate-limited by source: retrying in \d+s/);
     expect(res.ms).toBe(0);
   });
 
@@ -205,7 +205,7 @@ describe("fetchJson header capture", () => {
     expect(res.headers).toEqual({ "x-rl": "7" });
   });
 
-  it("captures them on a non-2xx too — a 429 is when they matter most", async () => {
+  it("captures them on a non-2xx too: a 429 is when they matter most", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => resp(503, {}, { "retry-after": "5" })));
     const res = await fetchJson("https://x.test", { source: "p", readHeaders: ["retry-after"] });
     expect(res.ok).toBe(false);

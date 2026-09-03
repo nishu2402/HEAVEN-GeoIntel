@@ -49,24 +49,32 @@ export const SOURCES: SourceDef[] = [
     id: "hudsonRock",
     name: "Hudson Rock",
     tier: "free",
-    // Phone AND email: the phone route uses Cavalier's search-by-username
-    // endpoint, the email route its search-by-email endpoint. Both are keyless.
-    modes: ["phone", "email"],
-    unlocks: "Infostealer-malware exposure for a phone number or email",
+    // Phone, email AND username: the phone/username routes use Cavalier's
+    // search-by-username endpoint (it accepts a handle or a phone number), the
+    // email route its search-by-email endpoint. All keyless.
+    modes: ["phone", "email", "username"],
+    unlocks: "Infostealer-malware exposure for a phone number, email or username",
   },
   {
     id: "leakCheck",
     name: "LeakCheck (public)",
     tier: "free",
     modes: ["phone", "email", "username"],
-    unlocks: "Named breaches and exposed field types — no key, no credentials returned",
+    unlocks: "Named breaches and exposed field types: no key, no credentials returned",
   },
   {
     id: "xon",
     name: "XposedOrNot",
     tier: "free",
     modes: ["email"],
-    unlocks: "Email breach database — 1000+ sources",
+    unlocks: "Email breach database: 1000+ sources",
+  },
+  {
+    id: "comb",
+    name: "ProxyNova (COMB)",
+    tier: "free",
+    modes: ["email"],
+    unlocks: "Masked credential-pair exposure from the COMB compilation: no key, no cleartext returned",
   },
   {
     id: "gravatar",
@@ -92,7 +100,7 @@ export const SOURCES: SourceDef[] = [
     // 45-per-minute budget or is down. Narrower (no proxy/hosting/mobile flags
     // and no reverse DNS), which is why it is second — but a location from the
     // fallback beats a failed lookup from the preferred source.
-    unlocks: "Backup IP geolocation · ASN · ISP — used when ip-api.com is rate-limited",
+    unlocks: "Backup IP geolocation · ASN · ISP: used when ip-api.com is rate-limited",
   },
   {
     id: "Shodan InternetDB",
@@ -109,6 +117,13 @@ export const SOURCES: SourceDef[] = [
     unlocks: "Internet background-noise classification (benign / malicious)",
   },
   {
+    id: "ripestat",
+    name: "RIPEstat (RIPE NCC)",
+    tier: "free",
+    modes: ["ip"],
+    unlocks: "Abuse contact · announced prefix (netblock) · ASN prefix count: RIR routing data, no key",
+  },
+  {
     id: "dns",
     name: "Cloudflare DNS-over-HTTPS",
     tier: "free",
@@ -117,10 +132,10 @@ export const SOURCES: SourceDef[] = [
   },
   {
     id: "whois",
-    name: "RDAP (rdap.org)",
+    name: "RDAP (rdap.org, then the IANA-bootstrapped registry)",
     tier: "free",
     modes: ["domain"],
-    unlocks: "Registrar · registration dates · nameservers · statuses",
+    unlocks: "Registrar · registration dates · nameservers · statuses · registrant country",
   },
   {
     id: "subdomains",
@@ -128,6 +143,13 @@ export const SOURCES: SourceDef[] = [
     tier: "free",
     modes: ["domain"],
     unlocks: "Subdomains observed in issued certificates",
+  },
+  {
+    id: "http",
+    name: "Direct HTTP + TLS probe of the target",
+    tier: "free",
+    modes: ["domain"],
+    unlocks: "Security-header grade · technology fingerprint · certificate · redirect chain",
   },
   {
     id: "wayback",
@@ -144,11 +166,32 @@ export const SOURCES: SourceDef[] = [
     unlocks: "Where a handle is registered",
   },
   {
+    id: "mempool.space",
+    name: "mempool.space",
+    tier: "free",
+    modes: ["wallet"],
+    unlocks: "Bitcoin address balance · total received/sent · transaction count: keyless",
+  },
+  {
+    id: "ethereum-rpc",
+    name: "Ethereum public RPC (publicnode)",
+    tier: "free",
+    modes: ["wallet"],
+    unlocks: "Ethereum address balance + transaction count via public JSON-RPC: keyless",
+  },
+  {
     id: "usernameProfiles",
-    name: "GitHub · GitLab · Hacker News · Reddit APIs",
+    name: "GitHub · GitLab · Hacker News · Reddit · Bluesky APIs",
     tier: "free",
     modes: ["username"],
     unlocks: "Rich verified profiles: real name · join date · karma · repos",
+  },
+  {
+    id: "circl-hashlookup",
+    name: "CIRCL hashlookup",
+    tier: "free",
+    modes: ["hash"],
+    unlocks: "Known-software (NSRL) reputation for an MD5/SHA-1/SHA-256 file hash: clears a hash as catalogued benign software, keyless",
   },
 
   // ── Optional keys (add in the app, or via .env.local) ──────────────────────

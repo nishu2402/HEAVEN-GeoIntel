@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { isHost } from "./urlMatch";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -108,9 +109,12 @@ describe("domain-lookup upstream failures", () => {
     expect(json.dns.a).toEqual([]);
     expect(json.whois).toBeNull();
     expect(json.subdomains).toEqual([]);
+    // The HTTP probe never even runs here: DNS returned no addresses, so the
+    // SSRF guard has nothing it can call globally routable and refuses.
+    expect(json.http).toBeNull();
     // ...and says so, rather than implying the domain has no records.
     const health = Object.fromEntries(json.sourceHealth.map((h: { source: string; ok: boolean }) => [h.source, h.ok]));
-    expect(health).toEqual({ dns: false, whois: false, subdomains: true, wayback: false });
+    expect(health).toEqual({ dns: false, whois: false, subdomains: true, wayback: false, http: false });
   });
 
   it("returns [] for a non-2xx DoH response", async () => {
@@ -122,14 +126,14 @@ describe("domain-lookup upstream failures", () => {
 
   it("returns null WHOIS on a non-2xx RDAP response", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      String(u).includes("rdap.org") ? resp(404, {}) : resp(200, {})));
+      isHost(u, "rdap.org") ? resp(404, {}) : resp(200, {})));
     const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "e3.test" })).json();
     expect(json.whois).toBeNull();
   });
 
   it("takes the registrar handle when the RDAP entity has no vCard name", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => {
-      if (String(u).includes("rdap.org")) {
+      if (isHost(u, "rdap.org")) {
         return resp(200, {
           entities: [
             { roles: ["registrar"], handle: "REG-123" },
@@ -169,7 +173,7 @@ describe("ip-lookup upstream failures", () => {
     // provider's message about the provider, so it belongs on the source strip
     // — the top-level `error` describes the lookup as a whole.
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      String(u).includes("ip-api.com")
+      isHost(u, "ip-api.com")
         ? resp(200, { status: "fail", message: "reserved range" })
         : resp(404, {})));
     const json = await (await post(ipPOST, "http://localhost/api/ip-lookup", { ip: "9.9.9.9" })).json();
@@ -180,7 +184,7 @@ describe("ip-lookup upstream failures", () => {
 
   it("falls back to a generic message when ip-api fails without one", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      String(u).includes("ip-api.com") ? resp(200, { status: "fail" }) : resp(404, {})));
+      isHost(u, "ip-api.com") ? resp(200, { status: "fail" }) : resp(404, {})));
     const json = await (await post(ipPOST, "http://localhost/api/ip-lookup", { ip: "9.9.9.8" })).json();
     const health = json.sourceHealth.find((h: { source: string }) => h.source.includes("ip-api"));
     expect(health.error).toBe("lookup failed");
@@ -188,7 +192,7 @@ describe("ip-lookup upstream failures", () => {
 
   it("parses an AS string that carries no organisation", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      String(u).includes("ip-api.com")
+      isHost(u, "ip-api.com")
         ? resp(200, { status: "success", query: "8.8.8.8", countryCode: "US", as: "AS15169", asname: "GOOGLE" })
         : resp(404, {})));
     const json = await (await post(ipPOST, "http://localhost/api/ip-lookup", { ip: "8.8.8.8" })).json();
@@ -198,7 +202,7 @@ describe("ip-lookup upstream failures", () => {
 
   it("keeps a malformed AS string verbatim rather than dropping it", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      String(u).includes("ip-api.com")
+      isHost(u, "ip-api.com")
         ? resp(200, { status: "success", query: "8.8.8.8", countryCode: "US", as: "not-an-as-string" })
         : resp(404, {})));
     const json = await (await post(ipPOST, "http://localhost/api/ip-lookup", { ip: "8.8.8.7" })).json();

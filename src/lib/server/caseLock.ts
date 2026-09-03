@@ -21,7 +21,7 @@
 //   • a token cannot be extended by editing it — the expiry is inside the MAC.
 // It is NOT a general-purpose auth system: single shared secret, single user.
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual, scryptSync } from "node:crypto";
 import { intFromEnv } from "./config";
 
 export const CASE_TOKEN_COOKIE = "hv_case";
@@ -68,13 +68,35 @@ export function verifyToken(token: string | undefined, secret: string, now = Dat
 }
 
 /**
+ * Derive a slow, memory-hard key from a secret with scrypt.
+ *
+ * The unlock endpoint compares a submitted password against CASE_PASSWORD, so
+ * this is the one place a guesser can burn attempts. A plain SHA-256 (or an
+ * HMAC of it) is far too cheap for that job: it lets an attacker try billions
+ * of candidates per second. scrypt is deliberately expensive in both CPU and
+ * memory, which turns an online brute-force back into something the timeout and
+ * rate limiter can actually contain. Node's defaults (N=16384, r=8, p=1) cost
+ * ~16 MB and a few tens of milliseconds per call — negligible for a human
+ * unlocking once, ruinous for a script guessing.
+ *
+ * The salt is the configured secret itself. That is safe here because the two
+ * sides are derived and compared in-process and the digest is never stored, so
+ * there is no rainbow-table surface to defend; sharing the salt just makes the
+ * two derivations directly comparable.
+ */
+function deriveKey(input: string, secret: string): Buffer {
+  return scryptSync(input, secret, 32);
+}
+
+/**
  * Compare a submitted password against the configured one in constant time.
- * Lengths are compared first and differ non-secretly; the MAC over each side
- * removes the remaining length signal from the byte comparison.
+ * Both sides run through the same slow KDF, so the comparison never sees the
+ * raw passwords, the output is always 32 bytes (no length signal), and each
+ * attempt carries scrypt's cost.
  */
 export function passwordMatches(submitted: unknown, secret: string): boolean {
   if (typeof submitted !== "string") return false;
-  const a = createHmac("sha256", secret).update(submitted).digest();
-  const b = createHmac("sha256", secret).update(secret).digest();
+  const a = deriveKey(submitted, secret);
+  const b = deriveKey(secret, secret);
   return timingSafeEqual(a, b);
 }

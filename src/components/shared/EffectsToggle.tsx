@@ -25,7 +25,7 @@ export default function EffectsToggle() {
     <button
       onClick={() => setEffects(!on)}
       aria-pressed={on}
-      title={on ? "Visual effects: ON — click to reduce motion" : "Visual effects: OFF — click to enable"}
+      title={on ? "Visual effects: ON: click to reduce motion" : "Visual effects: OFF: click to enable"}
       aria-label={on ? "Turn off visual effects" : "Turn on visual effects"}
       className={`p-1.5 rounded-md border transition-colors ${
         !on

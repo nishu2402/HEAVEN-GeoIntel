@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { classifyIp } from "@/lib/analysis/ipClassify";
 
-describe("classifyIp — IPv4 special-purpose scopes", () => {
+describe("classifyIp: IPv4 special-purpose scopes", () => {
   const cases: Array<[string, string, boolean]> = [
     ["0.0.0.0",         "unspecified",   false],
     ["10.1.2.3",        "private",       false],
@@ -41,7 +41,7 @@ describe("classifyIp — IPv4 special-purpose scopes", () => {
   });
 });
 
-describe("classifyIp — IPv6 special-purpose scopes", () => {
+describe("classifyIp: IPv6 special-purpose scopes", () => {
   const cases: Array<[string, string, boolean]> = [
     ["::1",                 "loopback",      false],
     ["::",                  "unspecified",   false],
@@ -66,7 +66,7 @@ describe("classifyIp — IPv6 special-purpose scopes", () => {
   });
 });
 
-describe("classifyIp — invalid input returns null", () => {
+describe("classifyIp: invalid input returns null", () => {
   it.each([
     "not-an-ip",
     "1.2.3",              // too few octets

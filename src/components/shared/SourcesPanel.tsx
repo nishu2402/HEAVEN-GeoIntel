@@ -85,11 +85,11 @@ export default function SourcesPanel() {
         const v = (inputs[name] || "").trim();
         if (!v) continue;
         const res = await fetch("/api/keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, value: v }) });
-        if (!res.ok) { setError(`Could not save ${s.name} — the server rejected the key`); return; }
+        if (!res.ok) { setError(`Could not save ${s.name}: the server rejected the key`); return; }
       }
       setInputs((prev) => { const n = { ...prev }; s.keys!.forEach((k) => delete n[k]); return n; });
       refresh();
-    } catch { setError(`Could not save ${s.name} — server unreachable`); }
+    } catch { setError(`Could not save ${s.name}: server unreachable`); }
     finally { setBusy(null); }
   }, [inputs, refresh]);
 
@@ -104,7 +104,7 @@ export default function SourcesPanel() {
         if (!res.ok) { setError(`Could not clear ${s.name}`); return; }
       }
       refresh();
-    } catch { setError(`Could not clear ${s.name} — server unreachable`); }
+    } catch { setError(`Could not clear ${s.name}: server unreachable`); }
     finally { setBusy(null); }
   }, [refresh]);
 
@@ -140,7 +140,7 @@ export default function SourcesPanel() {
               {loading && !data && <div className="text-center py-6 text-sm font-mono text-[var(--hv-ink-dim)]">Loading…</div>}
               {loadError && !data && (
                 <div className="text-center py-6 space-y-2 text-sm font-mono text-[var(--hv-red)]">
-                  <div>Could not load the source list — the server is unreachable.</div>
+                  <div>Could not load the source list: the server is unreachable.</div>
                   <button onClick={refresh} className="underline hover:text-[var(--hv-cyan)]">Retry</button>
                 </div>
               )}
@@ -152,12 +152,12 @@ export default function SourcesPanel() {
               {data && (
                 <>
                   <div>
-                    <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--hv-green)]/60 mb-1">Always on — no key needed</div>
+                    <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--hv-green)]/60 mb-1">Always on: no key needed</div>
                     {free.map((s) => <FreeRow key={s.id} s={s} />)}
                   </div>
 
                   <div>
-                    <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--hv-amber)]/70 mb-2">Optional API keys — add yours below to unlock</div>
+                    <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--hv-amber)]/70 mb-2">Optional API keys: add yours below to unlock</div>
                     <div className="space-y-2.5">
                       {keys.map((s) => (
                         <div key={s.id} className="rounded-md border border-[var(--hv-glass-border)] p-2.5 space-y-2">

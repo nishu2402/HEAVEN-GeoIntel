@@ -32,7 +32,7 @@ const post = (payload: unknown) => {
   return POST(req as unknown as NextRequest);
 };
 
-describe("POST /api/bulk-lookup — validation", () => {
+describe("POST /api/bulk-lookup: validation", () => {
   it("400 on a body without a numbers array", async () => {
     expect((await post({})).status).toBe(400);
   });
@@ -42,7 +42,7 @@ describe("POST /api/bulk-lookup — validation", () => {
   });
 });
 
-describe("POST /api/bulk-lookup — offline triage rows", () => {
+describe("POST /api/bulk-lookup: offline triage rows", () => {
   it("returns a row per input, flagging valid, empty, and unparseable entries", async () => {
     const res = await post({ numbers: ["+14155552671", "   ", "garbage", "+442079460958"] });
     expect(res.status).toBe(200);
@@ -75,7 +75,7 @@ describe("POST /api/bulk-lookup — offline triage rows", () => {
   });
 });
 
-describe("POST /api/bulk-lookup — rate limiting", () => {
+describe("POST /api/bulk-lookup: rate limiting", () => {
   afterEach(restoreRateLimit);
 
   it("allows MAX requests then 429s the next from the same client", async () => {

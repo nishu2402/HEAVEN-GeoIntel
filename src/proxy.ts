@@ -20,7 +20,7 @@ export const config = {
 };
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const MAX_BODY_BYTES = 512 * 1024; // 512 KB — far above any legitimate request
+const MAX_BODY_BYTES = 512 * 1024; // 512 KB: far above any legitimate request
 
 // A state-changing request is "cross-site" when the browser says so via
 // Sec-Fetch-Site, or (older browsers) when the Origin host ≠ the request host.

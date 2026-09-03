@@ -2,8 +2,11 @@ import type { PhoneAnalysis } from "./analysis/phoneAnalysis";
 import type { CountryIntel } from "./data/countryIntel";
 import type { OfflineReputation } from "./analysis/freePhoneIntel";
 import type { IpClassification } from "./analysis/ipClassify";
+import type { BreachAggregate } from "./analysis/breachAggregate";
+import type { CredentialExposure } from "./analysis/credentialExposure";
 
 export type { PhoneAnalysis, CountryIntel, OfflineReputation, IpClassification };
+export type { BreachAggregate, CredentialExposure };
 
 export interface PhoneInputData {
   raw: string;
@@ -182,6 +185,24 @@ export interface LeakCheckData {
   sources: LeakCheckSource[];
 }
 
+// ── ProxyNova COMB credential exposure (free, no key) ────────────────────────
+// ProxyNova indexes the COMB compilation (billions of email:password pairs). The
+// endpoint matches SUBSTRINGS, so a raw query returns unrelated logins — we keep
+// only lines whose login is EXACTLY the queried email, which is the discipline
+// that stops a fuzzy index from manufacturing a false positive. What survives is
+// masked before it ever leaves the server: a count and masked previews, never a
+// usable secret (the same rule Hudson Rock output follows).
+export interface CombExposure {
+  /** Exact-login pairs seen for this identifier — a floor, capped by the request. */
+  pairs: number;
+  /** Distinct passwords among those pairs — a floor. */
+  distinctPasswords: number;
+  /** True when the source truncated its response, so more may exist beyond it. */
+  capped: boolean;
+  /** Masked password previews — never a usable secret. */
+  samples: string[];
+}
+
 export interface LookupResponse {
   input: PhoneInputData;
   analysis: PhoneAnalysis;
@@ -207,6 +228,10 @@ export interface LookupResponse {
   aggregated: AggregatedResult;
   threatScore: number;          // 0-100 unified threat score
   threatLabel: string;          // "CLEAN" | "LOW RISK" | "MODERATE" | "HIGH RISK" | "CRITICAL"
+  /** Server-computed, catalog-enriched union across this mode's breach sources. */
+  breachAggregate?: BreachAggregate;
+  /** Fused credential-exposure + reuse assessment (COMB is email-only, so no pairs here). */
+  credentialExposure?: CredentialExposure;
   cachedAt?: number;
 }
 
@@ -379,11 +404,20 @@ export interface EmailLookupResponse {
   emailrep: SourceResult<EmailRepData>;
   hunter: SourceResult<HunterData>;
   abstract: SourceResult<AbstractEmailData>;
-  xon: SourceResult<XposedOrNotData>;                  // XposedOrNot — free breach DB
-  breachDirectory: SourceResult<BreachDirectoryData>;   // BreachDirectory — credential hashes
-  fullContact: SourceResult<FullContactData>;           // FullContact — real name + employer
-  hudsonRock: SourceResult<HudsonRockData>;             // Hudson Rock — infostealer exposure
-  leakCheck: SourceResult<LeakCheckData>;               // LeakCheck — public breach index
+  xon: SourceResult<XposedOrNotData>;                  // XposedOrNot: free breach DB
+  breachDirectory: SourceResult<BreachDirectoryData>;   // BreachDirectory: credential hashes
+  fullContact: SourceResult<FullContactData>;           // FullContact: real name + employer
+  hudsonRock: SourceResult<HudsonRockData>;             // Hudson Rock: infostealer exposure
+  leakCheck: SourceResult<LeakCheckData>;               // LeakCheck: public breach index
+  comb: SourceResult<CombExposure>;                     // ProxyNova COMB: masked credential pairs
+  /**
+   * Server-computed union across every breach source that answered, enriched
+   * from the vendored HIBP catalog. Optional so a cached response from before
+   * this field existed still renders (the client recomputes it as a fallback).
+   */
+  breachAggregate?: BreachAggregate;
+  /** Fused credential-exposure + password-reuse assessment. */
+  credentialExposure?: CredentialExposure;
   /** Uniform per-source provenance — same shape as every other lookup mode. */
   sourceHealth?: SourceProvenance[];
   cachedAt?: number;
@@ -461,6 +495,12 @@ export interface UsernameLookupResponse {
   pivots: { label: string; url: string }[];
   /** LeakCheck public breach index — free, no key. */
   leakCheck: SourceResult<LeakCheckData>;
+  /** Hudson Rock infostealer exposure for the handle — free, no key. */
+  hudsonRock: SourceResult<HudsonRockData>;
+  /** Server-computed, catalog-enriched breach union (LeakCheck, enriched offline). */
+  breachAggregate?: BreachAggregate;
+  /** Fused credential-exposure + reuse assessment (COMB is email-only). */
+  credentialExposure?: CredentialExposure;
   /** Uniform per-source provenance — same shape as every other lookup mode. */
   sourceHealth?: SourceProvenance[];
   cachedAt?: number;
@@ -507,6 +547,11 @@ export interface IpLookupData {
     name: string | null;          // actor/operator label
     lastSeen: string | null;
   } | null;
+  // RIPEstat RIR routing/abuse enrichment (keyless). Optional + nullable: absent
+  // on cached results from before this existed, null when RIPEstat had nothing.
+  abuseContact?: string | null;       // network abuse-report address
+  prefix?: string | null;             // the announced prefix (netblock) covering this IP
+  announcedPrefixes?: number | null;  // how many prefixes this IP's ASN announces
 }
 
 /** Per-source provenance for a lookup: which source, did it answer, latency. */
@@ -561,6 +606,100 @@ export interface DomainWhois {
   registrantCountry: string | null;
 }
 
+// ── HTTP / TLS posture (domain mode) ─────────────────────────────────────────
+
+/** Response headers, lower-cased keys. */
+export type HeaderMap = Record<string, string>;
+
+export interface SecurityHeaderCheck {
+  name: string;
+  present: boolean;
+  value: string | null;
+  score: number;
+  max: number;
+  /** Why this scored what it did, in the analyst's terms. */
+  note: string;
+}
+
+export interface SecurityPosture {
+  checks: SecurityHeaderCheck[];
+  score: number;
+  max: number;
+  percent: number;
+  grade: "A" | "B" | "C" | "D" | "F";
+}
+
+export interface TechFingerprint {
+  name: string;
+  kind: "server" | "cdn" | "cms" | "framework" | "language" | "hosting" | "security";
+  version: string | null;
+  /** The header or markup that produced the detection — never a guess. */
+  evidence: string;
+}
+
+export interface CookieFinding {
+  name: string;
+  secure: boolean;
+  httpOnly: boolean;
+  sameSite: string | null;
+}
+
+export interface TlsInfo {
+  protocol: string | null;
+  cipher: string | null;
+  issuer: string | null;
+  subject: string | null;
+  altNames: string[];
+  validFrom: string | null;
+  validTo: string | null;
+  /** Negative once expired. null when the date could not be read. */
+  daysRemaining: number | null;
+  /** Did the chain validate against the system trust store? */
+  trusted: boolean;
+  /** Set when `trusted` is false — e.g. "self signed certificate". */
+  trustError: string | null;
+}
+
+export interface HttpProbe {
+  /** Final URL after redirects. */
+  url: string;
+  status: number;
+  /** Each hop as "301 http://x → https://x", oldest first. */
+  redirectChain: string[];
+  /** Did plain http:// upgrade to https://? null when http was unreachable. */
+  httpsRedirect: boolean | null;
+  security: SecurityPosture;
+  tech: TechFingerprint[];
+  disclosures: { header: string; value: string; hasVersion: boolean }[];
+  cookies: CookieFinding[];
+  title: string | null;
+  tls: TlsInfo | null;
+}
+
+import type { TakeoverSignal } from "./analysis/subdomainTakeover";
+export type { TakeoverSignal };
+
+/**
+ * A dangling-CNAME subdomain-takeover candidate: the affected name plus the
+ * matched service and the fingerprint that confirms it. A CANDIDATE, never a
+ * confirmed takeover — the service match is necessary but not sufficient, so the
+ * panel points the analyst at the verification step rather than claiming a hit.
+ */
+export interface TakeoverCandidate extends TakeoverSignal {
+  /** The subdomain (or apex) whose CNAME points at the takeover-prone service. */
+  name: string;
+}
+
+/** One breach the vendored HIBP catalog records for a domain. */
+export interface DomainBreach {
+  name: string;
+  domain: string | null;
+  date: string | null;
+  records: number | null;
+  dataClasses: string[];
+  verified: boolean;
+}
+
 export interface DomainLookupResponse {
   domain: string;
   isValid: boolean;
@@ -587,10 +726,67 @@ export interface DomainLookupResponse {
   dnssec: boolean | null;
   /** Internet Archive first-snapshot evidence (free, no key). */
   wayback: { available: boolean; firstSnapshot: string | null; snapshotUrl: string | null } | null;
+  /**
+   * Live HTTP + TLS posture. null when the host serves nothing on 443, which is
+   * ordinary for a parked or mail-only domain and is NOT an error.
+   */
+  http: HttpProbe | null;
+  /**
+   * Breaches the offline HIBP catalog records for this domain. It reports what
+   * is publicly catalogued about the domain, NOT that its users are currently
+   * compromised — a distinction the panel makes in words. A bundled dataset, so
+   * it is not an upstream source and carries no source-health row.
+   */
+  knownBreaches?: DomainBreach[];
+  /**
+   * Dangling-CNAME takeover candidates found by resolving discovered subdomains'
+   * CNAMEs and matching them against known takeover-prone services. Empty when
+   * none matched; each is a lead to verify, not a confirmed takeover.
+   */
+  takeoverCandidates?: TakeoverCandidate[];
   pivots: { label: string; url: string; note: string }[];
   sources?: SourceProvenance[];
   /** Uniform per-source provenance — same shape as every other lookup mode. */
   sourceHealth?: SourceProvenance[];
+  cachedAt?: number;
+}
+
+// ── Crypto wallet OSINT ─────────────────────────────────────────────────────
+
+import type { WalletChain, WalletFacts } from "./analysis/wallet";
+import type { EnsIdentity } from "./analysis/ens";
+export type { WalletChain, WalletFacts, EnsIdentity };
+
+export interface WalletLookupResponse {
+  input: string;
+  chain: WalletChain | null;
+  /** Factual on-chain read; null when the address was unresolvable or the explorer was down. */
+  facts: WalletFacts | null;
+  pivots: { label: string; url: string; note: string }[];
+  /**
+   * ENS identity for an Ethereum address (reverse-resolved + forward-verified)
+   * or for an ENS-name input (forward-resolved). null when there is none, or
+   * absent on cached results from before this existed.
+   */
+  ens?: EnsIdentity | null;
+  sourceHealth?: SourceProvenance[];
+  error?: string;
+  cachedAt?: number;
+}
+
+// ── File-hash / IOC OSINT ────────────────────────────────────────────────────
+
+import type { HashKind, HashFacts } from "./analysis/hash";
+export type { HashKind, HashFacts };
+
+export interface HashLookupResponse {
+  input: string;
+  kind: HashKind | null;
+  /** Known-software reputation; null only when the source was unreachable. */
+  facts: HashFacts | null;
+  pivots: { label: string; url: string; note: string }[];
+  sourceHealth?: SourceProvenance[];
+  error?: string;
   cachedAt?: number;
 }
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
-import "./globals.css"; // side-effect import — DO NOT remove (loads the global stylesheet)
+import "./globals.css"; // side-effect import: DO NOT remove (loads the global stylesheet)
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 
 // Static, compile-time constant — no user or runtime input reaches it. Applies the
@@ -18,9 +18,9 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://heaven-geointel.example"),
-  title: "HEAVEN-GeoIntel — Unified OSINT Platform",
+  title: "HEAVEN-GeoIntel: Unified OSINT Platform",
   description:
-    "Defensive OSINT for phone, email, username, IP, and domain — carrier & breach data, infostealer infections (Hudson Rock), username enumeration across 45+ sites, IP geolocation/ASN, DNS/WHOIS/subdomains, link-analysis graph, persistent cases. Offline-first. No tracking.",
+    "Defensive OSINT for phone, email, username, IP, and domain: carrier & breach data, infostealer infections (Hudson Rock), username enumeration across 45+ sites, IP geolocation/ASN, DNS/WHOIS/subdomains, link-analysis graph, persistent cases. Offline-first. No tracking.",
   applicationName: "HEAVEN-GeoIntel",
   keywords: [
     "phone OSINT",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   creator: "HEAVEN",
   category: "security",
   openGraph: {
-    title: "HEAVEN-GeoIntel — Unified OSINT Platform",
+    title: "HEAVEN-GeoIntel: Unified OSINT Platform",
     description:
       "Phone · Email · Username · IP · Domain OSINT in one console. Breach + infostealer data, username enumeration, IP/ASN, DNS/WHOIS/subdomains, link-graph, persistent cases. Offline-first. Zero API keys for core features.",
     type: "website",
@@ -50,9 +50,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "HEAVEN-GeoIntel — Unified OSINT Platform",
+    title: "HEAVEN-GeoIntel: Unified OSINT Platform",
     description:
-      "Phone · Email · Username · IP · Domain OSINT, link-analysis graph, persistent cases — offline-first, no tracking.",
+      "Phone · Email · Username · IP · Domain OSINT, link-analysis graph, persistent cases: offline-first, no tracking.",
   },
   robots: {
     index: true,

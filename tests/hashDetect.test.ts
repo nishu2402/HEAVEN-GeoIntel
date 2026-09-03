@@ -9,7 +9,7 @@ import {
 // Includes the regression guard for the MySQL 4.1 bug: a "*"+40-hex string was
 // swallowed by the generic partial-plaintext ("*") branch and mislabelled.
 
-describe("detectHash — crypt-scheme prefixes", () => {
+describe("detectHash: crypt-scheme prefixes", () => {
   const cases: [string, string][] = [
     ["$2a$12$R9h/cIPz0gi.URNNX3kh2Oea3.abcdefghijklmnopqrstuvwxyzABCD", "bcrypt"],
     ["$2b$10$abcdefghijklmnopqrstuv", "bcrypt"],
@@ -26,7 +26,7 @@ describe("detectHash — crypt-scheme prefixes", () => {
   });
 });
 
-describe("detectHash — hex by length", () => {
+describe("detectHash: hex by length", () => {
   const byLen: [number, string][] = [
     [32, "MD5 / NTLM"],
     [40, "SHA-1"],
@@ -40,7 +40,7 @@ describe("detectHash — hex by length", () => {
   });
 });
 
-describe("detectHash — MySQL 4.1 regression (was swallowed by '*' branch)", () => {
+describe("detectHash: MySQL 4.1 regression (was swallowed by '*' branch)", () => {
   it("identifies '*'+40 uppercase hex as MySQL, NOT Partial Plaintext", () => {
     const info = detectHash("*" + "A".repeat(40));
     expect(info.algorithm).toBe("MySQL 4.1+");
@@ -53,7 +53,7 @@ describe("detectHash — MySQL 4.1 regression (was swallowed by '*' branch)", ()
   });
 });
 
-describe("detectHash — DES crypt", () => {
+describe("detectHash: DES crypt", () => {
   it("identifies exactly 13 chars from the DES alphabet as DES crypt", () => {
     expect("Kk7oULU.Ql3.6").toHaveLength(13);
     expect(detectHash("Kk7oULU.Ql3.6").algorithm).toBe("DES crypt");
@@ -61,7 +61,7 @@ describe("detectHash — DES crypt", () => {
   });
 });
 
-describe("detectHash — non-matches", () => {
+describe("detectHash: non-matches", () => {
   it("returns Unknown for empty/whitespace/garbage", () => {
     for (const s of ["", "   ", "not a hash", "xyz@definitely-not"]) {
       expect(detectHash(s).algorithm, JSON.stringify(s)).toBe("Unknown");

@@ -200,7 +200,7 @@ describe("caseStore validation branches", () => {
 // ── caseReport: edge sort tiebreakers ────────────────────────────────────────
 
 describe("case report edge ordering", () => {
-  it("orders edges by from, then to, then reason — so the hash is stable", async () => {
+  it("orders edges by from, then to, then reason: so the hash is stable", async () => {
     const mk = (from: string, to: string, reason: string) => ({
       from: { kind: "email" as const, value: from },
       to: { kind: "domain" as const, value: to },

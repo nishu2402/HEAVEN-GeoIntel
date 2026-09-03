@@ -198,7 +198,7 @@ export default function LinkGraph({ entities, links, title = "INVESTIGATION GRAP
       <div className="terminal-card p-8 text-center space-y-2">
         <Share2 className="w-8 h-8 mx-auto text-[var(--hv-ink-dim)]" />
         <div className="text-sm font-mono text-[var(--hv-ink-dim)]">
-          No entities yet. Run lookups (phone, email, username, IP, domain) — each becomes a node here,
+          No entities yet. Run lookups (phone, email, username, IP, domain): each becomes a node here,
           or open a saved case to visualise its identifiers.
         </div>
       </div>
@@ -211,7 +211,7 @@ export default function LinkGraph({ entities, links, title = "INVESTIGATION GRAP
     <div className="terminal-card p-4 space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-          <Share2 className="w-3.5 h-3.5" /> {title} — {entities.length} node{entities.length === 1 ? "" : "s"}
+          <Share2 className="w-3.5 h-3.5" /> {title}: {entities.length} node{entities.length === 1 ? "" : "s"}
           {editable && (
             <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-[var(--hv-glass-border)] text-[10px] text-[var(--hv-cyan)]">
               <Pencil className="w-2.5 h-2.5" /> EDITABLE

@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.1.x   | :white_check_mark: |
-| 2.0.x   | :x:                |
+| 3.0.x   | :white_check_mark: |
+| 2.x     | :x:                |
 | 1.3.x   | :x:                |
 | < 1.3   | :x:                |
 
@@ -24,7 +24,7 @@ Please prefix the subject with `[SECURITY]`.
 When reporting, include:
 
 1. A clear description of the issue and the impact.
-2. Steps to reproduce — the smallest possible PoC.
+2. Steps to reproduce: the smallest possible PoC.
 3. The version / commit SHA you tested against.
 4. Your suggested fix, if you have one.
 
@@ -51,10 +51,10 @@ Out of scope (please report these to the upstream maintainers):
 ## Hardening notes (deployment)
 
 - **Input validation**: every lookup route validates its input before any
-  outbound request — phone via libphonenumber, IP via IPv4/IPv6 regex, domain
+  outbound request: phone via libphonenumber, IP via IPv4/IPv6 regex, domain
   via a strict label regex, username via `[A-Za-z0-9._-]{2,40}`. User input is
   only ever interpolated (URL-encoded) into **fixed** third-party hosts, so the
-  routes are not an SSRF vector — a caller cannot choose which host the server
+  routes are not an SSRF vector. A caller cannot choose which host the server
   connects to.
 - **CSRF protection**: the proxy middleware (`src/proxy.ts`) rejects cross-site
   state-changing requests
@@ -63,9 +63,9 @@ Out of scope (please report these to the upstream maintainers):
   `/api/cases`. Same-origin app calls and non-browser clients (curl) are
   unaffected; reads (GET) are not blocked (and have no `Access-Control-Allow-Origin`).
 - **Request-body cap**: state-changing API requests over 512 KB are rejected
-  (HTTP 413) before the body is buffered — defense-in-depth against memory DoS.
-- **Content-Security-Policy**: production `script-src` is `'self' 'unsafe-inline'`
-  — `'unsafe-eval'` is dev-only (HMR); the production bundle uses no `eval()` /
+  (HTTP 413) before the body is buffered, defense-in-depth against memory DoS.
+- **Content-Security-Policy**: production `script-src` is `'self' 'unsafe-inline'`;
+  `'unsafe-eval'` is dev-only (HMR); the production bundle uses no `eval()` /
   `new Function()`. Plus `object-src 'none'`, `frame-ancestors 'none'`,
   `base-uri 'self'`, `form-action 'self'`.
 - **Rendered-link safety (no `javascript:` hrefs)**: results include URLs that a
@@ -79,13 +79,15 @@ Out of scope (please report these to the upstream maintainers):
   and CSV-formula-guarded.
 - **Minimal probe disclosure**: `/api/health` stays reachable even with the auth
   gate on (for liveness probes) and deliberately reports no runtime/interpreter
-  version — only status, app version, uptime, and whether the auth gate is set.
+  version, only status, app version, uptime, and whether the auth gate is set.
 - **No secrets in the client bundle**: all API keys are read from
   `process.env` inside server route handlers only. Verify with
   `grep -r "process.env" .next/static/` (returns nothing).
-- **Rate limiting**: lookup routes are capped at 10 requests/min/IP.
+- **Rate limiting**: lookup routes are capped per client (default 60 requests/min)
+  plus a server-wide ceiling (default 600/min); both are env-tunable via
+  `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_GLOBAL_MAX`.
 - **Persistent cases** (`/api/cases`, file-backed at `.data/cases.json`) are
-  **unauthenticated** — the tool assumes a trusted, single-user / self-hosted
+  **unauthenticated**. The tool assumes a trusted, single-user / self-hosted
   deployment. If you expose the app publicly, put an auth proxy
   (e.g. Cloudflare Access, basic-auth nginx) in front of it, or disable the
   cases route. The store performs no path interpolation from user input, so it
@@ -93,7 +95,7 @@ Out of scope (please report these to the upstream maintainers):
 - **In-app API keys** (`/api/keys`, file-backed at `.data/keys.json`): optional
   provider keys added from the UI are stored server-side with mode `0600`,
   git-ignored, behind an **allow-listed** name set (the endpoint cannot write
-  arbitrary values). Keys are **never returned to the browser** — `/api/keys` and
+  arbitrary values). Keys are **never returned to the browser**. `/api/keys` and
   `/api/sources` expose only a configured/source flag, never the value. Values
   are stored in plaintext (same trust level as `.env.local`), so on a shared or
   exposed deployment set `AUTH_PASSWORD` (or an auth proxy) so the key endpoints
@@ -106,20 +108,20 @@ We track `npm audit` and keep the framework on the latest stable (Next.js 16).
 
 Three advisories were resolved and are documented here for the record:
 
-- **`postcss` `</style>` XSS** (GHSA-qx2v-qp2m-jg93) — Next pins an older
+- **`postcss` `</style>` XSS** (GHSA-qx2v-qp2m-jg93): Next pins an older
   `postcss@8.4.31` as a nested dependency. We pin it forward to the patched
   `8.5.x` line with an npm `overrides` entry (`"postcss": "$postcss"`), which
   dedupes it to the already-patched top-level copy. Build-time only; the app
   never stringifies untrusted CSS.
-- **`esbuild` / `vitest` dev-server advisory** — cleared by upgrading the test
+- **`esbuild` / `vitest` dev-server advisory**: cleared by upgrading the test
   runner to `vitest@4`. Dev-only; never shipped to production.
 - **`brace-expansion` unbounded-expansion DoS** ([GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg)
-  / CVE-2026-14257, high — a crafted brace pattern expands without bound and
+  / CVE-2026-14257, high: a crafted brace pattern expands without bound and
   crashes the process out of memory; affects `<1.1.17`). Reached only through
   `eslint` → `minimatch@3`, which pins the 1.x line. 2.0.0 disclosed this chain
   rather than fixing it, because at the time no patched 1.x existed and forcing
   the patched 5.x breaks `minimatch@3`'s API. Upstream has since backported the
-  fix onto the 1.x maintenance line, so the lockfile now resolves **1.1.18** —
+  fix onto the 1.x maintenance line, so the lockfile now resolves **1.1.18**,
   inside `minimatch@3`'s own `^1.1.7` range, so no `overrides` entry and no API
   change. Dev tooling only; never bundled into the app, and reachable only via a
   glob pattern the repo owner writes.
@@ -141,7 +143,7 @@ confirm.
   not something the app can fix without breaking free-tier users.
 - **Provider error strings** shown per-source in the UI are normalised to a small
   set of safe reasons (`timed out`, `aborted`, `request failed`, `NOT_CONFIGURED`,
-  `RATE_LIMITED`, `NOT_FOUND`, `HTTP <code>`) — raw exception text is never
+  `RATE_LIMITED`, `NOT_FOUND`, `HTTP <code>`). Raw exception text is never
   returned to the browser.
 
 ## Coordinated disclosure

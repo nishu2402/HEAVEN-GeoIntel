@@ -100,7 +100,7 @@ describe("<PanelErrorBoundary>", () => {
     render(<PanelErrorBoundary label="Phone results"><Maybe /></PanelErrorBoundary>);
 
     expect(screen.getByRole("alert")).toBeTruthy();
-    expect(screen.getByText(/panel error — phone results/i)).toBeTruthy();
+    expect(screen.getByText(/panel error: phone results/i)).toBeTruthy();
 
     shouldThrow = false;
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
@@ -112,22 +112,22 @@ describe("<PanelErrorBoundary>", () => {
 describe("<HelpPopover>", () => {
   it("opens the dialog, closes via the X button", () => {
     render(<HelpPopover />);
-    fireEvent.click(screen.getByRole("button", { name: /help — what can i do here/i }));
+    fireEvent.click(screen.getByRole("button", { name: /help: what can i do here/i }));
     expect(screen.getByText(/what can i do here\?/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^close$/i }));
-    expect(screen.queryByText(/one console, eight modes/i)).toBeNull();
+    expect(screen.queryByText(/one console, eleven modes/i)).toBeNull();
   });
 
   it("closes on backdrop click but not when clicking the panel body", () => {
     const { container } = render(<HelpPopover />);
-    fireEvent.click(screen.getByRole("button", { name: /help — what can i do here/i }));
+    fireEvent.click(screen.getByRole("button", { name: /help: what can i do here/i }));
     // clicking inside the panel is stopped from closing
-    fireEvent.click(screen.getByText(/one console, eight modes/i));
-    expect(screen.getByText(/one console, eight modes/i)).toBeTruthy();
+    fireEvent.click(screen.getByText(/one console, eleven modes/i));
+    expect(screen.getByText(/one console, eleven modes/i)).toBeTruthy();
     // clicking the outer overlay closes it
     const overlay = container.querySelector(".fixed.inset-0") as HTMLElement;
     fireEvent.click(overlay);
-    expect(screen.queryByText(/one console, eight modes/i)).toBeNull();
+    expect(screen.queryByText(/one console, eleven modes/i)).toBeNull();
   });
 });
 

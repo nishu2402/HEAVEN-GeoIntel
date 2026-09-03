@@ -47,7 +47,7 @@ const RATE_LIMIT_HEADERS: Json = {
   "X-RateLimit-Window": { schema: { type: "string" }, description: 'Window length, e.g. "60s".' },
   "X-RateLimit-Scope": {
     schema: { type: "string", enum: ["client", "global"] },
-    description: "Which limit is binding — this client, or the server-wide ceiling.",
+    description: "Which limit is binding: this client, or the server-wide ceiling.",
   },
 };
 
@@ -139,7 +139,7 @@ const SCHEMAS: Json = {
       error: { type: "string", description: "Reason, when ok=false." },
       skipped: {
         type: "boolean",
-        description: "True when the source was never called because its key isn't configured — not an outage.",
+        description: "True when the source was never called because its key isn't configured: not an outage.",
       },
     },
   },
@@ -150,15 +150,15 @@ const SCHEMAS: Json = {
       input: { type: "object", description: "Normalised input: raw, e164, national, country, validity." },
       analysis: { type: "object", description: "Offline structural analysis (libphonenumber + NPA + carrier prefix)." },
       countryIntel: { type: "object", description: "Country dataset entry, or null." },
-      offline: { type: "object", description: "Reputation derived purely from number structure — never an API." },
+      offline: { type: "object", description: "Reputation derived purely from number structure: never an API." },
       sources: {
         type: "object",
         description: "Per-source raw responses, keyed by source id. Each is a SourceResult.",
         additionalProperties: { $ref: "#/components/schemas/SourceResult" },
       },
       sourceHealth: { type: "array", items: { $ref: "#/components/schemas/SourceProvenance" } },
-      aggregated: { type: "object", description: "Best-effort merge across sources. A null field means no source supplied it — never a guess." },
-      threatScore: { type: "integer", description: "0–100 unified score." },
+      aggregated: { type: "object", description: "Best-effort merge across sources. A null field means no source supplied it: never a guess." },
+      threatScore: { type: "integer", description: "0-100 unified score." },
       threatLabel: { type: "string", description: "CLEAN | LOW RISK | MODERATE | HIGH RISK | CRITICAL." },
       cachedAt: { type: "integer", description: "Epoch ms if served from cache." },
     },
@@ -253,14 +253,14 @@ export function buildOpenApiSpec(): Json {
       title: "HEAVEN-GeoIntel API",
       description: [
         "Unified OSINT console for phone, email, username, IP and domain identifiers.",
-        "Returns publicly-derivable metadata only — never real-time location or device tracking.",
+        "Returns publicly-derivable metadata only: never real-time location or device tracking.",
         "",
         `**Rate limiting.** ${rl.max} requests per ${Math.round(rl.windowMs / 1000)}s per client, with a server-wide ceiling of ${rl.globalMax}. Both are configurable via RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS and RATE_LIMIT_GLOBAL_MAX.`,
         "",
         `**Sources needing no key:** ${freeSources.join(", ")}.`,
         `**Sources unlocked by an optional key:** ${keyedSources.join(", ")}.`,
         "",
-        "A source that is unreachable never fails a lookup — it is reported in `sourceHealth` and its fields come back null rather than fabricated.",
+        "A source that is unreachable never fails a lookup: it is reported in `sourceHealth` and its fields come back null rather than fabricated.",
       ].join("\n"),
       version: APP_VERSION,
       contact: { name: "HEAVEN-GeoIntel maintainers", url: REPO },
@@ -271,7 +271,7 @@ export function buildOpenApiSpec(): Json {
     paths,
     components: { schemas: SCHEMAS },
     tags: [
-      { name: "lookup", description: "OSINT lookup endpoints — one per identifier type" },
+      { name: "lookup", description: "OSINT lookup endpoints: one per identifier type" },
       { name: "cases", description: "Investigation case store" },
       { name: "config", description: "Sources, API keys and runtime configuration" },
       { name: "meta", description: "API metadata and health" },

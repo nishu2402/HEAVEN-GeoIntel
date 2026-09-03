@@ -189,7 +189,7 @@ describe("<CasesPanel> loading + list", () => {
   it("selects the first case on load and refreshes on demand", async () => {
     store = [mkCase("Alpha")];
     await mount();
-    expect(screen.getByText(/alpha — 0 identifiers/i)).toBeTruthy();
+    expect(screen.getByText(/alpha: 0 identifiers/i)).toBeTruthy();
     store.push(mkCase("Beta"));
     await click(btn(/refresh/i));
     expect(screen.getByText("Beta")).toBeTruthy();
@@ -202,28 +202,28 @@ describe("<CasesPanel> create / delete", () => {
     const name = screen.getByPlaceholderText(/new case name/i) as HTMLInputElement;
     typeIn(name, "Acme phishing");
     await click(btn(/create/i));
-    expect(screen.getByText(/acme phishing — 0 identifiers/i)).toBeTruthy();
+    expect(screen.getByText(/acme phishing: 0 identifiers/i)).toBeTruthy();
     expect(name.value).toBe("");
 
     typeIn(name, "Second");
     await act(async () => { fireEvent.keyDown(name, { key: "Enter" }); });
-    expect(screen.getByText(/second — 0 identifiers/i)).toBeTruthy();
+    expect(screen.getByText(/second: 0 identifiers/i)).toBeTruthy();
     // a non-Enter key does not submit
     typeIn(name, "Third");
     await act(async () => { fireEvent.keyDown(name, { key: "a" }); });
-    expect(screen.queryByText(/third — 0 identifiers/i)).toBeNull();
+    expect(screen.queryByText(/third: 0 identifiers/i)).toBeNull();
   });
 
   it("deletes the active case (clearing selection) and a non-active one (keeping it)", async () => {
     store = [mkCase("Alpha"), mkCase("Beta")];
     await mount();
     // The list is newest-first, so Beta loads as the active case.
-    expect(screen.getByText(/beta — 0 identifiers/i)).toBeTruthy();
+    expect(screen.getByText(/beta: 0 identifiers/i)).toBeTruthy();
 
     // Delete Alpha (not active): Beta stays selected.
     await click(screen.getByLabelText("Delete Alpha"));
     expect(screen.queryByText("Alpha")).toBeNull();
-    expect(screen.getByText(/beta — 0 identifiers/i)).toBeTruthy();
+    expect(screen.getByText(/beta: 0 identifiers/i)).toBeTruthy();
 
     // Delete Beta (active): the detail pane disappears.
     await click(screen.getByLabelText("Delete Beta"));
@@ -259,7 +259,7 @@ describe("<CasesPanel> create / delete", () => {
     fail.del = true;
     await click(screen.getByLabelText("Delete Alpha"));
     expect(screen.getByText("Alpha")).toBeTruthy();
-    expect(screen.getByText(/delete failed — server unreachable/i)).toBeTruthy();
+    expect(screen.getByText(/delete failed: server unreachable/i)).toBeTruthy();
   });
 
   it("reports a POST that fails outright and one the server rejects", async () => {
@@ -267,7 +267,7 @@ describe("<CasesPanel> create / delete", () => {
     typeIn(screen.getByPlaceholderText(/new case name/i), "X");
     fail.post = true;
     await click(btn(/create/i));
-    expect(screen.getByText(/request failed — server unreachable/i)).toBeTruthy();
+    expect(screen.getByText(/request failed: server unreachable/i)).toBeTruthy();
     expect(screen.getByText(/no cases yet/i)).toBeTruthy();
 
     fail.post = false; postError = "Request failed";
@@ -294,7 +294,7 @@ describe("<CasesPanel> entities, notes, graph", () => {
     typeIn(value, " +14155552671 ");
     await click(btn(/^add$/i));
     expect(screen.getAllByLabelText("Remove")).toHaveLength(1); // one entity chip
-    expect(screen.getByText(/alpha — 1 identifier$/i)).toBeTruthy(); // singular
+    expect(screen.getByText(/alpha: 1 identifier$/i)).toBeTruthy(); // singular
     expect(value.value).toBe("");
     expect(store[0]!.entities[0]).toMatchObject({ kind: "phone", value: "+14155552671" }); // trimmed
 
@@ -302,7 +302,7 @@ describe("<CasesPanel> entities, notes, graph", () => {
     fireEvent.change(screen.getByLabelText("Identifier type"), { target: { value: "domain" } });
     typeIn(value, "evil.example");
     await act(async () => { fireEvent.keyDown(value, { key: "Enter" }); });
-    expect(screen.getByText(/alpha — 2 identifiers/i)).toBeTruthy();
+    expect(screen.getByText(/alpha: 2 identifiers/i)).toBeTruthy();
     // a non-Enter key does not submit
     typeIn(value, "ignored.example");
     await act(async () => { fireEvent.keyDown(value, { key: "b" }); });
@@ -363,21 +363,39 @@ describe("<CasesPanel> cross-case correlation + timeline", () => {
     expect(within(links).queryByText("x@y.z")).toBeNull(); // only in one case
 
     await click(within(links).getByRole("button", { name: "Alpha" }));
-    expect(screen.getByText(/alpha — 1 identifier$/i)).toBeTruthy();
+    expect(screen.getByText(/alpha: 1 identifier$/i)).toBeTruthy();
   });
 
   it("renders the created marker plus one event per identifier, oldest first", async () => {
     store = [mkCase("Alpha", [ent("ip", "8.8.8.8", 1_700_000_900_000), ent("email", "a@b.c", 1_700_000_800_000)])];
     await mount();
-    expect(screen.getByText(/timeline — 3 events/i)).toBeTruthy();
-    const rows = screen.getByText(/timeline — 3 events/i).parentElement!.querySelectorAll("div > span:last-child");
+    expect(screen.getByText(/timeline: 3 events/i)).toBeTruthy();
+    const rows = screen.getByText(/timeline: 3 events/i).parentElement!.querySelectorAll("div > span:last-child");
     expect(Array.from(rows).map((r) => r.textContent)).toEqual(["Case created", "a@b.c", "8.8.8.8"]);
   });
 
   it("uses the singular event label for a case with no identifiers", async () => {
     store = [mkCase("Alpha")];
     await mount();
-    expect(screen.getByText(/timeline — 1 event$/i)).toBeTruthy();
+    expect(screen.getByText(/timeline: 1 event$/i)).toBeTruthy();
+  });
+
+  it("weaves derived links and lookup snapshots into the timeline", async () => {
+    const now = 1_700_000_000_000;
+    store = [{
+      id: "cX", name: "Rich", createdAt: now, updatedAt: now,
+      entities: [ent("domain", "example.com", now + 1000)],
+      edges: [{ from: { kind: "domain", value: "example.com" }, to: { kind: "ip", value: "9.9.9.9" }, reason: "A record", addedAt: now + 2000 }],
+      snapshots: [{ kind: "domain", value: "example.com", takenAt: now + 3000, facts: { subdomains: 4 }, fromCache: true }],
+    }];
+    await mount();
+    expect(screen.getByText(/timeline: 4 events/i)).toBeTruthy();
+    expect(screen.getByText(/example\.com → 9\.9\.9\.9/)).toBeTruthy(); // edge label
+    expect(screen.getByText(/A record/)).toBeTruthy();                  // edge reason
+    expect(screen.getByText(/subdomains 4/)).toBeTruthy();              // snapshot facts summary
+    expect(screen.getByText(/\(cached\)/)).toBeTruthy();                // fromCache marker
+    expect(screen.getByText(/^link$/i)).toBeTruthy();                   // edge type badge
+    expect(screen.getByText(/^snapshot$/i)).toBeTruthy();              // snapshot type badge
   });
 });
 
@@ -463,7 +481,7 @@ describe("<CasesPanel> exports", () => {
     await withCase();
     await click(btn(/print\/pdf/i));
     await settle(); // buildPrintableHtml hashes the payload before window.open
-    expect(opened!.html).toContain("HEAVEN-GeoIntel — Acme phishing");
+    expect(opened!.html).toContain("HEAVEN-GeoIntel: Acme phishing");
     expect(screen.getByText(/opening printable report/i)).toBeTruthy();
 
     popupBlocked = true;
@@ -518,11 +536,11 @@ describe("<CasesPanel> import", () => {
     expect(screen.getByText(/not valid json/i)).toBeTruthy();
   });
 
-  it("imports a hash-matched report and calls it verified — without prompting", async () => {
+  it("imports a hash-matched report and calls it verified: without prompting", async () => {
     await mount();
     await importFile(await exported());
     expect(window.confirm).not.toHaveBeenCalled();
-    expect(screen.getByText(/imported — integrity verified/i)).toBeTruthy();
+    expect(screen.getByText(/imported: integrity verified/i)).toBeTruthy();
     expect(store[0]!.entities).toHaveLength(1);
   });
 
@@ -541,7 +559,7 @@ describe("<CasesPanel> import", () => {
     await importFile(text);
     // The regression: this used to announce "Imported — integrity verified" for a
     // report that carried no hash to verify against.
-    expect(screen.getByText(/imported — unverified \(no integrity hash\)/i)).toBeTruthy();
+    expect(screen.getByText(/imported: unverified \(no integrity hash\)/i)).toBeTruthy();
     expect(store).toHaveLength(1);
   });
 
@@ -558,7 +576,7 @@ describe("<CasesPanel> import", () => {
 
     confirmReply = true;
     await importFile(text);
-    expect(screen.getByText(/imported — hash mismatch/i)).toBeTruthy();
+    expect(screen.getByText(/imported: hash mismatch/i)).toBeTruthy();
   });
 
   it("survives a report whose entities are malformed rather than failing silently", async () => {
@@ -567,7 +585,7 @@ describe("<CasesPanel> import", () => {
     env.case.entities = [null, { kind: "bogus" }, { kind: "ip", value: "8.8.8.8" }];
     confirmReply = true; // repaired payload no longer matches the hash → prompts
     await importFile(JSON.stringify(env));
-    expect(screen.getByText(/imported — hash mismatch/i)).toBeTruthy();
+    expect(screen.getByText(/imported: hash mismatch/i)).toBeTruthy();
     expect(store[0]!.entities).toHaveLength(1);
   });
 
@@ -606,6 +624,6 @@ describe("<CasesPanel> wipe all", () => {
     deleteStatus = 200; fail.del = true;
     await click(btn(/wipe all/i));
     expect(screen.getByText("Alpha")).toBeTruthy();
-    expect(screen.getByText(/wipe failed — server unreachable/i)).toBeTruthy();
+    expect(screen.getByText(/wipe failed: server unreachable/i)).toBeTruthy();
   });
 });
