@@ -97,7 +97,7 @@ describe("body-size cap", () => {
 });
 
 describe("auth gate (opt-in via AUTH_PASSWORD)", () => {
-  it("is disabled by default — no credentials needed", () => {
+  it("is disabled by default: no credentials needed", () => {
     expect(proxy(req("GET")).status).toBe(200);
   });
 

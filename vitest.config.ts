@@ -4,7 +4,7 @@ import path from "node:path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   test: {
@@ -18,7 +18,7 @@ export default defineConfig({
     // WITHOUT setting its own temp dir writes into the developer's real ./.data
     // — silently polluting their cases and audit log. Point the whole run at a
     // throwaway directory; suites that need isolation still set their own.
-    env: { HV_DATA_DIR: path.resolve(__dirname, ".vitest-data") },
+    env: { HV_DATA_DIR: path.resolve(import.meta.dirname, ".vitest-data") },
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
@@ -50,11 +50,13 @@ export default defineConfig({
         "src/components/shared/EffectsToggle.tsx",
         "src/components/shared/ThemeProvider.tsx",
         "src/components/shared/CommandPalette.tsx",
+        "src/components/shared/OpsecPanel.tsx",
         "src/components/shared/AddToCase.tsx",
         "src/components/shared/RecentLookups.tsx",
         "src/components/shared/BootSequence.tsx",
         "src/components/shared/MatrixRain.tsx",
         "src/components/shared/ReportExport.tsx",
+        "src/components/shared/UniversalReportExport.tsx",
         "src/components/shared/SourcesPanel.tsx",
         "src/components/shared/Logo.tsx",
         // osint/
@@ -65,6 +67,7 @@ export default defineConfig({
         // email/
         "src/components/email/EmailOsintPivots.tsx",
         "src/components/email/EmailResultsDashboard.tsx",
+        "src/components/email/EmailHeaderTracePanel.tsx",
         // dashboard/
         "src/components/dashboard/LoadingSkeletons.tsx",
         "src/components/dashboard/ScanProgress.tsx",
@@ -86,13 +89,27 @@ export default defineConfig({
         "src/components/phone/PentesterPanel.tsx",
         // breach/ + network/ + username/
         "src/components/breach/InfostealerPanel.tsx",
+        "src/components/breach/BreachAggregatePanel.tsx",
+        "src/components/breach/CredentialExposurePanel.tsx",
         "src/components/breach/BreachPanel.tsx",
         "src/components/breach/LeakCheckPanel.tsx",
         "src/components/shared/AutoPivots.tsx",
+        "src/components/shared/PivotRow.tsx",
         "src/components/cases/CaseChanges.tsx",
         "src/components/network/DomainResultsDashboard.tsx",
+        "src/components/network/DomainKnownBreachesPanel.tsx",
+        "src/components/network/SubdomainTakeoverPanel.tsx",
+        "src/components/network/TyposquatPanel.tsx",
+        "src/components/network/HttpPosturePanel.tsx",
+        "src/components/network/EmailPermutations.tsx",
         "src/components/network/IpResultsDashboard.tsx",
         "src/components/username/UsernameResultsDashboard.tsx",
+        "src/components/username/ResolvedIdentityCard.tsx",
+        "src/components/username/ExtendedSitesPanel.tsx",
+        "src/components/username/AvatarCorrelationPanel.tsx",
+        "src/components/wallet/WalletResultsDashboard.tsx",
+        "src/components/hash/HashResultsDashboard.tsx",
+        "src/components/image/ImageExifPanel.tsx",
       ],
       exclude: ["src/lib/types.ts"],
       // New gated code must ship with tests (or an explicit `/* v8 ignore */` for

@@ -10,17 +10,20 @@ const MODE_HELP: [string, string][] = [
   // tests/usernameSites.test.ts — the catalog is server-side, so it is written
   // out here rather than imported, which would ship the whole thing to the
   // browser for one number.
-  ["@ Username", "Where a handle is registered — 43 sites, no false positives"],
+  ["@ Username", "Where a handle is registered: 38 sites, no false positives, plus a 600+ site overlay"],
   ["⦿ IP", "Geo · ASN · ISP · open ports · VPN/proxy flags · risk score"],
-  ["🌐 Domain", "DNS · WHOIS · SPF/DMARC · subdomains (cert transparency)"],
+  ["🌐 Domain", "DNS · WHOIS · SPF/DMARC · subdomains · HTTP headers · TLS cert"],
+  ["🪙 Wallet", "BTC/ETH balance · activity · forward-verified ENS · explorer pivots"],
+  ["# Hash", "File-hash known-software reputation (NSRL) · verdict-engine pivots"],
+  ["📷 Image", "EXIF/GPS parsed in-browser (never uploaded) · reverse-image pivots"],
   ["≡ Bulk", "Triage up to 25 phone numbers → CSV export"],
   ["🕸 Graph", "Link-analysis graph of every identifier this session"],
   ["🗂 Cases", "Save identifiers + notes across sessions"],
 ];
 
 const SHORTCUTS: [string, string][] = [
-  ["⌘K / Ctrl+K", "Command palette — type any identifier, it auto-detects the type"],
-  ["1 – 8", "Switch lookup mode"],
+  ["⌘K / Ctrl+K", "Command palette: type any identifier, it auto-detects the type"],
+  ["1 - 9", "Switch lookup mode"],
   ["/", "Focus the input box"],
 ];
 
@@ -32,7 +35,7 @@ export default function HelpPopover() {
       <button
         onClick={() => setOpen(true)}
         title="What can I do here?"
-        aria-label="Help — what can I do here?"
+        aria-label="Help: what can I do here?"
         className="p-1.5 rounded-md border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-colors"
       >
         <HelpCircle className="w-4 h-4" />
@@ -53,7 +56,7 @@ export default function HelpPopover() {
 
             <div className="overflow-y-auto p-4 space-y-4">
               <p className="text-[12px] font-mono text-[var(--hv-ink-dim)]">
-                One console, eight modes. Paste any identifier or pick a mode — most data is free and needs no API key.
+                One console, eleven modes. Paste any identifier or pick a mode: most data is free and needs no API key.
               </p>
               <div>
                 <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--hv-green)]/60 mb-1.5">Modes</div>
@@ -78,7 +81,7 @@ export default function HelpPopover() {
                 </div>
               </div>
               <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] pt-1 border-t border-[var(--hv-glass-border)]">
-                Metadata only — no real-time location or device tracking. Use within an authorized scope.
+                Metadata only: no real-time location or device tracking. Use within an authorized scope.
               </p>
             </div>
           </div>

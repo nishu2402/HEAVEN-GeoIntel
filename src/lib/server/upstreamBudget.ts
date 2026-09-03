@@ -191,7 +191,7 @@ export async function fetchBudgeted<T>(
     return {
       ok: false,
       status: 429,
-      error: `rate-limited by source — retrying in ${wait}s`,
+      error: `rate-limited by source: retrying in ${wait}s`,
       source: provider,
       fetchedAt: Date.now(),
       ms: 0,

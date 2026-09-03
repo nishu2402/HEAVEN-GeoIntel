@@ -11,12 +11,12 @@ interface Props {
   /** The Hudson Rock envelope from whichever lookup ran. */
   source: SourceResult<HudsonRockData>;
   /**
-   * What was searched, so the copy reads truthfully in both modes ("this phone
+   * What was searched, so the copy reads truthfully in every mode ("this phone
    * number was captured" vs "this email address was captured"). The panel is
-   * shared by the phone and email dashboards, which is why the subject can't be
-   * hardcoded.
+   * shared by the phone, email and username dashboards, which is why the subject
+   * can't be hardcoded.
    */
-  subject: "phone number" | "email address";
+  subject: "phone number" | "email address" | "username";
 }
 
 function fmtDate(iso: string | null): string {
@@ -35,11 +35,11 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
     return (
       <div className="terminal-card p-4 border border-[#555]/30 space-y-2">
         <div className="text-[12px] uppercase tracking-widest text-[#888] flex items-center gap-1.5">
-          <Bug className="w-3 h-3" /> INFOSTEALER MALWARE EXPOSURE — Hudson Rock · free · no key
+          <Bug className="w-3 h-3" /> INFOSTEALER MALWARE EXPOSURE: Hudson Rock · free · no key
         </div>
         <div className="text-[13px] font-mono text-[#aaa]">
           {hr.error === "RATE_LIMITED"
-            ? "Hudson Rock rate-limited — try again in a few seconds."
+            ? "Hudson Rock rate-limited: try again in a few seconds."
             : `Hudson Rock check failed: ${hr.error ?? "unknown"}`}
         </div>
       </div>
@@ -66,7 +66,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
             {found
               ? <ShieldAlert className="w-3 h-3" style={{ color: borderColor }} />
               : <ShieldCheck className="w-3 h-3 text-[#00ff41]" />}
-            INFOSTEALER MALWARE EXPOSURE — Hudson Rock · free · no key
+            INFOSTEALER MALWARE EXPOSURE: Hudson Rock · free · no key
           </div>
           {found ? (
             <div className="flex items-center gap-3 flex-wrap">
@@ -81,7 +81,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold font-mono text-[#00ff41]">CLEAN</span>
               <span className="text-[12px] font-mono text-[#00ff41]/60">
-                — no infostealer infections recorded by Hudson Rock for this {subject}
+               : no infostealer infections recorded by Hudson Rock for this {subject}
               </span>
             </div>
           )}
@@ -167,7 +167,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
       {!found && (
         <div className="text-[12px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-3">
           Hudson Rock indexes ~26M infected devices. A clean result here is genuinely a
-          good sign — but does not rule out other types of breaches. Check the breach
+          good sign: but does not rule out other types of breaches. Check the breach
           panel above for credential leaks.
         </div>
       )}

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
+import { isHost } from "./urlMatch";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -57,7 +58,7 @@ async function healthFor(handler: (r: NextRequest) => Promise<Response>, path: s
   // Answer everything with a benign 200 so each mode reaches its full fanout.
   vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => {
     const s = String(u);
-    if (s.includes("ip-api.com")) return resp(200, { status: "success", query: "93.184.219.1", countryCode: "US" });
+    if (isHost(s, "ip-api.com")) return resp(200, { status: "success", query: "93.184.219.1", countryCode: "US" });
     return resp(200, {});
   }));
   const json = (await (await post(handler, "http://localhost" + path, body)).json()) as {
@@ -104,8 +105,8 @@ describe("route source ids match the manifest", () => {
     // Fail the preferred geo provider; everything else answers normally.
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => {
       const s = String(u);
-      if (s.includes("ip-api.com")) return resp(500, {});
-      if (s.includes("ipwho.is")) return resp(200, { success: true, country: "Norway", country_code: "NO" });
+      if (isHost(s, "ip-api.com")) return resp(500, {});
+      if (isHost(s, "ipwho.is")) return resp(200, { success: true, country: "Norway", country_code: "NO" });
       return resp(200, {});
     }));
     const json = (await (await post(ipPOST, "http://localhost/api/ip-lookup", { ip: "93.184.219.2" })).json()) as {

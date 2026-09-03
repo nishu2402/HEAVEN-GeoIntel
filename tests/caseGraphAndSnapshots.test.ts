@@ -58,9 +58,9 @@ describe("case graph edges", () => {
     expect(after!.edges![0].reason).toBe("test");
   });
 
-  it("keeps the same pair under two DIFFERENT reasons — they are distinct findings", async () => {
+  it("keeps the same pair under two DIFFERENT reasons: they are distinct findings", async () => {
     const c = await createCase("Graph");
-    await addEdges(c.id, [edge("a@x.com", "x.com", "Email domain"), edge("a@x.com", "x.com", "EmailRep — primary MX host")]);
+    await addEdges(c.id, [edge("a@x.com", "x.com", "Email domain"), edge("a@x.com", "x.com", "EmailRep: primary MX host")]);
     expect((await getCase(c.id))!.edges).toHaveLength(2);
   });
 
@@ -236,7 +236,7 @@ describe("merge and import keep the graph and history", () => {
 
 // ── HTTP surface ─────────────────────────────────────────────────────────────
 
-describe("POST /api/cases — addEdges + snapshot", () => {
+describe("POST /api/cases: addEdges + snapshot", () => {
   it("accepts edges and returns the updated case", async () => {
     const c = (await (await post({ action: "create", name: "Http" })).json()).case as InvestigationCase;
     const res = await post({ action: "addEdges", id: c.id, edges: [edge("a@x.com", "x.com")] });

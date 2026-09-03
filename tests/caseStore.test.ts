@@ -32,7 +32,7 @@ describe("caseStore CRUD", () => {
     await store.setCaseNotes(c.id, "watch this handle");
 
     await store.addEntity(c.id, "phone", "+14155552671");
-    await store.addEntity(c.id, "phone", "+14155552671"); // duplicate — ignored
+    await store.addEntity(c.id, "phone", "+14155552671"); // duplicate: ignored
     await store.addEntity(c.id, "email", "a@b.com");
 
     let got = await store.getCase(c.id);
@@ -170,7 +170,7 @@ describe("caseStore mergeCases", () => {
     expect(merged?.entities.map((e) => `${e.kind}:${e.value}`).sort())
       .toEqual(["email:a@b.com", "phone:+14155552671"]); // shared phone kept once
     expect(merged?.notes).toContain("target notes");
-    expect(merged?.notes).toContain('— Merged from "Source" —');
+    expect(merged?.notes).toContain('[ Merged from "Source" ]');
     expect(merged?.notes).toContain("source notes");
 
     expect(await store.getCase(source.id)).toBeNull();        // source deleted

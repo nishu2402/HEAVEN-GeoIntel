@@ -26,7 +26,7 @@ if [ -f "$SCRIPT_DIR/banner.sh" ]; then
   hv_banner
   echo ""
 fi
-echo "  HEAVEN-GeoIntel — Global Command Installer"
+echo "  HEAVEN-GeoIntel: Global Command Installer"
 echo "──────────────────────────────────────────────────────────────────"
 echo "  Project: $PROJECT_DIR"
 echo ""

@@ -54,7 +54,7 @@ export default function QrCodePanel({ e164 }: Props) {
       className="terminal-card p-4 space-y-3"
     >
       <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/54 border-b border-[#00ff41]/15 pb-2">
-        [ QR CODE — SCAN TO DIAL ]
+        [ QR CODE: SCAN TO DIAL ]
       </div>
 
       <div className="flex flex-col items-center gap-3">

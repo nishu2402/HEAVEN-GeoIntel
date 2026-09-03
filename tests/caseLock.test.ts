@@ -91,7 +91,7 @@ describe("passwordMatches", () => {
 });
 
 describe("cookie name", () => {
-  it("is stable — changing it would silently log every operator out", () => {
+  it("is stable: changing it would silently log every operator out", () => {
     expect(CASE_TOKEN_COOKIE).toBe("hv_case");
   });
 });

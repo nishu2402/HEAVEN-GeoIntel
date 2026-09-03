@@ -6,10 +6,10 @@ import { BRAND } from "@/lib/brand/logo";
 // assets (stable URLs) rather than the hashed app/ icon routes.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${BRAND.name} — ${BRAND.tagline}`,
+    name: `${BRAND.name}: ${BRAND.tagline}`,
     short_name: "GeoIntel",
     description:
-      "Defensive OSINT for phone, email, username, IP, and domain — offline-first, no tracking.",
+      "Defensive OSINT for phone, email, username, IP, and domain: offline-first, no tracking.",
     start_url: "/",
     display: "standalone",
     background_color: "#05060d",

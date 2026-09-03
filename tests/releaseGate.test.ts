@@ -113,7 +113,7 @@ describe("what blocks a release", () => {
     expect(blocking.map((a: { package: string }) => a.package)).toEqual(["vite"]);
   });
 
-  it("nothing is silently dropped — every advisory lands in exactly one bucket", () => {
+  it("nothing is silently dropped: every advisory lands in exactly one bucket", () => {
     const all = report({
       next: { severity: "moderate", via: [advisory("moderate", "GHSA-prod-0000-0004")] },
       eslint: { severity: "high", via: [advisory("high", "GHSA-dev-0000-0005")] },
@@ -197,7 +197,7 @@ describe("the vulnerabilities badge on the release page is measured, not typed",
 describe("the checked-in allowlist", () => {
   const raw = JSON.parse(read(".github/audit-allowlist.json"));
 
-  it("is empty — the healthy state, and a diff that says so when it is not", () => {
+  it("is empty: the healthy state, and a diff that says so when it is not", () => {
     expect(raw.allow).toEqual([]);
   });
 

@@ -31,7 +31,7 @@ If applicable. Redact any real phone numbers / emails.
 - Browser + version: 
 - OS:
 - Docker version (if running containerised): 
-- API keys configured (yes/no, which ones — no need to share the keys): 
+- API keys configured (yes/no, which ones; no need to share the keys): 
 
 ## Reproducibility
 

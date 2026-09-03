@@ -19,7 +19,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { posterSvg } from "../src/lib/brand/poster.ts";
-import { bannerPlain, bannerAnsi } from "../src/lib/brand/banner.ts";
+import { bannerPlain, bannerAnsi, bannerTrueColor } from "../src/lib/brand/banner.ts";
 import { posterStats } from "./poster-stats.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -59,11 +59,15 @@ await writeFile(
 # module, so the banner cannot go stale after a version or source change.
 #
 # Sourced by start.sh, install-global.sh and uninstall-global.sh.
-# hv_banner prints colour on a TTY, plain text when piped or under NO_COLOR.
+# hv_banner picks the richest tier the terminal can render: a 24-bit gradient
+# when COLORTERM advertises truecolor, 256-colour on any other TTY, and plain
+# text when piped or under NO_COLOR.
 
 hv_banner() {
   if [ -n "\${NO_COLOR:-}" ] || [ ! -t 1 ]; then
     hv_banner_plain
+  elif [ "\${COLORTERM:-}" = "truecolor" ] || [ "\${COLORTERM:-}" = "24bit" ]; then
+    hv_banner_truecolor
   else
     hv_banner_color
   fi
@@ -75,6 +79,10 @@ ${emit(bannerPlain(STATS))}
 
 hv_banner_color() {
 ${emit(bannerAnsi(STATS))}
+}
+
+hv_banner_truecolor() {
+${emit(bannerTrueColor(STATS))}
 }
 `,
   "utf8",

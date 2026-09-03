@@ -51,7 +51,7 @@ async function loadOne(name: DatasetName): Promise<string | null> {
   try {
     raw = await fs.readFile(file, "utf8");
   } catch {
-    return null; // no overlay for this dataset — the normal case
+    return null; // no overlay for this dataset: the normal case
   }
 
   let parsed: OverlayFile;

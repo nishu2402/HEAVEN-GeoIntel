@@ -7,7 +7,7 @@ import { isValidIp, ipVersion } from "@/lib/server/validation";
 // must stay accepted so /api/ip-lookup never 400s a valid address again.
 
 describe("isValidIp / ipVersion", () => {
-  it("accepts compressed IPv6 (groups on both sides of ::) — the regressed case", () => {
+  it("accepts compressed IPv6 (groups on both sides of ::): the regressed case", () => {
     for (const ip of [
       "2606:4700:4700::1111", // app placeholder / Cloudflare
       "2001:4860:4860::8888", // Google public DNS v6

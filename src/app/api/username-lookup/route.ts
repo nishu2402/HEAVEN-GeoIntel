@@ -6,14 +6,20 @@ import { activeUsernameSites, isPlausibleUsername } from "@/lib/data/usernameSit
 import { ensureDatasets } from "@/lib/server/datasets";
 import { fetchJson } from "@/lib/server/fetchSafe";
 import { fetchLeakCheck } from "@/lib/server/leakCheck";
+import { hudsonRockFor } from "@/lib/server/hudsonRock";
+import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
+import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
+import { breachCatalog } from "@/lib/data/breachCatalog";
 import { parseBody, usernameBody } from "@/lib/server/validation";
 import {
-  normalizeGithub, normalizeGitlab, normalizeHackerNews, normalizeReddit, deriveIdentity,
+  normalizeGithub, normalizeGitlab, normalizeHackerNews, normalizeReddit,
+  normalizeBluesky, normalizeMastodon, normalizeCodeberg, normalizeChessCom,
+  normalizeLichess, deriveIdentity,
 } from "@/lib/analysis/usernameProfiles";
 import type { UsernameLookupResponse, UsernameHit, UsernameHitStatus, SocialProfile } from "@/lib/types";
 
 // ── Rich profile providers — keyless public JSON APIs ────────────────────────
-// Four sites expose a structured, no-key endpoint, so we upgrade them from a
+// Five sites expose a structured, no-key endpoint, so we upgrade them from a
 // bare found/notfound probe to a real profile card (name / karma / repos / join
 // date). All parsing is done by pure normalisers in analysis/usernameProfiles —
 // here we only fetch. A non-2xx / blocked / malformed response yields `null`
@@ -52,9 +58,54 @@ async function fetchReddit(username: string): Promise<SocialProfile | null> {
   return r.ok ? normalizeReddit(r.data) : null;
 }
 
+async function fetchBluesky(username: string): Promise<SocialProfile | null> {
+  // The AT Protocol appview: 200 with the profile, 400 "Profile not found".
+  // `{u}.bsky.social` is the default domain every account is issued.
+  const handle = `${username}.bsky.social`;
+  const r = await fetchJson<unknown>(
+    `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(handle)}`,
+    { source: "Bluesky API", timeoutMs: 6000, init: { headers: { "User-Agent": UA, Accept: "application/json" } } },
+  );
+  return r.ok ? normalizeBluesky(r.data) : null;
+}
+
+async function fetchMastodon(username: string): Promise<SocialProfile | null> {
+  // mastodon.social only — see normalizeMastodon on why one instance is the
+  // honest scope for a fediverse handle.
+  const r = await fetchJson<unknown>(
+    `https://mastodon.social/api/v1/accounts/lookup?acct=${encodeURIComponent(username)}`,
+    { source: "Mastodon API", timeoutMs: 6000, init: { headers: { "User-Agent": UA, Accept: "application/json" } } },
+  );
+  return r.ok ? normalizeMastodon(r.data) : null;
+}
+
+async function fetchCodeberg(username: string): Promise<SocialProfile | null> {
+  const r = await fetchJson<unknown>(`https://codeberg.org/api/v1/users/${encodeURIComponent(username)}`, {
+    source: "Codeberg API", timeoutMs: 6000,
+    init: { headers: { "User-Agent": UA, Accept: "application/json" } },
+  });
+  return r.ok ? normalizeCodeberg(r.data) : null;
+}
+
+async function fetchChessCom(username: string): Promise<SocialProfile | null> {
+  const r = await fetchJson<unknown>(`https://api.chess.com/pub/player/${encodeURIComponent(username.toLowerCase())}`, {
+    source: "Chess.com API", timeoutMs: 6000,
+    init: { headers: { "User-Agent": UA, Accept: "application/json" } },
+  });
+  return r.ok ? normalizeChessCom(r.data) : null;
+}
+
+async function fetchLichess(username: string): Promise<SocialProfile | null> {
+  const r = await fetchJson<unknown>(`https://lichess.org/api/user/${encodeURIComponent(username)}`, {
+    source: "Lichess API", timeoutMs: 6000,
+    init: { headers: { "User-Agent": UA, Accept: "application/json" } },
+  });
+  return r.ok ? normalizeLichess(r.data) : null;
+}
+
 // ── Username OSINT — free, no API key ────────────────────────────────────────
 // Checks a username against the sweep catalog in parallel (server-side, so no
-// CORS), alongside 4 rich API providers. Classifies each as found / notfound /
+// CORS), alongside 9 rich API providers. Classifies each as found / notfound /
 // unknown using either HTTP status or a "user not found" body marker.
 // Conservative: ambiguous → unknown; unverifiable-server-side → manual.
 
@@ -133,7 +184,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const username = body.username.trim().replace(/^@/, "");
   if (!username) return NextResponse.json({ error: "Missing username" }, { status: 400 });
   if (!isPlausibleUsername(username)) {
-    return NextResponse.json({ error: "Username must be 2–40 chars: letters, digits, . _ -" }, { status: 400 });
+    return NextResponse.json({ error: "Username must be 2-40 chars: letters, digits, . _ -" }, { status: 400 });
   }
   void audit("username", username, client, 200);
 
@@ -142,7 +193,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const richJob = timedValue(
     "usernameProfiles",
     Promise.all([
-      fetchGithub(username), fetchGitlab(username), fetchHackerNews(username), fetchReddit(username),
+      fetchGithub(username), fetchGitlab(username), fetchCodeberg(username),
+      fetchHackerNews(username), fetchReddit(username),
+      fetchBluesky(username), fetchMastodon(username),
+      fetchChessCom(username), fetchLichess(username),
     ]),
     () => true
   );
@@ -150,6 +204,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Breach exposure for the handle itself — keyless, and it starts alongside the
   // sweep rather than after it so it costs no extra wall time.
   const leakJob = timedValue("leakCheck", fetchLeakCheck(username, "username"), (r) => r.ok);
+  // Infostealer exposure for the handle — Cavalier's search-by-username accepts
+  // a bare handle, so a username can be tied to malware infections keylessly.
+  const hrJob = timedValue("hudsonRock", hudsonRockFor(username, "identifier"), (r) => r.ok);
 
   // Pick up any operator-supplied catalog overlay before sweeping.
   await ensureDatasets();
@@ -171,9 +228,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   hits.sort((a, b) => order[a.status] - order[b.status] || a.site.localeCompare(b.site));
 
   const sweepMs = Date.now() - sweepStarted;
-  const [rich, leak] = await Promise.all([richJob, leakJob]);
+  const [rich, leak, hr] = await Promise.all([richJob, leakJob, hrJob]);
   const profiles = rich.value.filter((p): p is SocialProfile => p !== null);
   const identity = deriveIdentity(profiles);
+
+  // Catalog-enriched union for the handle. Username has one keyless breach index
+  // (LeakCheck), but the offline HIBP catalog still fills its bare breach names
+  // with data classes and record counts — the same unified view as the other
+  // modes, just narrower until more username breach sources are wired.
+  // COMB is email-only, so a handle's credential evidence comes from the breach
+  // password count plus Hudson Rock's infostealer captures — Cavalier's
+  // search-by-username matches the handle exactly, so those masked passwords are
+  // real exposure evidence for this identifier, not a fuzzy hit.
+  const breachAggregate = aggregateBreaches({ leakCheck: leak.value }, breachCatalog());
+  const credentialExposure = assessCredentialExposure(
+    null,
+    breachAggregate.withPassword,
+    stealerCredentialSummary(hr.value.data),
+  );
 
   // Health is judged on the AUTO-CHECKED sites only. `manual` sites are never
   // fetched, so counting them would make the sweep look healthy even when every
@@ -188,6 +260,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     },
     rich.provenance,
     leak.provenance,
+    hr.provenance,
   ]);
 
   // `checked` counts only sites we could actually auto-verify — manual sites are
@@ -204,6 +277,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     identity,
     pivots: buildPivots(username),
     leakCheck: leak.value,
+    hudsonRock: hr.value,
+    breachAggregate,
+    credentialExposure,
     sourceHealth,
   };
 

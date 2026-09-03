@@ -2,28 +2,57 @@ import { NextRequest, NextResponse } from "next/server";
 import { guardRateLimit } from "@/lib/server/rateLimit";
 import { timedValue } from "@/lib/server/sourceHealth";
 import { audit } from "@/lib/server/auditLog";
-import { fetchJson } from "@/lib/server/fetchSafe";
+import { fetchJson, withUserAgent } from "@/lib/server/fetchSafe";
+import { fetchWhois } from "@/lib/server/rdap";
+import { probeHttp } from "@/lib/server/httpProbe";
+import { breachesForDomain } from "@/lib/data/breachCatalog";
+import { classifyTakeover } from "@/lib/analysis/subdomainTakeover";
 import { parseBody, domainBody } from "@/lib/server/validation";
 import type {
-  DomainLookupResponse, DnsRecord, DomainWhois,
+  DomainLookupResponse, DnsRecord, TakeoverCandidate,
 } from "@/lib/types";
 
 // ── Domain OSINT — all free, no API key ──────────────────────────────────────
 //   DNS records  : Cloudflare DNS-over-HTTPS (application/dns-json)
-//   WHOIS        : RDAP (rdap.org) — structured, free, no key
+//   WHOIS        : RDAP — broker (rdap.org) then the IANA-bootstrapped registry
 //   Subdomains   : Certspotter certificate-transparency issuances (fast, no key)
 //   Email posture: SPF (TXT) + DMARC (_dmarc TXT) parsing
+//   HTTP + TLS   : the target itself — security headers, tech stack, certificate
 
 const DOMAIN_RE = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.[a-zA-Z0-9-]{1,63})+$/;
 
 const DOH = "https://cloudflare-dns.com/dns-query";
 
+/**
+ * Reassemble a DNS-over-HTTPS TXT value.
+ *
+ * A single TXT record holds one or more character-strings, each capped at 255
+ * bytes (RFC 1035 §3.3.14), and the wire format is their concatenation. DoH
+ * renders that as several quoted runs: `"first 255 chars" "the rest"`. Anything
+ * longer than 255 bytes — which is most real SPF records, and every long
+ * verification token — arrives split.
+ *
+ * Stripping only the outer quotes left the internal `" "` embedded mid-value,
+ * so github.com's SPF rendered `ip4:62.253.2" "27.114` for what is really
+ * `ip4:62.253.227.114`. That is not a cosmetic bug: an analyst copying a
+ * netblock out of the panel got an address that does not exist, and any SPF
+ * parsing downstream saw a malformed mechanism.
+ *
+ * A value with no quoted runs at all is passed through unchanged, so a
+ * resolver that returns a bare string still works.
+ */
+export function joinTxtChunks(data: string): string {
+  const chunks = data.match(/"(?:[^"\\]|\\.)*"/g);
+  if (!chunks) return data;
+  return chunks.map((c) => c.slice(1, -1).replace(/\\(.)/g, "$1")).join("");
+}
+
 async function doh(name: string, type: string): Promise<DnsRecord[]> {
   try {
-    const res = await fetch(`${DOH}?name=${encodeURIComponent(name)}&type=${type}`, {
+    const res = await fetch(`${DOH}?name=${encodeURIComponent(name)}&type=${type}`, withUserAgent({
       headers: { Accept: "application/dns-json" },
       signal: AbortSignal.timeout(6000), next: { revalidate: 0 },
-    });
+    }));
     if (!res.ok) return [];
     const json = (await res.json()) as { Answer?: { name: string; type: number; TTL: number; data: string }[] };
     if (!json.Answer) return [];
@@ -33,62 +62,13 @@ async function doh(name: string, type: string): Promise<DnsRecord[]> {
         const [prio, ...host] = a.data.split(" ");
         return { type, value: host.join(" ").replace(/\.$/, ""), ttl: a.TTL, priority: parseInt(prio, 10) || undefined };
       }
+      // TXT is the multi-string case; the rest are single values whose only
+      // quirk is the trailing root dot.
+      if (type === "TXT") return { type, value: joinTxtChunks(a.data), ttl: a.TTL };
       return { type, value: a.data.replace(/^"|"$/g, "").replace(/\.$/, ""), ttl: a.TTL };
     });
   } catch {
     return [];
-  }
-}
-
-async function fetchWhois(domain: string): Promise<DomainWhois | null> {
-  try {
-    const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
-      headers: { Accept: "application/rdap+json" },
-      signal: AbortSignal.timeout(7000), next: { revalidate: 0 },
-    });
-    if (!res.ok) return null;
-    type RdapEvent = { eventAction: string; eventDate: string };
-    type RdapEntity = { roles?: string[]; vcardArray?: unknown; handle?: string };
-    type Rdap = {
-      events?: RdapEvent[];
-      entities?: RdapEntity[];
-      nameservers?: { ldhName?: string }[];
-      status?: string[];
-    };
-    const r = (await res.json()) as Rdap;
-
-    const eventDate = (action: string) =>
-      r.events?.find((e) => e.eventAction === action)?.eventDate ?? null;
-
-    // Registrar is the entity whose role includes "registrar"
-    let registrar: string | null = null;
-    let registrantOrg: string | null = null;
-    const registrantCountry: string | null = null;
-    for (const ent of r.entities ?? []) {
-      const roles = ent.roles ?? [];
-      const vcard = Array.isArray(ent.vcardArray) ? (ent.vcardArray[1] as unknown[]) : null;
-      const fn = Array.isArray(vcard)
-        ? (vcard.find((f) => Array.isArray(f) && (f as unknown[])[0] === "fn") as unknown[] | undefined)
-        : undefined;
-      const name = fn && Array.isArray(fn) ? String(fn[3] ?? "") : "";
-      if (roles.includes("registrar") && !registrar) registrar = name || ent.handle || null;
-      if (roles.includes("registrant")) {
-        if (!registrantOrg && name) registrantOrg = name;
-      }
-    }
-
-    return {
-      registrar,
-      createdDate: eventDate("registration"),
-      updatedDate: eventDate("last changed") ?? eventDate("last update of RDAP database"),
-      expiresDate: eventDate("expiration"),
-      nameservers: (r.nameservers ?? []).map((n) => (n.ldhName ?? "").toLowerCase()).filter(Boolean),
-      statuses: r.status ?? [],
-      registrantOrg,
-      registrantCountry,
-    };
-  } catch {
-    return null;
   }
 }
 
@@ -116,7 +96,7 @@ async function certspotterHosts(domain: string, into: Set<string>): Promise<void
   try {
     const res = await fetch(
       `https://api.certspotter.com/v1/issuances?domain=${encodeURIComponent(domain)}&include_subdomains=true&expand=dns_names`,
-      { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(7000), next: { revalidate: 0 } },
+      withUserAgent({ headers: { Accept: "application/json" }, signal: AbortSignal.timeout(7000), next: { revalidate: 0 } }),
     );
     if (!res.ok) return;
     const rows = (await res.json()) as { dns_names?: string[] }[];
@@ -131,11 +111,11 @@ async function certspotterHosts(domain: string, into: Set<string>): Promise<void
 // nothing, leaving the Certspotter set intact.
 async function crtShHosts(domain: string, into: Set<string>, budgetMs: number): Promise<void> {
   try {
-    const res = await fetch(`https://crt.sh/?q=${encodeURIComponent("%." + domain)}&output=json`, {
+    const res = await fetch(`https://crt.sh/?q=${encodeURIComponent("%." + domain)}&output=json`, withUserAgent({
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(budgetMs),
       next: { revalidate: 0 },
-    });
+    }));
     if (!res.ok) return;
     const rows = (await res.json()) as { name_value?: string }[];
     for (const row of rows) collectCtHosts((row.name_value ?? "").split("\n"), domain, into);
@@ -190,6 +170,32 @@ async function fetchWayback(domain: string): Promise<DomainLookupResponse["wayba
   };
 }
 
+// Subdomain-takeover scan. Resolves the CNAME of each discovered subdomain
+// (bounded) and matches the target against known takeover-prone services. The
+// apex's own CNAMEs are already resolved, so they are classified for free. DoH
+// is used, which is effectively unmetered — unlike the quota'd OSINT APIs — so a
+// bounded fanout here is safe. Every hit is a CANDIDATE to verify, not a claim.
+const TAKEOVER_SCAN_LIMIT = 24;
+
+async function findTakeovers(domain: string, apexCname: DnsRecord[], subdomains: string[]): Promise<TakeoverCandidate[]> {
+  const out: TakeoverCandidate[] = [];
+  const seen = new Set<string>();
+  const add = (name: string, target: string) => {
+    const sig = classifyTakeover(target);
+    if (!sig) return;
+    const key = `${name}|${sig.host}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ name, ...sig });
+  };
+  for (const r of apexCname) add(domain, r.value);
+  const resolved = await Promise.all(
+    subdomains.slice(0, TAKEOVER_SCAN_LIMIT).map(async (name) => ({ name, recs: await doh(name, "CNAME") })),
+  );
+  for (const { name, recs } of resolved) for (const r of recs) add(name, r.value);
+  return out;
+}
+
 function buildPivots(domain: string): DomainLookupResponse["pivots"] {
   const enc = encodeURIComponent(domain);
   return [
@@ -201,6 +207,8 @@ function buildPivots(domain: string): DomainLookupResponse["pivots"] {
     { label: "Wayback",        url: `https://web.archive.org/web/*/${enc}`,                       note: "Archived snapshots" },
     { label: "DNSDumpster",    url: `https://dnsdumpster.com/`,                                   note: "Free recon map (paste domain)" },
     { label: "MXToolbox",      url: `https://mxtoolbox.com/SuperTool.aspx?action=mx%3a${enc}`,    note: "MX / SPF / DMARC / blacklist" },
+    { label: "SSL Labs",       url: `https://www.ssllabs.com/ssltest/analyze.html?d=${enc}`,      note: "Full TLS configuration grade" },
+    { label: "Wappalyzer",     url: `https://www.wappalyzer.com/lookup/${enc}`,                   note: "Deeper technology profile" },
   ];
 }
 
@@ -239,11 +247,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     (recs) => recs.some((r) => r.length > 0)
   );
   const whoisJob = timedValue("whois", fetchWhois(domain), (w) => w !== null);
+  // The only job that depends on another: the SSRF guard in probeHttp needs the
+  // resolved addresses, and those come from the DNS fanout we are already
+  // running. Chaining off dnsJob keeps that ordering explicit and still lets the
+  // probe overlap WHOIS, subdomains and Wayback.
+  const httpJob = timedValue(
+    "http",
+    dnsJob.then(({ value: [a4, a6] }) => probeHttp(domain, [...a4, ...a6].map((r) => r.value))),
+    (h) => h !== null,
+  );
   const subdomainJob = timedValue("subdomains", fetchSubdomains(domain), () => true);
   const waybackJob = timedValue("wayback", fetchWayback(domain), (w) => w !== null);
+  // Overlaps the other jobs: it needs the apex CNAMEs (dnsJob) and the subdomain
+  // list (subdomainJob), and nothing else waits on it. Not source-health-tracked
+  // because it reuses the DoH ("dns") source rather than a new upstream.
+  const takeoverJob = Promise.all([dnsJob, subdomainJob]).then(
+    ([d, s]) => findTakeovers(domain, d.value[5], s.value),
+  );
 
-  const [dnsOut, whoisOut, subdomainOut, waybackOut] = await Promise.all([
-    dnsJob, whoisJob, subdomainJob, waybackJob,
+  const [dnsOut, whoisOut, subdomainOut, waybackOut, httpOut, takeoverCandidates] = await Promise.all([
+    dnsJob, whoisJob, subdomainJob, waybackJob, httpJob, takeoverJob,
   ]);
   const [a, aaaa, mx, txt, ns, cname, dmarcTxt, dnskey] = dnsOut.value;
   const whois = whoisOut.value;
@@ -251,6 +274,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const wayback = waybackOut.value;
   const sourceHealth = [
     dnsOut.provenance, whoisOut.provenance, subdomainOut.provenance, waybackOut.provenance,
+    httpOut.provenance,
   ];
   const dnssec = dnskey.length > 0;
 
@@ -273,6 +297,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     },
     dnssec,
     wayback,
+    http: httpOut.value,
+    // Offline catalog lookup — no request, no key. Reports breaches publicly
+    // recorded FOR this domain, not a claim about its current users.
+    knownBreaches: breachesForDomain(domain),
+    takeoverCandidates,
     pivots: buildPivots(domain),
     sourceHealth,
   };

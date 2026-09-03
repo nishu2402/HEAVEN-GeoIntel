@@ -7,6 +7,7 @@ import { classifyIp } from "@/lib/analysis/ipClassify";
 import { markAll } from "@/lib/server/sourceHealth";
 import { getCachedIp, setCachedIp } from "@/lib/server/cache";
 import { fetchBudgeted } from "@/lib/server/upstreamBudget";
+import { parseAbuse, parseNetwork, parseAnnounced } from "@/lib/analysis/ripeStat";
 import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/types";
 
 // ── IP OSINT — free, no API key ──────────────────────────────────────────────
@@ -272,6 +273,37 @@ async function resolveGeo(target: string): Promise<GeoOutcome> {
   return { facts: null, sources, error: "both geolocation providers were unreachable" };
 }
 
+// ── RIPEstat — RIR routing + abuse enrichment (free, no key) ─────────────────
+// Fixed host, no SSRF surface. Two concurrent data calls (abuse contact, network
+// info); a third for the ASN's prefix count only when an ASN is known. Parsing
+// is in ripeStat.ts so every payload shape is unit-tested there, not here.
+const RIPE = "https://stat.ripe.net/data";
+
+interface RipeFacts { abuseContact: string | null; prefix: string | null; announcedPrefixes: number | null }
+
+async function resolveRipe(target: string): Promise<{ facts: RipeFacts; provenance: SourceProvenance }> {
+  const enc = encodeURIComponent(target);
+  const [abuse, net] = await Promise.all([
+    fetchBudgeted<unknown>(`${RIPE}/abuse-contact-finder/data.json?resource=${enc}`, { source: "ripestat", timeoutMs: 7000, allowNon2xx: true }),
+    fetchBudgeted<unknown>(`${RIPE}/network-info/data.json?resource=${enc}`, { source: "ripestat", timeoutMs: 7000, allowNon2xx: true }),
+  ]);
+  const abuseContact = parseAbuse(abuse.data);
+  const { prefix, asn } = parseNetwork(net.data);
+  let announcedPrefixes: number | null = null;
+  if (asn) {
+    const ann = await fetchBudgeted<unknown>(`${RIPE}/announced-prefixes/data.json?resource=AS${encodeURIComponent(asn)}`, { source: "ripestat", timeoutMs: 7000, allowNon2xx: true });
+    announcedPrefixes = parseAnnounced(ann.data);
+  }
+  const ok = net.status === 200 || abuse.status === 200;
+  return {
+    facts: { abuseContact, prefix, announcedPrefixes },
+    provenance: {
+      source: "ripestat", ok, ms: Math.max(net.ms, abuse.ms), fetchedAt: net.fetchedAt,
+      error: ok ? undefined : "RIPEstat unreachable",
+    },
+  };
+}
+
 function fail(target: string, error: string, rlHeaders: Record<string, string>, sources: SourceProvenance[]): NextResponse {
   return NextResponse.json(
     { input: target, ip: null, pivots: buildPivots(target), threatScore: 0, threatLabel: "UNKNOWN", sources, sourceHealth: sources, error } as IpLookupResponse,
@@ -327,7 +359,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     source: "GreyNoise Community", timeoutMs: 6000, allowNon2xx: true, // 404 = "not observed", still useful
   });
 
-  const [geo, shodan, gn] = await Promise.all([resolveGeo(target), shodanJob, gnJob]);
+  const ripeJob = resolveRipe(target);
+
+  const [geo, shodan, gn, ripe] = await Promise.all([resolveGeo(target), shodanJob, gnJob, ripeJob]);
 
   // `allowNon2xx` means a non-200 now arrives as ok:false with a reason rather
   // than as a bare failure, so success has to be stated explicitly.
@@ -337,6 +371,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     ...geo.sources,
     { source: shodan.source, ok: shodanOk, ms: shodan.ms, fetchedAt: shodan.fetchedAt, error: shodanOk ? undefined : shodan.error },
     { source: gn.source, ok: gnOk, ms: gn.ms, fetchedAt: gn.fetchedAt, error: gnOk ? undefined : gn.error },
+    ripe.provenance,
   ]);
 
   const data: IpLookupData = {
@@ -351,6 +386,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     flagEmoji: geo.facts?.countryCode ? countryToFlagEmoji(geo.facts.countryCode) : null,
     ports: null, vulns: null, hostnames: null, tags: null,
     greyNoise: null,
+    // RIPEstat enrichment — independent of the geo provider, so present even when
+    // ip-api is out of budget and ipwho.is answered.
+    abuseContact: ripe.facts.abuseContact,
+    prefix: ripe.facts.prefix,
+    announcedPrefixes: ripe.facts.announcedPrefixes,
   };
 
   // Merge Shodan exposure (only on a real 200 with content).
@@ -416,7 +456,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     sourceHealth: sources,
     // Say so when location is missing, rather than rendering an empty map and
     // letting the analyst assume the IP has no known location.
-    error: geo.facts ? undefined : "geolocation unavailable — exposure data only",
+    error: geo.facts ? undefined : "geolocation unavailable: exposure data only",
   };
 
   // Cache only a complete answer. A degraded one would pin "geolocation

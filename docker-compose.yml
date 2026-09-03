@@ -5,7 +5,7 @@
 services:
   geointel:
     build: .
-    image: heaven-geointel:2.1.0
+    image: heaven-geointel:3.0.0
     container_name: heaven-geointel
     restart: unless-stopped
     ports:

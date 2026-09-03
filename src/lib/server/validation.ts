@@ -13,6 +13,8 @@ export const usernameBody = z.object({ username: z.string().min(1).max(64) });
 export const ipBody = z.object({ ip: z.string().min(1).max(64) });
 export const domainBody = z.object({ domain: z.string().min(1).max(253) });
 export const bulkBody = z.object({ numbers: z.array(z.string().max(40)).min(1).max(25) });
+export const walletBody = z.object({ address: z.string().min(1).max(120) });
+export const hashBody = z.object({ hash: z.string().min(1).max(80) });
 
 /**
  * Parse a Request body against a schema. Returns the typed data or null — the

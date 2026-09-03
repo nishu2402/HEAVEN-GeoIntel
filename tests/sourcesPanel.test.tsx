@@ -71,7 +71,7 @@ describe("<SourcesPanel>", () => {
     await openPanel();
     expect(screen.getByText("ip-api")).toBeTruthy();
     expect(screen.getByText("IPQualityScore")).toBeTruthy();
-    expect(screen.getByText(/always on — no key needed/i)).toBeTruthy();
+    expect(screen.getByText(/always on: no key needed/i)).toBeTruthy();
     // the free source shows its ON badge; the keyed one shows "not set"
     expect(screen.getByText("ON")).toBeTruthy();
     expect(screen.getByText("not set")).toBeTruthy();

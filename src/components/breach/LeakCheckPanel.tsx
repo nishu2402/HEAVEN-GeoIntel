@@ -24,11 +24,11 @@ export default function LeakCheckPanel({ source, subject }: Props) {
     return (
       <div className="terminal-card p-4 border border-[#555]/30 space-y-2">
         <div className="text-[12px] uppercase tracking-widest text-[#888] flex items-center gap-1.5">
-          <Database className="w-3 h-3" /> PUBLIC BREACH INDEX — LeakCheck · free · no key
+          <Database className="w-3 h-3" /> PUBLIC BREACH INDEX: LeakCheck · free · no key
         </div>
         <div className="text-[13px] font-mono text-[#aaa]">
           {source.error === "RATE_LIMITED"
-            ? "LeakCheck rate-limited — the free tier is shared per source IP. This is not a clean result; try again shortly."
+            ? "LeakCheck rate-limited: the free tier is shared per source IP. This is not a clean result; try again shortly."
             : `LeakCheck check failed: ${source.error ?? "unknown"}`}
         </div>
       </div>
@@ -53,7 +53,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
           {found
             ? <ShieldAlert className="w-3 h-3" style={{ color: borderColor }} />
             : <ShieldCheck className="w-3 h-3 text-[#00ff41]" />}
-          PUBLIC BREACH INDEX — LeakCheck · free · no key
+          PUBLIC BREACH INDEX: LeakCheck · free · no key
         </div>
         {found ? (
           <div className="flex items-center gap-3 flex-wrap">
@@ -68,7 +68,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-lg font-bold font-mono text-[#00ff41]">NOT INDEXED</span>
             <span className="text-[12px] font-mono text-[#00ff41]/60">
-              — LeakCheck holds no breach records for this {subject}
+             : LeakCheck holds no breach records for this {subject}
             </span>
           </div>
         )}
@@ -126,7 +126,7 @@ export default function LeakCheckPanel({ source, subject }: Props) {
 
       <div className="text-[12px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-3">
         LeakCheck&apos;s public tier reports which breaches mention an identifier and which
-        field types they held — never the values. Field types are aggregated across all
+        field types they held: never the values. Field types are aggregated across all
         matching records, so a listed type may come from any one of the breaches above.
       </div>
     </motion.div>

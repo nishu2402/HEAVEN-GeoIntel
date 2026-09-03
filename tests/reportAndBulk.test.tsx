@@ -79,7 +79,7 @@ describe("<ReportExport>", () => {
       fireEvent.click(screen.getByRole("button", { name: /export txt report/i }));
       expect(downloads).toHaveLength(1);
       expect(downloads[0]!.name).toMatch(/^geointel_14155552671_\d+\.txt$/);
-      expect(downloads[0]!.body).toContain("HEAVEN-GeoIntel — Phone Intelligence Report");
+      expect(downloads[0]!.body).toContain("HEAVEN-GeoIntel: Phone Intelligence Report");
       expect(downloads[0]!.body).toContain("Verizon");
       expect(screen.getByRole("button", { name: /saved/i })).toBeTruthy();
       act(() => { vi.advanceTimersByTime(2100); });
@@ -123,10 +123,10 @@ describe("<ReportExport>", () => {
     fireEvent.click(screen.getByRole("button", { name: /export txt report/i }));
     const body = downloads[0]!.body;
     expect(body).toContain("Ada Lovelace");
-    expect(body).toContain("[CURRENT] Acme — Analyst");
+    expect(body).toContain("[CURRENT] Acme: Analyst");
     expect(body).toContain("[PAST] Old");
     expect(body).toContain("Records Found      : 2");
-    expect(body).toContain("NumVerify         : ERROR — rate limited");
+    expect(body).toContain("NumVerify         : ERROR: rate limited");
     expect(body).toContain("tw:https://tw/x"); // username-less profile falls back to URL
   });
 
@@ -144,7 +144,7 @@ describe("<ReportExport>", () => {
     fireEvent.click(screen.getByRole("button", { name: /export txt report/i }));
     const body = downloads[0]!.body;
     expect(body).toContain("No record found");          // fullContact NOT_FOUND
-    expect(body).toContain("CLEAN — no credential records found"); // breachDirectory found === 0
+    expect(body).toContain("CLEAN: no credential records found"); // breachDirectory found === 0
     expect(body).toContain("Fraud Score        : N/A"); // null fraud score
     expect(body).toContain("MCC / MNC          : N/A"); // both codes null
     // region === city → the "Region (API)" line is omitted
@@ -184,8 +184,8 @@ describe("<ReportExport>", () => {
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /export txt report/i }));
     const body = downloads[0]!.body;
-    expect(body).toContain("IPQualityScore    : ERROR — e2");
-    expect(body).toContain("Twilio Lookup     : ERROR — e4");
+    expect(body).toContain("IPQualityScore    : ERROR: e2");
+    expect(body).toContain("Twilio Lookup     : ERROR: e4");
     // fullContact + breachDirectory generic-error status lines (neither NOT_CONFIGURED nor NOT_FOUND/clean)
     expect(body).toContain("Status             : e6");
     expect(body).toContain("Status             : e5");
@@ -260,7 +260,7 @@ describe("<BulkLookup>", () => {
   it("blocks and warns past the 25-number cap", () => {
     render(<BulkLookup />);
     type(Array.from({ length: 26 }, (_, i) => `+1415555${String(i).padStart(4, "0")}`).join("\n"));
-    expect(screen.getByText(/26 pasted — max is 25/i)).toBeTruthy();
+    expect(screen.getByText(/26 pasted: max is 25/i)).toBeTruthy();
     expect(runBtn()).toHaveProperty("disabled", true);
   });
 

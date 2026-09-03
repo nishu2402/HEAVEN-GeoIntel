@@ -114,7 +114,7 @@ describe("email cache", () => {
 });
 
 describe("clearAllCaches", () => {
-  it("empties every cache — the hook that makes a newly-added API key take effect", () => {
+  it("empties every cache: the hook that makes a newly-added API key take effect", () => {
     setCached("+1555", mk("+1555"));
     setCachedEmail("k@x.test", { email: "k@x.test" } as unknown as EmailLookupResponse);
     setCachedIp("1.1.1.1", { input: "1.1.1.1" } as unknown as IpLookupResponse);

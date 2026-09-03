@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AsYouType, getCountries, getCountryCallingCode, isValidPhoneNumber } from "libphonenumber-js";
+import {
+  AsYouType, getCountries, getCountryCallingCode, isValidPhoneNumber,
+  parsePhoneNumberFromString,
+} from "libphonenumber-js";
 import type { CountryCode } from "libphonenumber-js";
 import { CheckCircle2, XCircle, Search, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,16 +31,42 @@ interface Props {
   onLookup: (number: string) => void;
   onClear?: () => void;
   loading: boolean;
+  /**
+   * The E.164 currently on screen, so the country selector can follow it.
+   *
+   * Without this the picker was pinned to US for the whole session. Open a
+   * shared link for +919876543210 and the form underneath the Indian result
+   * still read "+1 · Number for United States", so the analyst's next lookup
+   * silently got a +1 prefix.
+   */
+  activeNumber?: string;
 }
 
 type ValidationState = "empty" | "valid" | "invalid";
 
-export default function PhoneInput({ onLookup, onClear, loading }: Props) {
+export default function PhoneInput({ onLookup, onClear, loading, activeNumber }: Props) {
   const [country, setCountry] = useState<CountryCode>("US");
   const [raw, setRaw] = useState("");
+  // Starts undefined, NOT at `activeNumber`: seeding it with the incoming prop
+  // makes the first render look already-synced, so a deep-linked result would
+  // paint with the default country and never correct itself.
+  const [syncedTo, setSyncedTo] = useState<string | undefined>(undefined);
   const [showDropdown, setShowDropdown] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Follow the country of whatever number is on screen. Adjusting state during
+  // render (React's documented pattern for reacting to a changed prop) rather
+  // than in an effect, so the picker is already correct on the first paint
+  // instead of flashing the default and re-rendering.
+  //
+  // Only the selector moves. `raw` is deliberately untouched, so this can never
+  // overwrite something the analyst is part-way through typing.
+  if (activeNumber !== syncedTo) {
+    setSyncedTo(activeNumber);
+    const parsed = activeNumber ? parsePhoneNumberFromString(activeNumber) : null;
+    if (parsed?.country) setCountry(parsed.country);
+  }
 
   const fullNumber = raw.startsWith("+") ? raw : `+${getCountryCallingCode(country)}${raw.replace(/\D/g, "")}`;
 
@@ -66,7 +95,7 @@ export default function PhoneInput({ onLookup, onClear, loading }: Props) {
 
   const handleCountryChange = (code: CountryCode) => {
     setCountry(code);
-    setRaw(""); // reset input — previous format belongs to old country
+    setRaw(""); // reset input: previous format belongs to old country
     setShowDropdown(false);
     setSearch("");
   };
@@ -199,12 +228,12 @@ export default function PhoneInput({ onLookup, onClear, loading }: Props) {
       <div className="text-sm font-mono">
         {validation === "valid" && (
           <span className="text-[#00ff41]">
-            ✓ Valid — will look up: <span className="glow-green">{fullNumber}</span>
+            ✓ Valid: will look up: <span className="glow-green">{fullNumber}</span>
           </span>
         )}
         {validation === "invalid" && raw && (
           <span className="text-[#ff3e3e]">
-            ✗ Not a valid {selectedCountry.name} number — include country code ({selectedCountry.callingCode}) or switch country
+            ✗ Not a valid {selectedCountry.name} number: include country code ({selectedCountry.callingCode}) or switch country
           </span>
         )}
         {validation === "empty" && (

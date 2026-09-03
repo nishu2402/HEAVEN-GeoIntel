@@ -23,7 +23,7 @@ describe("<PhoneInput>", () => {
     const onLookup = vi.fn();
     render(<PhoneInput onLookup={onLookup} loading={false} />);
     fireEvent.change(numberField(), { target: { value: "4155552671" } });
-    expect(screen.getByText(/valid — will look up:/i)).toBeTruthy();
+    expect(screen.getByText(/valid: will look up:/i)).toBeTruthy();
     expect(screen.getByText("+14155552671")).toBeTruthy();
 
     fireEvent.keyDown(numberField(), { key: "Enter" });
@@ -134,5 +134,40 @@ describe("<PhoneInput>", () => {
   it("hides the Clear button with no onClear and an empty field", () => {
     render(<PhoneInput onLookup={() => {}} loading={false} />);
     expect(screen.queryByTitle("Clear")).toBeNull();
+  });
+
+  it("moves the country selector to match the number on screen", () => {
+    // Opening a shared link for an Indian number used to leave the form reading
+    // "+1 · Number for United States", so the analyst's next lookup got a +1
+    // prefix they never chose.
+    const { rerender } = render(<PhoneInput onLookup={() => {}} loading={false} />);
+    expect(numberField().placeholder).toBe("Number for United States");
+    rerender(<PhoneInput onLookup={() => {}} loading={false} activeNumber="+919876543210" />);
+    expect(numberField().placeholder).toBe("Number for India");
+  });
+
+  it("leaves the selector alone when there is no active number", () => {
+    const { rerender } = render(<PhoneInput onLookup={() => {}} loading={false} activeNumber="+919876543210" />);
+    expect(numberField().placeholder).toBe("Number for India");
+    // Clearing the result must not yank the picker back to the default.
+    rerender(<PhoneInput onLookup={() => {}} loading={false} activeNumber="" />);
+    expect(numberField().placeholder).toBe("Number for India");
+  });
+
+  it("ignores an active number no country can be resolved from", () => {
+    const { rerender } = render(<PhoneInput onLookup={() => {}} loading={false} />);
+    // +800 is international freephone: valid, but belongs to no country.
+    rerender(<PhoneInput onLookup={() => {}} loading={false} activeNumber="+80012345678" />);
+    expect(numberField().placeholder).toBe("Number for United States");
+  });
+
+  it("keeps what the analyst is typing when the country follows a new result", () => {
+    const { rerender } = render(<PhoneInput onLookup={() => {}} loading={false} />);
+    fireEvent.change(numberField(), { target: { value: "415555" } });
+    // AsYouType formats while you type, so the field reads "(415) 555".
+    const typed = numberField().value;
+    rerender(<PhoneInput onLookup={() => {}} loading={false} activeNumber="+919876543210" />);
+    expect(numberField().placeholder).toBe("Number for India"); // selector moved
+    expect(numberField().value).toBe(typed);                    // input untouched
   });
 });

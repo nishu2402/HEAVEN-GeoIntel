@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  normalizeGithub, normalizeGitlab, normalizeHackerNews, normalizeReddit, deriveIdentity,
+  normalizeGithub, normalizeGitlab, normalizeHackerNews, normalizeReddit,
+  normalizeBluesky, normalizeMastodon, normalizeCodeberg, normalizeChessCom,
+  normalizeLichess, deriveIdentity,
 } from "@/lib/analysis/usernameProfiles";
 import type { SocialProfile } from "@/lib/types";
 
@@ -105,6 +107,71 @@ describe("normalizeHackerNews", () => {
   });
 });
 
+describe("normalizeBluesky", () => {
+  it("maps an AT Protocol profile payload", () => {
+    const p = normalizeBluesky({
+      did: "did:plc:oky5czdrnfjpqslsw2a5iclo",
+      handle: "jay.bsky.team",
+      displayName: "Jay",
+      description: "Founder & Chief Innovation Officer @ Bluesky",
+      avatar: "https://cdn.bsky.app/img/avatar/plain/did:plc:oky5/x@jpeg",
+      createdAt: "2022-11-17T06:31:40.296Z",
+      followersCount: 595018, followsCount: 3974, postsCount: 4110,
+    });
+    expect(p!.platform).toBe("Bluesky");
+    expect(p!.handle).toBe("jay.bsky.team");
+    expect(p!.displayName).toBe("Jay");
+    expect(p!.joinedYear).toBe("2022");
+    expect(p!.url).toBe("https://bsky.app/profile/jay.bsky.team");
+    expect(p!.stats).toEqual([
+      { label: "followers", value: "595018" },
+      { label: "following", value: "3974" },
+      { label: "posts", value: "4110" },
+    ]);
+    expect(p!.extra).toBeNull(); // unverified account
+  });
+
+  it("surfaces a valid platform verification", () => {
+    const p = normalizeBluesky({
+      handle: "bsky.app",
+      verification: { verifiedStatus: "valid", trustedVerifierStatus: "none" },
+    });
+    expect(p!.extra).toBe("verified by Bluesky");
+  });
+
+  it("ignores a verification block that is not a valid status", () => {
+    expect(normalizeBluesky({ handle: "a.bsky.social", verification: { verifiedStatus: "none" } })!.extra).toBeNull();
+    expect(normalizeBluesky({ handle: "a.bsky.social", verification: "nonsense" })!.extra).toBeNull();
+  });
+
+  it("rejects the 'Profile not found' error body rather than inventing an account", () => {
+    // The appview answers a missing handle with 400 + this body. It carries no
+    // handle, so it can never become a profile even if a caller forwards it.
+    expect(normalizeBluesky({ error: "InvalidRequest", message: "Profile not found" })).toBeNull();
+  });
+
+  it("rejects junk and non-objects", () => {
+    expect(normalizeBluesky(null)).toBeNull();
+    expect(normalizeBluesky("nope")).toBeNull();
+    expect(normalizeBluesky({ handle: "   " })).toBeNull();
+  });
+
+  it("defaults absent counts to zero and an unparseable date to null", () => {
+    const p = normalizeBluesky({ handle: "sparse.bsky.social", createdAt: "not-a-date" });
+    expect(p!.stats.map((s) => s.value)).toEqual(["0", "0", "0"]);
+    expect(p!.joinedYear).toBeNull();
+    expect(p!.displayName).toBeNull();
+    expect(p!.bio).toBeNull();
+    expect(p!.avatarUrl).toBeNull();
+    expect(p!.location).toBeNull();
+  });
+
+  it("percent-encodes a handle into the profile URL", () => {
+    expect(normalizeBluesky({ handle: "a b.bsky.social" })!.url)
+      .toBe("https://bsky.app/profile/a%20b.bsky.social");
+  });
+});
+
 describe("normalizeReddit", () => {
   it("maps an about.json payload with karma split and subreddit description", () => {
     const p = normalizeReddit({ kind: "t2", data: {
@@ -182,5 +249,191 @@ describe("deriveIdentity", () => {
 
   it("returns empty arrays for no profiles", () => {
     expect(deriveIdentity([])).toEqual({ names: [], locations: [], avatars: [], bios: [] });
+  });
+});
+
+// ── The four providers added after the keyless-API sweep ─────────────────────
+// Each was promoted only after 4 known-real and 4 known-absent handles produced
+// a clean 200/404 split, so these tests pin the SHAPE rather than the existence
+// check: a partial payload must collapse to null or to honest nulls, never to
+// invented detail.
+
+describe("normalizeMastodon", () => {
+  const raw = {
+    acct: "Gargron", username: "Gargron", display_name: "Eugen Rochko",
+    note: "<p>Founder of <a href='#'>Mastodon</a>. &amp; more</p>",
+    url: "https://mastodon.social/@Gargron", avatar: "https://a/av.png",
+    followers_count: 382432, following_count: 736, statuses_count: 82161,
+    created_at: "2016-03-16T00:00:00.000Z", bot: false,
+  };
+
+  it("maps a full account", () => {
+    expect(normalizeMastodon(raw)).toEqual({
+      platform: "Mastodon", category: "social", handle: "Gargron",
+      url: "https://mastodon.social/@Gargron", avatarUrl: "https://a/av.png",
+      displayName: "Eugen Rochko", bio: "Founder of Mastodon . & more",
+      stats: [
+        { label: "followers", value: "382432" },
+        { label: "following", value: "736" },
+        { label: "posts", value: "82161" },
+      ],
+      joinedYear: "2016", location: null, extra: null,
+    });
+  });
+
+  it("falls back to username when acct is absent, and builds the URL", () => {
+    const out = normalizeMastodon({ username: "solo" })!;
+    expect(out.handle).toBe("solo");
+    expect(out.url).toBe("https://mastodon.social/@solo");
+  });
+
+  it("surfaces a bot flag", () => {
+    expect(normalizeMastodon({ acct: "feedbot", bot: true })!.extra).toBe("flagged as a bot account");
+  });
+
+  it("zeroes absent counts rather than inventing them", () => {
+    expect(normalizeMastodon({ acct: "x" })!.stats.every((s) => s.value === "0")).toBe(true);
+  });
+
+  it("returns null for a non-object or a payload with no handle", () => {
+    expect(normalizeMastodon(null)).toBeNull();
+    expect(normalizeMastodon("nope")).toBeNull();
+    expect(normalizeMastodon({ error: "Record not found" })).toBeNull();
+  });
+});
+
+describe("normalizeCodeberg", () => {
+  const raw = {
+    login: "crystal", full_name: "Crystal Realname", html_url: "https://codeberg.org/crystal",
+    avatar_url: "https://c/av", description: "<b>hi</b>", location: "Berlin",
+    website: "https://example.org", pronouns: "she/her",
+    followers_count: 12, following_count: 3, created: "2020-09-23T05:33:24+02:00",
+  };
+
+  it("maps a full account and folds website + pronouns into extra", () => {
+    const out = normalizeCodeberg(raw)!;
+    expect(out).toMatchObject({
+      platform: "Codeberg", category: "developer", handle: "crystal",
+      displayName: "Crystal Realname", bio: "hi", location: "Berlin", joinedYear: "2020",
+    });
+    expect(out.extra).toBe("site: https://example.org · pronouns: she/her");
+  });
+
+  it("does not echo the login back as a display name", () => {
+    expect(normalizeCodeberg({ login: "crystal", full_name: "crystal" })!.displayName).toBeNull();
+  });
+
+  it("builds the profile URL when html_url is missing", () => {
+    expect(normalizeCodeberg({ login: "a b" })!.url).toBe("https://codeberg.org/a%20b");
+  });
+
+  it("leaves extra null when neither website nor pronouns is set", () => {
+    expect(normalizeCodeberg({ login: "x" })!.extra).toBeNull();
+  });
+
+  it("includes only the field that is present", () => {
+    expect(normalizeCodeberg({ login: "x", website: "https://s" })!.extra).toBe("site: https://s");
+    expect(normalizeCodeberg({ login: "x", pronouns: "they/them" })!.extra).toBe("pronouns: they/them");
+  });
+
+  it("returns null without a login", () => {
+    expect(normalizeCodeberg({ full_name: "No Login" })).toBeNull();
+    expect(normalizeCodeberg(undefined)).toBeNull();
+  });
+});
+
+describe("normalizeChessCom", () => {
+  const raw = {
+    username: "hikaru", name: "Hikaru Nakamura", url: "https://www.chess.com/member/Hikaru",
+    avatar: "https://c/av.png", followers: 1408833, location: "Florida",
+    country: "https://api.chess.com/pub/country/US", joined: 1389043258,
+    title: "GM", twitch_url: "https://twitch.tv/gmhikaru",
+  };
+
+  it("maps a full player and exposes the Twitch cross-pivot", () => {
+    const out = normalizeChessCom(raw)!;
+    expect(out).toMatchObject({
+      platform: "Chess.com", category: "gaming", handle: "hikaru",
+      displayName: "Hikaru Nakamura", location: "Florida", joinedYear: "2014",
+    });
+    expect(out.extra).toBe("GM title · Twitch: https://twitch.tv/gmhikaru");
+    expect(out.stats).toEqual([{ label: "followers", value: "1408833" }]);
+  });
+
+  it("falls back to the ISO country code when there is no free-text location", () => {
+    expect(normalizeChessCom({ username: "x", country: "https://api.chess.com/pub/country/DE" })!.location).toBe("DE");
+  });
+
+  it("reports a null location when neither field is present", () => {
+    expect(normalizeChessCom({ username: "x" })!.location).toBeNull();
+  });
+
+  it("includes only the part of extra that exists", () => {
+    expect(normalizeChessCom({ username: "x", title: "IM" })!.extra).toBe("IM title");
+    expect(normalizeChessCom({ username: "x", twitch_url: "https://t/x" })!.extra).toBe("Twitch: https://t/x");
+    expect(normalizeChessCom({ username: "x" })!.extra).toBeNull();
+  });
+
+  it("builds the member URL when the API omits it", () => {
+    expect(normalizeChessCom({ username: "a b" })!.url).toBe("https://www.chess.com/member/a%20b");
+  });
+
+  it("returns null without a username", () => {
+    expect(normalizeChessCom({ name: "Nobody" })).toBeNull();
+    expect(normalizeChessCom(42)).toBeNull();
+  });
+});
+
+describe("normalizeLichess", () => {
+  it("maps a full account including the last-seen date", () => {
+    const out = normalizeLichess({
+      id: "thibault", username: "thibault", url: "https://lichess.org/@/thibault",
+      createdAt: 1290415680000, seenAt: 1788281802455,
+      profile: { firstName: "Thibault", lastName: "Duplessis", bio: "Lichess founder", location: "France" },
+    })!;
+    expect(out).toMatchObject({
+      platform: "Lichess", category: "gaming", handle: "thibault",
+      displayName: "Thibault Duplessis", bio: "Lichess founder", location: "France", joinedYear: "2010",
+    });
+    expect(out.extra).toContain("last seen 2026-");
+  });
+
+  it("reports a closed account, which is all the API returns for one", () => {
+    const out = normalizeLichess({ id: "hikaru", username: "Hikaru", disabled: true })!;
+    expect(out.extra).toBe("account closed");
+    expect(out.joinedYear).toBeNull();
+    expect(out.displayName).toBeNull();
+    expect(out.bio).toBeNull();
+    expect(out.location).toBeNull();
+  });
+
+  it("reports a ToS flag", () => {
+    expect(normalizeLichess({ username: "x", tosViolation: true })!.extra).toBe("flagged for ToS violation");
+  });
+
+  it("falls back to id when username is absent, and builds the URL", () => {
+    const out = normalizeLichess({ id: "solo" })!;
+    expect(out.handle).toBe("solo");
+    expect(out.url).toBe("https://lichess.org/@/solo");
+  });
+
+  it("uses the profile country when there is no location", () => {
+    expect(normalizeLichess({ username: "x", profile: { country: "BR" } })!.location).toBe("BR");
+  });
+
+  it("builds a display name from whichever name part exists", () => {
+    expect(normalizeLichess({ username: "x", profile: { firstName: "Ann" } })!.displayName).toBe("Ann");
+    expect(normalizeLichess({ username: "x", profile: {} })!.displayName).toBeNull();
+  });
+
+  it("ignores a non-numeric or zero seenAt/createdAt", () => {
+    const out = normalizeLichess({ username: "x", seenAt: 0, createdAt: "nope" })!;
+    expect(out.extra).toBeNull();
+    expect(out.joinedYear).toBeNull();
+  });
+
+  it("returns null without a username or id", () => {
+    expect(normalizeLichess({ disabled: true })).toBeNull();
+    expect(normalizeLichess([])).toBeNull();
   });
 });

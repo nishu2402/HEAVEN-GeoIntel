@@ -246,17 +246,17 @@ const TZ_UTC: Record<string, string> = {
   // falling back to the country default. Verified against current IANA rules.
   "America/Detroit": "UTC-5 / UTC-4 (EDT)",
   "America/Indiana/Indianapolis": "UTC-5 / UTC-4 (EDT)",
-  "America/Phoenix": "UTC-7",                    // Arizona — no DST
+  "America/Phoenix": "UTC-7",                    // Arizona: no DST
   "America/Edmonton": "UTC-7 / UTC-6 (MDT)",
   "America/Winnipeg": "UTC-6 / UTC-5 (CDT)",
-  "America/Regina": "UTC-6",                     // Saskatchewan — no DST
+  "America/Regina": "UTC-6",                     // Saskatchewan: no DST
   "America/Halifax": "UTC-4 / UTC-3 (ADT)",
   "America/Moncton": "UTC-4 / UTC-3 (ADT)",
   "America/St_Johns": "UTC-3:30 / UTC-2:30 (NDT)",
-  "America/Whitehorse": "UTC-7",                 // Yukon — permanent MST since 2020
+  "America/Whitehorse": "UTC-7",                 // Yukon: permanent MST since 2020
   "Atlantic/Bermuda": "UTC-4 / UTC-3 (ADT)",
   "America/Nassau": "UTC-5 / UTC-4 (EDT)",       // Bahamas
-  "America/Grand_Turk": "UTC-5 / UTC-4 (EDT)",   // Turks & Caicos — EST/EDT since 2018
+  "America/Grand_Turk": "UTC-5 / UTC-4 (EDT)",   // Turks & Caicos: EST/EDT since 2018
   "America/Cayman": "UTC-5",
   // Eastern-Caribbean AST zones — no DST
   "America/Anguilla": "UTC-4",
@@ -296,15 +296,6 @@ function getCountryDisplayName(code: string): string {
     /* v8 ignore next */
     return code;
   }
-}
-
-function extractCarrierPrefix(national: string): string | null {
-  const digits = national.replace(/\D/g, "");
-  /* v8 ignore next -- a parseable number always has subscriber digits here */
-  if (!digits) return null;
-  const prefixLen = digits.length >= 7 ? 3 : digits.length >= 5 ? 2 : null;
-  if (!prefixLen) return null;
-  return digits.slice(0, prefixLen);
 }
 
 // Derive timezones and UTC offsets from country code using the bundled map
@@ -352,7 +343,17 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
   const type = parsed.getType() ?? null;
   const typeStr = type ?? "UNKNOWN";
 
-  const nationalDigits = national.replace(/\D/g, "");
+  // The NATIONAL format keeps the trunk prefix a caller dials domestically —
+  // India's leading "0" (098765 43210), Germany's "0", Russia's "8". That digit
+  // is dialling syntax, not part of the number, and treating it as one poisoned
+  // everything downstream: `+919876543210` reported "11 digits · expected 10",
+  // rendering a perfectly valid number as if it were malformed, and the
+  // subscriber/carrier-prefix segments were shifted by one.
+  //
+  // `nationalNumber` is libphonenumber's national SIGNIFICANT number, which is
+  // the same string with the trunk code already removed. The US and Canada have
+  // no trunk prefix, which is why the old derivation looked correct for years.
+  const nationalDigits = parsed.nationalNumber.replace(/\D/g, "");
 
   // US/CA: offline area code intelligence from the NPA database (works with zero APIs)
   const npaInfo = (country === "US" || country === "CA") ? getNpaInfo(nationalDigits) : null;
@@ -416,9 +417,18 @@ export function analyzePhoneNumber(raw: string): PhoneAnalysis | null {
     timezones,
     utcOffsets,
 
-    // Extract carrier prefix from subscriber portion (not full national digits)
-    // For US/CA: NXX (central office code, digits 4-6) — NOT the area code (digits 1-3)
-    carrierPrefix: extractCarrierPrefix(subscriberNumber),
+    // NXX — the central-office code — is digits 4–6 of a 10-digit North
+    // American number, i.e. the first three of the subscriber portion. It is a
+    // NANP concept: deriving it everywhere printed "Central office (NXX): 098"
+    // for an Indian number, which is a NANP label on a non-NANP number and
+    // (before the fix above) the trunk zero. Elsewhere there is no fixed-width
+    // operator prefix to read off the digits, so we report none.
+    //
+    // libphonenumber only resolves a number to US/CA once it is a full 10
+    // national digits, so inside this branch the slice is always three digits.
+    carrierPrefix: (country === "US" || country === "CA")
+      ? subscriberNumber.slice(0, 3)
+      : null,
     numberPlanArea: country ? getCountryDisplayName(country) : null,
     npaInfo,
   };

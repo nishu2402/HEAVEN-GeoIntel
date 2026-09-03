@@ -20,7 +20,7 @@ describe("<EmailInput>", () => {
     expect(onLookup).not.toHaveBeenCalled();
 
     fireEvent.change(input, { target: { value: "  a@b.com  " } });
-    expect(screen.getByText(/valid — will scan/i)).toBeTruthy();
+    expect(screen.getByText(/valid: will scan/i)).toBeTruthy();
     fireEvent.keyDown(input, { key: "Enter" });            // valid → trimmed submit
     expect(onLookup).toHaveBeenCalledWith("a@b.com");
 

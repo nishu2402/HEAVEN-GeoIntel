@@ -73,7 +73,7 @@ describe("the failure the old code got wrong", () => {
 });
 
 describe("errors the server explained itself", () => {
-  it("prefers the route's own message — it says more than a status code", async () => {
+  it("prefers the route's own message: it says more than a status code", async () => {
     stub(res(400, JSON.stringify({ error: "Invalid or unparseable phone number" })));
     const out = await postLookup("/api/lookup", { number: "abc" });
     expect(out).toEqual({ ok: false, error: "Invalid or unparseable phone number" });

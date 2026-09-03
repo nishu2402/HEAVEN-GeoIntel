@@ -8,6 +8,26 @@
 // This is the runtime half of the project's accuracy rule: we only ever show a
 // value we actually received, and we always say where it came from.
 
+import { USER_AGENT } from "../version";
+
+/**
+ * Merge the outbound User-Agent into a caller's headers without overriding one
+ * they set deliberately.
+ *
+ * This is a default rather than a courtesy. Node's `fetch` sends NO User-Agent
+ * at all, and several sources this tool depends on refuse an unidentified
+ * client outright: rdap.org (Cloudflare) answers a UA-less request with 403,
+ * which silently killed WHOIS for every domain and made the UI report
+ * "WHOIS unavailable for this TLD via RDAP" for .com. Setting it here — rather
+ * than at each call site, which is how that gap opened — means a new source
+ * gets it by default and cannot regress the same way.
+ */
+export function withUserAgent(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("user-agent")) headers.set("User-Agent", USER_AGENT);
+  return { ...init, headers };
+}
+
 export interface SourceMeta {
   /** Human-readable source name, e.g. "Shodan InternetDB". */
   source: string;
@@ -79,7 +99,7 @@ export async function fetchJson<T>(url: string, opts: Options): Promise<FetchRes
   const { source, timeoutMs = DEFAULT_TIMEOUT, init, allowNon2xx, readHeaders } = opts;
   const started = Date.now();
   try {
-    const res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(url, { ...withUserAgent(init), signal: AbortSignal.timeout(timeoutMs) });
     const ms = Date.now() - started;
     // Captured before any early return: a 429 is exactly when a provider's
     // quota headers matter most, and that is the path that returns first.

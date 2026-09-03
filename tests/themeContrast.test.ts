@@ -71,7 +71,7 @@ function token(theme: "dark" | "light", name: string): string {
 const AA_TEXT = 4.5;
 const AA_UI = 3; // borders and other non-text component boundaries
 
-describe("light theme — text that lands on the page background", () => {
+describe("light theme: text that lands on the page background", () => {
   const page = token("light", "--hv-page-1");
 
   it("the page background is the bright one this suite assumes", () => {
@@ -116,7 +116,7 @@ describe("light theme — text that lands on the page background", () => {
   });
 
   it.each(["--hv-ink", "--hv-ink-dim", "--hv-green", "--hv-cyan"])(
-    "%s does NOT — which is why the page tokens exist",
+    "%s does NOT: which is why the page tokens exist",
     (name) => {
       // Documents the trap rather than just avoiding it: these are the panel
       // tokens, and every one of them is illegible on the page. If a future

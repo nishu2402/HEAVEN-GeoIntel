@@ -106,7 +106,7 @@ export default function CasesPanel() {
       const res = await fetch("/api/cases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       json = (await res.json()) as { case?: InvestigationCase; error?: string };
     } catch {
-      ping("Request failed — server unreachable");
+      ping("Request failed: server unreachable");
       return {};
     }
     if (json.case) {
@@ -131,7 +131,7 @@ export default function CasesPanel() {
       setUnlockPw("");
       setLocked(false);
       await load();
-    } catch { setUnlockErr("Request failed — server unreachable"); }
+    } catch { setUnlockErr("Request failed: server unreachable"); }
   }
 
   async function createCase() {
@@ -145,7 +145,7 @@ export default function CasesPanel() {
     try {
       const res = await fetch(`/api/cases?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (!res.ok) { ping("Delete failed"); return; }
-    } catch { ping("Delete failed — server unreachable"); return; }
+    } catch { ping("Delete failed: server unreachable"); return; }
     setCases((prev) => prev.filter((c) => c.id !== id));
     if (activeId === id) setActiveId(null);
   }
@@ -245,7 +245,7 @@ export default function CasesPanel() {
     if (!active) return;
     const html = await buildPrintableHtml(active);
     const w = window.open("", "_blank");
-    if (!w) { ping("Pop-up blocked — allow pop-ups to print"); return; }
+    if (!w) { ping("Pop-up blocked: allow pop-ups to print"); return; }
     w.document.write(html); w.document.close();
     ping("Opening printable report…");
   }
@@ -268,16 +268,16 @@ export default function CasesPanel() {
     }
     if (!check.verified) {
       const warning = check.tampered
-        ? "Integrity hash does NOT match — this report may have been modified. Import anyway?"
+        ? "Integrity hash does NOT match: this report may have been modified. Import anyway?"
         : "This report carries no integrity hash, so its contents cannot be verified. Import anyway?";
       if (!window.confirm(warning)) return;
     }
     const j = await api({ action: "import", case: check.case });
     if (!j.case) return;
     setActiveId(j.case.id);
-    if (check.verified) ping("Imported — integrity verified");
-    else if (check.tampered) ping("Imported — HASH MISMATCH");
-    else ping("Imported — UNVERIFIED (no integrity hash)");
+    if (check.verified) ping("Imported: integrity verified");
+    else if (check.tampered) ping("Imported: HASH MISMATCH");
+    else ping("Imported: UNVERIFIED (no integrity hash)");
   }
   // Same rule as removeCase: only clear local state once the server confirms.
   async function deleteAllData() {
@@ -285,7 +285,7 @@ export default function CasesPanel() {
     try {
       const res = await fetch("/api/cases?all=1", { method: "DELETE" });
       if (!res.ok) { ping("Wipe failed"); return; }
-    } catch { ping("Wipe failed — server unreachable"); return; }
+    } catch { ping("Wipe failed: server unreachable"); return; }
     setCases([]); setActiveId(null); ping("All local data wiped");
   }
 
@@ -333,7 +333,7 @@ export default function CasesPanel() {
       <div className="terminal-card p-4 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-            <FolderOpen className="w-3.5 h-3.5" /> INVESTIGATION CASES — persistent across sessions
+            <FolderOpen className="w-3.5 h-3.5" /> INVESTIGATION CASES: persistent across sessions
           </div>
           <div className="flex items-center gap-2">
             {flash && <span className="text-[11px] font-mono text-[var(--hv-green)]">{flash}</span>}
@@ -363,7 +363,7 @@ export default function CasesPanel() {
         ) : loadError ? (
           <div className="flex items-center gap-2 text-sm font-mono py-3 text-[var(--hv-red)]">
             <ShieldAlert className="w-4 h-4 shrink-0" />
-            Could not load cases — the server is unreachable.
+            Could not load cases: the server is unreachable.
             <button onClick={load} className="underline hover:text-[var(--hv-cyan)]">Retry</button>
           </div>
         ) : cases.length === 0 ? (
@@ -391,7 +391,7 @@ export default function CasesPanel() {
       {correlations.length > 0 && (
         <div className="terminal-card p-4 space-y-2">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-cyan)] flex items-center gap-1.5">
-            <Link2 className="w-3.5 h-3.5" /> CROSS-CASE LINKS — identifiers shared across investigations
+            <Link2 className="w-3.5 h-3.5" /> CROSS-CASE LINKS: identifiers shared across investigations
           </div>
           <div className="space-y-1.5">
             {correlations.map((corr) => (
@@ -421,7 +421,7 @@ export default function CasesPanel() {
           <div className="terminal-card p-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]">
-                {active.name} — {active.entities.length} identifier{active.entities.length === 1 ? "" : "s"}
+                {active.name}: {active.entities.length} identifier{active.entities.length === 1 ? "" : "s"}
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {([
@@ -459,7 +459,7 @@ export default function CasesPanel() {
                   <button onClick={() => removeEntity(e.kind, e.value)} aria-label="Remove" className="hover:opacity-100 opacity-60"><X className="w-3 h-3" /></button>
                 </span>
               ))}
-              {active.entities.length === 0 && <span className="text-[12px] font-mono text-[var(--hv-ink-dim)]">No identifiers yet — add the phone/email/username/IP/domain you&apos;re investigating.</span>}
+              {active.entities.length === 0 && <span className="text-[12px] font-mono text-[var(--hv-ink-dim)]">No identifiers yet: add the phone/email/username/IP/domain you&apos;re investigating.</span>}
             </div>
           </div>
 
@@ -467,7 +467,7 @@ export default function CasesPanel() {
           {cases.length > 1 && (
             <div className="terminal-card p-4 space-y-2">
               <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-                <GitMerge className="w-3.5 h-3.5" /> MERGE — fold another case into {active.name}
+                <GitMerge className="w-3.5 h-3.5" /> MERGE: fold another case into {active.name}
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <select value={mergeSourceId} onChange={(e) => setMergeSourceId(e.target.value)}
@@ -493,31 +493,42 @@ export default function CasesPanel() {
           <LinkGraph
             entities={active.entities.map((e) => ({ kind: e.kind, value: e.value }))}
             links={active.edges}
-            title={`${active.name.toUpperCase()} — LINK GRAPH`}
+            title={`${active.name.toUpperCase()}: LINK GRAPH`}
             onChange={syncGraph}
           />
 
           <CaseChanges snapshots={active.snapshots ?? []} />
 
-          {/* Timeline — when the case was opened and each identifier pinned */}
+          {/* Timeline — creation, pinned identifiers, derived links and lookup snapshots */}
+          {(() => {
+            const timeline = caseTimeline(active);
+            return (
           <div className="terminal-card p-4 space-y-2">
             <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> TIMELINE — {active.entities.length + 1} event{active.entities.length === 0 ? "" : "s"}
+              <Clock className="w-3.5 h-3.5" /> TIMELINE: {timeline.length} event{timeline.length === 1 ? "" : "s"}
             </div>
             <div className="space-y-0">
-              {caseTimeline(active).map((ev, i) => (
+              {timeline.map((ev, i) => (
                 <div key={`${ev.at}-${i}`} className="flex items-baseline gap-2.5 py-1 text-xs font-mono">
                   <span className="w-2 h-2 rounded-full shrink-0 self-center"
-                    style={{ background: ev.type === "entity" && ev.entityKind ? KIND_COLOR[ev.entityKind] : "var(--hv-ink-dim)" }} />
+                    style={{ background: ev.entityKind ? KIND_COLOR[ev.entityKind] : ev.type === "edge" ? "var(--hv-magenta)" : "var(--hv-ink-dim)" }} />
                   <span className="text-[var(--hv-ink-dim)] shrink-0 tabular-nums">{fmtTime(ev.at)}</span>
-                  {ev.type === "entity" && ev.entityKind && (
+                  {ev.entityKind && (
                     <span className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: KIND_COLOR[ev.entityKind] }}>{ev.entityKind}</span>
                   )}
-                  <span className={ev.type === "created" ? "text-[var(--hv-ink-dim)] italic" : "text-[var(--hv-ink)] break-all"}>{ev.label}</span>
+                  {ev.type === "edge" && <span className="text-[10px] uppercase tracking-wider shrink-0 text-[var(--hv-magenta)]">link</span>}
+                  {ev.type === "snapshot" && <span className="text-[10px] uppercase tracking-wider shrink-0 text-[var(--hv-cyan)]">snapshot</span>}
+                  <span className={ev.type === "created" ? "text-[var(--hv-ink-dim)] italic" : "text-[var(--hv-ink)] break-all"}>
+                    {ev.label}
+                    {ev.detail && <span className="text-[var(--hv-ink-dim)]">: {ev.detail}</span>}
+                    {ev.fromCache && <span className="text-[var(--hv-ink-dim)] italic"> (cached)</span>}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
+            );
+          })()}
 
           {/* Notes */}
           <div className="terminal-card p-4 space-y-2">

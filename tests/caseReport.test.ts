@@ -17,7 +17,7 @@ const baseCase: InvestigationCase = {
   notes: "Initial hypothesis: credential harvest.",
 };
 
-describe("caseReport — JSON export", () => {
+describe("caseReport: JSON export", () => {
   it("wraps the case with schema, version and a 64-hex SHA-256 integrity hash", async () => {
     const { json, hash } = await buildCaseJson(baseCase);
     const env = JSON.parse(json);
@@ -40,7 +40,7 @@ describe("caseReport — JSON export", () => {
   });
 });
 
-describe("caseReport — import + integrity check", () => {
+describe("caseReport: import + integrity check", () => {
   it("round-trips an exported report with integrity verified (not tampered)", async () => {
     const { json } = await buildCaseJson(baseCase);
     const check = await verifyCaseImport(json);
@@ -120,7 +120,7 @@ describe("caseReport — import + integrity check", () => {
   });
 });
 
-describe("caseReport — interop exports", () => {
+describe("caseReport: interop exports", () => {
   it("CSV has a header + one row per identifier, quoted", () => {
     const csv = buildCaseCsv(baseCase);
     const lines = csv.split("\r\n");
@@ -168,7 +168,7 @@ describe("caseReport — interop exports", () => {
   });
 });
 
-describe("caseReport — Markdown report", () => {
+describe("caseReport: Markdown report", () => {
   it("includes the case name, an entity value and the integrity hash", async () => {
     const md = await buildCaseMarkdown(baseCase);
     expect(md).toContain("Acme phishing 2026");
@@ -177,7 +177,7 @@ describe("caseReport — Markdown report", () => {
   });
 });
 
-describe("caseReport — STIX covers every entity kind", () => {
+describe("caseReport: STIX covers every entity kind", () => {
   it("emits ipv4-addr, user-account and x-phone-number objects", () => {
     const c: InvestigationCase = {
       ...baseCase,
@@ -195,7 +195,7 @@ describe("caseReport — STIX covers every entity kind", () => {
   });
 });
 
-describe("caseReport — printable HTML", () => {
+describe("caseReport: printable HTML", () => {
   it("produces a self-contained HTML doc with the (escaped) case name", async () => {
     const c: InvestigationCase = { ...baseCase, name: "A&B <script>" };
     const html = await buildPrintableHtml(c);
@@ -205,7 +205,7 @@ describe("caseReport — printable HTML", () => {
   });
 });
 
-describe("caseReport — empty / minimal edge cases", () => {
+describe("caseReport: empty / minimal edge cases", () => {
   const emptyCase = {
     id: "e", name: "Empty", createdAt: 1, updatedAt: 2, entities: [],
     notes: undefined as unknown as string,
@@ -231,7 +231,7 @@ describe("caseReport — empty / minimal edge cases", () => {
   });
 });
 
-describe("caseReport — verifyCaseImport envelopes", () => {
+describe("caseReport: verifyCaseImport envelopes", () => {
   it("rejects non-JSON and non-report envelopes", async () => {
     expect((await verifyCaseImport("{bad")).ok).toBe(false);
     expect((await verifyCaseImport("null")).ok).toBe(false);

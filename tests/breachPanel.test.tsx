@@ -174,7 +174,7 @@ describe("<BreachPanel> email mode", () => {
     />);
     expect(screen.getByText(/2 BREACHES/)).toBeTruthy();
     expect(screen.getByText(/1 with crackable passwords/)).toBeTruthy();
-    expect(screen.getByText(/CRITICAL — Plaintext passwords exposed/)).toBeTruthy();
+    expect(screen.getByText(/CRITICAL: Plaintext passwords exposed/)).toBeTruthy();
     expect(screen.getByText(/What this means/)).toBeTruthy();
     // Adobe breach: no domain link, no VERIFIED, no records line
     expect(screen.getByText("Adobe")).toBeTruthy();
@@ -186,7 +186,7 @@ describe("<BreachPanel> email mode", () => {
   it("shows the HIGH RISK (easy-crack, no plaintext) warning and singular BREACH wording", () => {
     render(<BreachPanel xon={{ ok: true, data: xon({ breachCount: 1, breaches: [breach({ passwordRisk: "EasyToCrack" })] }) }} breachDirectory={{ ok: false, error: "NOT_CONFIGURED" }} />);
     expect(screen.getByText(/1 BREACH$/)).toBeTruthy();
-    expect(screen.getByText(/HIGH RISK — MD5\/SHA-1 hashes exposed/)).toBeTruthy();
+    expect(screen.getByText(/HIGH RISK: MD5\/SHA-1 hashes exposed/)).toBeTruthy();
   });
 
   it("renders BreachDirectory credential hashes alongside XposedOrNot data", () => {
