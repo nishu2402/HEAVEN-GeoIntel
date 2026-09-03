@@ -1,13 +1,21 @@
 # Screenshots
 
-The main README references the four PNGs in this folder:
+The main README references the six PNGs in this folder. Every one is captured at
+the same fixed viewport (1440x900 at 2x, so 2880x1800), which is what keeps the
+README grid even instead of ragged.
 
 | Filename | What it shows |
 |----------|---------------|
-| `phone-results.png`  | Top of the phone-results dashboard: header, threat score, data-source strip |
-| `osint-pivots.png`   | The OSINT Pivot Matrix: filter chips + categorised links with access badges |
-| `breach-intel.png`   | The credential-breach card: one-click free breach-database lookups |
-| `bulk-mode.png`      | The BULK tab with sample phone numbers pasted in |
+| `phone-results.png`   | Top of the phone dashboard: mode bar, result header, threat score, exports and data sources |
+| `osint-pivots.png`    | The OSINT Pivot Matrix: access-tier filter chips over categorised reverse-lookup links |
+| `breach-intel.png`    | The unified breach view (one row per breach, merged across sources) above the free no-key lookups |
+| `number-intel.png`    | Number anatomy: country code, area code and subscriber digits with libphonenumber checks and standard formats |
+| `command-palette.png` | The Ctrl/Cmd-K command palette listing all eleven modes |
+| `bulk-mode.png`       | The BULK tab with sample numbers pasted in and the offline result table below |
+
+All six come from offline-deterministic views (the phone flow is computed locally,
+the palette and bulk table need no network), so they render the same on any
+machine and never capture an upstream error.
 
 ## Regenerate
 
