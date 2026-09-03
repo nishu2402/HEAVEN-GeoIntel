@@ -9,43 +9,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [3.0.0] — 2026-09-03
 
-No application behaviour, API, or on-disk case format changes here, so upgrading
-is a reinstall with nothing to migrate. The release rolls up a security-only
-dependency bump, the launcher banner redrawn to set the full HEAVEN-GeoIntel
-name as a two-line 3D block lockup that also paints itself in 24-bit colour
-where the terminal supports it, and a round
-of release-tooling fixes the `v2.1.0` tag brought to light. That image itself
-published, signed and attested correctly; the tooling notes below are about the
-workflow around it.
+3.0.0 is a feature release, and the reason for the major bump. It widens the
+tool from five identifier types to seven, adds a set of analysis features (image
+EXIF with GPS pulled in the browser, perceptual avatar matching across
+platforms, typosquat and subdomain-takeover checks, an HTTP and TLS posture
+probe), folds every free breach source into one deduplicated view, and grows the
+source manifest to 28, 20 of which need no key. It also carries a security-only
+dependency bump and the release-tooling fixes the `v2.1.0` tag surfaced. Nothing
+was removed: every existing route and lookup behaves as before, so the upgrade
+is additive. The v2.1.0 image itself published, signed and attested correctly;
+the workflow notes further down are about the tooling around it.
 
-### Security
+### Added
 
-- **postcss raised to `^8.5.28`.** The floor was `^8`, and the lowest version
-  that satisfies it (8.0.x) carries seven advisories: CVE-2021-23382,
-  CVE-2021-23368, CVE-2023-44270 and four 2026 advisories, the two worst scored
-  7.5. Nothing in the app parses untrusted CSS, so the real exposure was
-  limited, but a scanner reads the version floor, not the reasoning. The floor
-  now sits above every fixed-in version, the existing `$postcss` override pulls
-  Next's own pinned copy up with it, and `npm audit` reports zero. No
-  application code changed.
-
-### Fixed
-
-- **The ghcr.io publish job no longer fails after a successful push.** The
-  v2.1.0 tag run built, pushed and signed the image, then died on its last step
-  with `Resource not accessible by integration`. `anchore/sbom-action` defaults
-  to attaching its SBOM to the GitHub Release for the tag, which needs
-  `contents: write`; the job holds `contents: read`. It had passed for v2.0.0
-  and v2.0.1 only because no release existed for it to find; release.yml
-  starting to publish releases is what exposed it. The action is now told not to
-  attach, rather than the token being widened: the image already carries an SBOM
-  as an OCI attestation, release.yml attaches a source SBOM to the release, and
-  the workflow keeps a third copy as a build artifact.
-- **The `main` build no longer times out.** It was killed at 30 minutes with
-  linux/arm64 still emulating `npm ci` under QEMU: 17 seconds on amd64 against
-  minutes on arm64, with total build time drifting from 1m47s at v2.0.0 to past
-  the limit. Each architecture now builds natively on its own runner and the two
-  are merged into one manifest list by digest.
+- **Crypto wallet lookup, a new identifier type.** Paste a Bitcoin or Ethereum
+  address, or an ENS name, and the tool reads balances and activity off the
+  public ledger: mempool.space for Bitcoin and a keyless public Ethereum RPC for
+  Ethereum. ENS is resolved both ways, an ETH address reverse-resolved and
+  forward-verified, an ENS name resolved to its address. The figures are factual
+  reads off the chain, so an address either has a balance and a history or it
+  does not. New route `/api/wallet-lookup` with a wallet results dashboard.
+- **File-hash lookup, a new identifier type.** Paste an MD5, SHA-1 or SHA-256
+  digest and the tool asks CIRCL hashlookup the one question it can answer with
+  authority: is this a known file, present in NSRL and similar known-good
+  databases? A hit clears the file as catalogued software. A miss means only
+  that those databases do not know it, so it is reported as unknown with a prompt
+  to pivot to a verdict engine, never as a detection; VirusTotal and abuse.ch are
+  offered as manual pivots. New route `/api/hash-lookup`.
+- **Image mode: EXIF read in the browser.** Drop in a photo and the tool pulls
+  camera make and model, capture time, and GPS coordinates out of the file's own
+  bytes. The image is never uploaded, so it and any location it carries never
+  leave the machine. JPEG carries full EXIF and GPS; PNG gives dimensions, plus
+  EXIF from an `eXIf` chunk; HEIC is stated as out of scope rather than parsed
+  wrongly.
+- **Domain intelligence beyond the record lookup.** For a domain the tool now
+  also surfaces subdomain-takeover candidates (a dangling CNAME classified
+  against the can-i-take-over-xyz catalogue and returned with the HTTP
+  fingerprint to verify, never as a confirmed takeover) and typosquat and
+  homoglyph variants (the dnstwist technique set, each offered as a one-click
+  domain lookup), both derived without a network call. It also reads RDAP
+  registration data and runs a direct HTTP and TLS posture probe: status, title
+  and redirects, a security-header grade, a technology fingerprint, and the
+  headers and cookies the target leaks.
+- **Deeper email tooling.** A header trace parses a raw header block and walks
+  the delivery path, every Received hop oldest-first with its sending IP and
+  timing, alongside SPF, DKIM and DMARC verdicts, and hands the recovered origin
+  IP off to IP mode. A permutation generator expands a name into the candidate
+  address formats an organisation tends to use, with the pattern inferred from a
+  known address. Both parse locally.
+- **Cross-platform username intelligence.** Reused profile photos are matched by
+  a perceptual dHash, so one avatar links accounts across sites even after it has
+  been re-encoded or resized, and a match is only asserted from a real perceptual
+  hit. A resolved-identity card distils the most likely real name from
+  cross-profile signals, with a confidence set by how many platforms corroborate
+  it. A breadth overlay offers 600-plus WhatsMyName sites as manual
+  open-to-verify links, kept apart from the auto-verified catalogue so it never
+  inflates the found count.
+- **One breach view, deduplicated across sources.** The free breach indexes each
+  cover a different slice of the world. Against one heavily-exposed test address
+  XposedOrNot listed 212 breaches and LeakCheck 213, yet they agreed on only 12,
+  for a union of 413. The breach panels and the header count now show that union
+  rather than one source's share of it. It adds no network call and invents no
+  data: a breach appears because a source named it, and each entry records which
+  sources did.
+- **A universal report export.** Every mode's result can be exported as plain
+  text, Markdown, a print-optimised HTML page (the browser's Save as PDF
+  finishes it), or a STIX 2.1 bundle for a threat-intelligence platform.
+- **An opsec panel.** The footprint every lookup leaves, in one place: the
+  instance-wide facts (server-side proxying, no notification to the subject, the
+  keyless option) and a per-mode table of who sees a query and whether the target
+  is contacted. A pivot row turns any finding into the next lookup in one click,
+  each link tagged with the access tier it needs.
+- **New keyless sources.** RIPEstat, RDAP (rdap.org, then the IANA-bootstrapped
+  registry), ProxyNova (COMB), mempool.space, a public Ethereum RPC, CIRCL
+  hashlookup, and the GitHub, GitLab, Hacker News, Reddit and Bluesky APIs. The
+  manifest is now 28 sources, 20 of which need no key.
+- **A larger launcher banner, in 24-bit colour.** The launcher, installer and
+  uninstaller now open on a centred crest: the hexagon monogram above the full
+  product name, HEAVEN over GEOINTEL, set as a two-line block logotype in a
+  shadowed 3D face, then the tagline, a rule, the four verbs of the workflow,
+  the live source counts, the version with its pipeline, and the owner's credit.
+  On terminals that advertise `COLORTERM=truecolor` (the VS Code terminal,
+  iTerm2, kitty, Alacritty) it is painted as a green-to-cyan gradient that
+  matches the SVG logo and the README poster, with the block bevels dropped to a
+  darker shade so the 3D face reads as extruded; anything else keeps the flat
+  256-colour banner, and a pipe or `NO_COLOR` still prints plain text. It is
+  generated from `src/lib/brand/banner.ts`, so it stays in step with the version
+  and the source counts it prints.
+- `tests/dockerPublish.test.ts`: 14 assertions pinning the workflow changes
+  below, each verified to fail when its regression is reintroduced.
 
 ### Changed
 
@@ -66,22 +118,34 @@ workflow around it.
 - `data/` is git-ignored. It holds scan output written by the sibling HEAVEN
   pentest tool; nothing in this repo reads it.
 
-### Added
+### Fixed
 
-- `tests/dockerPublish.test.ts`: 14 assertions pinning the above, each verified
-  to fail when its regression is reintroduced.
-- **A larger launcher banner, in 24-bit colour.** The launcher, installer and
-  uninstaller now open on a centred crest: the hexagon monogram above the full
-  product name, HEAVEN over GEOINTEL, set as a two-line block logotype in a
-  shadowed 3D face, then the tagline, a rule, the four verbs of the workflow,
-  the live source counts, the version with its pipeline, and the owner's credit.
-  On terminals that advertise `COLORTERM=truecolor` (the VS Code terminal,
-  iTerm2, kitty, Alacritty) it is painted as a green-to-cyan gradient that
-  matches the SVG logo and the README poster, with the block bevels dropped to a
-  darker shade so the 3D face reads as extruded; anything else keeps the flat
-  256-colour banner, and a pipe or `NO_COLOR` still prints plain text. It is
-  generated from `src/lib/brand/banner.ts`, so it stays in step with the version
-  and the source counts it prints.
+- **The ghcr.io publish job no longer fails after a successful push.** The
+  v2.1.0 tag run built, pushed and signed the image, then died on its last step
+  with `Resource not accessible by integration`. `anchore/sbom-action` defaults
+  to attaching its SBOM to the GitHub Release for the tag, which needs
+  `contents: write`; the job holds `contents: read`. It had passed for v2.0.0
+  and v2.0.1 only because no release existed for it to find; release.yml
+  starting to publish releases is what exposed it. The action is now told not to
+  attach, rather than the token being widened: the image already carries an SBOM
+  as an OCI attestation, release.yml attaches a source SBOM to the release, and
+  the workflow keeps a third copy as a build artifact.
+- **The `main` build no longer times out.** It was killed at 30 minutes with
+  linux/arm64 still emulating `npm ci` under QEMU: 17 seconds on amd64 against
+  minutes on arm64, with total build time drifting from 1m47s at v2.0.0 to past
+  the limit. Each architecture now builds natively on its own runner and the two
+  are merged into one manifest list by digest.
+
+### Security
+
+- **postcss raised to `^8.5.28`.** The floor was `^8`, and the lowest version
+  that satisfies it (8.0.x) carries seven advisories: CVE-2021-23382,
+  CVE-2021-23368, CVE-2023-44270 and four 2026 advisories, the two worst scored
+  7.5. Nothing in the app parses untrusted CSS, so the real exposure was
+  limited, but a scanner reads the version floor, not the reasoning. The floor
+  now sits above every fixed-in version, the existing `$postcss` override pulls
+  Next's own pinned copy up with it, and `npm audit` reports zero. No
+  application code changed.
 
 ## [2.1.0] — 2026-08-11
 
