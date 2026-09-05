@@ -13,6 +13,7 @@ import { hudsonRockFor } from "@/lib/server/hudsonRock";
 import { fetchLeakCheck } from "@/lib/server/leakCheck";
 import { fetchComb } from "@/lib/server/proxyNova";
 import { fetchHibp } from "@/lib/server/hibp";
+import { fetchEmailMx } from "@/lib/server/mxLookup";
 import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
 import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
 import { breachCatalog } from "@/lib/data/breachCatalog";
@@ -569,6 +570,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const { results, health } = await settleSources({
     gravatar: fetchGravatar(email),
+    // Keyless MX fingerprint over Cloudflare DoH (the shared `dns` source). Names
+    // where the domain's mail lands — corroboration about the domain, never a
+    // claim that this address is valid.
+    dns: fetchEmailMx(analysis.domain),
     emailrep: fetchEmailRep(email),
     abstract: fetchAbstractEmail(email),
     hunter: fetchHunter(email),
@@ -613,6 +618,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Gravatar is reported as a bare profile for backwards compatibility with
     // the dashboard; its health lives in `sourceHealth` like every other source.
     gravatar: results.gravatar.data ?? EMPTY_GRAVATAR,
+    mail: results.dns,
     emailrep: results.emailrep,
     abstract: results.abstract,
     hunter: results.hunter,

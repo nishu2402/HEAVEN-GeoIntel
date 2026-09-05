@@ -15,6 +15,10 @@ export const domainBody = z.object({ domain: z.string().min(1).max(253) });
 export const bulkBody = z.object({ numbers: z.array(z.string().max(40)).min(1).max(25) });
 export const walletBody = z.object({ address: z.string().min(1).max(120) });
 export const hashBody = z.object({ hash: z.string().min(1).max(80) });
+// Only ever a SHA-1 range prefix (five hex chars). Bounded tight on purpose: the
+// route relays this straight to Pwned Passwords, so nothing password-shaped or
+// hash-length should be accepted here. The exact 5-hex check runs after parsing.
+export const pwnedPrefixBody = z.object({ prefix: z.string().min(1).max(16) });
 
 /**
  * Parse a Request body against a schema. Returns the typed data or null — the

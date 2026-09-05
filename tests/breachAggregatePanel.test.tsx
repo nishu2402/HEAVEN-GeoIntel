@@ -131,7 +131,7 @@ describe("<BreachAggregatePanel>", () => {
     expect(screen.getByText("2019")).toBeTruthy();
     // The enriched row carries the catalog chip, and the footer counts it (singular)
     expect(screen.getByText("catalog")).toBeTruthy();
-    expect(screen.getByText(/1 row was described from the offline HIBP catalog/)).toBeTruthy();
+    expect(screen.getByText(/1 row was described from the offline breach catalog/)).toBeTruthy();
   });
 
   it("pluralizes the catalog-enrichment note", () => {
@@ -141,7 +141,13 @@ describe("<BreachAggregatePanel>", () => {
         subject="email address"
       />,
     );
-    expect(screen.getByText(/4 rows were described from the offline HIBP catalog/)).toBeTruthy();
+    expect(screen.getByText(/4 rows were described from the offline breach catalog/)).toBeTruthy();
     expect(screen.getAllByText("catalog").length).toBeGreaterThan(0);
+  });
+
+  it("states the keyless union is a floor and points to paid indexes", () => {
+    render(<BreachAggregatePanel aggregate={agg()} subject="email address" />);
+    expect(screen.getByText(/union of the free, keyless indexes, so it is a floor/)).toBeTruthy();
+    expect(screen.getByText(/Use the OSINT matrix below/)).toBeTruthy();
   });
 });
