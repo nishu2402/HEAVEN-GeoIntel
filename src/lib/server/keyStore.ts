@@ -27,6 +27,7 @@ export const KEY_NAMES = [
   "EMAILREP_API_KEY",
   "FULLCONTACT_API_KEY",
   "RAPIDAPI_KEY",
+  "HIBP_API_KEY",
 ] as const;
 export type KeyName = (typeof KEY_NAMES)[number];
 const ALLOWED = new Set<string>(KEY_NAMES);

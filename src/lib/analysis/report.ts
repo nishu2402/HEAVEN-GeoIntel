@@ -229,7 +229,10 @@ export function reportToMarkdown(m: ReportModel): string {
   return out.join("\n");
 }
 
-const mdCell = (s: string) => s.replace(/\|/g, "\\|");
+// Escape the backslash FIRST, then the pipe. Escaping only the pipe would turn
+// an input backslash-pipe into "\\|", where the doubled backslash is itself an
+// escaped backslash and the pipe reopens as a live table delimiter.
+const mdCell = (s: string) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export function reportToHtml(m: ReportModel): string {

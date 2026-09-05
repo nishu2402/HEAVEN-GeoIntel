@@ -182,6 +182,14 @@ describe("reportToMarkdown", () => {
     expect(md).toContain("- ✅ dns (30ms)");
     expect(md).toContain("- ❌ whois");
   });
+  it("escapes a backslash before the pipe so a cell can't reopen a delimiter", () => {
+    // Input value: a \ | b  (backslash then pipe). A pipe-only escape would emit
+    // "a \\| b", where "\\" is an escaped backslash and "|" is a live delimiter.
+    const m: ReportModel = { ...model, sections: [{ heading: "X", rows: [{ label: "L", value: "a\\|b" }] }] };
+    const md = reportToMarkdown(m);
+    // backslash → "\\", pipe → "\|"  ⇒  a + \\ + \| + b
+    expect(md).toContain("| L | a\\\\\\|b |");
+  });
   it("omits the headline and sources when absent", () => {
     const md = reportToMarkdown(noHeadline);
     expect(md).not.toContain("HTTP headers");

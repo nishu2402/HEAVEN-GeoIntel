@@ -46,6 +46,18 @@ describe("<CommandPalette> keyboard + backdrop", () => {
   });
 });
 
+describe("<CommandPalette> switch-mode labels", () => {
+  it("shows the IP mode as 'IP', never title-cased to 'Ip'", () => {
+    renderPalette();
+    fireEvent.click(screen.getByRole("button", { name: /open command palette/i }));
+    // The acronym must stay whole in the proper-case "Switch mode" list.
+    expect(screen.getByText("IP")).toBeTruthy();
+    expect(screen.queryByText("Ip")).toBeNull();
+    // An ordinary word label still reads as proper case.
+    expect(screen.getByText("Phone")).toBeTruthy();
+  });
+});
+
 describe("<CommandPalette> theme toggle item", () => {
   it("runs the theme toggle and reflects the new theme's label on reopen", () => {
     renderPalette();

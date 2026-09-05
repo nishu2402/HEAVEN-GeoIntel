@@ -124,7 +124,12 @@ describe("breachesForDomain (over the snapshot)", () => {
   it("finds the breaches recorded for a real domain", () => {
     const hits = breachesForDomain("linkedin.com");
     expect(hits.length).toBeGreaterThan(0);
-    expect(hits.every((h) => (h.domain ?? "").endsWith("linkedin.com"))).toBe(true);
+    // Match on a host boundary, not a loose suffix: "evil-linkedin.com" ends with
+    // "linkedin.com" but is a different registrable domain.
+    expect(hits.every((h) => {
+      const d = (h.domain ?? "").toLowerCase();
+      return d === "linkedin.com" || d.endsWith(".linkedin.com");
+    })).toBe(true);
   });
 
   it("strips a www. prefix before matching", () => {

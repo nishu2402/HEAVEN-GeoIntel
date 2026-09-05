@@ -267,6 +267,15 @@ export const SOURCES: SourceDef[] = [
     unlocks: "Real credential hashes (phone + email)",
     signup: "https://rapidapi.com/rohan-patra/api/breachdirectory",
   },
+  {
+    id: "hibp",
+    name: "Have I Been Pwned",
+    tier: "key",
+    keys: ["HIBP_API_KEY"],
+    modes: ["email"],
+    unlocks: "Per-account breaches from HIBP's index: unions into the breach view so the headline can match HIBP's own count",
+    signup: "https://haveibeenpwned.com/API/Key",
+  },
 ];
 
 export const SOURCES_BY_ID: ReadonlyMap<string, SourceDef> = new Map(

@@ -21,6 +21,10 @@ afterEach(() => {
 const json = (body: unknown, status = 200) =>
   ({ ok: status >= 200 && status < 300, status, json: async () => body }) as unknown as Response;
 
+// Route mocks by exact hostname. A substring check like hostIs(url, "rdap.org")
+// also matches rdap.org.evil.test or evil.test/?rdap.org, so parse the host.
+const hostIs = (u: string | URL, host: string) => new URL(String(u)).hostname === host;
+
 /** A .com-shaped registry response, trimmed to the fields we read. */
 const VERISIGN_STYLE: RdapDomain = {
   events: [
@@ -204,8 +208,8 @@ describe("fetchWhois", () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string) => {
       const url = String(u);
       calls.push(url);
-      if (url.includes("rdap.org")) return json({}, 403);
-      if (url.includes("data.iana.org")) return json(BOOTSTRAP);
+      if (hostIs(url, "rdap.org")) return json({}, 403);
+      if (hostIs(url, "data.iana.org")) return json(BOOTSTRAP);
       return json(VERISIGN_STYLE);
     }));
     const w = await fetchWhois("github.com");
@@ -217,22 +221,22 @@ describe("fetchWhois", () => {
   it("caches the bootstrap across lookups", async () => {
     const fetchMock = vi.fn(async (u: string) => {
       const url = String(u);
-      if (url.includes("rdap.org")) return json({}, 403);
-      if (url.includes("data.iana.org")) return json(BOOTSTRAP);
+      if (hostIs(url, "rdap.org")) return json({}, 403);
+      if (hostIs(url, "data.iana.org")) return json(BOOTSTRAP);
       return json(VERISIGN_STYLE);
     });
     vi.stubGlobal("fetch", fetchMock);
     await fetchWhois("a.com");
     await fetchWhois("b.com");
-    const bootstrapCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes("data.iana.org"));
+    const bootstrapCalls = fetchMock.mock.calls.filter((c) => hostIs(c[0] as string, "data.iana.org"));
     expect(bootstrapCalls).toHaveLength(1); // ~70 KB, fetched once per process
   });
 
   it("reports null: honestly: when no registry serves the TLD", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string) => {
       const url = String(u);
-      if (url.includes("rdap.org")) return json({}, 404);
-      if (url.includes("data.iana.org")) return json(BOOTSTRAP);
+      if (hostIs(url, "rdap.org")) return json({}, 404);
+      if (hostIs(url, "data.iana.org")) return json(BOOTSTRAP);
       return json(VERISIGN_STYLE);
     }));
     // .invalidtld is absent from the bootstrap, so there is genuinely nobody to ask.
@@ -242,8 +246,8 @@ describe("fetchWhois", () => {
   it("returns null when the registry itself refuses", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string) => {
       const url = String(u);
-      if (url.includes("rdap.org")) return json({}, 403);
-      if (url.includes("data.iana.org")) return json(BOOTSTRAP);
+      if (hostIs(url, "rdap.org")) return json({}, 403);
+      if (hostIs(url, "data.iana.org")) return json(BOOTSTRAP);
       return json({}, 500);
     }));
     expect(await fetchWhois("github.com")).toBeNull();
@@ -251,7 +255,7 @@ describe("fetchWhois", () => {
 
   it("returns null when the bootstrap file is unreachable", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string) => {
-      if (String(u).includes("rdap.org")) return json({}, 403);
+      if (hostIs(u, "rdap.org")) return json({}, 403);
       throw new Error("network down");
     }));
     expect(await fetchWhois("github.com")).toBeNull();
@@ -260,8 +264,8 @@ describe("fetchWhois", () => {
   it("handles a domain with no dot without throwing", async () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string) => {
       const url = String(u);
-      if (url.includes("rdap.org")) return json({}, 403);
-      if (url.includes("data.iana.org")) return json(BOOTSTRAP);
+      if (hostIs(url, "rdap.org")) return json({}, 403);
+      if (hostIs(url, "data.iana.org")) return json(BOOTSTRAP);
       return json(VERISIGN_STYLE);
     }));
     expect(await fetchWhois("localhost")).toBeNull();

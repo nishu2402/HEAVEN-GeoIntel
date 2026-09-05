@@ -354,6 +354,25 @@ export interface XposedOrNotData {
   yearwiseDetails: Record<string, number>;
 }
 
+// ── Have I Been Pwned — per-account breaches (optional API key) ────────────────
+// The keyless indexes (XposedOrNot, LeakCheck) each know a slice of the world;
+// HIBP's per-account API knows the widest slice but requires a paid key. When a
+// key is present these breaches join the unified union like any other source.
+export interface HibpBreach {
+  name: string;                 // machine name, e.g. "Adobe"
+  title: string;                // display title, e.g. "Adobe"
+  domain: string;               // "adobe.com" (may be "")
+  breachDate: string;           // "2013-10-04"
+  pwnCount: number;             // accounts exposed
+  dataClasses: string[];        // ["Email addresses", "Passwords", ...]
+  verified: boolean;            // HIBP's IsVerified flag
+}
+
+export interface HibpData {
+  breachCount: number;
+  breaches: HibpBreach[];
+}
+
 // ── FullContact person enrichment ─────────────────────────────────────────────
 
 export interface FullContactSocialProfile {
@@ -410,6 +429,7 @@ export interface EmailLookupResponse {
   hudsonRock: SourceResult<HudsonRockData>;             // Hudson Rock: infostealer exposure
   leakCheck: SourceResult<LeakCheckData>;               // LeakCheck: public breach index
   comb: SourceResult<CombExposure>;                     // ProxyNova COMB: masked credential pairs
+  hibp: SourceResult<HibpData>;                         // Have I Been Pwned: per-account breaches (optional key)
   /**
    * Server-computed union across every breach source that answered, enriched
    * from the vendored HIBP catalog. Optional so a cached response from before
