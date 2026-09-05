@@ -427,17 +427,17 @@ describe("BreachDirectory (email)", () => {
 });
 
 describe("uniform source health", () => {
-  it("reports all ten email sources, skipping the unconfigured ones", async () => {
+  it("reports all eleven email sources, skipping the unconfigured ones", async () => {
     stub([]);
     const health = (await (await lookup()).json()).sourceHealth as Array<{ source: string; skipped?: boolean }>;
     expect(health.map((h) => h.source).sort()).toEqual([
       "abstract", "breachDirectory", "comb", "emailrep", "fullContact", "gravatar",
-      "hudsonRock", "hunter", "leakCheck", "xon",
+      "hibp", "hudsonRock", "hunter", "leakCheck", "xon",
     ]);
     // Keyless: Gravatar, XposedOrNot, Hudson Rock, LeakCheck and ProxyNova COMB
-    // all run; the five keyed ones are skipped.
+    // all run; the six keyed ones (now including HIBP) are skipped.
     expect(health.filter((h) => h.skipped).map((h) => h.source).sort()).toEqual([
-      "abstract", "breachDirectory", "emailrep", "fullContact", "hunter",
+      "abstract", "breachDirectory", "emailrep", "fullContact", "hibp", "hunter",
     ]);
   });
 });

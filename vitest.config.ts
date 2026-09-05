@@ -109,6 +109,7 @@ export default defineConfig({
         "src/components/username/AvatarCorrelationPanel.tsx",
         "src/components/wallet/WalletResultsDashboard.tsx",
         "src/components/hash/HashResultsDashboard.tsx",
+        "src/components/hash/CryptoWorkbench.tsx",
         "src/components/image/ImageExifPanel.tsx",
       ],
       exclude: ["src/lib/types.ts"],

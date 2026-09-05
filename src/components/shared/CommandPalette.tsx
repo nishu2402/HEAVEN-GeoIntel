@@ -6,7 +6,7 @@ import {
   Search, Smartphone, Mail, AtSign, Network, Globe, Layers, Share2, FolderOpen,
   Sun, Moon, CornerDownLeft, Camera, Wallet, Fingerprint,
 } from "lucide-react";
-import { MODES, detectMode, type Mode } from "@/lib/client/modes";
+import { MODES, modeName, detectMode, type Mode } from "@/lib/client/modes";
 import { useTheme } from "./ThemeProvider";
 
 interface Props {
@@ -125,7 +125,9 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
                     className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-mono text-[var(--hv-ink)] cursor-pointer data-[selected=true]:bg-[var(--hv-cyan)]/12 data-[selected=true]:text-[var(--hv-cyan)]"
                   >
                     {MODE_ICON[m.id]}
-                    <span className="capitalize">{m.label.toLowerCase()}</span>
+                    {/* normal-case: the group's `uppercase` is for its heading;
+                        the item label should read as its own proper case. */}
+                    <span className="normal-case">{modeName(m)}</span>
                   </Command.Item>
                 ))}
               </Command.Group>

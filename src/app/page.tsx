@@ -22,6 +22,7 @@ import IpResultsDashboard from "@/components/network/IpResultsDashboard";
 import DomainResultsDashboard from "@/components/network/DomainResultsDashboard";
 import WalletResultsDashboard from "@/components/wallet/WalletResultsDashboard";
 import HashResultsDashboard from "@/components/hash/HashResultsDashboard";
+import CryptoWorkbench from "@/components/hash/CryptoWorkbench";
 import CasesPanel from "@/components/cases/CasesPanel";
 import ImageExifPanel from "@/components/image/ImageExifPanel";
 import EmailHeaderTracePanel from "@/components/email/EmailHeaderTracePanel";
@@ -480,6 +481,13 @@ function PageContent() {
           {/* Email header trace — always available in email mode (no lookup needed) */}
           {!isBooting && mode === "email" && (
             <div className="mb-4"><PanelErrorBoundary label="Header trace"><EmailHeaderTracePanel onIpLookup={(ip) => { setMode("ip"); void runIp(ip); }} /></PanelErrorBoundary></div>
+          )}
+
+          {/* Crypto workbench — always available in hash mode (no lookup needed):
+              hash, encode and encrypt/decrypt any text locally, alongside the
+              digest-reputation lookup above. */}
+          {!isBooting && mode === "hash" && (
+            <div className="mb-4"><PanelErrorBoundary label="Crypto workbench"><CryptoWorkbench /></PanelErrorBoundary></div>
           )}
 
           {/* Loading states */}

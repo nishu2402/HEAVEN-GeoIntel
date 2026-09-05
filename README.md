@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
     <source media="(prefers-color-scheme: dark)" srcset="public/brand/poster.svg"/>
-    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 28 sources need no API key, 23 of 38 username sites auto-verified, 19 API operations, 100% test coverage"/>
+    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 29 sources need no API key, 23 of 38 username sites auto-verified, 19 API operations, 100% test coverage"/>
   </picture>
 </p>
 
@@ -172,7 +172,7 @@
 | 🧑‍💻 **Username OSINT** | 38 sites checked in parallel, grouped by category, presence-scored |
 | 🌐 **IP / Domain OSINT** | IP geo + ASN + VPN/proxy flags · domain DNS + WHOIS + SPF/DMARC + cert-transparency subdomains + live security headers, TLS cert and tech fingerprint |
 | 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier**: free, no key, always-on, on **phone, email and username** |
-| 💥 **Breach Intelligence** | **One unified, deduplicated view** merging XposedOrNot + LeakCheck (both free, no key) + BreachDirectory (RapidAPI). The headline count is the union across sources, not one source's share. Bare breach names are enriched offline from a vendored **HIBP catalog** snapshot (data classes, record counts, dates; no key, works offline), and **ProxyNova COMB** adds masked password-exposure evidence with a reuse verdict. Plus 5 one-click free breach lookups |
+| 💥 **Breach Intelligence** | **One unified, deduplicated view** merging XposedOrNot + LeakCheck (both free, no key) + BreachDirectory (RapidAPI). The headline count is the union across sources, not one source's share. Add an optional **Have I Been Pwned** API key and HIBP's own per-account breaches join the union, so the count can match HIBP directly (the free indexes only know a subset). Bare breach names are enriched offline from a vendored **HIBP catalog** snapshot (data classes, record counts, dates; no key, works offline), and **ProxyNova COMB** adds masked password-exposure evidence with a reuse verdict. Plus 5 one-click free breach lookups |
 | 🔀 **Cross-Identifier Auto-Pivot** | Every result offers the identifiers it derived as one-click lookups; confirmed links separated from related ones, nothing guessed |
 | 🕸️ **Link-Analysis Graph** | Interactive SVG node graph · **derived links persisted server-side per case**, labelled with the source that produced them · PNG export |
 | 🗂️ **Persistent Cases** | File-backed cases: identifiers, notes, derived graph, **snapshot history**; survive restarts · optional `CASE_PASSWORD` lock |
@@ -236,7 +236,7 @@ One unified console with an **11-mode switcher**. Seven are live lookups (phone,
 | ⦿ **IP** | Geo · ASN · ISP · reverse DNS · VPN/proxy/hosting flags · risk score |
 | 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · cert-transparency subdomains · HTTP header grade · TLS certificate · email permutations |
 | 🪙 **Wallet** | Crypto address OSINT: BTC / ETH balance, activity, forward-verified ENS name, explorer pivots |
-| # **Hash** | File-hash reputation: CIRCL hashlookup known-software (NSRL) clearance + verdict-engine pivots |
+| # **Hash** | File-hash reputation: CIRCL hashlookup known-software (NSRL) clearance + verdict-engine pivots, plus a local **Crypto Workbench** to hash, encode and encrypt/decrypt any text (MD5/SHA family, HMAC, Base64/hex/URL/binary/Morse/ROT13/Atbash, Caesar/Vigenère/XOR, and AES-256-GCM with a passphrase) offline in the browser |
 | 📷 **Image** | EXIF / GPS parsed in your browser (the photo is never uploaded) + reverse-image pivots |
 | ≡ **Bulk** | Triage up to 25 phone numbers → CSV export |
 | 🕸 **Graph** | Link-analysis graph of every identifier looked up this session |
@@ -707,6 +707,7 @@ The app works fully without API keys (offline analysis + free no-key sources). A
 | **AbstractAPI** | Phone validation **and** email SMTP/MX/quality | 250/mo free |
 | **Twilio Lookup v2** | Carrier · owner/CNAM · MCC/MNC | ~$0.005/lookup |
 | **BreachDirectory** (RapidAPI) | Real SHA-1/MD5 credential hashes (phone + email) | 50/day free |
+| **Have I Been Pwned** | Per-account breaches for an email, unioned into the breach view so the count can match HIBP | paid key ($3.95/mo) |
 | **FullContact** | Real name · employer · social profiles · linked contacts | 500/mo free |
 | **Hunter.io** | Email deliverability + confidence | 25/mo free |
 | **EmailRep.io** | Reputation · breach flags · platform registrations | needs key (keyless tier is 429-limited) |
@@ -724,10 +725,11 @@ HUNTER_API_KEY=
 EMAILREP_API_KEY=
 FULLCONTACT_API_KEY=       # person enrichment
 RAPIDAPI_KEY=              # BreachDirectory credential hashes
+HIBP_API_KEY=              # Have I Been Pwned per-account breaches (paid)
 TRUST_PROXY=               # set to 1 behind nginx/Cloudflare to rate-limit per real IP
 ```
 
-Sign up: [IPQualityScore](https://www.ipqualityscore.com) · [NumVerify](https://numverify.com) · [AbstractAPI](https://www.abstractapi.com) · [Twilio](https://www.twilio.com) · [Hunter.io](https://hunter.io) · [EmailRep.io](https://emailrep.io) · [FullContact](https://www.fullcontact.com) · [BreachDirectory on RapidAPI](https://rapidapi.com/rohan-patra/api/breachdirectory)
+Sign up: [IPQualityScore](https://www.ipqualityscore.com) · [NumVerify](https://numverify.com) · [AbstractAPI](https://www.abstractapi.com) · [Twilio](https://www.twilio.com) · [Hunter.io](https://hunter.io) · [EmailRep.io](https://emailrep.io) · [FullContact](https://www.fullcontact.com) · [BreachDirectory on RapidAPI](https://rapidapi.com/rohan-patra/api/breachdirectory) · [Have I Been Pwned](https://haveibeenpwned.com/API/Key)
 
 > **Adding a key takes effect immediately.** Storing or removing a key (in the
 > UI or via `/api/keys`) clears the phone and email caches, so the very next
@@ -1117,7 +1119,7 @@ threshold in `vitest.config.ts`:
 npm run brand:poster
 ```
 
-So "20/28 keyless sources" cannot become a lie by adding a 29th source, and
+So "20/29 keyless sources" cannot drift out of date the next time a source is added, and
 `tests/posterAssets.test.ts` fails the build if the committed artwork is older than the
 registries it quotes. It ships in three files: `poster.svg` (dark), `poster-light.svg`
 (GitHub switches with your theme) and `poster-still.svg` for print. Each is one
@@ -1153,7 +1155,7 @@ the same numbers as this page:
 │            ──────────────────────────────────────────────            │
 │            Search It.  Enrich It.  Pivot It.  Report It.             │
 │                                                                      │
-│         7 identifiers · 11 modes · 20/28 sources need no key         │
+│         7 identifiers · 11 modes · 20/29 sources need no key         │
 │            v3.0.0  ·  Lookup -> Enrich -> Pivot -> Report            │
 │                                                                      │
 │           Owned & Developed by  Nisarg Chasmawala (Shroff)           │

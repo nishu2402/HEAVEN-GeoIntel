@@ -71,7 +71,7 @@ const xonD = (over: Partial<XposedOrNotData> = {}): XposedOrNotData =>
 const data = (over: Partial<EmailLookupResponse> = {}): EmailLookupResponse => ({
   email: "ada.lovelace@gmail.com", analysis: analysis() as never, gravatar: gravatar(),
   emailrep: off(), hunter: off(), abstract: off(), xon: off(), breachDirectory: off(), fullContact: off(),
-  hudsonRock: off(), leakCheck: off(), comb: off(),
+  hudsonRock: off(), leakCheck: off(), comb: off(), hibp: off(),
   ...over,
 });
 

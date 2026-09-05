@@ -34,6 +34,21 @@ export const MODES: ModeMeta[] = [
 
 export const LOOKUP_MODES = MODES.filter((m) => m.lookup);
 
+// Labels are canonical UPPERCASE for the tab chips. A few are acronyms that must
+// stay whole in a proper-case menu: naive title-casing turns "IP" into "Ip".
+const ACRONYM_LABELS = new Set(["IP"]);
+
+/**
+ * Proper-case label for menus (the command palette's "Switch mode" list).
+ * Title-cases an ordinary word ("PHONE" to "Phone") but keeps an acronym intact
+ * ("IP", never "Ip"). Add future acronym labels to ACRONYM_LABELS.
+ */
+export function modeName(m: ModeMeta): string {
+  return ACRONYM_LABELS.has(m.label)
+    ? m.label
+    : m.label.charAt(0) + m.label.slice(1).toLowerCase();
+}
+
 /** Narrow an untrusted string (a URL parameter) to a Mode, or null. */
 export function toMode(raw: string | null | undefined): Mode | null {
   return MODES.some((m) => m.id === raw) ? (raw as Mode) : null;

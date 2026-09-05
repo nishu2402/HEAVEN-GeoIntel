@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MODES, LOOKUP_MODES, detectMode, toMode, type Mode } from "@/lib/client/modes";
+import { MODES, LOOKUP_MODES, modeName, detectMode, toMode, type Mode } from "@/lib/client/modes";
 
 // The mode registry backs the tab switcher, command palette, and the
 // shareable-URL round-trip; detectMode powers the palette's "smart run".
@@ -21,6 +21,27 @@ describe("MODES registry invariants", () => {
     for (const m of MODES) {
       expect(m.label, m.id).toBeTruthy();
       expect(m.glyph, m.id).toBeTruthy();
+    }
+  });
+});
+
+describe("modeName: proper-case menu label", () => {
+  it("keeps the IP acronym whole instead of title-casing it to 'Ip'", () => {
+    const ip = MODES.find((m) => m.id === "ip")!;
+    expect(modeName(ip)).toBe("IP");
+  });
+
+  it("title-cases an ordinary word label", () => {
+    const phone = MODES.find((m) => m.id === "phone")!;
+    expect(modeName(phone)).toBe("Phone");
+  });
+
+  it("produces a non-empty proper-case name for every mode", () => {
+    for (const m of MODES) {
+      const name = modeName(m);
+      expect(name, m.id).toBeTruthy();
+      // No mode should render as an all-caps shout except a deliberate acronym.
+      expect(/^[A-Z][a-z]*$/.test(name) || name === m.label, m.id).toBe(true);
     }
   });
 });
