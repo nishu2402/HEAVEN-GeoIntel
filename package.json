@@ -53,7 +53,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.12",
     "jsdom": "^30.0.1",
@@ -61,7 +61,7 @@
     "puppeteer-core": "^25.3.0",
     "tailwindcss": "^4.3.2",
     "typescript": "6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^5.0.0"
   },
   "overrides": {
     "postcss": "$postcss",
