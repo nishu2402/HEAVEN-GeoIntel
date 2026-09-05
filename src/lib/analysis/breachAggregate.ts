@@ -24,7 +24,7 @@
 //     data class, a known password-risk grade, or a BreachDirectory hit.
 
 import type {
-  SourceResult, XposedOrNotData, LeakCheckData, BreachDirectoryData,
+  SourceResult, XposedOrNotData, LeakCheckData, BreachDirectoryData, HibpData,
 } from "../types";
 
 /** One breach after merging everything the sources said about it. */
@@ -113,6 +113,7 @@ const PROVIDER = {
   xon: "XposedOrNot",
   leakCheck: "LeakCheck",
   breachDirectory: "BreachDirectory",
+  hibp: "HIBP",
 } as const;
 
 /** Trailing labels we strip so "StockX" and "StockX.com" share a key. */
@@ -212,6 +213,7 @@ export function aggregateBreaches(
     xon?: SourceResult<XposedOrNotData>;
     leakCheck?: SourceResult<LeakCheckData>;
     breachDirectory?: SourceResult<BreachDirectoryData>;
+    hibp?: SourceResult<HibpData>;
   },
   catalog?: BreachCatalogLookup,
 ): BreachAggregate {
@@ -267,6 +269,19 @@ export function aggregateBreaches(
         (b.passwordRisk !== "" && b.passwordRisk.toLowerCase() !== "unknown");
       add(PROVIDER.xon, b.breach, b.domain || null, b.xposedDate || null,
         classes, b.xposedRecords || null, pw, b.verified);
+    }
+  }
+
+  // HIBP — the widest per-account source (optional key): per-breach data classes,
+  // dates, records and a verified flag, exactly the shape XposedOrNot provides.
+  // A "Passwords" data class is password evidence for that breach.
+  const hibp = sources.hibp;
+  if (hibp?.ok && hibp.data) {
+    answered.add(PROVIDER.hibp);
+    for (const b of hibp.data.breaches) {
+      const classes = canonList(b.dataClasses);
+      add(PROVIDER.hibp, b.title || b.name, b.domain || null, b.breachDate || null,
+        classes, b.pwnCount || null, hasPasswordClass(classes), b.verified);
     }
   }
 

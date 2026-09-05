@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Crypto Workbench in Hash mode.** Alongside the file-hash reputation lookup,
+  Hash mode now carries a local workbench for arbitrary text. Hash it (MD5, SHA-1,
+  SHA-256, SHA-384, SHA-512, HMAC-SHA256/512), encode and decode it (Base64,
+  Base64URL, hex, URL, binary, Morse, ROT13, Atbash), run a classical cipher
+  (Caesar, Vigenère, repeating-key XOR), or encrypt and decrypt a whole paragraph
+  with AES-256-GCM behind a passphrase (PBKDF2-SHA256, authenticated, so a wrong
+  passphrase fails rather than returning garbage). Everything runs in the browser
+  over Web Crypto plus a pure MD5, so it works offline and the text and key never
+  leave the tab.
+- **Have I Been Pwned as an optional breach source for email.** The free indexes
+  (XposedOrNot, LeakCheck) each know a subset of the breach world, so for some
+  addresses they list fewer breaches than HIBP does. Add a HIBP API key and its
+  per-account breaches join the same deduplicated union as every other source, so
+  the breach count can match HIBP directly. Without a key nothing changes: the
+  source reports as not configured and the free union stands on its own. No breach
+  is ever invented to close the gap. The source manifest is now 29, 20 of which
+  need no key.
+
+### Fixed
+
+- **Command palette showed the IP mode as "Ip".** The "Switch mode" list rendered
+  each label by lowercasing it and letting CSS re-capitalize the first letter,
+  which is right for an ordinary word but turned the "IP" acronym into "Ip". Mode
+  labels now render in their own proper case, so an acronym stays whole.
+
+### Security
+
+- **Markdown report escaping now escapes the backslash before the pipe.** A cell
+  value that held a backslash right before a pipe could otherwise reopen a live
+  table delimiter, because the doubled backslash consumed the escape. Backslashes
+  are handled first, then pipes (CodeQL js/incomplete-sanitization).
+- **Code-scanning cleanup.** Routing and matching that keyed on a URL substring
+  now compares the parsed hostname, so a lookalike host such as
+  "rdap.org.example" cannot satisfy a check meant for "rdap.org" (CodeQL
+  js/incomplete-url-substring-sanitization, in the report escaper and the test
+  mocks).
+
 ## [3.0.0] — 2026-09-03
 
 3.0.0 is a feature release, and the reason for the major bump. It widens the

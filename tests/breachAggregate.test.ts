@@ -3,6 +3,7 @@ import { aggregateBreaches, breachKey, canonicalDataClass } from "@/lib/analysis
 import type { BreachCatalogLookup, BreachDescription } from "@/lib/analysis/breachAggregate";
 import type {
   SourceResult, XposedOrNotData, LeakCheckData, BreachDirectoryData, XposedOrNotBreach,
+  HibpData, HibpBreach,
 } from "@/lib/types";
 
 const ok = <T,>(data: T): SourceResult<T> => ({ ok: true, data });
@@ -23,6 +24,14 @@ const leak = (
 
 const bd = (sources: string[], found = sources.length): SourceResult<BreachDirectoryData> =>
   ok({ found, fields: ["password"], sources, results: [] });
+
+const hibpBreach = (o: Partial<HibpBreach> = {}): HibpBreach => ({
+  name: "Adobe", title: "Adobe", domain: "adobe.com", breachDate: "2013-10-04",
+  pwnCount: 152_000_000, dataClasses: ["Email addresses", "Passwords"], verified: true, ...o,
+});
+
+const hibp = (breaches: HibpBreach[]): SourceResult<HibpData> =>
+  ok({ breachCount: breaches.length, breaches });
 
 describe("breachKey", () => {
   it("strips a trailing TLD so a brand and its domain share a key", () => {
@@ -82,6 +91,59 @@ describe("aggregateBreaches: union across sources", () => {
     expect(a.breaches.map((b) => b.name)).toEqual(["LeakOnly.com", "XonOnly"]); // newest first
     expect(a.passwordFieldsSeen).toBe(true); // LeakCheck's aggregate fields carried a password
     expect(a.dataClasses).toContain("Phone numbers");
+  });
+
+  it("unions HIBP's per-account breaches and widens the headline past the free sources", () => {
+    // The real scenario: the free sources agree on 3, HIBP knows 3 more. The
+    // union must be 6, with HIBP-only rows attributed to HIBP.
+    const a = aggregateBreaches({
+      xon: xon([
+        xonBreach({ breach: "Instagram", domain: "instagram.com", xposedData: ["Email addresses"], passwordRisk: "Unknown", verified: false }),
+      ]),
+      leakCheck: leak([{ name: "Instagram.com", date: "2019" }]),
+      hibp: hibp([
+        hibpBreach({ name: "Adobe", title: "Adobe", domain: "adobe.com", breachDate: "2013-10-04" }),
+        hibpBreach({ name: "LinkedIn", title: "LinkedIn", domain: "linkedin.com", breachDate: "2012-05-05", dataClasses: ["Email addresses", "Passwords"] }),
+        // Same breach the free sources reported: must MERGE, not double-count.
+        hibpBreach({ name: "Instagram", title: "Instagram", domain: "instagram.com", breachDate: "2019-08-01", dataClasses: ["Email addresses", "Passwords"], verified: true }),
+      ]),
+    });
+    expect(a.total).toBe(3); // Instagram (shared) + Adobe + LinkedIn
+    expect(a.sourcesReporting).toEqual(["HIBP", "LeakCheck", "XposedOrNot"]);
+    expect(a.sourcesAnswered).toContain("HIBP");
+    const insta = a.breaches.find((b) => b.key === "instagram")!;
+    expect(insta.reportedBy).toEqual(["HIBP", "LeakCheck", "XposedOrNot"]);
+    expect(insta.password).toBe(true); // HIBP contributed the Passwords class
+    expect(a.breaches.find((b) => b.key === "adobe")!.reportedBy).toEqual(["HIBP"]);
+    expect(a.withPassword).toBe(3);
+  });
+
+  it("carries HIBP fields through, and falls back cleanly on sparse rows", () => {
+    const a = aggregateBreaches({
+      hibp: hibp([
+        // A sparse row: no title (use name), no domain, no date, zero count, no password.
+        hibpBreach({ name: "Sparse", title: "", domain: "", breachDate: "", pwnCount: 0, dataClasses: ["Email addresses"], verified: false }),
+      ]),
+    });
+    expect(a.total).toBe(1);
+    const b = a.breaches[0];
+    expect(b.name).toBe("Sparse"); // title empty → name
+    expect(b.domain).toBeNull();
+    expect(b.date).toBeNull();
+    expect(b.records).toBeNull(); // pwnCount 0 → null
+    expect(b.password).toBe(false);
+    expect(b.verified).toBe(false);
+    expect(a.sourcesReporting).toEqual(["HIBP"]);
+  });
+
+  it("treats a failed HIBP call as no evidence, never as clean", () => {
+    const a = aggregateBreaches({
+      xon: xon([xonBreach({ breach: "OnlyXon", domain: "onlyxon.com" })]),
+      hibp: fail("UNAUTHORIZED"),
+    });
+    expect(a.total).toBe(1);
+    expect(a.sourcesAnswered).not.toContain("HIBP");
+    expect(a.sourcesReporting).toEqual(["XposedOrNot"]);
   });
 
   it("merges the same breach reported by several providers into one row", () => {

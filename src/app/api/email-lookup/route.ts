@@ -12,6 +12,7 @@ import { describeError } from "@/lib/server/fetchSafe";
 import { hudsonRockFor } from "@/lib/server/hudsonRock";
 import { fetchLeakCheck } from "@/lib/server/leakCheck";
 import { fetchComb } from "@/lib/server/proxyNova";
+import { fetchHibp } from "@/lib/server/hibp";
 import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
 import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
 import { breachCatalog } from "@/lib/data/breachCatalog";
@@ -581,6 +582,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // ProxyNova COMB — keyless credential-pair exposure, email only. The module
     // keeps exact-login matches only and masks every password server-side.
     comb: fetchComb(email),
+    // Have I Been Pwned — per-account breaches, optional key. NOT_CONFIGURED
+    // without one, so the free union is unaffected; with a key its breaches join
+    // the union below and the headline can match HIBP's own count.
+    hibp: fetchHibp(email),
   });
 
   // The union is computed HERE, on the server, so it can be enriched from the
@@ -588,7 +593,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // report and the panel show one number. The client recomputes it only when an
   // old cached response lacks this field.
   const breachAggregate = aggregateBreaches(
-    { xon: results.xon, leakCheck: results.leakCheck, breachDirectory: results.breachDirectory },
+    { xon: results.xon, leakCheck: results.leakCheck, breachDirectory: results.breachDirectory, hibp: results.hibp },
     breachCatalog(),
   );
   // A failed COMB call has no data, so `?? null` degrades it to "no COMB
@@ -617,6 +622,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     hudsonRock: results.hudsonRock,
     leakCheck: results.leakCheck,
     comb: results.comb,
+    hibp: results.hibp,
     breachAggregate,
     credentialExposure,
     sourceHealth: health,
