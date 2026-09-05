@@ -127,8 +127,8 @@ export const SOURCES: SourceDef[] = [
     id: "dns",
     name: "Cloudflare DNS-over-HTTPS",
     tier: "free",
-    modes: ["domain"],
-    unlocks: "A · AAAA · MX · TXT · NS · CNAME · DNSKEY records",
+    modes: ["domain", "email"],
+    unlocks: "A · AAAA · MX · TXT · NS · CNAME · DNSKEY records; email mode reads MX to fingerprint the mail provider",
   },
   {
     id: "whois",

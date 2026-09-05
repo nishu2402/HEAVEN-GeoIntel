@@ -197,6 +197,29 @@ export const ENDPOINTS: EndpointDef[] = [
     errors: [{ status: 400, description: "Not a recognised MD5, SHA-1 or SHA-256 hash." }],
   },
   {
+    path: "/api/pwned-password",
+    method: "post",
+    summary: "Pwned Passwords range check (k-anonymity)",
+    description:
+      "Keyless password-exposure check. The browser hashes the password with SHA-1 and sends ONLY the first five hex characters of that digest; this relays the prefix to Have I Been Pwned's Pwned Passwords range endpoint and returns the raw suffix list for the client to match locally. The password and its full hash never reach the server, so no single password is identifiable here.",
+    tag: "lookup",
+    rateLimited: true,
+    body: [
+      {
+        name: "prefix",
+        type: "string",
+        required: true,
+        description: "The first five hex characters of the password's SHA-1 digest. Never the password or the full hash.",
+        example: "5BAA6",
+      },
+    ],
+    responseDescription: "`{ range }`: the raw Pwned Passwords body, one `SUFFIX:count` per line, matched client-side.",
+    errors: [
+      { status: 400, description: "The prefix is not exactly five hex characters." },
+      { status: 502, description: "The Pwned Passwords range endpoint was unreachable or rate-limiting." },
+    ],
+  },
+  {
     path: "/api/bulk-lookup",
     method: "post",
     summary: "Bulk phone triage",
@@ -327,6 +350,15 @@ export const ENDPOINTS: EndpointDef[] = [
       "Every source this instance can query, whether its key is configured and how, plus what the source actually did on its last call (`lastSeen`). Also reports the live runtime limits.",
     tag: "config",
     responseDescription: "`{ sources, keyTotal, keyActive, runtime }`.",
+  },
+  {
+    path: "/api/notable-breaches",
+    method: "get",
+    summary: "Notable breaches reference (institutional, keyless)",
+    description:
+      "The vendored Wikipedia notable-breaches tier: the largest documented government and institutional data breaches, by record count, read straight from the bundled snapshot. Each row carries a record count and year only, describes an incident the credential indexes never hold, and asserts nothing about any identifier. It is a browsable reference, not a presence check.",
+    tag: "config",
+    responseDescription: "`{ source, version, count, breaches }`, largest first.",
   },
 
   // ── Meta ───────────────────────────────────────────────────────────────────

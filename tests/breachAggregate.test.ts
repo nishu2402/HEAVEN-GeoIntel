@@ -65,6 +65,10 @@ describe("canonicalDataClass", () => {
   it("is empty for whitespace", () => {
     expect(canonicalDataClass("   ")).toBe("");
   });
+  it("drops a bare 'id', an internal record id LeakCheck lists but not exposed PII", () => {
+    expect(canonicalDataClass("id")).toBe("");
+    expect(canonicalDataClass(" ID ")).toBe("");
+  });
 });
 
 describe("aggregateBreaches: union across sources", () => {

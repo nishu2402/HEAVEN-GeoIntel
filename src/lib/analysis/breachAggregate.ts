@@ -162,9 +162,17 @@ const DATA_CLASS_CANON: Record<string, string> = {
   gender: "Genders", genders: "Genders",
 };
 
+// Field tokens that some indexes list among their exposed "fields" but which
+// describe a record's plumbing, not the person: LeakCheck reports "id" (the
+// leaked table's internal row id) alongside real classes like "password" and
+// "email". Surfacing "id" as an exposed data type is a junk chip with no intel
+// value, so it is dropped rather than shown next to the meaningful classes.
+const NON_DATA_CLASSES = new Set(["id"]);
+
 export function canonicalDataClass(raw: string): string {
   const k = raw.trim().toLowerCase();
   if (!k) return "";
+  if (NON_DATA_CLASSES.has(k)) return "";
   if (DATA_CLASS_CANON[k]) return DATA_CLASS_CANON[k];
   return raw.trim().replace(/\s+/g, " ");
 }

@@ -127,10 +127,18 @@ function ThreatScoreBar({ score }: { score: number }) {
 
 // ── Report download ───────────────────────────────────────────────────────────
 function downloadReport(data: EmailLookupResponse, score: number): void {
-  const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact,
+  const { email, analysis, gravatar, mail, emailrep, hunter, abstract, xon, breachDirectory, fullContact,
     hudsonRock, leakCheck } = data;
   const sep = "─".repeat(70);
   const now = new Date().toISOString();
+
+  // Keyless MX fingerprint. Report the real provider, an explicit absence, or an
+  // explicit lookup failure, never a blank that could read as "no mail".
+  const mailLine = !mail
+    ? "not checked"
+    : mail.ok && mail.data
+      ? (mail.data.hasMx ? `${mail.data.provider} [${mail.data.mxHosts.join(", ")}]` : "No published MX records")
+      : "lookup unavailable";
 
   const xonData = xon?.ok ? xon.data : null;
   // Prefer the server-computed union (enriched from the HIBP catalog); fall back
@@ -159,6 +167,7 @@ function downloadReport(data: EmailLookupResponse, score: number): void {
     `  Username        : ${analysis.username}`,
     `  Domain          : ${analysis.domain}`,
     `  Provider        : ${analysis.providerName} (${analysis.providerType})`,
+    `  Mail Exchange   : ${mailLine}`,
     `  Disposable      : ${analysis.isDisposable ? "YES" : "No"}`,
     `  Privacy Provider: ${analysis.isPrivacyFocused ? "YES" : "No"}`,
     `  Role Address    : ${analysis.isRoleAddress ? "YES" : "No"}`,
@@ -365,7 +374,7 @@ const PROVIDER_ICONS: Record<string, React.ReactNode> = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) {
-  const { email, analysis, gravatar, emailrep, hunter, abstract, xon, breachDirectory, fullContact,
+  const { email, analysis, gravatar, mail, emailrep, hunter, abstract, xon, breachDirectory, fullContact,
     hudsonRock, leakCheck } = data;
 
   // Email → username cross-tool pivot: only when the local-part is a plausible
@@ -743,6 +752,32 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           <InfoRow label="Role Address" value={analysis.isRoleAddress ? "YES: generic inbox" : "No"} accent={analysis.isRoleAddress ? "#ffaa00" : "#00ff41"} />
           {analysis.guessedName && (
             <InfoRow label="Inferred Name" value={`${analysis.guessedName} (pattern)`} accent="#00d9ff" />
+          )}
+          {mail && (
+            <div className="pt-2 mt-1 border-t border-[#00ff41]/12">
+              <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/54 mb-1.5 flex items-center gap-1.5">
+                <Mail className="w-3 h-3" /> MAIL EXCHANGE (MX): keyless
+              </div>
+              {mail.ok && mail.data ? (
+                mail.data.hasMx ? (
+                  <>
+                    <InfoRow
+                      label="Mail Provider"
+                      value={mail.data.provider}
+                      accent={mail.data.category === "other" ? "#ffaa00" : "#00d9ff"}
+                    />
+                    <InfoRow label="Exchangers" value={mail.data.mxHosts.join(", ")} />
+                    <div className="text-[11px] text-[#00ff41]/45 font-mono mt-1">
+                      Describes the domain&apos;s mail host, not that this address is valid.
+                    </div>
+                  </>
+                ) : (
+                  <InfoRow label="Mail Provider" value="No published MX records" accent="#ffaa00" />
+                )
+              ) : (
+                <InfoRow label="Mail Provider" value="MX lookup unavailable" accent="#888" />
+              )}
+            </div>
           )}
         </div>
 
