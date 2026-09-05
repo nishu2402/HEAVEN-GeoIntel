@@ -58,6 +58,7 @@ export default defineConfig({
         "src/components/shared/ReportExport.tsx",
         "src/components/shared/UniversalReportExport.tsx",
         "src/components/shared/SourcesPanel.tsx",
+        "src/components/shared/NotableBreachesPanel.tsx",
         "src/components/shared/Logo.tsx",
         // osint/
         "src/components/osint/CountryPanel.tsx",

@@ -605,3 +605,66 @@ describe("<EmailResultsDashboard> report export", () => {
     } finally { vi.runOnlyPendingTimers(); vi.useRealTimers(); }
   });
 });
+
+describe("<EmailResultsDashboard> mail exchange (MX) card", () => {
+  it("names a recognized mail provider and lists the exchangers", () => {
+    render(<EmailResultsDashboard data={data({
+      mail: okS({ hasMx: true, mxHosts: ["aspmx.l.google.com", "alt1.aspmx.l.google.com"], provider: "Google Workspace", category: "google" }),
+    })} />);
+    expect(screen.getByText("MAIL EXCHANGE (MX): keyless")).toBeTruthy();
+    expect(screen.getByText("Google Workspace")).toBeTruthy();
+    expect(screen.getByText("aspmx.l.google.com, alt1.aspmx.l.google.com")).toBeTruthy();
+    expect(screen.getByText(/Describes the domain's mail host, not that this address is valid\./)).toBeTruthy();
+  });
+
+  it("flags a self-managed or unrecognized provider", () => {
+    render(<EmailResultsDashboard data={data({
+      mail: okS({ hasMx: true, mxHosts: ["mail.self.test"], provider: "Self-managed or unrecognized provider", category: "other" }),
+    })} />);
+    expect(screen.getByText("Self-managed or unrecognized provider")).toBeTruthy();
+  });
+
+  it("states an honest absence when no MX records are published", () => {
+    render(<EmailResultsDashboard data={data({
+      mail: okS({ hasMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" }),
+    })} />);
+    expect(screen.getByText("No published MX records")).toBeTruthy();
+  });
+
+  it("reports an MX lookup failure rather than a false clean", () => {
+    render(<EmailResultsDashboard data={data({ mail: { ok: false, error: "timed out" } })} />);
+    expect(screen.getByText("MX lookup unavailable")).toBeTruthy();
+  });
+
+  it("omits the card entirely for a response cached before the field existed", () => {
+    render(<EmailResultsDashboard data={data()} />);
+    expect(screen.queryByText("MAIL EXCHANGE (MX): keyless")).toBeNull();
+  });
+
+  it("records the mail exchange in the exported report across all states", () => {
+    const realBlob = globalThis.Blob;
+    let text = "";
+    vi.stubGlobal("Blob", class extends realBlob {
+      constructor(parts: BlobPart[], opts?: BlobPropertyBag) { super(parts, opts); text = parts.map(String).join(""); }
+    });
+    const realCreate = URL.createObjectURL, realRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => "blob:x"); URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const exportWith = (over: Partial<EmailLookupResponse>) => {
+      const { unmount } = render(<EmailResultsDashboard data={data(over)} />);
+      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
+      const t = text; unmount(); return t;
+    };
+    try {
+      expect(exportWith({ mail: okS({ hasMx: true, mxHosts: ["aspmx.l.google.com"], provider: "Google Workspace", category: "google" }) }))
+        .toContain("Mail Exchange   : Google Workspace [aspmx.l.google.com]");
+      expect(exportWith({ mail: okS({ hasMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" }) }))
+        .toContain("Mail Exchange   : No published MX records");
+      expect(exportWith({ mail: { ok: false, error: "timed out" } }))
+        .toContain("Mail Exchange   : lookup unavailable");
+      expect(exportWith({})).toContain("Mail Exchange   : not checked");
+    } finally {
+      URL.createObjectURL = realCreate; URL.revokeObjectURL = realRevoke;
+    }
+  });
+});

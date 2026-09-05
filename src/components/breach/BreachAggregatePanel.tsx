@@ -56,7 +56,7 @@ function BreachRow({ b }: { b: AggregatedBreach }) {
         {b.enriched && (
           <span
             className="text-[10px] font-mono text-[#00d9ff]/70 px-1 py-0.5 border border-[#00d9ff]/25"
-            title="Data classes and record count filled from the HIBP public catalog. Presence is asserted by the source(s) above; the catalog only describes the breach."
+            title="Data classes and record count filled from the offline breach catalog (HIBP + XposedOrNot, plus a Wikipedia notable-breaches tier for large institutional incidents). Presence is asserted by the source(s) above; the catalog only describes the breach."
           >
             catalog
           </span>
@@ -233,8 +233,16 @@ export default function BreachAggregatePanel({ aggregate: a, subject }: Props) {
         here because a source named it; the chips show which. Sources disagree on
         coverage, so this union is larger than any single panel below.
         {a.enrichedCount > 0 && (
-          <> {a.enrichedCount} {a.enrichedCount === 1 ? "row was" : "rows were"} described from the offline HIBP catalog (the &ldquo;catalog&rdquo; chip), which fills data classes and record counts without asserting presence.</>
+          <> {a.enrichedCount} {a.enrichedCount === 1 ? "row was" : "rows were"} described from the offline breach catalog (the &ldquo;catalog&rdquo; chip; HIBP + XposedOrNot, plus a Wikipedia notable-breaches tier), which fills data classes and record counts without asserting presence.</>
         )}
+      </div>
+
+      <div className="text-[12px] font-mono text-[#ffaa00]/70 border border-[#ffaa00]/20 bg-[#ffaa00]/[0.04] p-2.5">
+        This is the union of the free, keyless indexes, so it is a floor, not a
+        ceiling. Paid indexes (HaveIBeenPwned with an API key, Dehashed,
+        IntelligenceX) can list more breaches for the same {subject}; the tool
+        joins HIBP&rsquo;s results into this count automatically when a key is
+        configured. Use the OSINT matrix below to check the paid indexes by hand.
       </div>
     </motion.div>
   );

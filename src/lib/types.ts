@@ -416,10 +416,33 @@ export interface BreachDirectoryData {
   results: BreachDirectoryEntry[];
 }
 
+// ── Mail exchange (keyless MX fingerprint) ───────────────────────────────────
+// Where a domain's mail actually lands, read from its published MX records. A
+// corroboration signal for email mode: it describes the DOMAIN's infrastructure,
+// never that a specific address exists.
+export type MailProviderCategory =
+  | "google" | "microsoft" | "proofpoint" | "mimecast" | "zoho"
+  | "yandex" | "proton" | "fastmail" | "apple" | "amazon"
+  | "gmx" | "cloudflare" | "godaddy" | "tencent" | "netease"
+  | "rackspace" | "other" | "none";
+
+export interface MailProviderData {
+  /** At least one MX record is published for the domain. */
+  hasMx: boolean;
+  /** Mail exchangers, primary (lowest priority number) first, deduplicated. */
+  mxHosts: string[];
+  /** Human-readable provider, e.g. "Google Workspace" or "Self-managed …". */
+  provider: string;
+  category: MailProviderCategory;
+}
+
 export interface EmailLookupResponse {
   email: string;
   analysis: EmailAnalysis;
   gravatar: GravatarProfile;
+  /** Keyless mail-exchange fingerprint (Cloudflare DoH). Optional so a response
+   * cached before this field existed still renders. */
+  mail?: SourceResult<MailProviderData>;
   emailrep: SourceResult<EmailRepData>;
   hunter: SourceResult<HunterData>;
   abstract: SourceResult<AbstractEmailData>;

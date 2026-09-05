@@ -23,6 +23,7 @@ import DomainResultsDashboard from "@/components/network/DomainResultsDashboard"
 import WalletResultsDashboard from "@/components/wallet/WalletResultsDashboard";
 import HashResultsDashboard from "@/components/hash/HashResultsDashboard";
 import CryptoWorkbench from "@/components/hash/CryptoWorkbench";
+import PwnedPasswordCheck from "@/components/hash/PwnedPasswordCheck";
 import CasesPanel from "@/components/cases/CasesPanel";
 import ImageExifPanel from "@/components/image/ImageExifPanel";
 import EmailHeaderTracePanel from "@/components/email/EmailHeaderTracePanel";
@@ -46,6 +47,7 @@ import SimpleLookupInput from "@/components/shared/SimpleLookupInput";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 import EffectsToggle from "@/components/shared/EffectsToggle";
 import SourcesPanel from "@/components/shared/SourcesPanel";
+import NotableBreachesPanel from "@/components/shared/NotableBreachesPanel";
 import HelpPopover from "@/components/shared/HelpPopover";
 import OpsecPanel from "@/components/shared/OpsecPanel";
 import CommandPalette from "@/components/shared/CommandPalette";
@@ -352,6 +354,7 @@ function PageContent() {
             <CommandPalette onMode={setMode} onQuickLookup={onQuickLookup} />
             <RecentLookups onRun={onQuickLookup} />
             <SourcesPanel />
+            <NotableBreachesPanel />
             <OpsecPanel />
             <HelpPopover />
             <EffectsToggle />
@@ -487,7 +490,10 @@ function PageContent() {
               hash, encode and encrypt/decrypt any text locally, alongside the
               digest-reputation lookup above. */}
           {!isBooting && mode === "hash" && (
-            <div className="mb-4"><PanelErrorBoundary label="Crypto workbench"><CryptoWorkbench /></PanelErrorBoundary></div>
+            <div className="mb-4 space-y-4">
+              <PanelErrorBoundary label="Crypto workbench"><CryptoWorkbench /></PanelErrorBoundary>
+              <PanelErrorBoundary label="Password exposure"><PwnedPasswordCheck /></PanelErrorBoundary>
+            </div>
           )}
 
           {/* Loading states */}

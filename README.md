@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
     <source media="(prefers-color-scheme: dark)" srcset="public/brand/poster.svg"/>
-    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 29 sources need no API key, 23 of 38 username sites auto-verified, 19 API operations, 100% test coverage"/>
+    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 29 sources need no API key, 23 of 38 username sites auto-verified, 21 API operations, 100% test coverage"/>
   </picture>
 </p>
 
@@ -172,7 +172,7 @@
 | 🧑‍💻 **Username OSINT** | 38 sites checked in parallel, grouped by category, presence-scored |
 | 🌐 **IP / Domain OSINT** | IP geo + ASN + VPN/proxy flags · domain DNS + WHOIS + SPF/DMARC + cert-transparency subdomains + live security headers, TLS cert and tech fingerprint |
 | 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier**: free, no key, always-on, on **phone, email and username** |
-| 💥 **Breach Intelligence** | **One unified, deduplicated view** merging XposedOrNot + LeakCheck (both free, no key) + BreachDirectory (RapidAPI). The headline count is the union across sources, not one source's share. Add an optional **Have I Been Pwned** API key and HIBP's own per-account breaches join the union, so the count can match HIBP directly (the free indexes only know a subset). Bare breach names are enriched offline from a vendored **HIBP catalog** snapshot (data classes, record counts, dates; no key, works offline), and **ProxyNova COMB** adds masked password-exposure evidence with a reuse verdict. Plus 5 one-click free breach lookups |
+| 💥 **Breach Intelligence** | **One unified, deduplicated view** merging XposedOrNot + LeakCheck (both free, no key) + BreachDirectory (RapidAPI). The headline count is the union across sources, not one source's share. Add an optional **Have I Been Pwned** API key and HIBP's own per-account breaches join the union, so the count can match HIBP directly (the free indexes only know a subset). Bare breach names are enriched offline from three vendored, keyless catalog snapshots (data classes, record counts, dates; no key, works offline): a rich credential tier of **HIBP + XposedOrNot** whose overlapping descriptions are unioned, plus a **Wikipedia notable-breaches tier** for large government and institutional incidents the credential indexes never carry, now browsable in-app as a searchable **Notable breaches** reference (the largest documented institutional breaches by size, keyless and offline). **ProxyNova COMB** adds masked password-exposure evidence with a reuse verdict. Plus 5 one-click free breach lookups |
 | 🔀 **Cross-Identifier Auto-Pivot** | Every result offers the identifiers it derived as one-click lookups; confirmed links separated from related ones, nothing guessed |
 | 🕸️ **Link-Analysis Graph** | Interactive SVG node graph · **derived links persisted server-side per case**, labelled with the source that produced them · PNG export |
 | 🗂️ **Persistent Cases** | File-backed cases: identifiers, notes, derived graph, **snapshot history**; survive restarts · optional `CASE_PASSWORD` lock |
@@ -181,7 +181,7 @@
 | 🌍 **Country Dataset** | 100 countries: capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict, auto-invalidated when an API key changes) · file-backed cases |
 | 🚦 **Rate Limiting** | 60 requests/minute **per client** + a server-wide ceiling; fixed-window, all limits env-tunable |
-| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 19 operations across 14 endpoints |
+| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 21 operations across 16 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
 | 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
@@ -236,7 +236,7 @@ One unified console with an **11-mode switcher**. Seven are live lookups (phone,
 | ⦿ **IP** | Geo · ASN · ISP · reverse DNS · VPN/proxy/hosting flags · risk score |
 | 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · cert-transparency subdomains · HTTP header grade · TLS certificate · email permutations |
 | 🪙 **Wallet** | Crypto address OSINT: BTC / ETH balance, activity, forward-verified ENS name, explorer pivots |
-| # **Hash** | File-hash reputation: CIRCL hashlookup known-software (NSRL) clearance + verdict-engine pivots, plus a local **Crypto Workbench** to hash, encode and encrypt/decrypt any text (MD5/SHA family, HMAC, Base64/hex/URL/binary/Morse/ROT13/Atbash, Caesar/Vigenère/XOR, and AES-256-GCM with a passphrase) offline in the browser |
+| # **Hash** | File-hash reputation: CIRCL hashlookup known-software (NSRL) clearance + verdict-engine pivots, plus a local **Crypto Workbench** to hash, encode and encrypt/decrypt any text (MD5/SHA family, HMAC, Base64/hex/URL/binary/Morse/ROT13/Atbash, Caesar/Vigenère/XOR, and AES-256-GCM with a passphrase) offline in the browser, and a keyless **Pwned Passwords** check that tells you whether a password has ever leaked using k-anonymity, so only the first five characters of its SHA-1 hash ever leave the tab |
 | 📷 **Image** | EXIF / GPS parsed in your browser (the photo is never uploaded) + reverse-image pivots |
 | ≡ **Bulk** | Triage up to 25 phone numbers → CSV export |
 | 🕸 **Graph** | Link-analysis graph of every identifier looked up this session |
@@ -494,6 +494,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **Breach Database** | XposedOrNot: 1000+ databases, no key. Per-breach: name · year · records · exposed data types · password-risk level (Plaintext / Easy-Crack / Hashed) |
 | **Credential Hashes** | BreachDirectory: real SHA-1/MD5 hashes with one-click crack buttons (CrackStation · Hashes.com), optional RapidAPI key |
 | **Email Classification** | Provider type (corporate/free/disposable/privacy/gov/edu) · disposable detection (1,200+ domains) · free-webmail (370+) · privacy hosts (70+) · role-address detection |
+| **Mail Exchange (keyless)** | Cloudflare DoH MX lookup: names where the domain's mail lands (Google Workspace · Microsoft 365 · Proofpoint · Mimecast · Zoho · Proton · self-managed …) · corroborates the domain, never claims the address is valid · no key |
 | **Reputation** | EmailRep.io: suspicious · blacklisted · malicious · credentials leaked · spam · first/last seen · registered platforms |
 | **Validation / Deliverability** | AbstractAPI (SMTP/MX, quality, catch-all) · Hunter.io (deliverable/risky/undeliverable + confidence) |
 | **OSINT Matrix** | 26 investigation links across 4 categories |
@@ -886,7 +887,7 @@ curl -s localhost:3000/api/cases | jq '.cases'
 curl -s localhost:3000/api/docs  | jq .info
 ```
 
-The fourteen endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/wallet-lookup` · `/api/hash-lookup` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/datasets` · `/api/keys` · `/api/health` · `/api/docs`; 19 operations in all, and **every one of them is in the spec**.
+The sixteen endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/wallet-lookup` · `/api/hash-lookup` · `/api/pwned-password` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/notable-breaches` · `/api/datasets` · `/api/keys` · `/api/health` · `/api/docs`; 21 operations in all, and **every one of them is in the spec**.
 
 The spec is generated at request time from a route registry (`src/lib/api/endpoints.ts`), not hand-written, and a test walks `src/app/api/**/route.ts` and fails the build if the registry and the actual routes disagree. Adding a route without documenting it is a red build, so the "import it into Postman" promise cannot quietly stop being true.
 
@@ -1062,7 +1063,7 @@ HEAVEN-GeoIntel/
 | **UI** | Tailwind CSS · shadcn/ui (Radix) · CSS design tokens · light + dark themes · fully responsive |
 | **UX** | `cmdk` ⌘K command palette · 3D tilt cards · holographic borders · glassmorphism |
 | **Animation / Viz** | Framer Motion · Canvas API (katakana rain · QR) · hand-rolled SVG link graph |
-| **Breach / Infostealer** | Hudson Rock Cavalier (free) · XposedOrNot (free) · LeakCheck public (free) · ProxyNova COMB (free, masked) · HIBP breach catalog (free, vendored offline snapshot) · BreachDirectory via RapidAPI |
+| **Breach / Infostealer** | Hudson Rock Cavalier (free) · XposedOrNot (free) · LeakCheck public (free) · ProxyNova COMB (free, masked) · breach catalog (free, vendored offline snapshots: HIBP + XposedOrNot + Wikipedia notable breaches) · BreachDirectory via RapidAPI |
 | **Username OSINT** | 38-site parallel existence checks (server-side, no key) |
 | **IP / Domain OSINT** | ip-api · ipwho.is · Cloudflare DNS-over-HTTPS · RDAP · crt.sh · direct HTTP/TLS probe · RIPEstat (all free · no key) |
 | **Crypto / Hash OSINT** | mempool.space (BTC) · public Ethereum JSON-RPC (ETH balance + on-chain ENS resolution) · CIRCL hashlookup (file-hash NSRL reputation); all free · no key |

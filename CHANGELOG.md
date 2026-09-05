@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Browsable Notable Breaches reference.** The vendored Wikipedia
+  notable-breaches tier used to sit in the bundle with no way to see it: its large
+  government and institutional incidents never match a per-account or domain
+  lookup, so nothing ever surfaced them. A new keyless header panel now lists them
+  as a searchable reference, largest first, served from a new
+  `/api/notable-breaches` route that reads the bundled snapshot with no key and no
+  upstream call. It is explicitly a reference of known breaches by size, not a
+  presence check: it never claims any identifier appears in one. That brings the
+  spec to 21 documented API operations across 16 endpoints.
+- **Third keyless breach-enrichment catalog: Wikipedia notable breaches.** The
+  offline breach catalog gains a scoped third tier vendored from Wikipedia's
+  "List of data breaches": large government and institutional incidents (national
+  population registries, health ministries, tax authorities) that never entered a
+  credential corpus, so the HIBP and XposedOrNot catalogs do not carry them and no
+  keyless per-account index returns them. Only rows with a clean numeric record
+  count are vendored, so a prose, ranged or footnoted figure is skipped rather
+  than guessed at, and a name the credential tier already describes richly is
+  dropped so nothing is double-counted. It carries no data classes and never
+  overrides a credential description; it only fills a record count and year for a
+  breach a source named. The "describable breaches" figure still counts the rich
+  credential tier alone, with the notable tier reported separately. Refresh all
+  three with `npm run breaches:refresh`.
+- **Keyless mail-exchange fingerprint in email mode.** Email lookups now resolve
+  the target domain's MX records over Cloudflare DNS-over-HTTPS (the same keyless
+  source domain mode uses) and name where the mail actually lands: Google
+  Workspace, Microsoft 365, Proofpoint, Mimecast, Zoho, Proton, a self-managed
+  server, and more. It is strict corroboration about the domain's infrastructure,
+  never a claim that a specific address is valid, and it is read from a public
+  record so it never guesses an unrecognized host into a brand. No key, and the
+  count stays at 29 sources (20 keyless) because it reuses the existing DNS
+  source rather than adding one.
+- **Keyless Pwned Passwords check in Hash mode.** A new "has this password ever
+  leaked" tool that answers the credential half of breach intelligence without a
+  key. The password is hashed with SHA-1 in the browser and only the first five
+  hex characters of that digest are sent, relayed through the tool's own
+  `/api/pwned-password` endpoint to Have I Been Pwned's range API. The suffix is
+  matched locally, so the password and its full hash never leave the tab, and the
+  prefix that does leave maps to hundreds of candidates (k-anonymity). A real
+  breach count is shown for a hit and a true zero for a miss; a service failure is
+  surfaced as an error, never as a false clean. That is 20 documented API
+  operations across 15 endpoints.
 - **Crypto Workbench in Hash mode.** Alongside the file-hash reputation lookup,
   Hash mode now carries a local workbench for arbitrary text. Hash it (MD5, SHA-1,
   SHA-256, SHA-384, SHA-512, HMAC-SHA256/512), encode and decode it (Base64,
@@ -26,9 +67,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   source reports as not configured and the free union stands on its own. No breach
   is ever invented to close the gap. The source manifest is now 29, 20 of which
   need no key.
+- **A second keyless breach catalog: XposedOrNot.** Breach enrichment (the
+  "what data leaked" detail that fills a breach a source named without it) now
+  reads two vendored public catalogs, HIBP plus XposedOrNot, merged into one
+  index. XON carries breaches the HIBP snapshot omits, including regional leaks
+  (Flipkart, BDV, CouponMom) and combo or stealer lists, so more named breaches
+  show their data classes, record counts and dates. Both are keyless and refresh
+  together with `npm run breaches:refresh`.
+- **The unified breach view now states its keyless ceiling.** The panel says the
+  union is a floor, not a ceiling: paid indexes can list more for the same
+  identifier, HIBP's results join the count automatically when a key is set, and
+  the OSINT matrix links the paid options for a manual deep dive.
+
+### Changed
+
+- **The breach catalog now unions overlapping descriptions instead of discarding
+  one.** When HIBP and XposedOrNot both describe the same breach, their data
+  classes are merged and any field one row lacks is filled from the other, so a
+  breach both catalogs know ends up with the combined, more complete description
+  rather than one row winning and the other's exclusive data classes being lost.
 
 ### Fixed
 
+- **Dropped a junk "id" chip from the exposed-data types.** LeakCheck lists
+  `id`, a leaked table's internal row identifier, among its exposed fields. It is
+  not exposed personal data, so it no longer appears as a data class in the
+  unified breach view. The raw per-source panel still shows LeakCheck's fields
+  verbatim for provenance.
 - **Command palette showed the IP mode as "Ip".** The "Switch mode" list rendered
   each label by lowercasing it and letting CSS re-capitalize the first letter,
   which is right for an ordinary word but turned the "IP" acronym into "Ip". Mode

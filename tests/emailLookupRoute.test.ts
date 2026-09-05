@@ -40,6 +40,11 @@ const emailrepBenign = resp(200, {
   details: { deliverable: true, valid_mx: true, free_provider: true },
 });
 const xonEmpty = resp(404, {}, false);
+// Keyless MX over Cloudflare DoH — the shared `dns` source, now also read by
+// email mode to fingerprint the mail provider.
+const mxGoogle = resp(200, { Answer: [
+  { name: "gmail.com", type: 15, TTL: 300, data: "5 gmail-smtp-in.l.google.com." },
+] });
 
 function stubFetch(map: Array<[string, Response]>) {
   vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
@@ -90,12 +95,19 @@ describe("POST /api/email-lookup: offline happy path (no paid keys)", () => {
           accounts: [{ shortname: "github", username: "testuser", url: "https://github.com/testuser" }],
         }],
       })],
+      ["cloudflare-dns.com", mxGoogle],
       ["api.xposedornot.com", xonEmpty],
     ]);
 
     const res = await post({ email: "Test.User@gmail.com" });
     expect(res.status).toBe(200);
     const json = await res.json();
+
+    // Keyless MX fingerprint (the shared dns source) resolves the mail provider.
+    expect(json.mail.ok).toBe(true);
+    expect(json.mail.data.hasMx).toBe(true);
+    expect(json.mail.data.provider).toBe("Google Workspace");
+    expect(json.sourceHealth.some((h: { source: string }) => h.source === "dns")).toBe(true);
 
     // Offline analysis (normalized lowercase, provider classification)
     expect(json.email).toBe("test.user@gmail.com");
@@ -121,6 +133,7 @@ describe("POST /api/email-lookup: offline happy path (no paid keys)", () => {
     process.env.EMAILREP_API_KEY = "test-emailrep";
     stubFetch([
       ["gravatar.com", gravatar404],
+      ["cloudflare-dns.com", mxGoogle],
       ["emailrep.io", emailrepBenign],
       ["api.xposedornot.com", xonEmpty],
     ]);
@@ -140,6 +153,7 @@ describe("POST /api/email-lookup: breach parsing", () => {
     process.env.RAPIDAPI_KEY = "test-rapid";
     stubFetch([
       ["gravatar.com", gravatar404],
+      ["cloudflare-dns.com", mxGoogle],
       ["emailrep.io", emailrepBenign],
       ["api.xposedornot.com", resp(200, {
         BreachMetrics: { count: 1, yearwise_details: [{ "2019": 1 }] },
@@ -179,6 +193,7 @@ describe("POST /api/email-lookup: rate limiting", () => {
     useRateLimit(10);
     stubFetch([
       ["gravatar.com", gravatar404],
+      ["cloudflare-dns.com", mxGoogle],
       ["emailrep.io", emailrepBenign],
       ["api.xposedornot.com", xonEmpty],
     ]);

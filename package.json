@@ -27,7 +27,7 @@
     "brand": "npm run brand:poster && node scripts/generate-brand-assets.mjs",
     "brand:poster": "node --import ./scripts/ts-resolve.mjs scripts/generate-poster.mjs",
     "links:check": "node scripts/check-links.mjs",
-    "breaches:refresh": "node scripts/refresh-breach-catalog.mjs"
+    "breaches:refresh": "node scripts/refresh-breach-catalog.mjs && node scripts/refresh-xon-catalog.mjs && node scripts/refresh-wikipedia-breaches.mjs"
   },
   "dependencies": {
     "@radix-ui/react-tabs": "^1.1.13",
