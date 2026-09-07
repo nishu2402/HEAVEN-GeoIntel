@@ -372,6 +372,16 @@ export const ENDPOINTS: EndpointDef[] = [
     responseDescription: "`{ status, version, uptime }`.",
   },
   {
+    path: "/api/version",
+    method: "get",
+    summary: "Update check against the latest GitHub release",
+    description:
+      "Compares this build's version with the latest published release of the project on GitHub and reports whether a newer version is available. The result is cached for an hour, so a busy instance makes at most one third-party call per hour; `?force=1` bypasses the cache for a manual check. It never invents a version and never reports an update that does not exist: a missing release, a rate limit or an offline host all return `ok:false` with `updateAvailable:false`.",
+    tag: "meta",
+    query: [{ name: "force", description: "Set to 1 to bypass the one-hour cache and check immediately.", example: "1" }],
+    responseDescription: "`{ current, latest, updateAvailable, url, publishedAt, checkedAt, ok, reason? }`.",
+  },
+  {
     path: "/api/docs",
     method: "get",
     summary: "This OpenAPI 3.1 specification",
