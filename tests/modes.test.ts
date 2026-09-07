@@ -11,8 +11,8 @@ describe("MODES registry invariants", () => {
   });
 
   it("exposes exactly the 7 single-input lookup modes, each with a placeholder", () => {
-    // `image` is a client-only mode (EXIF parsed in the browser, no API), so it
-    // is deliberately NOT a lookup mode and carries no placeholder.
+    // `file` is a client-only mode (metadata parsed in the browser, no API), so
+    // it is deliberately NOT a lookup mode and carries no placeholder.
     expect(LOOKUP_MODES.map((m) => m.id)).toEqual(["phone", "email", "username", "ip", "domain", "wallet", "hash"]);
     for (const m of LOOKUP_MODES) expect(m.placeholder, m.id).toBeTruthy();
   });
@@ -73,6 +73,10 @@ describe("detectMode: best-effort classification", () => {
 describe("toMode: narrowing an untrusted URL parameter", () => {
   it("accepts every id in the registry", () => {
     for (const m of MODES) expect(toMode(m.id)).toBe(m.id);
+  });
+
+  it("resolves the legacy 'image' alias to the file-metadata mode", () => {
+    expect(toMode("image")).toBe("file");
   });
 
   it("rejects anything that is not a mode", () => {

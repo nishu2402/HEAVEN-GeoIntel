@@ -338,6 +338,18 @@ describe("parseExif: PNG", () => {
   });
 });
 
+// ── Hostile input bounds ─────────────────────────────────────────────────────
+
+describe("parseExif: hostile field bounds", () => {
+  it("caps an over-long ASCII field rather than reading every declared byte", () => {
+    // A make tag that declares 5000 characters is truncated to the 4096-char cap,
+    // so a file repeating such an entry can never stall the parse.
+    const tiff = buildTiff({ le: true, ifd0: [{ tag: 0x010f, type: 2, ascii: "A".repeat(5000) }] });
+    const meta = parseExif(buildJpeg({ tiff, sof: { w: 4, h: 4 } }));
+    expect(meta.tags.make?.length).toBe(4096);
+  });
+});
+
 // ── Pure formatting helpers ──────────────────────────────────────────────────
 
 describe("coordinate + pivot formatting", () => {

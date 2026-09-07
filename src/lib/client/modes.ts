@@ -5,7 +5,7 @@ import { detectChain } from "../analysis/wallet";
 import { detectHashKind } from "../analysis/hash";
 import { isEnsName } from "../analysis/ens";
 
-export type Mode = "phone" | "email" | "username" | "ip" | "domain" | "wallet" | "hash" | "image" | "bulk" | "graph" | "cases";
+export type Mode = "phone" | "email" | "username" | "ip" | "domain" | "wallet" | "hash" | "file" | "bulk" | "graph" | "cases";
 
 export interface ModeMeta {
   id: Mode;
@@ -24,9 +24,9 @@ export const MODES: ModeMeta[] = [
   { id: "domain",   label: "DOMAIN",   glyph: "🌐", lookup: true,  placeholder: "example.com" },
   { id: "wallet",   label: "WALLET",   glyph: "🪙", lookup: true,  placeholder: "0x… or bc1… / 1…" },
   { id: "hash",     label: "HASH",     glyph: "#",  lookup: true,  placeholder: "MD5 / SHA-1 / SHA-256 digest" },
-  // Client-only: EXIF/GPS is parsed in the browser and the image is never
-  // uploaded, so this takes no single string input and hits no API.
-  { id: "image",    label: "IMAGE",    glyph: "📷", lookup: false },
+  // Client-only: metadata for any file is parsed in the browser and the file is
+  // never uploaded, so this takes no single string input and hits no API.
+  { id: "file",     label: "FILE",     glyph: "📄", lookup: false },
   { id: "bulk",     label: "BULK",     glyph: "≡",  lookup: false },
   { id: "graph",    label: "GRAPH",    glyph: "🕸", lookup: false },
   { id: "cases",    label: "CASES",    glyph: "🗂", lookup: false },
@@ -51,6 +51,9 @@ export function modeName(m: ModeMeta): string {
 
 /** Narrow an untrusted string (a URL parameter) to a Mode, or null. */
 export function toMode(raw: string | null | undefined): Mode | null {
+  // Legacy alias: the file-metadata mode used to be called "image", so old
+  // shared links (?mode=image) still resolve to it.
+  if (raw === "image") return "file";
   return MODES.some((m) => m.id === raw) ? (raw as Mode) : null;
 }
 

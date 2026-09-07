@@ -2,15 +2,13 @@
 
 import { useCallback, useRef, useState } from "react";
 import {
-  Camera, MapPin, ExternalLink, Copy, Check, ImageOff, Aperture, Clock, Compass,
-  Mountain, AlertTriangle, Upload, ScanEye,
+  Camera, MapPin, ExternalLink, Copy, Check, FileQuestion, Aperture, Clock, Compass,
+  Mountain, AlertTriangle, Upload, ScanEye, FileText, Fingerprint, Gauge, ShieldAlert, Info,
 } from "lucide-react";
 import { copyText } from "@/lib/utils";
-import {
-  parseExif, formatDms, decimalPair, mapLinks, reverseImageLinks, type ImageMeta,
-} from "@/lib/analysis/exif";
-
-interface FileFacts { name: string; size: number; typeLabel: string }
+import { formatDms, decimalPair, mapLinks, reverseImageLinks } from "@/lib/analysis/exif";
+import { extractFileMeta, hashFile } from "@/lib/analysis/meta/fileMeta";
+import type { UniversalMeta, FileHashes } from "@/lib/analysis/meta/types";
 
 /** Human-readable byte size for the file summary. */
 function humanSize(bytes: number): string {
@@ -19,7 +17,17 @@ function humanSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const MAX_BYTES = 40 * 1024 * 1024; // 40 MB: a generous ceiling for a still image
+const MAX_BYTES = 100 * 1024 * 1024; // 100 MB: generous for a document, video or archive
+
+// Image kinds a browser can safely render as an inline preview thumbnail.
+const PREVIEWABLE = new Set(["jpeg", "png", "gif", "webp", "bmp", "svg", "avif", "ico"]);
+
+/** One-line reading of the entropy figure (packing / encryption signal). */
+function entropyNote(bits: number): string {
+  if (bits >= 7.5) return "high — likely compressed or encrypted";
+  if (bits < 1) return "very low — highly repetitive data";
+  return "typical for structured data";
+}
 
 function Row({ label, value, accent }: { label: React.ReactNode; value: React.ReactNode; accent?: string }) {
   if (value === null || value === undefined || value === "") return null;
@@ -32,27 +40,42 @@ function Row({ label, value, accent }: { label: React.ReactNode; value: React.Re
 }
 
 export default function ImageExifPanel() {
-  const [meta, setMeta] = useState<ImageMeta | null>(null);
-  const [facts, setFacts] = useState<FileFacts | null>(null);
+  const [meta, setMeta] = useState<UniversalMeta | null>(null);
+  const [name, setName] = useState<string>("");
+  const [size, setSize] = useState<number>(0);
+  const [hashes, setHashes] = useState<FileHashes | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const previewRef = useRef<string | null>(null);
 
   const ingest = useCallback(async (file: File) => {
-    setError(null); setShowMap(false); setCopied(false);
-    if (file.size > MAX_BYTES) { setError("File is larger than 40 MB: pick a still image."); return; }
-    const buf = new Uint8Array(await file.arrayBuffer());
-    const parsed = parseExif(buf);
+    setError(null); setShowMap(false); setCopied(null); setHashes(null);
+    if (file.size > MAX_BYTES) { setError("File is larger than 100 MB: pick a smaller file."); return; }
+    let buf: Uint8Array;
+    let parsed: UniversalMeta;
+    try {
+      buf = new Uint8Array(await file.arrayBuffer());
+      parsed = await extractFileMeta(buf, file.name);
+    } catch {
+      // The parsers are bounds-checked and never throw on hostile bytes, but a
+      // read that fails (unreadable file, a platform primitive unavailable) must
+      // surface as a message, not an unhandled rejection that leaves a blank panel.
+      setError("This file could not be read; it may be corrupt or unsupported.");
+      return;
+    }
     // Revoke the previous object URL before replacing it (no leaked blobs).
     if (previewRef.current) URL.revokeObjectURL(previewRef.current);
-    const url = parsed.format === "unknown" ? null : URL.createObjectURL(file);
+    const url = PREVIEWABLE.has(parsed.identity.kind) ? URL.createObjectURL(file) : null;
     previewRef.current = url;
     setPreview(url);
     setMeta(parsed);
-    setFacts({ name: file.name, size: file.size, typeLabel: file.type || parsed.format });
+    setName(file.name);
+    setSize(file.size);
+    // Hashing a large file can take a moment; let the metadata render first.
+    void hashFile(buf).then(setHashes).catch(() => setHashes(null));
   }, []);
 
   const onInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,11 +89,13 @@ export default function ImageExifPanel() {
     if (file) void ingest(file);
   }, [ingest]);
 
-  const copyCoord = useCallback((text: string) => {
-    void copyText(text); setCopied(true); setTimeout(() => setCopied(false), 1600);
+  const copyItem = useCallback((id: string, text: string) => {
+    void copyText(text); setCopied(id); setTimeout(() => setCopied(null), 1600);
   }, []);
 
   const gps = meta?.gps ?? null;
+  const image = meta?.image ?? null;
+  const groups = meta ? [...new Set(meta.fields.map((f) => f.group))] : [];
 
   return (
     <div className="space-y-4">
@@ -84,11 +109,12 @@ export default function ImageExifPanel() {
         }`}
       >
         <Upload className="w-7 h-7 text-[var(--hv-cyan)]" />
-        <div className="text-sm font-mono text-[var(--hv-ink)]">Drop a JPEG or PNG, or click to choose</div>
+        <div className="text-sm font-mono text-[var(--hv-ink)]">Drop any file, or click to choose</div>
         <div className="text-[11px] font-mono text-[var(--hv-ink-dim)] text-center max-w-md">
-          Parsed entirely in your browser. The image is never uploaded, so any location it carries never leaves this machine.
+          Images, video, audio, documents, archives and more. Parsed entirely in your browser, so the file, and any
+          location or author it carries, never leaves this machine.
         </div>
-        <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={onInput} />
+        <input type="file" className="hidden" onChange={onInput} />
       </label>
 
       {error && (
@@ -97,37 +123,49 @@ export default function ImageExifPanel() {
         </div>
       )}
 
-      {meta && facts && (
+      {meta && (
         <div className="space-y-4">
+          {/* File identity */}
           <div className="terminal-card p-5 space-y-4">
             <div className="flex items-start gap-4 flex-wrap">
               {preview && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={preview} alt={facts.name} className="w-28 h-28 object-cover rounded border border-[var(--hv-glass-border)]" />
+                <img src={preview} alt={name} className="w-28 h-28 object-cover rounded border border-[var(--hv-glass-border)]" />
               )}
               <div className="min-w-0 flex-1">
-                <div className="text-lg font-bold gradient-text font-mono break-all">{facts.name}</div>
+                <div className="text-lg font-bold gradient-text font-mono break-all">{name}</div>
                 <div className="text-[12px] font-mono text-[var(--hv-ink-dim)] mt-1">
-                  {facts.typeLabel} · {humanSize(facts.size)}
-                  {meta.width && meta.height ? ` · ${meta.width}×${meta.height}px` : ""}
+                  {meta.identity.label} · {meta.identity.mime} · {humanSize(size)}
+                  {image?.width && image?.height ? ` · ${image.width}×${image.height}px` : ""}
                 </div>
-                <div className="mt-2">
-                  {meta.format === "unknown" ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {meta.identity.kind === "unknown" ? (
                     <span className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold px-2 py-0.5 rounded border tracking-widest text-[var(--hv-amber)]" style={{ borderColor: "#fbbf2470", backgroundColor: "#fbbf2416" }}>
-                      <ImageOff className="w-3 h-3" /> UNSUPPORTED FORMAT
-                    </span>
-                  ) : meta.hasExif ? (
-                    <span className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold px-2 py-0.5 rounded border tracking-widest text-[var(--hv-green)]" style={{ borderColor: "#00ff8570", backgroundColor: "#00ff8516" }}>
-                      <Camera className="w-3 h-3" /> EXIF PRESENT{gps ? " · GPS FOUND" : ""}
+                      <FileQuestion className="w-3 h-3" /> UNIDENTIFIED
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold px-2 py-0.5 rounded border tracking-widest text-[var(--hv-ink-dim)]" style={{ borderColor: "var(--hv-glass-border)" }}>
-                      <ImageOff className="w-3 h-3" /> NO EXIF METADATA
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold px-2 py-0.5 rounded border tracking-widest text-[var(--hv-cyan)]" style={{ borderColor: "var(--hv-glass-hi)" }}>
+                      <FileText className="w-3 h-3" /> {meta.identity.kind.toUpperCase()}
+                    </span>
+                  )}
+                  {image?.hasExif && (
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold px-2 py-0.5 rounded border tracking-widest text-[var(--hv-green)]" style={{ borderColor: "#00ff8570", backgroundColor: "#00ff8516" }}>
+                      <Camera className="w-3 h-3" /> EXIF PRESENT{gps ? " · GPS FOUND" : ""}
                     </span>
                   )}
                 </div>
               </div>
             </div>
+
+            {meta.extMismatch && (
+              <div className="flex items-start gap-2 p-2.5 rounded-md border text-[12px] font-mono text-[var(--hv-amber)]" style={{ borderColor: "#fbbf2470", backgroundColor: "#fbbf2410" }}>
+                <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Extension mismatch: this file is named <b>.{meta.extMismatch.claimed}</b> but its contents are actually
+                  <b> {meta.extMismatch.actual}</b>. A disguised extension can be a sign of tampering.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* GPS: the headline for GEOINT */}
@@ -138,9 +176,9 @@ export default function ImageExifPanel() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xl font-mono font-bold text-[var(--hv-green)]">{decimalPair(gps)}</span>
-                <button type="button" onClick={() => copyCoord(decimalPair(gps))} title="Copy coordinate"
+                <button type="button" onClick={() => copyItem("coord", decimalPair(gps))} title="Copy coordinate"
                   className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded border border-[var(--hv-glass-border)] text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)]">
-                  {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} {copied ? "Copied" : "Copy"}
+                  {copied === "coord" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />} {copied === "coord" ? "Copied" : "Copy"}
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
@@ -173,30 +211,70 @@ export default function ImageExifPanel() {
             </div>
           )}
 
-          {/* Camera + capture */}
-          {meta.hasExif && (
+          {/* Camera + capture (images with EXIF) */}
+          {image?.hasExif && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="terminal-card p-4 space-y-1">
                 <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-2 flex items-center gap-1.5"><Camera className="w-3 h-3" /> CAMERA</div>
-                <Row label="Make" value={meta.tags.make} accent="var(--hv-green)" />
-                <Row label="Model" value={meta.tags.model} accent="var(--hv-green)" />
-                <Row label="Lens" value={meta.tags.lens} />
-                <Row label="Software" value={meta.tags.software} accent="var(--hv-magenta)" />
-                <Row label="Orientation" value={meta.tags.orientation !== null ? String(meta.tags.orientation) : null} />
+                <Row label="Make" value={image.tags.make} accent="var(--hv-green)" />
+                <Row label="Model" value={image.tags.model} accent="var(--hv-green)" />
+                <Row label="Lens" value={image.tags.lens} />
+                <Row label="Software" value={image.tags.software} accent="var(--hv-magenta)" />
+                <Row label="Orientation" value={image.tags.orientation !== null ? String(image.tags.orientation) : null} />
               </div>
               <div className="terminal-card p-4 space-y-1">
                 <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-2 flex items-center gap-1.5"><Aperture className="w-3 h-3" /> CAPTURE</div>
-                <Row label={<span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> Taken</span>} value={meta.tags.dateTimeOriginal} accent="var(--hv-cyan)" />
-                <Row label="Aperture" value={meta.tags.fNumber !== null ? `f/${meta.tags.fNumber}` : null} />
-                <Row label="Shutter" value={meta.tags.exposureTime} />
-                <Row label="ISO" value={meta.tags.iso !== null ? String(meta.tags.iso) : null} />
-                <Row label="Focal length" value={meta.tags.focalLength !== null ? `${meta.tags.focalLength} mm` : null} />
+                <Row label={<span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" /> Taken</span>} value={image.tags.dateTimeOriginal} accent="var(--hv-cyan)" />
+                <Row label="Aperture" value={image.tags.fNumber !== null ? `f/${image.tags.fNumber}` : null} />
+                <Row label="Shutter" value={image.tags.exposureTime} />
+                <Row label="ISO" value={image.tags.iso !== null ? String(image.tags.iso) : null} />
+                <Row label="Focal length" value={image.tags.focalLength !== null ? `${image.tags.focalLength} mm` : null} />
               </div>
             </div>
           )}
 
-          {/* Reverse-image / face search */}
-          {meta.format !== "unknown" && (
+          {/* Format-specific metadata, grouped */}
+          {groups.map((group) => (
+            <div key={group} className="terminal-card p-4 space-y-1">
+              <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-2 flex items-center gap-1.5">
+                <Info className="w-3 h-3" /> {group}
+              </div>
+              {meta.fields.filter((f) => f.group === group).map((f, i) => (
+                <Row key={`${f.label}-${i}`} label={f.label} value={f.value} accent={f.sensitive ? "var(--hv-amber)" : undefined} />
+              ))}
+            </div>
+          ))}
+
+          {/* Integrity: hashes + entropy, for any file */}
+          <div className="terminal-card p-4 space-y-1">
+            <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-2 flex items-center gap-1.5"><Fingerprint className="w-3 h-3" /> INTEGRITY</div>
+            {hashes ? (
+              <>
+                <HashRow label="SHA-256" value={hashes.sha256} copied={copied === "sha256"} onCopy={() => copyItem("sha256", hashes.sha256)} />
+                <HashRow label="SHA-1" value={hashes.sha1} copied={copied === "sha1"} onCopy={() => copyItem("sha1", hashes.sha1)} />
+              </>
+            ) : (
+              <div className="text-[12px] font-mono text-[var(--hv-ink-dim)] py-1.5">Computing digests…</div>
+            )}
+            {meta.entropy !== null && (
+              <Row label={<span className="inline-flex items-center gap-1"><Gauge className="w-3 h-3" /> Entropy</span>}
+                value={`${meta.entropy.toFixed(2)} bits/byte (${entropyNote(meta.entropy)})`} />
+            )}
+          </div>
+
+          {/* Honest limitations */}
+          {meta.notes.length > 0 && (
+            <div className="terminal-card p-4 space-y-1.5">
+              {meta.notes.map((note, i) => (
+                <p key={i} className="text-[11px] font-mono text-[var(--hv-ink-dim)] flex items-start gap-1.5">
+                  <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /> {note}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Reverse-image / face search (images only) */}
+          {image && (
             <div className="terminal-card p-4 space-y-2">
               <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><ScanEye className="w-3 h-3" /> REVERSE-IMAGE &amp; FACE SEARCH</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -215,10 +293,23 @@ export default function ImageExifPanel() {
           )}
 
           <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] px-1 flex items-center gap-1.5">
-            <AlertTriangle className="w-3 h-3" /> HEIC/HEIF (the iPhone default) is not parsed here. Export or convert to JPEG to read its GPS.
+            <AlertTriangle className="w-3 h-3" /> Everything above is read from the file&rsquo;s own bytes in your browser. Nothing is uploaded.
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function HashRow({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
+  return (
+    <div className="flex items-start gap-2 py-1.5 border-b border-[var(--hv-glass-border)] last:border-b-0">
+      <span className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] w-20 shrink-0 pt-0.5">{label}</span>
+      <span className="font-mono text-[11px] flex-1 break-all text-[var(--hv-ink)]">{value}</span>
+      <button type="button" onClick={onCopy} title={`Copy ${label}`}
+        className="inline-flex items-center gap-1 text-[11px] font-mono px-1.5 py-0.5 rounded border border-[var(--hv-glass-border)] text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] shrink-0">
+        {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      </button>
     </div>
   );
 }
