@@ -7,8 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **Hardened the file-metadata reader against hostile uploads.** The in-browser
+  parsers now bound every place a crafted file could exhaust memory or stall the
+  tab. A ZIP or Office/EPUB member is refused once it inflates past 32 MB, so a
+  decompression bomb (DEFLATE can reach roughly 1000 to 1) can no longer expand a
+  few kilobytes into gigabytes. The PDF reader caps each string value and the
+  number of times one key is scanned, turning what was a quadratic scan on a file
+  full of unterminated strings into a linear one. The EXIF reader caps an
+  over-long text field instead of reading every byte a hostile tag declares. And
+  the panel now shows a clear message if a file cannot be read rather than leaving
+  a blank result. Legitimate files are unaffected: the caps sit far above any real
+  value.
+- **Closed a redirect-based SSRF in the domain HTTP probe.** The probe already
+  refused a target that resolved to an internal address, but a public site could
+  still redirect the probe onward, and that next hop was fetched with no check.
+  Each redirect hop is now re-checked, so a redirect into a loopback, private, or
+  cloud-metadata address (169.254.169.254) is refused before it is ever requested.
+
 ### Added
 
+- **Universal file-metadata mode (formerly Image/EXIF).** The former image mode
+  is now a keyless, in-browser metadata reader for any file, not just JPEG and
+  PNG. It identifies about 70 formats from their actual bytes, so a mislabelled
+  file is still named correctly, and it flags an extension that disagrees with the
+  content (a real tampering signal). For each format it reads the genuine embedded
+  metadata: EXIF and GPS from JPEG, PNG, WebP and TIFF; dimensions from GIF and
+  BMP; GPS, capture time and device make/model from iPhone HEIC photos and from
+  MOV, MP4 and M4A media; author, last-saved-by, company and created/modified
+  timestamps from PDF and from Office, OpenDocument and EPUB packages; ID3, FLAC
+  and WAV audio tags; the original filename and source OS from GZIP; and the
+  owner, group and member names from TAR. Every file also gets a real SHA-256 and
+  SHA-1 digest, a Shannon-entropy reading that flags likely compression or
+  encryption, and the extension check. Nothing is uploaded and nothing is
+  invented: a field appears only when it was read from the file itself. The mode
+  is renamed from "image" to "file" (its tab now reads FILE), and existing
+  `?mode=image` share links still resolve to it.
 - **Browsable Notable Breaches reference.** The vendored Wikipedia
   notable-breaches tier used to sit in the bundle with no way to see it: its large
   government and institutional incidents never match a per-account or domain

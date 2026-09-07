@@ -16,7 +16,8 @@
 // malformed or hostile image must yield an empty result, never a throw and never
 // a fabricated coordinate.
 
-export type ImageFormat = "jpeg" | "png" | "unknown";
+export type ImageFormat =
+  | "jpeg" | "png" | "gif" | "bmp" | "tiff" | "webp" | "heic" | "avif" | "unknown";
 
 /** A GPS fix recovered from EXIF. Only ever present when it is in-range. */
 export interface GpsFix {
@@ -52,11 +53,15 @@ export interface ImageMeta {
   tags: ExifTags;
 }
 
-const EMPTY_TAGS: ExifTags = {
+export const EMPTY_TAGS: ExifTags = {
   make: null, model: null, lens: null, software: null,
   dateTimeOriginal: null, orientation: null,
   fNumber: null, exposureTime: null, iso: null, focalLength: null,
 };
+
+// A genuine EXIF text field (make/model/software/lens/date) is well under this;
+// the cap only bounds a hostile entry that declares an enormous character count.
+const MAX_ASCII_CHARS = 4096;
 
 /** Bytes per component for each TIFF field type (index = type id). */
 const TYPE_SIZE: Record<number, number> = {
@@ -192,8 +197,14 @@ class Tiff {
     if (size === 0) return null;
     const start = size <= 4 ? e.valuePtr : this.base + this.u32(e.valuePtr);
     if (start + e.count > this.view.byteLength) return null;
+    // The real fields read here (make, model, software, lens, dates, GPS refs)
+    // are short. A hostile file can declare a huge `count` that still fits the
+    // buffer and repeat that entry thousands of times; capping the characters
+    // read keeps one field from stalling the parse without truncating any
+    // genuine value.
+    const max = Math.min(e.count, MAX_ASCII_CHARS);
     let s = "";
-    for (let i = 0; i < e.count; i++) {
+    for (let i = 0; i < max; i++) {
       const c = this.view.getUint8(start + i);
       if (c === 0) break;
       s += String.fromCharCode(c);
@@ -269,7 +280,14 @@ function dms(tiff: Tiff, e: IfdEntry): number | null {
   return d + m / 60 + s / 3600;
 }
 
-function readExifBlock(b: Uint8Array, base: number): { tags: ExifTags; gps: GpsFix | null } | null {
+/**
+ * Parse a TIFF/EXIF block that begins at `base` within `b`, returning the camera
+ * tags and any GPS fix. Exported so the other container parsers (native TIFF,
+ * WebP, and the ISO-BMFF walker for HEIC) can reuse the exact same, already
+ * proven reader instead of duplicating TIFF logic. null when `base` does not
+ * point at a valid TIFF header.
+ */
+export function readExifBlock(b: Uint8Array, base: number): { tags: ExifTags; gps: GpsFix | null } | null {
   const tiff = Tiff.at(b, base);
   if (!tiff) return null;
   const tags: ExifTags = { ...EMPTY_TAGS };

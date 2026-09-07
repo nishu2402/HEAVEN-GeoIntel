@@ -47,6 +47,24 @@ export function isProbeTarget(addresses: string[]): boolean {
   return addresses.every((ip) => classifyIp(ip)?.isGloballyRoutable === true);
 }
 
+/**
+ * Per-redirect-hop SSRF check. `isProbeTarget` only vets the domain the user
+ * typed; a public site can still 302 the probe onward, and that next hop is
+ * fetched with no guard. So every hop is re-checked here: an IP-literal target
+ * (the classic `http://169.254.169.254/…` metadata pivot, or a loopback/private
+ * literal) is allowed only when globally routable, and a loopback hostname alias
+ * is refused. A hostname that itself resolves to an internal address is the
+ * residual DNS case the guard note above describes — egress filtering remains
+ * the backstop for an internet-exposed deployment.
+ */
+function hostAllowed(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, ""); // strip IPv6-literal brackets
+  const cls = classifyIp(host);
+  if (cls) return cls.isGloballyRoutable;
+  const lower = host.toLowerCase();
+  return lower !== "localhost" && !lower.endsWith(".localhost");
+}
+
 function headerMap(res: Response): HeaderMap {
   const out: HeaderMap = {};
   res.headers.forEach((v, k) => { out[k.toLowerCase()] = v; });
@@ -107,10 +125,13 @@ async function walk(startUrl: string): Promise<{ res: Response; url: string; cha
     }
     const location = res.headers.get("location");
     if (res.status >= 300 && res.status < 400 && location) {
-      const next = new URL(location, url).toString();
-      chain.push(`${res.status} ${url} → ${next}`);
+      const nextUrl = new URL(location, url);
       /* v8 ignore next -- cancel() rejecting is not reachable from a test */
       void res.body?.cancel().catch(() => {});
+      // Refuse a redirect that points inward before it is ever fetched.
+      if (!hostAllowed(nextUrl.hostname)) return null;
+      const next = nextUrl.toString();
+      chain.push(`${res.status} ${url} → ${next}`);
       url = next;
       continue;
     }

@@ -8,7 +8,7 @@
 //
 // The one hard line: only the domain HTTP/TLS probe connects to the target. Every
 // other mode consults third-party databases about the identifier and never
-// contacts the subject, and image mode never leaves the browser at all.
+// contacts the subject, and file mode never leaves the browser at all.
 
 import type { Mode } from "../client/modes";
 import { sourcesForMode } from "../sources/manifest";
@@ -56,9 +56,9 @@ const META: Partial<Record<Mode, OpsecMeta>> = {
     label: "Hash", contactsTarget: false, targetNote: null, clientSide: false,
     note: "Only a hash-reputation database is queried; no file is ever uploaded.",
   },
-  image: {
-    label: "Image / EXIF", contactsTarget: false, targetNote: null, clientSide: true,
-    note: "EXIF and GPS are parsed entirely in your browser: the image never leaves your machine.",
+  file: {
+    label: "File metadata", contactsTarget: false, targetNote: null, clientSide: true,
+    note: "Every file's metadata is parsed entirely in your browser: the file never leaves your machine.",
   },
 };
 
@@ -90,7 +90,7 @@ export function opsecProfile(mode: Mode): OpsecProfile | null {
 
 /** Every mode that has a footprint model, in a stable disclosure order. */
 export function lookupOpsecProfiles(): OpsecProfile[] {
-  const order: Mode[] = ["phone", "email", "username", "ip", "domain", "wallet", "hash", "image"];
+  const order: Mode[] = ["phone", "email", "username", "ip", "domain", "wallet", "hash", "file"];
   return order.map(opsecProfile).filter((p): p is OpsecProfile => p !== null);
 }
 

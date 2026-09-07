@@ -234,6 +234,22 @@ describe("probeHttp", () => {
     expect(out.url).toBe("https://www.example.com/en");
   });
 
+  it.each([
+    "http://169.254.169.254/latest/meta-data/", // cloud metadata (IP literal, link-local)
+    "http://localhost:8080/admin",              // loopback hostname alias
+    "http://db.localhost/",                     // *.localhost alias
+  ])("refuses to follow a redirect into %s (SSRF)", async (target) => {
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith("http://example.com")) return res({ status: 200 }); // https-upgrade probe
+      if (url === "https://example.com/") return res({ status: 302, headers: { location: target } });
+      return res({ status: 200, body: "<title>should never be reached</title>" });
+    });
+    expect(await probeHttp("example.com", [PUBLIC_IP])).toBeNull();
+    // The internal target is never actually requested.
+    expect(spy.mock.calls.every(([u]) => String(u) !== target)).toBe(true);
+  });
+
   it("gives up after the redirect ceiling instead of looping", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
       String(input).startsWith("http://")
