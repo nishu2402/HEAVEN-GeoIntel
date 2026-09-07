@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Command } from "cmdk";
 import {
   Search, Smartphone, Mail, AtSign, Network, Globe, Layers, Share2, FolderOpen,
-  Sun, Moon, CornerDownLeft, Camera, Wallet, Fingerprint,
+  Sun, Moon, CornerDownLeft, FileSearch, Wallet, Fingerprint,
 } from "lucide-react";
 import { MODES, modeName, detectMode, type Mode } from "@/lib/client/modes";
 import { useTheme } from "./ThemeProvider";
@@ -22,7 +22,7 @@ const MODE_ICON: Record<Mode, React.ReactNode> = {
   domain: <Globe className="w-4 h-4" />,
   wallet: <Wallet className="w-4 h-4" />,
   hash: <Fingerprint className="w-4 h-4" />,
-  image: <Camera className="w-4 h-4" />,
+  file: <FileSearch className="w-4 h-4" />,
   bulk: <Layers className="w-4 h-4" />,
   graph: <Share2 className="w-4 h-4" />,
   cases: <FolderOpen className="w-4 h-4" />,

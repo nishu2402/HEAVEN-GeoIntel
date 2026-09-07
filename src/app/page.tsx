@@ -260,7 +260,7 @@ function PageContent() {
       case "hash":     void runHash(q);     break;
       // A bare ?q= (an old phone share link) and ?mode=phone both land here.
       // A `q` alongside a non-lookup mode is nonsense we simply ignore.
-      case "image": case "bulk": case "graph": case "cases": break;
+      case "file": case "bulk": case "graph": case "cases": break;
       default:         setMode("phone"); void runLookup(q);
     }
   }, [searchParams, runLookup, runEmail, runUsername, runIp, runDomain, runWallet, runHash]);
@@ -472,7 +472,7 @@ function PageContent() {
                 </>
               )}
               {mode === "bulk" && <BulkLookup />}
-              {mode === "image" && <PanelErrorBoundary label="Image EXIF"><ImageExifPanel /></PanelErrorBoundary>}
+              {mode === "file" && <PanelErrorBoundary label="File metadata"><ImageExifPanel /></PanelErrorBoundary>}
             </div>
           )}
 
@@ -537,7 +537,7 @@ function PageContent() {
             OSINT METADATA ONLY · NO REAL-TIME LOCATION · USE RESPONSIBLY
           </div>
           <div className="text-center text-[11px] font-mono text-[var(--hv-ink-dim)] opacity-60 mt-1 tracking-wide">
-            Phone · Email · Username · IP · Domain · Wallet · Hash · Image/EXIF · Link-analysis · Persistent cases · Offline-first
+            Phone · Email · Username · IP · Domain · Wallet · Hash · File metadata · Link-analysis · Persistent cases · Offline-first
           </div>
           <div className="text-center text-[11px] font-mono text-[var(--hv-ink-dim)] mt-2 tracking-wide">
             Created &amp; developed by <span className="text-[var(--hv-cyan)] font-bold">Nisarg Chasmawala (Shroff)</span>

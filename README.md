@@ -107,7 +107,7 @@
   <tr>
     <td width="50%" align="center" valign="top">
       <img src="./docs/screenshots/command-palette.png" alt="Command palette listing all eleven lookup modes" width="100%"/>
-      <br/><sub><b>Command palette.</b> Press ⌘K to reach any of the eleven modes, from phone and email to wallet, hash and image.</sub>
+      <br/><sub><b>Command palette.</b> Press ⌘K to reach any of the eleven modes, from phone and email to wallet, hash and file metadata.</sub>
     </td>
     <td width="50%" align="center" valign="top">
       <img src="./docs/screenshots/bulk-mode.png" alt="Bulk mode scoring a batch of phone numbers offline" width="100%"/>
@@ -164,7 +164,7 @@
 
 | Metric | Value |
 |---|---|
-| 🎯 **Scope** | Phone · Email · Username · IP · Domain · Wallet · Hash · Image/EXIF · Bulk · Link-graph · Persistent cases |
+| 🎯 **Scope** | Phone · Email · Username · IP · Domain · Wallet · Hash · File metadata · Bulk · Link-graph · Persistent cases |
 | 🧭 **Workspace** | 11-mode unified console · ⌘K command palette · light/dark themes · 3D glass UI |
 | 🔑 **Core Requirement** | Zero API keys; offline + free-source enrichment works out of the box |
 | 📞 **Phone OSINT** | Carrier · type · NPA geo · fraud/threat score · pivots · QR · report export |
@@ -224,7 +224,7 @@ Target  ─►  phone │ email │ username │ IP │ domain
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:00D9D9,50:BF5FFF,100:44FF88"/>
 </p>
 
-One unified console with an **11-mode switcher**. Seven are live lookups (phone, email, username, IP, domain, crypto wallet, file hash), Image parses photo EXIF/GPS in your browser, and the last three are workflow tools.
+One unified console with an **11-mode switcher**. Seven are live lookups (phone, email, username, IP, domain, crypto wallet, file hash), File reads deep metadata from any file in your browser, and the last three are workflow tools.
 
 <div align="center">
 
@@ -237,7 +237,7 @@ One unified console with an **11-mode switcher**. Seven are live lookups (phone,
 | 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · cert-transparency subdomains · HTTP header grade · TLS certificate · email permutations |
 | 🪙 **Wallet** | Crypto address OSINT: BTC / ETH balance, activity, forward-verified ENS name, explorer pivots |
 | # **Hash** | File-hash reputation: CIRCL hashlookup known-software (NSRL) clearance + verdict-engine pivots, plus a local **Crypto Workbench** to hash, encode and encrypt/decrypt any text (MD5/SHA family, HMAC, Base64/hex/URL/binary/Morse/ROT13/Atbash, Caesar/Vigenère/XOR, and AES-256-GCM with a passphrase) offline in the browser, and a keyless **Pwned Passwords** check that tells you whether a password has ever leaked using k-anonymity, so only the first five characters of its SHA-1 hash ever leave the tab |
-| 📷 **Image** | EXIF / GPS parsed in your browser (the photo is never uploaded) + reverse-image pivots |
+| 📄 **File** | Deep metadata from any file, parsed in your browser (the file is never uploaded): identifies ~70 formats by content, extracts EXIF/GPS from photos, GPS and device tags from iPhone HEIC/MOV/MP4, author/company/timestamps from PDF and Office/OpenDocument/EPUB, ID3/FLAC/WAV tags, GZIP/TAR owner and original names, plus SHA-256/SHA-1, entropy, and an extension-vs-content check, with reverse-image pivots for images |
 | ≡ **Bulk** | Triage up to 25 phone numbers → CSV export |
 | 🕸 **Graph** | Link-analysis graph of every identifier looked up this session |
 | 🗂 **Cases** | Persistent investigation cases: group identifiers, notes, per-case graph |

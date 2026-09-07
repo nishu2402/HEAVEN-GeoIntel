@@ -15,11 +15,11 @@ describe("<OpsecPanel>", () => {
     expect(screen.getByText(/your footprint/i)).toBeTruthy();
     // Global note about server-side proxying.
     expect(screen.getByText(/upstreams see this instance's IP/i)).toBeTruthy();
-    // domain touches the target; image is in-browser; both badges render.
+    // domain touches the target; file metadata is in-browser; both badges render.
     expect(screen.getByText(/touches target/i)).toBeTruthy();
     expect(screen.getByText(/in-browser/i)).toBeTruthy();
     expect(screen.getAllByText(/third-party only/i).length).toBeGreaterThan(0);
-    // image discloses to no one.
+    // file metadata discloses to no one.
     expect(screen.getByText(/no one: parsed locally/i)).toBeTruthy();
     // a keyless third party is named.
     expect(screen.getByText(/CIRCL hashlookup/)).toBeTruthy();

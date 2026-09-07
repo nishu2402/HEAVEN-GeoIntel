@@ -9,11 +9,11 @@ describe("opsecProfile", () => {
     expect(domain?.thirdParties.length).toBeGreaterThan(0);
   });
 
-  it("marks image as fully client-side with no third parties", () => {
-    const image = opsecProfile("image");
-    expect(image?.clientSide).toBe(true);
-    expect(image?.contactsTarget).toBe(false);
-    expect(image?.thirdParties).toEqual([]);
+  it("marks file metadata as fully client-side with no third parties", () => {
+    const file = opsecProfile("file");
+    expect(file?.clientSide).toBe(true);
+    expect(file?.contactsTarget).toBe(false);
+    expect(file?.thirdParties).toEqual([]);
   });
 
   it("derives the third-party list from the keyless manifest sources", () => {
@@ -34,7 +34,7 @@ describe("opsecProfile", () => {
 describe("lookupOpsecProfiles", () => {
   it("covers the eight lookup/parse modes in disclosure order", () => {
     const modes = lookupOpsecProfiles().map((p) => p.mode);
-    expect(modes).toEqual(["phone", "email", "username", "ip", "domain", "wallet", "hash", "image"]);
+    expect(modes).toEqual(["phone", "email", "username", "ip", "domain", "wallet", "hash", "file"]);
   });
 });
 
