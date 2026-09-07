@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
     <source media="(prefers-color-scheme: dark)" srcset="public/brand/poster.svg"/>
-    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 29 sources need no API key, 23 of 38 username sites auto-verified, 21 API operations, 100% test coverage"/>
+    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 29 sources need no API key, 23 of 38 username sites auto-verified, 22 API operations, 100% test coverage"/>
   </picture>
 </p>
 
@@ -181,7 +181,7 @@
 | 🌍 **Country Dataset** | 100 countries: capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict, auto-invalidated when an API key changes) · file-backed cases |
 | 🚦 **Rate Limiting** | 60 requests/minute **per client** + a server-wide ceiling; fixed-window, all limits env-tunable |
-| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 21 operations across 16 endpoints |
+| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 22 operations across 17 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
 | 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
@@ -887,7 +887,7 @@ curl -s localhost:3000/api/cases | jq '.cases'
 curl -s localhost:3000/api/docs  | jq .info
 ```
 
-The sixteen endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/wallet-lookup` · `/api/hash-lookup` · `/api/pwned-password` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/notable-breaches` · `/api/datasets` · `/api/keys` · `/api/health` · `/api/docs`; 21 operations in all, and **every one of them is in the spec**.
+The seventeen endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/wallet-lookup` · `/api/hash-lookup` · `/api/pwned-password` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/notable-breaches` · `/api/datasets` · `/api/keys` · `/api/health` · `/api/version` · `/api/docs`; 22 operations in all, and **every one of them is in the spec**.
 
 The spec is generated at request time from a route registry (`src/lib/api/endpoints.ts`), not hand-written, and a test walks `src/app/api/**/route.ts` and fails the build if the registry and the actual routes disagree. Adding a route without documenting it is a red build, so the "import it into Postman" promise cannot quietly stop being true.
 
@@ -999,7 +999,7 @@ HEAVEN-GeoIntel/
 │   │   │   ├── bulk-lookup/route.ts     bulk phone (max 25)
 │   │   │   ├── cases/route.ts           persistent investigation cases (CRUD)
 │   │   │   ├── docs/route.ts            OpenAPI 3.1 spec
-│   │   │   └── health · keys · sources  liveness · API-key store · source registry
+│   │   │   └── health · version · keys · sources  liveness · update check · API-key store · source registry
 │   │   ├── layout.tsx · page.tsx · globals.css · not-found.tsx · robots.ts
 │   │   └── icon.svg · apple-icon.png · opengraph-image.png · favicon.ico · manifest.ts
 │   │
