@@ -48,6 +48,7 @@ import ThemeToggle from "@/components/shared/ThemeToggle";
 import EffectsToggle from "@/components/shared/EffectsToggle";
 import SourcesPanel from "@/components/shared/SourcesPanel";
 import NotableBreachesPanel from "@/components/shared/NotableBreachesPanel";
+import UpdateChecker from "@/components/shared/UpdateChecker";
 import HelpPopover from "@/components/shared/HelpPopover";
 import OpsecPanel from "@/components/shared/OpsecPanel";
 import CommandPalette from "@/components/shared/CommandPalette";
@@ -357,6 +358,7 @@ function PageContent() {
             <NotableBreachesPanel />
             <OpsecPanel />
             <HelpPopover />
+            <UpdateChecker />
             <EffectsToggle />
             <ThemeToggle />
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-[var(--hv-ink-dim)] font-mono">

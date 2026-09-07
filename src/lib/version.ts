@@ -47,3 +47,16 @@ export const APP_VERSION_BRANCH = APP_VERSION.split(".").slice(0, 2).join(".");
  * needs the patch level, and they bucket by product name, not by exact version.
  */
 export const USER_AGENT = `HEAVEN-GeoIntel/${APP_VERSION}`;
+
+/**
+ * Where this build's source lives, in one place.
+ *
+ * The update checker asks GitHub whether a newer release than `APP_VERSION`
+ * exists (server side, `src/lib/server/updateCheck.ts`), and the header badge
+ * links a user to the release page. Both derive from `REPO_SLUG` so the repo is
+ * named exactly once. The slug is public information — it is already printed in
+ * the README — so shipping it in the client bundle discloses nothing.
+ */
+export const REPO_SLUG = "nishu2402/HEAVEN-GeoIntel";
+export const REPO_URL = `https://github.com/${REPO_SLUG}`;
+export const RELEASES_URL = `${REPO_URL}/releases`;

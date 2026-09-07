@@ -28,6 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Update checker: "new version available" in the header.** A refresh button in
+  the header compares the running build against the latest release published on
+  the project's GitHub and lights an amber dot when a newer version exists.
+  Opening it shows the installed and latest versions with a link to the release
+  notes, and a "Check for updates" button that forces a fresh check. It is served
+  by a new `GET /api/version` endpoint that queries the GitHub Releases API,
+  caches the answer for an hour (so a busy instance makes at most one call an hour
+  and cannot exhaust the unauthenticated quota), and needs no API key. It is
+  conservative by design: a missing release, a rate limit or an offline host all
+  report "could not check" rather than a false alarm, and it only ever shows a
+  version GitHub actually returned. The last answer is cached in the browser for
+  six hours so the badge is present the instant the page loads.
 - **Universal file-metadata mode (formerly Image/EXIF).** The former image mode
   is now a keyless, in-browser metadata reader for any file, not just JPEG and
   PNG. It identifies about 70 formats from their actual bytes, so a mislabelled
