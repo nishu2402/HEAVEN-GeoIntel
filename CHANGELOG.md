@@ -83,10 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   machine and no key is needed. A cloud provider (OpenAI, Anthropic, Google Gemini,
   Groq, DeepSeek, Mistral or OpenRouter) is optional and set up entirely in the
   panel: paste the provider's key straight into the key field (a one-click link
-  opens the provider's key console, and the key can be remembered in this browser
-  so it survives a reload), or set it in the server environment instead. Either
-  way the key rides only in the request you trigger, going to your own relay,
-  which forwards it and never stores it on the server or writes it to the logs. A
+  opens the provider's key console), or set it in the server environment instead.
+  The pasted key is held in the tab for the session only and is never written to
+  disk, because a stored secret is a liability. Either way the key rides only in
+  the request you trigger, going to your own relay, which forwards it and never
+  stores it on the server or writes it to the logs. A
   disclosure states plainly, before the first run, that a cloud provider is the
   only feature that transmits a subject's data off the machine. The prompt hands
   the model only the grounded bundle and

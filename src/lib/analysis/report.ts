@@ -558,7 +558,11 @@ export function reportToText(m: ReportModel): string {
 // an input backslash-pipe into "\\|", where the doubled backslash is itself an
 // escaped backslash and the pipe reopens as a live table delimiter.
 const mdCell = (s: string) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Escapes the four characters that matter in both HTML text and a double-quoted
+// attribute value. The `"` escape is what keeps an interpolated href (or any
+// other `attr="${esc(x)}"`) from being broken out of its quotes.
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // GitHub-style heading anchor, so the Contents index and the printable HTML can
 // link straight to a section: lowercase, drop punctuation, spaces to hyphens.
