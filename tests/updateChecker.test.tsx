@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import UpdateChecker from "@/components/shared/UpdateChecker";
+import { resetUpdateStoreForTests } from "@/lib/update/updateStore";
 import { APP_VERSION } from "@/lib/version";
 import type { UpdateInfo } from "@/lib/update/semver";
 
@@ -11,7 +12,7 @@ import type { UpdateInfo } from "@/lib/update/semver";
 // drive every state, including the storage corners (fresh hydrate, stale, junk,
 // unwritable) that decide whether the badge is honest across reloads.
 
-// Keep in step with CACHE_KEY in UpdateChecker.tsx.
+// Keep in step with CACHE_KEY in updateStore.ts.
 const CACHE_KEY = "hv:update:v1";
 
 const info = (over: Partial<UpdateInfo> = {}): UpdateInfo => ({
@@ -39,8 +40,10 @@ function stubFetch(body: UpdateInfo | (() => Promise<Response>)) {
 const flush = async () => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
 const openPanel = () => fireEvent.click(screen.getByRole("button", { name: /software updates|update available/i }));
 
-beforeEach(() => { localStorage.clear(); });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear(); });
+// The check is a shared module-level store; reset it so one case's result and
+// its run-once latch never leak into the next.
+beforeEach(() => { localStorage.clear(); resetUpdateStoreForTests(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear(); resetUpdateStoreForTests(); });
 
 describe("<UpdateChecker>", () => {
   it("auto-checks on mount and flags a newer release with a link", async () => {
@@ -117,12 +120,24 @@ describe("<UpdateChecker>", () => {
     await flush();
     expect(calls).toEqual(["/api/version"]);
     cleanup();
+    resetUpdateStoreForTests(); // second render is a fresh page: clear the run-once latch
 
     localStorage.setItem(CACHE_KEY, JSON.stringify({ at: "wrong-type" })); // valid JSON, wrong shape
     stubFetch(info());
     render(<UpdateChecker />);
     await flush();
     expect(calls).toEqual(["/api/version"]);
+  });
+
+  it("checks anyway when localStorage cannot be read", async () => {
+    // A store that throws on read (some privacy modes) must fall through to a
+    // network check rather than crashing the bootstrap.
+    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("blocked"); });
+    stubFetch(info());
+    render(<UpdateChecker />);
+    await flush();
+    expect(calls).toEqual(["/api/version"]);
+    spy.mockRestore();
   });
 
   it("still renders when localStorage cannot be written", async () => {

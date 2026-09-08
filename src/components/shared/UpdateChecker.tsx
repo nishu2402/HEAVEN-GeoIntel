@@ -1,78 +1,28 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { RefreshCw, X, ArrowUpCircle, CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react";
 import { APP_VERSION } from "@/lib/version";
-import type { UpdateInfo } from "@/lib/update/semver";
+import { useUpdateCheck } from "@/lib/update/updateStore";
 
 /**
  * "New version available", the way a professional tool shows it.
  *
- * On load this asks `/api/version` — which compares the running build against
- * the latest GitHub release — and, if a newer release exists, lights an amber
- * dot on the header button. Opening the button shows the current and latest
- * versions with a link to the release, and a "Check for updates" button that
- * forces a fresh check.
+ * This is the header control. It reads the shared update check (see
+ * `updateStore`) — the very same result the top-of-page banner reads, so the two
+ * can never disagree — and, if a newer release exists, lights an amber dot on the
+ * button. Opening it shows the installed and latest versions with a link to the
+ * release, and a "Check for updates" button that forces a fresh check.
  *
- * The last answer is cached in localStorage for six hours so the badge is
- * present the instant the page loads and a reload does not re-hit the endpoint;
- * the server caps it at one GitHub call an hour regardless. Every storage access
- * is wrapped: a private-mode or blocked store simply means "check again", never
- * a crash. The component only ever reflects what the endpoint returned — it
- * shows an update only when one genuinely exists.
+ * The store caches the last answer in localStorage for six hours and caps the
+ * app at one GitHub call an hour regardless, so the badge is present the instant
+ * the page loads. The component only ever reflects what the endpoint returned —
+ * it shows an update only when one genuinely exists.
  */
-
-const CACHE_KEY = "hv:update:v1";
-const THROTTLE_MS = 6 * 60 * 60 * 1000; // 6h between automatic checks
-
-interface CachedCheck {
-  at: number;
-  info: UpdateInfo;
-}
-
-function readCache(): CachedCheck | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as CachedCheck;
-    if (parsed && typeof parsed.at === "number" && parsed.info) return parsed;
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 export default function UpdateChecker() {
   const [open, setOpen] = useState(false);
-  const [info, setInfo] = useState<UpdateInfo | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const check = useCallback((force: boolean) => {
-    setLoading(true);
-    setFailed(false);
-    fetch(force ? "/api/version?force=1" : "/api/version")
-      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-      .then((j: UpdateInfo) => {
-        setInfo(j);
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), info: j })); } catch { /* unwritable store: next load just checks again */ }
-      })
-      .catch(() => setFailed(true))
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Hydrate from a fresh cached answer so the badge is present immediately,
-  // otherwise ask the endpoint.
-  const bootstrap = useCallback(() => {
-    const cached = readCache();
-    if (cached && Date.now() - cached.at < THROTTLE_MS) setInfo(cached.info);
-    else check(false);
-  }, [check]);
-
-  // Run the check once on mount. A fetch-on-mount side effect is exactly what an
-  // effect is for; the synchronous setState inside is what the rule flags.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { bootstrap(); }, [bootstrap]);
+  const { info, loading, failed, check } = useUpdateCheck();
 
   const updateAvailable = info?.ok === true && info.updateAvailable;
 

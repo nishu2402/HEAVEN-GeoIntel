@@ -9,6 +9,7 @@ import { domainToIpPivot } from "@/lib/analysis/crossPivots";
 import Tilt3D from "@/components/shared/Tilt3D";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import CopyButton from "@/components/shared/CopyButton";
 import Term from "@/components/shared/Term";
 import HttpPosturePanel, { GRADE_COLOR } from "./HttpPosturePanel";
 import EmailPermutations from "./EmailPermutations";
@@ -81,7 +82,10 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
             <div className="flex items-center gap-3">
               <Globe className="w-8 h-8 text-[var(--hv-cyan)]" />
               <div>
-                <div className="text-2xl font-bold gradient-text tracking-wider font-mono">{data.domain}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-2xl font-bold gradient-text tracking-wider font-mono">{data.domain}</span>
+                  <CopyButton text={data.domain} ariaLabel="Copy domain" className="shrink-0 p-1 rounded text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:bg-[var(--hv-glass-border)]/40 transition-colors" />
+                </div>
                 <div className="text-sm text-[var(--hv-ink-dim)] font-mono mt-0.5">
                   {dns.a.length} A · {dns.mx.length} MX · {dns.ns.length} NS · {subdomains.length} subdomains
                 </div>

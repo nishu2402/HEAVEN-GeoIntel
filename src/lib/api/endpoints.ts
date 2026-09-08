@@ -360,6 +360,24 @@ export const ENDPOINTS: EndpointDef[] = [
     tag: "config",
     responseDescription: "`{ source, version, count, breaches }`, largest first.",
   },
+  {
+    path: "/api/ai-analyst",
+    method: "post",
+    summary: "Optional AI-analyst relay (Ollama or bring-your-own cloud key)",
+    description:
+      "Forwards a strictly grounded prompt, built by the browser from a finished analysis, to a language model and returns the raw completion. The default provider is a local Ollama server, so nothing leaves the machine; a cloud provider is opt-in. Its key is supplied either in the panel with this request (used once, never stored or logged) or from the server environment (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / DEEPSEEK_API_KEY / MISTRAL_API_KEY / OPENROUTER_API_KEY). The audit records the provider name only, never the prompt, the subject, or the key. The client re-validates every identifier the model emits before rendering it, so a hallucinated value is surfaced as unverified rather than trusted.",
+    tag: "config",
+    rateLimited: true,
+    body: [
+      { name: "provider", type: "string", required: true, enum: ["ollama", "openai", "anthropic", "gemini", "groq", "deepseek", "mistral", "openrouter"], description: "Which model backend to use.", example: "ollama" },
+      { name: "model", type: "string", required: true, description: "Model name for the chosen provider.", example: "llama3.2" },
+      { name: "system", type: "string", required: true, description: "The grounding system prompt built client-side." },
+      { name: "user", type: "string", required: true, description: "The serialised evidence bundle built client-side." },
+      { name: "apiKey", type: "string", required: false, description: "Optional bring-your-own key for the chosen cloud provider, entered in the panel. Sent only in this request body, used once, never stored or logged; falls back to the server env key when omitted. Ignored for Ollama." },
+    ],
+    responseDescription: "`{ text }`: the model's raw completion, validated and narrated on the client.",
+    errors: [{ status: 502, description: "The provider is not configured, was unreachable, or returned an empty response." }],
+  },
 
   // ── Meta ───────────────────────────────────────────────────────────────────
   {

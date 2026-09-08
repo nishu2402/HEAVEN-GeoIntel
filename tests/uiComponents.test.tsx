@@ -148,6 +148,13 @@ describe("<CommandPalette> routing", () => {
     fireEvent.click(within(group).getByText(/^email$/i));
     expect(onMode).toHaveBeenCalledWith("email");
   });
+
+  it("opens AI text intel (graph mode) from the AI group", () => {
+    const { onMode } = renderPalette();
+    fireEvent.click(screen.getByRole("button", { name: /open command palette/i }));
+    fireEvent.click(screen.getByText(/AI text intel/i));
+    expect(onMode).toHaveBeenCalledWith("graph");
+  });
 });
 
 describe("<AddToCase> (pin an identifier to a case)", () => {

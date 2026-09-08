@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Command } from "cmdk";
 import {
   Search, Smartphone, Mail, AtSign, Network, Globe, Layers, Share2, FolderOpen,
-  Sun, Moon, CornerDownLeft, FileSearch, Wallet, Fingerprint,
+  Sun, Moon, CornerDownLeft, FileSearch, Wallet, Fingerprint, ScanText,
 } from "lucide-react";
 import { MODES, modeName, detectMode, type Mode } from "@/lib/client/modes";
 import { useTheme } from "./ThemeProvider";
@@ -130,6 +130,17 @@ export default function CommandPalette({ onMode, onQuickLookup }: Props) {
                     <span className="normal-case">{modeName(m)}</span>
                   </Command.Item>
                 ))}
+              </Command.Group>
+
+              <Command.Group heading="AI" className="text-[10px] uppercase tracking-widest text-[var(--hv-ink-dim)] px-2 py-1">
+                <Command.Item
+                  value="ai text intel extract entities"
+                  onSelect={() => run(() => onMode("graph"))}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-mono text-[var(--hv-ink)] cursor-pointer data-[selected=true]:bg-[var(--hv-cyan)]/12 data-[selected=true]:text-[var(--hv-cyan)]"
+                >
+                  <ScanText className="w-4 h-4" />
+                  <span className="normal-case">AI text intel</span>
+                </Command.Item>
               </Command.Group>
 
               <Command.Group heading="Appearance" className="text-[10px] uppercase tracking-widest text-[var(--hv-ink-dim)] px-2 py-1">

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import {
-  Phone, Copy, Download, Activity,
+  Phone, Download, Activity,
 } from "lucide-react";
 import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
 import type { LookupResponse } from "@/lib/types";
@@ -25,21 +25,19 @@ import LeakCheckPanel         from "@/components/breach/LeakCheckPanel";
 import BreachAggregatePanel  from "@/components/breach/BreachAggregatePanel";
 import CredentialExposurePanel from "@/components/breach/CredentialExposurePanel";
 import ShareButton           from "@/components/shared/ShareButton";
-import ReportExport          from "@/components/shared/ReportExport";
+import UniversalReportExport from "@/components/shared/UniversalReportExport";
+import { buildPhoneReport }  from "@/lib/analysis/report";
 import PanelErrorBoundary    from "@/components/shared/PanelErrorBoundary";
 import Term                  from "@/components/shared/Term";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
-import { cn, copyText } from "@/lib/utils";
+import CopyButton            from "@/components/shared/CopyButton";
+import { cn } from "@/lib/utils";
 
 interface Props {
   data: LookupResponse;
   /** Cross-tool pivots on FullContact-discovered identities. */
   onUsernameSweep?: (handle: string) => void;
   onEmailLookup?: (email: string) => void;
-}
-
-function copyToClipboard(text: string) {
-  void copyText(text);
 }
 
 function downloadJson(data: LookupResponse) {
@@ -194,18 +192,18 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
 
         {/* Action buttons */}
         <div className="flex gap-2 flex-wrap pt-1 border-t border-[#00ff41]/10">
-          <button
-            onClick={() => copyToClipboard(input.e164)}
+          <CopyButton
+            text={input.e164}
+            label="COPY E.164"
+            ariaLabel="Copy E.164"
             className="flex items-center gap-1.5 text-xs border border-[#00ff41]/30 px-3 py-1.5 text-[#00ff41]/70 hover:text-[#00ff41] hover:border-[#00ff41]/60 transition-colors font-mono"
-          >
-            <Copy className="w-3 h-3" /> COPY E.164
-          </button>
-          <button
-            onClick={() => copyToClipboard(aggregated.formatInternational)}
+          />
+          <CopyButton
+            text={aggregated.formatInternational}
+            label="COPY INTL"
+            ariaLabel="Copy INTL"
             className="flex items-center gap-1.5 text-xs border border-[#00ff41]/30 px-3 py-1.5 text-[#00ff41]/70 hover:text-[#00ff41] hover:border-[#00ff41]/60 transition-colors font-mono"
-          >
-            <Copy className="w-3 h-3" /> COPY INTL
-          </button>
+          />
           <button
             onClick={() => downloadJson(data)}
             className="flex items-center gap-1.5 text-xs border border-[#00d9ff]/30 px-3 py-1.5 text-[#00d9ff]/70 hover:text-[#00d9ff] hover:border-[#00d9ff]/60 transition-colors font-mono"
@@ -213,7 +211,7 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
             <Download className="w-3 h-3" /> EXPORT JSON
           </button>
           <ShareButton e164={input.e164} />
-          <ReportExport data={data} />
+          <UniversalReportExport model={buildPhoneReport(data)} />
         </div>
 
         {/* Data source status strip */}

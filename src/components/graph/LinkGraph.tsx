@@ -234,7 +234,12 @@ export default function LinkGraph({ entities, links, title = "INVESTIGATION GRAP
 
       {editable && (
         <div className="text-[11px] font-mono text-[var(--hv-ink-dim)]">
-          Click a node to relabel, change its type, or remove it. Add new nodes below.
+          {entities.length === 0
+            // Empty + editable renders the bare canvas and the add form, so the
+            // "click a node" hint would point at nodes that do not exist yet.
+            // Tell a first-time user how identifiers actually get here instead.
+            ? "Empty graph. Run any lookup, or add a node below, to start mapping how identifiers connect."
+            : "Click a node to relabel, change its type, or remove it. Add new nodes below."}
         </div>
       )}
 
