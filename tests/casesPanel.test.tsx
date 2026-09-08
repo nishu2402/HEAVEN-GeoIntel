@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, cleanup, act, within } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, act, within, waitFor } from "@testing-library/react";
 import CasesPanel from "@/components/cases/CasesPanel";
 import { buildCaseJson } from "@/lib/analysis/caseReport";
 import { mergeCaseInto } from "@/lib/analysis/caseMerge";
@@ -145,15 +145,20 @@ const click = async (el: Element) => { await act(async () => { fireEvent.click(e
 const btn = (name: RegExp | string) => screen.getByRole("button", { name });
 const typeIn = (el: Element, value: string) => fireEvent.change(el, { target: { value } });
 
-/** Import chains Blob.text() → crypto.subtle.digest(), which settle on macrotasks. */
-const settle = async () => {
-  for (let i = 0; i < 3; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-};
+// Import is the one handler the test cannot await: `onImportFile` is an async
+// change listener, and its chain (Blob.text() → crypto.subtle.digest() → POST)
+// resolves over several event-loop turns whose count is not fixed — digest runs
+// on libuv's threadpool, so a loaded machine can need more turns than an idle
+// one. This used to spin a hardcoded three turns and then assert, which passed
+// on an idle laptop and failed on a busy CI runner (v3.1.0's release gate, on a
+// commit whose `main` CI had just gone green). So this only dispatches the
+// event; every caller waits for the OUTCOME it expects — `findByText` for a
+// flash, `waitFor` for the confirm prompt — which takes exactly as long as the
+// machine needs and no longer.
 const importFile = async (text: string) => {
   const input = document.querySelector('input[type="file"]')!;
   const file = new File([text], "case.json", { type: "application/json" });
   await act(async () => { fireEvent.change(input, { target: { files: [file] } }); });
-  await settle();
 };
 
 describe("<CasesPanel> loading + list", () => {
@@ -460,12 +465,22 @@ describe("<CasesPanel> exports", () => {
     await withCase();
     // JSON + Markdown exports are async (they hash the payload); the rest are
     // sync, so assert on the set of filenames, not the click order.
-    for (const label of [/^json$/i, /^report$/i, /^csv$/i, /^stix$/i, /^maltego$/i]) await click(btn(label));
-    await settle(); // let the async JSON + Markdown exports finish hashing
+    // Order matters for the flash, so make it deterministic instead of hoping.
+    // JSON and Markdown hash the payload before writing, so they land a few
+    // event-loop turns after their click; the other three are synchronous. Let
+    // the async pair finish FIRST — otherwise, on a machine slow enough for the
+    // hash to outlast the remaining clicks, they ping their own message after
+    // Maltego's and the last flash is whichever hash happened to win.
+    for (const label of [/^json$/i, /^report$/i]) await click(btn(label));
+    await waitFor(() => expect(downloads).toHaveLength(2));
+    for (const label of [/^csv$/i, /^stix$/i, /^maltego$/i]) await click(btn(label));
+    expect(downloads).toHaveLength(5);
     expect(downloads.map((d) => d.download.replace(/-\d+\./, ".")).sort()).toEqual([
       "case-acme-phishing.csv", "case-acme-phishing.json", "case-acme-phishing.maltego.csv",
       "case-acme-phishing.md", "case-acme-phishing.stix.json",
     ]);
+    // downloadFile revokes in the same breath as the click, so five files is
+    // five revocations.
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(5);
     expect(screen.getByText(/maltego csv exported/i)).toBeTruthy();
   });
@@ -480,14 +495,15 @@ describe("<CasesPanel> exports", () => {
   it("opens a printable report, and reports a blocked pop-up", async () => {
     await withCase();
     await click(btn(/print\/pdf/i));
-    await settle(); // buildPrintableHtml hashes the payload before window.open
+    // buildPrintableHtml hashes the payload before window.open, so wait for the
+    // window rather than for a guessed number of turns.
+    await waitFor(() => expect(opened).not.toBeNull());
     expect(opened!.html).toContain("HEAVEN-GeoIntel: Acme phishing");
-    expect(screen.getByText(/opening printable report/i)).toBeTruthy();
+    expect(await screen.findByText(/opening printable report/i)).toBeTruthy();
 
     popupBlocked = true;
     await click(btn(/print\/pdf/i));
-    await settle();
-    expect(screen.getByText(/pop-up blocked/i)).toBeTruthy();
+    expect(await screen.findByText(/pop-up blocked/i)).toBeTruthy();
   });
 
   it("clears the flash message after its timeout", async () => {
@@ -526,21 +542,21 @@ describe("<CasesPanel> import", () => {
   it("reports a file that is not a case report", async () => {
     await mount();
     await importFile("{}");
-    expect(screen.getByText(/not a heaven-geointel case report/i)).toBeTruthy();
+    expect(await screen.findByText(/not a heaven-geointel case report/i)).toBeTruthy();
     expect(store).toHaveLength(0);
   });
 
   it("reports a file that is not even JSON", async () => {
     await mount();
     await importFile("<<<nope>>>");
-    expect(screen.getByText(/not valid json/i)).toBeTruthy();
+    expect(await screen.findByText(/not valid json/i)).toBeTruthy();
   });
 
   it("imports a hash-matched report and calls it verified: without prompting", async () => {
     await mount();
     await importFile(await exported());
+    expect(await screen.findByText(/imported: integrity verified/i)).toBeTruthy();
     expect(window.confirm).not.toHaveBeenCalled();
-    expect(screen.getByText(/imported: integrity verified/i)).toBeTruthy();
     expect(store[0]!.entities).toHaveLength(1);
   });
 
@@ -552,14 +568,16 @@ describe("<CasesPanel> import", () => {
 
     confirmReply = false; // decline → no import at all
     await importFile(text);
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/no integrity hash/i));
+    // Declining ends the handler synchronously, so once the prompt has been put
+    // up the store is already final.
+    await waitFor(() => expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/no integrity hash/i)));
     expect(store).toHaveLength(0);
 
     confirmReply = true;
     await importFile(text);
     // The regression: this used to announce "Imported — integrity verified" for a
     // report that carried no hash to verify against.
-    expect(screen.getByText(/imported: unverified \(no integrity hash\)/i)).toBeTruthy();
+    expect(await screen.findByText(/imported: unverified \(no integrity hash\)/i)).toBeTruthy();
     expect(store).toHaveLength(1);
   });
 
@@ -571,12 +589,12 @@ describe("<CasesPanel> import", () => {
 
     confirmReply = false;
     await importFile(text);
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/does NOT match/i));
+    await waitFor(() => expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/does NOT match/i)));
     expect(store).toHaveLength(0);
 
     confirmReply = true;
     await importFile(text);
-    expect(screen.getByText(/imported: hash mismatch/i)).toBeTruthy();
+    expect(await screen.findByText(/imported: hash mismatch/i)).toBeTruthy();
   });
 
   it("survives a report whose entities are malformed rather than failing silently", async () => {
@@ -585,7 +603,7 @@ describe("<CasesPanel> import", () => {
     env.case.entities = [null, { kind: "bogus" }, { kind: "ip", value: "8.8.8.8" }];
     confirmReply = true; // repaired payload no longer matches the hash → prompts
     await importFile(JSON.stringify(env));
-    expect(screen.getByText(/imported: hash mismatch/i)).toBeTruthy();
+    expect(await screen.findByText(/imported: hash mismatch/i)).toBeTruthy();
     expect(store[0]!.entities).toHaveLength(1);
   });
 
@@ -594,7 +612,9 @@ describe("<CasesPanel> import", () => {
     const text = await exported();
     postError = "Request failed";
     await importFile(text);
-    expect(screen.getByText("Request failed")).toBeTruthy();
+    expect(await screen.findByText("Request failed")).toBeTruthy();
+    // The handler returns at `if (!j.case)`, so nothing can select a case after
+    // this point — the flash is the end of the chain, not a step in it.
     expect(screen.queryByText(/analyst notes/i)).toBeNull();
   });
 });
