@@ -60,6 +60,8 @@ describe("<LinkGraph> editable", () => {
     const onChange = vi.fn();
     render(<LinkGraph entities={[]} onChange={onChange} />);
     expect(screen.getByText(/editable/i)).toBeTruthy();
+    // Empty + editable shows first-run guidance, not the "click a node" hint.
+    expect(screen.getByText(/empty graph\. run any lookup/i)).toBeTruthy();
     // change the add-form kind select, then add a node of that kind
     fireEvent.change(screen.getByLabelText("New node type"), { target: { value: "domain" } });
     const input = screen.getByPlaceholderText(/add a node/i);
@@ -71,6 +73,8 @@ describe("<LinkGraph> editable", () => {
   it("ignores an empty add and a duplicate add (clearing the field)", () => {
     const onChange = vi.fn();
     render(<LinkGraph entities={[{ kind: "phone", value: "+1" }]} onChange={onChange} />);
+    // With nodes present, the editable hint switches to the relabel instructions.
+    expect(screen.getByText(/click a node to relabel/i)).toBeTruthy();
     const input = screen.getByPlaceholderText(/add a node/i) as HTMLInputElement;
     // a non-Enter keydown does not submit
     fireEvent.change(input, { target: { value: "x" } });

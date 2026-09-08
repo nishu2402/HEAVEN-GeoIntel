@@ -81,7 +81,13 @@ export default function MatrixRain() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
+      // w-full/h-full pin the LAYOUT size to the viewport (100% of the fixed
+      // containing block). Without them a canvas lays out at its width/height
+      // ATTRIBUTE — which tracks the drawing buffer — so on a narrow screen the
+      // buffer being a few px wider than the viewport pushed the body into a
+      // horizontal scroll (and fed back into an ever-wider buffer). The buffer
+      // stays full-resolution; only the on-screen box is clamped.
+      className="fixed inset-0 w-full h-full pointer-events-none z-0"
       style={{ opacity: 0.07 }}
       aria-hidden="true"
     />

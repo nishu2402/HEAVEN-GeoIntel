@@ -71,9 +71,10 @@ describe("<UsernameResultsDashboard>", () => {
     expect(screen.queryByText("dead.site")).toBeNull();
   });
 
-  it("copies a CLI command, flips the button to COPIED, then reverts", async () => {
+  it("copies a CLI command via the shared CopyButton, flips to COPIED, then reverts", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    Object.defineProperty(window, "isSecureContext", { value: true, configurable: true });
     vi.useFakeTimers();
     try {
       render(<UsernameResultsDashboard data={resp()} />);
@@ -84,15 +85,6 @@ describe("<UsernameResultsDashboard>", () => {
       act(() => { vi.advanceTimersByTime(1600); });
       expect(within(copyBtn).getByText("COPY")).toBeTruthy();   // reverted
     } finally { vi.runOnlyPendingTimers(); vi.useRealTimers(); }
-  });
-
-  it("swallows a clipboard rejection without flipping to COPIED", async () => {
-    const writeText = vi.fn().mockRejectedValue(new Error("blocked"));
-    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    render(<UsernameResultsDashboard data={resp()} />);
-    const copyBtn = screen.getByRole("button", { name: /copy maigret neo/i });
-    await act(async () => { fireEvent.click(copyBtn); });
-    expect(within(copyBtn).getByText("COPY")).toBeTruthy(); // stayed on COPY
   });
 
   it("uses singular 'account' wording and no rich-profile clause for a lone hit", () => {

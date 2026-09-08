@@ -295,301 +295,56 @@ describe("<EmailResultsDashboard> reputation / validation panels", () => {
   });
 });
 
-describe("<EmailResultsDashboard> report export", () => {
-  const capture = () => {
-    let text = "";
-    const realBlob = globalThis.Blob;
-    vi.stubGlobal("Blob", class extends realBlob {
-      constructor(parts: BlobPart[], opts?: BlobPropertyBag) { super(parts, opts); text = parts.map(String).join(""); }
-    });
-    const realCreate = URL.createObjectURL, realRevoke = URL.revokeObjectURL;
-    URL.createObjectURL = vi.fn(() => "blob:x");
-    URL.revokeObjectURL = vi.fn();
-    let name = "";
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { if (this.download) name = this.download; });
-    return { get text() { return text; }, get name() { return name; }, restore: () => { URL.createObjectURL = realCreate; URL.revokeObjectURL = realRevoke; } };
-  };
-
-  it("exports a full report when every source has data", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        xon: okS(xonD()), breachDirectory: okS({ found: 1, fields: ["password"], sources: ["LinkedIn"],
-          results: [{ password: "pa**", sha1: "abc", hash: "def", sources: ["LinkedIn"] }] }),
-        fullContact: okS(fc()), gravatar: gravatar({ found: true, displayName: "Ada", accounts: [{ shortname: "gh", username: "ada", url: "u" }] }),
-        emailrep: okS(rep()), abstract: okS(abstract()), hunter: okS(hunter()),
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.name).toMatch(/^email_intel_ada\.lovelace_at_gmail\.com_\d+\.txt$/);
-      expect(cap.text).toContain("Email Intelligence Report");
-      expect(cap.text).toContain("UNIFIED BREACH VIEW: all sources merged");
-      expect(cap.text).toContain("Unique Breaches : 1");
-      expect(cap.text).toContain("BREACH LIST:");
-      expect(cap.text).toContain("CREDENTIAL LIST:");
-      expect(cap.text).toContain("Full Name       : Ada Lovelace");
-      expect(cap.text).toContain("[CURRENT] Acme: Analyst");
-      expect(cap.text).toContain("REPUTATION: EmailRep.io");
-    } finally { cap.restore(); }
+describe("<EmailResultsDashboard> unified breach + export", () => {
+  it("uses the server's enriched union and credential exposure in the panels", () => {
+    render(<EmailResultsDashboard data={data({
+      leakCheck: okS({ found: 2, fields: ["password"], sources: [
+        { name: "Adobe", date: "2013-10-04" }, { name: "Canva", date: "2019-05-24" },
+      ] }),
+      breachAggregate: {
+        breaches: [
+          { name: "Canva", key: "canva", domain: "canva.com", date: "2019-05-24",
+            dataClasses: ["Passwords", "Email addresses"], records: 137_000_000,
+            password: true, verified: true, reportedBy: ["LeakCheck"], enriched: true },
+          { name: "Adobe", key: "adobe", domain: "adobe.com", date: "2013-10-04",
+            dataClasses: ["Passwords"], records: 152_000_000,
+            password: true, verified: true, reportedBy: ["LeakCheck"], enriched: true },
+        ],
+        total: 2, sourcesReporting: ["LeakCheck"], sourcesAnswered: ["LeakCheck"],
+        withPassword: 2, verified: 2, dataClasses: ["Passwords", "Email addresses"],
+        firstBreach: "2013-10-04", lastBreach: "2019-05-24",
+        timeline: [{ year: "2013", count: 1 }, { year: "2019", count: 1 }],
+        enrichedCount: 2, passwordFieldsSeen: false,
+      },
+      credentialExposure: {
+        distinctPasswords: 2, pairs: 5, capped: true, samples: ["h*****2"],
+        passwordBreaches: 2, stealerLogs: 3, stealerPasswords: 2, exposed: true, reuse: "likely",
+      },
+    })} />);
+    // The dashboard prefers the server union + credential-exposure over a recompute.
+    expect(screen.getByText(/2 BREACHES/)).toBeTruthy();
+    expect(screen.getByText(/Breach timeline/)).toBeTruthy();
+    expect(screen.getByText("PASSWORD REUSE LIKELY")).toBeTruthy();
+    expect(screen.getByText("h*****2")).toBeTruthy();
+    expect(screen.getByText(/3 infostealer logs captured 2 distinct passwords/)).toBeTruthy();
   });
 
-  it("uses the server's enriched union + credential exposure in the panel and the report", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        leakCheck: okS({ found: 2, fields: ["password"], sources: [
-          { name: "Adobe", date: "2013-10-04" }, { name: "Canva", date: "2019-05-24" },
-        ] }),
-        breachAggregate: {
-          breaches: [
-            { name: "Canva", key: "canva", domain: "canva.com", date: "2019-05-24",
-              dataClasses: ["Passwords", "Email addresses"], records: 137_000_000,
-              password: true, verified: true, reportedBy: ["LeakCheck"], enriched: true },
-            { name: "Adobe", key: "adobe", domain: "adobe.com", date: "2013-10-04",
-              dataClasses: ["Passwords"], records: 152_000_000,
-              password: true, verified: true, reportedBy: ["LeakCheck"], enriched: true },
-          ],
-          total: 2, sourcesReporting: ["LeakCheck"], sourcesAnswered: ["LeakCheck"],
-          withPassword: 2, verified: 2, dataClasses: ["Passwords", "Email addresses"],
-          firstBreach: "2013-10-04", lastBreach: "2019-05-24",
-          timeline: [{ year: "2013", count: 1 }, { year: "2019", count: 1 }],
-          enrichedCount: 2, passwordFieldsSeen: false,
-        },
-        credentialExposure: {
-          distinctPasswords: 2, pairs: 5, capped: true, samples: ["h*****2"],
-          passwordBreaches: 2, stealerLogs: 3, stealerPasswords: 2, exposed: true, reuse: "likely",
-        },
-      })} />);
-      // Panel: server union (with the timeline) + credential-reuse verdict.
-      expect(screen.getByText(/2 BREACHES/)).toBeTruthy();
-      expect(screen.getByText(/Breach timeline/)).toBeTruthy();
-      expect(screen.getByText("PASSWORD REUSE LIKELY")).toBeTruthy();
-      expect(screen.getByText("h*****2")).toBeTruthy();
-      expect(screen.getByText(/3 infostealer logs captured 2 distinct passwords/)).toBeTruthy();
-      // Report: the same numbers, from the server's aggregate, not a recompute.
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.text).toContain("Unique Breaches : 2");
-      expect(cap.text).toContain("Catalog Enriched: 2 (HIBP offline catalog)");
-      expect(cap.text).toContain("Assessment      : PASSWORD REUSE LIKELY");
-      expect(cap.text).toContain("Leaked Passwords : at least 2 distinct (5 pairs, masked)");
-      expect(cap.text).toContain("Stealer Captures : 2 distinct across 3 infostealer logs (masked)");
-    } finally { cap.restore(); }
+  it("offers the uniform report export control every mode shares", () => {
+    render(<EmailResultsDashboard data={data({ xon: okS(xonD()) })} />);
+    // The bespoke email report is gone; the shared four-format exporter replaces it.
+    expect(screen.getByText("Markdown")).toBeTruthy();
+    expect(screen.getByText("STIX 2.1")).toBeTruthy();
   });
 
-  it("reports an exact leaked-password count when the source did not truncate", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        credentialExposure: {
-          distinctPasswords: 3, pairs: 4, capped: false, samples: ["a***e"],
-          passwordBreaches: 1, stealerLogs: 0, stealerPasswords: 0, exposed: true, reuse: "exposed",
-        },
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.text).toContain("Assessment      : PASSWORD EXPOSED");
-      expect(cap.text).toContain("Leaked Passwords : 3 distinct (4 pairs, masked)"); // no "at least"
-      expect(cap.text).not.toContain("Stealer Captures");                            // none captured
-    } finally { cap.restore(); }
-  });
-
-  it("exports the keyless Hudson Rock and LeakCheck sections in full", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        hudsonRock: okS({ total: 2, stealers: [
-          { computerName: "DESKTOP-1", operatingSystem: "Windows 11", malwareFamily: "Acreed",
-            dateCompromised: "2026-07-25T00:00:00Z", ip: "8.8.8.8",
-            topPasswords: ["p***d"], topLogins: ["a@b.com"] },
-          { computerName: null, operatingSystem: null, malwareFamily: null,
-            dateCompromised: null, ip: null, topPasswords: [], topLogins: [] },
-        ] }),
-        leakCheck: okS({ found: 12, fields: ["password", "phone"], sources: [
-          { name: "Trello.com", date: "2024-01" }, { name: "Vivagames.com", date: null },
-        ] }),
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.text).toContain("INFOSTEALER EXPOSURE: Hudson Rock (free, no key)");
-      expect(cap.text).toContain("Infections      : 2");
-      expect(cap.text).toContain("Malware  : Acreed");
-      expect(cap.text).toContain("IP       : 8.8.8.8");
-      expect(cap.text).toContain("Logins   : a@b.com");
-      // The second stealer has no detail fields — its optional lines vanish
-      // rather than printing "Malware  : null".
-      expect(cap.text).toContain("[2] Malware  : unknown");
-      expect(cap.text).toContain("PUBLIC BREACH INDEX: LeakCheck (free, no key)");
-      expect(cap.text).toContain("Records         : 12");
-      expect(cap.text).toContain("Exposed Fields  : password, phone");
-      expect(cap.text).toContain("Trello.com (2024-01), Vivagames.com");
-    } finally { cap.restore(); }
-  });
-
-  it("exports the clean and failed states for the keyless sources", () => {
-    const cap = capture();
-    try {
-      const { unmount } = render(<EmailResultsDashboard data={data({
-        hudsonRock: okS({ total: 0, stealers: [] }),
-        leakCheck: okS({ found: 0, fields: [], sources: [] }),
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.text).toContain("Result          : CLEAN: no infostealer infections recorded");
-      expect(cap.text).toContain("Result          : NOT INDEXED: no breach records for this address");
-      unmount();
-
-      const { unmount: unmount2 } = render(<EmailResultsDashboard data={data({
-        hudsonRock: { ok: false },
-        leakCheck: { ok: false, error: "RATE_LIMITED" },
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      // Both fall back to N/A when a source failed without naming a reason.
-      expect(cap.text).toContain("Status          : N/A");
-      expect(cap.text).toContain("Status          : RATE_LIMITED");
-      unmount2();
-
-      render(<EmailResultsDashboard data={data({
-        hudsonRock: { ok: false, error: "RATE_LIMITED" },
-        leakCheck: { ok: false },
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.text).toContain("Status          : RATE_LIMITED");
-      expect(cap.text).toContain("Status          : N/A");
-    } finally { cap.restore(); }
-  });
-
-  it("prints N/A for a LeakCheck hit that named no fields or breaches", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        leakCheck: okS({ found: 4, fields: [], sources: [] }),
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.text).toContain("Exposed Fields  : N/A");
-      expect(cap.text).toContain("Named Breaches  : N/A");
-    } finally { cap.restore(); }
-  });
-
-  it("prints the unified breach total but omits exposed types when none are known", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        leakCheck: okS({ found: 5, fields: [], sources: [
-          { name: "Foo.com", date: "2020-01" }, { name: "Bar.net", date: null },
-        ] }),
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.text).toContain("UNIFIED BREACH VIEW: all sources merged");
-      expect(cap.text).toContain("Unique Breaches : 2");
-      expect(cap.text).toContain("Sources         : LeakCheck");
-      expect(cap.text).not.toContain("Exposed Types");
-    } finally { cap.restore(); }
-  });
-
-  it("exports the not-configured / clean fallbacks when sources are empty", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        xon: okS(xonD({ breachCount: 0, breaches: [], xposedDataTypes: [] })), // CLEAN
-        breachDirectory: off(), fullContact: { ok: false, error: "NOT_FOUND" },
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      expect(cap.text).toContain("CLEAN: no breaches found");
-      expect(cap.text).toContain("NOT CONFIGURED: add RAPIDAPI_KEY");
-      expect(cap.text).toContain("No record found for this email");
-    } finally { cap.restore(); }
-  });
-
-  it("exports the opposite polarity of every field and sorts multiple breaches", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        analysis: analysis({ isDisposable: true, isPrivacyFocused: true, isRoleAddress: true, guessedName: null,
-          providerType: "disposable", providerName: "Mailinator" }),
-        // two breaches → the sort comparator runs; one with an empty domain + verified:false
-        xon: okS(xonD({ breachCount: 2, breaches: [
-          { breach: "Older", xposedData: ["Passwords"], xposedDate: "2011-01-01", xposedRecords: 5, domain: "", passwordRisk: "StrongHash", verified: false },
-          { breach: "Newer", xposedData: ["Email addresses"], xposedDate: "2020-01-01", xposedRecords: 9, domain: "n.com", passwordRisk: "Unknown", verified: true },
-        ] })),
-        // credential entry with all hash fields empty → the r.password/sha1/hash falsy arms
-        breachDirectory: okS({ found: 1, fields: [], sources: ["X"], results: [{ password: "", sha1: "", hash: "", sources: [] }] }),
-        // fullContact present but every optional field null/empty → all "?? N/A" + empty-collection arms
-        fullContact: okS(fc({ fullName: null, title: null, organization: null, location: null, age: null, gender: null,
-          bio: null, profiles: [], otherEmails: [], phones: [], employment: [] })),
-        gravatar: gravatar({ found: true, displayName: null, preferredUsername: null, currentLocation: null,
-          aboutMe: null, profileUrl: null, accounts: [] }),
-        emailrep: okS(rep({ suspicious: true, credentialsLeaked: true, dataBreach: true, maliciousActivity: true,
-          spam: true, deliverable: false, firstSeen: null, lastSeen: null, profiles: [] })),
-        abstract: okS(abstract({ isSmtpValid: false, isMxFound: false })),
-        hunter: okS(hunter({ smtpCheck: false })),
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      const t = cap.text;
-      expect(t).toContain("Disposable      : YES");
-      expect(t).toContain("Privacy Provider: YES");
-      expect(t).toContain("Role Address    : YES");
-      expect(t).toContain("Guessed Name    : N/A");
-      expect(t).toContain("Full Name       : N/A");        // fc null fields
-      expect(t).toContain("Credentials Leaked: YES: CRITICAL");
-      expect(t.indexOf("Newer")).toBeLessThan(t.indexOf("Older")); // sorted newest-first
-      expect(t).toContain("Linked Accounts : None");        // empty gravatar accounts
-    } finally { cap.restore(); }
-  });
-
-  it("exports the error-state status lines when sources failed with a message", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        xon: { ok: false, error: "boom" },                    // Total Breaches N/A + Result: boom
-        breachDirectory: { ok: true, data: { found: 0, fields: [], sources: [], results: [] } }, // CLEAN: no credentials
-        fullContact: { ok: false, error: "weird" },           // generic FC error
-        emailrep: { ok: false, error: "rep-down" },
-        abstract: { ok: false, error: "abs-down" },
-        hunter: { ok: false, error: "hun-down" },
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      const t = cap.text;
-      expect(t).toContain("Total Breaches  : N/A");
-      expect(t).toContain("Result          : boom");
-      expect(t).toContain("CLEAN: no credentials found in BreachDirectory");
-      expect(t).toContain("IDENTITY: FullContact Person Enrichment");
-      expect(t).toMatch(/Status          : weird/);          // FC generic error ?? N/A
-      expect(t).toMatch(/Status          : rep-down/);
-      expect(t).toMatch(/Status          : abs-down/);
-      expect(t).toMatch(/Status          : hun-down/);
-    } finally { cap.restore(); }
-  });
-
-  it("exports N/A / No-data fallbacks when sources failed without a message", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        xon: { ok: false },                                   // Result: N/A
-        breachDirectory: { ok: false, error: "unlabeled" },   // BD generic error ?? N/A
-        fullContact: { ok: false },                           // FC N/A
-        emailrep: { ok: true, data: undefined } as never,     // emailrep.ok but no data → "No data"
-        abstract: { ok: false },                              // abstract N/A
-        hunter: { ok: false },                                // hunter N/A
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      const t = cap.text;
-      expect(t).toContain("Result          : N/A");
-      expect(t).toMatch(/Status          : unlabeled/);
-      expect(t).toMatch(/Status          : No data/);          // emailrep ok-but-empty
-    } finally { cap.restore(); }
-  });
-
-  it("exports the FullContact not-configured line and the bare error fallbacks", () => {
-    const cap = capture();
-    try {
-      render(<EmailResultsDashboard data={data({
-        xon: okS(xonD({ breachCount: 0, breaches: [], xposedDataTypes: [] })),
-        breachDirectory: { ok: false },                     // no error string → BD status ?? N/A
-        fullContact: { ok: false, error: "NOT_CONFIGURED" }, // FC "NOT CONFIGURED: add FULLCONTACT_API_KEY"
-        emailrep: { ok: false },                            // no error → emailrep status ?? "Error"
-      })} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      const t = cap.text;
-      expect(t).toContain("NOT CONFIGURED: add FULLCONTACT_API_KEY to .env.local");
-      expect(t).toMatch(/Status          : N\/A/);           // BD error-less fallback
-      expect(t).toMatch(/Status          : Error/);          // emailrep error-less fallback
-    } finally { cap.restore(); }
+  it("marks a not-found source empty, renders a deliverable Hunter result, and hides empty enrichment", () => {
+    render(<EmailResultsDashboard data={data({
+      hunter: okS(hunter()),                                 // deliverable, score 95 → high-confidence accent
+      breachDirectory: { ok: false, error: "NOT_FOUND" },    // srState → "empty"
+      fullContact: okS(fc({ profiles: [], otherEmails: [], phones: [], employment: [], age: null, gender: null })), // panel guard all-false
+    })} />);
+    expect(screen.getByText("95/100")).toBeTruthy();          // Hunter confidence (score > 70 accent)
+    expect(screen.getAllByText(/DELIVERABLE/).length).toBeGreaterThan(0); // Hunter deliverable result accent
+    expect(screen.queryByText(/FULLCONTACT ENRICHMENT/)).toBeNull();       // enrichment panel hidden when empty
   });
 
   it("copies the email and domain", () => {
@@ -641,30 +396,4 @@ describe("<EmailResultsDashboard> mail exchange (MX) card", () => {
     expect(screen.queryByText("MAIL EXCHANGE (MX): keyless")).toBeNull();
   });
 
-  it("records the mail exchange in the exported report across all states", () => {
-    const realBlob = globalThis.Blob;
-    let text = "";
-    vi.stubGlobal("Blob", class extends realBlob {
-      constructor(parts: BlobPart[], opts?: BlobPropertyBag) { super(parts, opts); text = parts.map(String).join(""); }
-    });
-    const realCreate = URL.createObjectURL, realRevoke = URL.revokeObjectURL;
-    URL.createObjectURL = vi.fn(() => "blob:x"); URL.revokeObjectURL = vi.fn();
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    const exportWith = (over: Partial<EmailLookupResponse>) => {
-      const { unmount } = render(<EmailResultsDashboard data={data(over)} />);
-      fireEvent.click(screen.getByRole("button", { name: /export report/i }));
-      const t = text; unmount(); return t;
-    };
-    try {
-      expect(exportWith({ mail: okS({ hasMx: true, mxHosts: ["aspmx.l.google.com"], provider: "Google Workspace", category: "google" }) }))
-        .toContain("Mail Exchange   : Google Workspace [aspmx.l.google.com]");
-      expect(exportWith({ mail: okS({ hasMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" }) }))
-        .toContain("Mail Exchange   : No published MX records");
-      expect(exportWith({ mail: { ok: false, error: "timed out" } }))
-        .toContain("Mail Exchange   : lookup unavailable");
-      expect(exportWith({})).toContain("Mail Exchange   : not checked");
-    } finally {
-      URL.createObjectURL = realCreate; URL.revokeObjectURL = realRevoke;
-    }
-  });
 });

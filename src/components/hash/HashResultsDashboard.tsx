@@ -5,6 +5,9 @@ import { Fingerprint, FileDigit, ShieldCheck, HelpCircle, ExternalLink, AlertTri
 import type { HashLookupResponse } from "@/lib/types";
 import { hashReputation } from "@/lib/analysis/hash";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import CopyButton from "@/components/shared/CopyButton";
+import UniversalReportExport from "@/components/shared/UniversalReportExport";
+import { buildHashReport } from "@/lib/analysis/report";
 
 interface Props { data: HashLookupResponse }
 
@@ -34,7 +37,10 @@ export default function HashResultsDashboard({ data }: Props) {
               {data.kind && (
                 <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border tracking-widest text-[var(--hv-cyan)] border-[var(--hv-cyan)]/45 bg-[var(--hv-cyan)]/10 uppercase">{data.kind}</span>
               )}
-              <div className="text-sm sm:text-base font-bold gradient-text font-mono break-all mt-1">{data.input}</div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-sm sm:text-base font-bold gradient-text font-mono break-all min-w-0">{data.input}</span>
+                <CopyButton text={data.input} ariaLabel="Copy hash" className="shrink-0 p-1 rounded text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:bg-[var(--hv-glass-border)]/40 transition-colors" />
+              </div>
             </div>
           </div>
           <CopyLinkButton />
@@ -97,6 +103,8 @@ export default function HashResultsDashboard({ data }: Props) {
           ))}
         </div>
       )}
+
+      <div className="flex justify-end"><UniversalReportExport model={buildHashReport(data)} /></div>
     </motion.div>
   );
 }

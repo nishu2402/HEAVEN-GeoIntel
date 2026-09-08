@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   User, Mail, Globe, Shield, AlertTriangle, CheckCircle2,
-  XCircle, Copy, Check, Download, ExternalLink,
+  XCircle, ExternalLink,
   Building2, Lock, Trash2, Hash, Activity, Briefcase, Phone, AtSign,
 } from "lucide-react";
 import type { EmailLookupResponse } from "@/lib/types";
@@ -19,9 +18,11 @@ import BreachAggregatePanel from "@/components/breach/BreachAggregatePanel";
 import CredentialExposurePanel from "@/components/breach/CredentialExposurePanel";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
-import { cn, copyText, safeExternalUrl } from "@/lib/utils";
+import CopyButton from "@/components/shared/CopyButton";
+import { cn, safeExternalUrl } from "@/lib/utils";
 import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
-import { BRAND, asciiLetterhead } from "@/lib/brand/logo";
+import UniversalReportExport from "@/components/shared/UniversalReportExport";
+import { buildEmailReport } from "@/lib/analysis/report";
 
 interface Props {
   data: EmailLookupResponse;
@@ -29,22 +30,10 @@ interface Props {
   onUsernameSweep?: (handle: string) => void;
 }
 
-function CopyBtn({ text }: { text: string }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      onClick={() => {
-        void copyText(text);
-        setDone(true);
-        setTimeout(() => setDone(false), 1500);
-      }}
-      className="flex items-center gap-1 text-xs border border-[#00ff41]/30 px-2 py-1 text-[#00ff41]/70 hover:text-[#00ff41] hover:border-[#00ff41]/60 transition-colors font-mono"
-    >
-      {done ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-      {done ? "COPIED" : "COPY"}
-    </button>
-  );
-}
+// Green matrix-themed copy chip class for this mode; the behaviour lives in the
+// shared <CopyButton>, only the accent differs per dashboard.
+const EMAIL_COPY_CLASS =
+  "flex items-center gap-1 text-xs border border-[#00ff41]/30 px-2 py-1 text-[#00ff41]/70 hover:text-[#00ff41] hover:border-[#00ff41]/60 transition-colors font-mono";
 
 function InfoRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
@@ -123,239 +112,6 @@ function ThreatScoreBar({ score }: { score: number }) {
       </div>
     </div>
   );
-}
-
-// ── Report download ───────────────────────────────────────────────────────────
-function downloadReport(data: EmailLookupResponse, score: number): void {
-  const { email, analysis, gravatar, mail, emailrep, hunter, abstract, xon, breachDirectory, fullContact,
-    hudsonRock, leakCheck } = data;
-  const sep = "─".repeat(70);
-  const now = new Date().toISOString();
-
-  // Keyless MX fingerprint. Report the real provider, an explicit absence, or an
-  // explicit lookup failure, never a blank that could read as "no mail".
-  const mailLine = !mail
-    ? "not checked"
-    : mail.ok && mail.data
-      ? (mail.data.hasMx ? `${mail.data.provider} [${mail.data.mxHosts.join(", ")}]` : "No published MX records")
-      : "lookup unavailable";
-
-  const xonData = xon?.ok ? xon.data : null;
-  // Prefer the server-computed union (enriched from the HIBP catalog); fall back
-  // to a client recompute only for a cached response from before that field.
-  const breachAgg = data.breachAggregate ?? aggregateBreaches({ xon, leakCheck, breachDirectory });
-  // The server computes this with COMB; a pre-COMB cached response falls back to
-  // breach + infostealer evidence (Hudson Rock's masked captures survive in the
-  // response, so unlike COMB they can be recomputed here). COMB itself can't be
-  // recomputed client-side, so it degrades to none for those old caches.
-  const credExposure = data.credentialExposure
-    ?? assessCredentialExposure(null, breachAgg.withPassword, stealerCredentialSummary(hudsonRock.data));
-
-  const lines = [
-    asciiLetterhead([
-      `${BRAND.name}: Email Intelligence Report`,
-      BRAND.tagline,
-      ``,
-      `Generated   : ${now}`,
-      `Threat Score: ${score}/100`,
-    ]),
-    sep,
-    ``,
-    `TARGET EMAIL`,
-    sep,
-    `  Address         : ${email}`,
-    `  Username        : ${analysis.username}`,
-    `  Domain          : ${analysis.domain}`,
-    `  Provider        : ${analysis.providerName} (${analysis.providerType})`,
-    `  Mail Exchange   : ${mailLine}`,
-    `  Disposable      : ${analysis.isDisposable ? "YES" : "No"}`,
-    `  Privacy Provider: ${analysis.isPrivacyFocused ? "YES" : "No"}`,
-    `  Role Address    : ${analysis.isRoleAddress ? "YES" : "No"}`,
-    `  Guessed Name    : ${analysis.guessedName ?? "N/A"}`,
-    ``,
-    `UNIFIED BREACH VIEW: all sources merged`,
-    sep,
-    `  Unique Breaches : ${breachAgg.sourcesAnswered.length > 0 ? breachAgg.total : "N/A: no breach source answered"}`,
-    ...(breachAgg.total > 0 ? [
-      `  Sources         : ${breachAgg.sourcesReporting.join(", ")}`,
-      `  With Passwords  : ${breachAgg.withPassword}`,
-      ...(breachAgg.enrichedCount > 0 ? [`  Catalog Enriched: ${breachAgg.enrichedCount} (HIBP offline catalog)`] : []),
-      ...(breachAgg.dataClasses.length > 0 ? [`  Exposed Types   : ${breachAgg.dataClasses.join(", ")}`] : []),
-    ] : []),
-    ...(credExposure.exposed ? [
-      ``,
-      `PASSWORD EXPOSURE`,
-      sep,
-      `  Assessment      : ${credExposure.reuse === "likely" ? "PASSWORD REUSE LIKELY" : "PASSWORD EXPOSED"}`,
-      `  Password Breaches: ${credExposure.passwordBreaches}`,
-      ...(credExposure.pairs > 0 ? [
-        `  Leaked Passwords : ${credExposure.capped ? "at least " : ""}${credExposure.distinctPasswords} distinct (${credExposure.pairs} pairs, masked)`,
-      ] : []),
-      ...(credExposure.stealerLogs > 0 ? [
-        `  Stealer Captures : ${credExposure.stealerPasswords} distinct across ${credExposure.stealerLogs} infostealer log${credExposure.stealerLogs === 1 ? "" : "s"} (masked)`,
-      ] : []),
-    ] : []),
-    ``,
-    `BREACH DATABASE: XposedOrNot`,
-    sep,
-    `  Total Breaches  : ${xonData ? xonData.breachCount : "N/A"}`,
-    ...(xonData && xonData.breaches.length > 0 ? [
-      `  Exposed Data    : ${xonData.xposedDataTypes.join(", ")}`,
-      ``,
-      `  BREACH LIST:`,
-      ...xonData.breaches
-        .sort((a, b) => b.xposedDate.localeCompare(a.xposedDate))
-        .map((b) => [
-          `    [${b.xposedDate.slice(0, 4)}] ${b.breach}${b.domain ? ` (${b.domain})` : ""}`,
-          `           Data    : ${b.xposedData.join(", ")}`,
-          `           Records : ${b.xposedRecords.toLocaleString()}`,
-          `           PW Risk : ${b.passwordRisk}`,
-          `           Verified: ${b.verified ? "Yes" : "No"}`,
-        ].join("\n")),
-    ] : [`  Result          : ${xon?.ok ? "CLEAN: no breaches found" : (xon?.error ?? "N/A")}`]),
-    ``,
-    `CREDENTIAL HASHES: BreachDirectory`,
-    sep,
-    ...(breachDirectory?.ok && breachDirectory.data && breachDirectory.data.found > 0 ? [
-      `  Records Found   : ${breachDirectory.data.found}`,
-      `  Sources         : ${breachDirectory.data.sources.join(", ")}`,
-      ``,
-      `  CREDENTIAL LIST:`,
-      ...breachDirectory.data.results.map((r, i) => [
-        `    [${i + 1}] Sources  : ${r.sources.join(", ")}`,
-        r.password ? `         Partial  : ${r.password}` : "",
-        r.sha1     ? `         SHA-1    : ${r.sha1}` : "",
-        r.hash     ? `         MD5      : ${r.hash}` : "",
-      ].filter(Boolean).join("\n")),
-    ] : [`  Status          : ${
-      !breachDirectory?.ok && breachDirectory?.error === "NOT_CONFIGURED"
-        ? "NOT CONFIGURED: add RAPIDAPI_KEY to .env.local"
-        : breachDirectory?.ok && breachDirectory.data?.found === 0
-        ? "CLEAN: no credentials found in BreachDirectory"
-        : (breachDirectory?.error ?? "N/A")
-    }`]),
-    ``,
-    `INFOSTEALER EXPOSURE: Hudson Rock (free, no key)`,
-    sep,
-    ...(hudsonRock.ok && hudsonRock.data
-      ? hudsonRock.data.total > 0
-        ? [
-            `  Infections      : ${hudsonRock.data.total}`,
-            ``,
-            `  INFECTED MACHINES:`,
-            ...hudsonRock.data.stealers.map((st, i) => [
-              `    [${i + 1}] Malware  : ${st.malwareFamily ?? "unknown"}`,
-              st.dateCompromised ? `         Date     : ${st.dateCompromised}` : "",
-              st.operatingSystem ? `         OS       : ${st.operatingSystem}` : "",
-              st.computerName    ? `         Machine  : ${st.computerName}` : "",
-              st.ip              ? `         IP       : ${st.ip}` : "",
-              st.topLogins.length ? `         Logins   : ${st.topLogins.join(", ")}` : "",
-            ].filter(Boolean).join("\n")),
-          ]
-        : [`  Result          : CLEAN: no infostealer infections recorded`]
-      : [`  Status          : ${hudsonRock.error ?? "N/A"}`]),
-    ``,
-    `PUBLIC BREACH INDEX: LeakCheck (free, no key)`,
-    sep,
-    ...(leakCheck.ok && leakCheck.data
-      ? leakCheck.data.found > 0
-        ? [
-            `  Records         : ${leakCheck.data.found}`,
-            `  Exposed Fields  : ${leakCheck.data.fields.join(", ") || "N/A"}`,
-            `  Named Breaches  : ${leakCheck.data.sources.map((x) => x.date ? `${x.name} (${x.date})` : x.name).join(", ") || "N/A"}`,
-          ]
-        : [`  Result          : NOT INDEXED: no breach records for this address`]
-      : [`  Status          : ${leakCheck.error ?? "N/A"}`]),
-    ``,
-    `IDENTITY: FullContact Person Enrichment`,
-    sep,
-    ...(fullContact?.ok && fullContact.data ? [
-      `  Full Name       : ${fullContact.data.fullName ?? "N/A"}`,
-      `  Title           : ${fullContact.data.title ?? "N/A"}`,
-      `  Organization    : ${fullContact.data.organization ?? "N/A"}`,
-      `  Location        : ${fullContact.data.location ?? "N/A"}`,
-      `  Age             : ${fullContact.data.age ?? "N/A"}`,
-      `  Gender          : ${fullContact.data.gender ?? "N/A"}`,
-      `  Bio             : ${fullContact.data.bio ?? "N/A"}`,
-      fullContact.data.profiles.length > 0
-        ? `  Social Profiles : ${fullContact.data.profiles.map((p) => `${p.platform}/${p.username}`).join(", ")}`
-        : "",
-      fullContact.data.otherEmails.length > 0
-        ? `  Other Emails    : ${fullContact.data.otherEmails.join(", ")}`
-        : "",
-      fullContact.data.phones.length > 0
-        ? `  Phone Numbers   : ${fullContact.data.phones.join(", ")}`
-        : "",
-      ...(fullContact.data.employment.length > 0 ? [
-        `  Employment:`,
-        ...fullContact.data.employment.map((e) => `    ${e.current ? "[CURRENT]" : "[PAST]"} ${e.name}${e.title ? `: ${e.title}` : ""}`),
-      ] : []),
-    ].filter(Boolean) : [
-      `  Status          : ${
-        fullContact?.error === "NOT_CONFIGURED"
-          ? "NOT CONFIGURED: add FULLCONTACT_API_KEY to .env.local"
-          : fullContact?.error === "NOT_FOUND"
-          ? "No record found for this email"
-          : (fullContact?.error ?? "N/A")
-      }`,
-    ]),
-    ``,
-    `GRAVATAR PROFILE`,
-    sep,
-    `  Found           : ${gravatar.found ? "YES" : "No"}`,
-    ...(gravatar.found ? [
-      `  Display Name    : ${gravatar.displayName ?? "N/A"}`,
-      `  Username        : ${gravatar.preferredUsername ?? "N/A"}`,
-      `  Location        : ${gravatar.currentLocation ?? "N/A"}`,
-      `  About           : ${gravatar.aboutMe ?? "N/A"}`,
-      `  Profile URL     : ${gravatar.profileUrl ?? "N/A"}`,
-      `  Linked Accounts : ${gravatar.accounts.map((a) => `${a.shortname}:${a.username}`).join(", ") || "None"}`,
-    ] : []),
-    ``,
-    `REPUTATION: EmailRep.io`,
-    sep,
-    ...(emailrep.ok && emailrep.data ? [
-      `  Reputation      : ${emailrep.data.reputation.toUpperCase()}`,
-      `  Suspicious      : ${emailrep.data.suspicious ? "YES" : "No"}`,
-      `  Credentials Leaked: ${emailrep.data.credentialsLeaked ? "YES: CRITICAL" : "No"}`,
-      `  Data Breach     : ${emailrep.data.dataBreach ? "YES" : "No"}`,
-      `  Malicious Activity: ${emailrep.data.maliciousActivity ? "YES" : "No"}`,
-      `  Spam            : ${emailrep.data.spam ? "YES" : "No"}`,
-      `  Deliverable     : ${emailrep.data.deliverable ? "Yes" : "No"}`,
-      `  First Seen      : ${emailrep.data.firstSeen ?? "N/A"}`,
-      `  Last Seen       : ${emailrep.data.lastSeen ?? "N/A"}`,
-      `  Profiles        : ${emailrep.data.profiles.join(", ") || "None"}`,
-    ] : [`  Status          : ${emailrep.ok ? "No data" : (emailrep.error ?? "Error")}`]),
-    ``,
-    `EMAIL VALIDATION: Abstract API`,
-    sep,
-    ...(abstract.ok && abstract.data ? [
-      `  Deliverability  : ${abstract.data.deliverability}`,
-      `  Quality Score   : ${(abstract.data.qualityScore * 100).toFixed(0)}%`,
-      `  SMTP Valid      : ${abstract.data.isSmtpValid ? "Yes" : "No"}`,
-      `  MX Found        : ${abstract.data.isMxFound ? "Yes" : "No"}`,
-    ] : [`  Status          : ${abstract.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : (abstract.error ?? "Error")}`]),
-    ``,
-    `DELIVERABILITY: Hunter.io`,
-    sep,
-    ...(hunter.ok && hunter.data ? [
-      `  Result          : ${hunter.data.result.toUpperCase()}`,
-      `  Confidence      : ${hunter.data.score}/100`,
-      `  SMTP Valid      : ${hunter.data.smtpCheck ? "Yes" : "No"}`,
-    ] : [`  Status          : ${hunter.error === "NOT_CONFIGURED" ? "NOT CONFIGURED" : (hunter.error ?? "Error")}`]),
-    ``,
-    sep,
-    `Report generated by ${BRAND.name}: for authorized use only.`,
-    `All intelligence should be verified before use in assessments.`,
-  ];
-
-  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `email_intel_${email.replace("@", "_at_")}_${Date.now()}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -545,8 +301,8 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
 
         {/* Action row */}
         <div className="flex gap-2 flex-wrap border-t border-[#00ff41]/10 pt-3">
-          <CopyBtn text={email} />
-          <CopyBtn text={analysis.domain} />
+          <CopyButton text={email} label="COPY" ariaLabel="Copy email address" className={EMAIL_COPY_CLASS} />
+          <CopyButton text={analysis.domain} label="COPY" ariaLabel="Copy domain" className={EMAIL_COPY_CLASS} />
           {gravatar.found && safeExternalUrl(gravatar.profileUrl) && (
             <a
               href={safeExternalUrl(gravatar.profileUrl)}
@@ -557,12 +313,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
               <ExternalLink className="w-3 h-3" /> GRAVATAR
             </a>
           )}
-          <button
-            onClick={() => downloadReport(data, threatScore)}
-            className="flex items-center gap-1 text-xs border border-[#00d9ff]/30 px-2 py-1 text-[#00d9ff]/60 hover:text-[#00d9ff] hover:border-[#00d9ff]/60 transition-colors font-mono"
-          >
-            <Download className="w-3 h-3" /> EXPORT REPORT
-          </button>
+          <UniversalReportExport model={buildEmailReport(data)} />
           <CopyLinkButton />
         </div>
       </div>
@@ -633,7 +384,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
                   {fcData.otherEmails.map((e, i) => (
                     <div key={`${e}-${i}`} className="flex items-center gap-2 text-xs font-mono text-[#00d9ff]/80 py-0.5">
                       {e}
-                      <CopyBtn text={e} />
+                      <CopyButton text={e} label="COPY" ariaLabel="Copy email address" className={EMAIL_COPY_CLASS} />
                     </div>
                   ))}
                 </div>
@@ -646,7 +397,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
                   {fcData.phones.map((p, i) => (
                     <div key={`${p}-${i}`} className="flex items-center gap-2 text-xs font-mono text-[#00d9ff]/80 py-0.5">
                       {p}
-                      <CopyBtn text={p} />
+                      <CopyButton text={p} label="COPY" ariaLabel="Copy phone number" className={EMAIL_COPY_CLASS} />
                     </div>
                   ))}
                 </div>

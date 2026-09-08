@@ -20,6 +20,19 @@ export const hashBody = z.object({ hash: z.string().min(1).max(80) });
 // hash-length should be accepted here. The exact 5-hex check runs after parsing.
 export const pwnedPrefixBody = z.object({ prefix: z.string().min(1).max(16) });
 
+// The AI-analyst relay carries a provider choice, a model name, and the two
+// grounded prompt halves the client built from the on-screen analysis. It may
+// also carry an optional bring-your-own key for a cloud provider, entered in the
+// panel: it is used for this one request only and never stored or logged. All of
+// it is bounded so an oversized body is rejected before it is relayed anywhere.
+export const aiAnalystBody = z.object({
+  provider: z.enum(["ollama", "openai", "anthropic", "gemini", "groq", "deepseek", "mistral", "openrouter"]),
+  model: z.string().min(1).max(100),
+  system: z.string().min(1).max(20000),
+  user: z.string().min(1).max(20000),
+  apiKey: z.string().max(500).optional(),
+});
+
 /**
  * Parse a Request body against a schema. Returns the typed data or null — the
  * caller turns null into a 400. Never throws (bad JSON → null).

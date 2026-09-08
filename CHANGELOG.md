@@ -28,10 +28,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Update checker: "new version available" in the header.** A refresh button in
-  the header compares the running build against the latest release published on
-  the project's GitHub and lights an amber dot when a newer version exists.
-  Opening it shows the installed and latest versions with a link to the release
+- **One-click PDF export and a Contents index on every report.** The report
+  toolbar now has a dedicated PDF button that opens the print-optimised report
+  and hands it to the browser's own PDF engine (Print, then Save as PDF), so a
+  polished PDF is one click away without any external service. Every format (PDF,
+  plain text, Markdown, HTML, and the STIX 2.1 bundle) now opens with a Contents
+  index that links straight to each section, and the printable HTML gained a
+  cover, anchored headings, and clean page breaks. The same professional
+  structure is identical for all seven lookup modes.
+- **One shared copy control across every result dashboard.** Copy buttons behaved
+  slightly differently per mode and one path silently failed on plain-HTTP or LAN
+  origins; they now share a single control with a reliable clipboard fallback, and
+  the wallet, hash, IP, and domain dashboards gained a copy button on their
+  primary identifier.
+- **A one-time welcome guide for first-run visitors.** A single dismissible card
+  points a brand-new user at the mode tabs, the example chips and command palette,
+  and the keyless data sources, then never shows again.
+- **AI analysis: an explainable, grounded risk read-out on every lookup.** A new
+  "AI Analysis" panel runs a deterministic analysis engine over the result on
+  screen and shows a 0 to 100 risk score with the exact signals that produced it.
+  It works in three layers: a feature extractor that turns real fields (breach
+  counts, leaked-credential and infostealer evidence, network and TLS posture,
+  reputation and identity signals) into weighted features; a logistic risk model
+  with checked-in coefficients, so the score decomposes back into the factors that
+  drove it rather than arriving as a black box; and a cross-field anomaly detector
+  that names actionable combinations (a password both breached and captured by
+  malware, an exposed service carrying a live CVE, a spoofable mail domain). Every
+  factor cites the field it came from, so nothing is invented and the number is
+  auditable. The whole engine runs in the browser and leaves the machine untouched,
+  and it reads only data the deterministic lookups already collected. It is the
+  grounded scoring core the rest of the AI and machine-learning stack below builds
+  on.
+- **On-device text intelligence: extract identifiers from any pasted text,
+  keyless and offline.** A new "AI Text Intel" panel (in the Graph tab, and
+  reachable from the command palette) runs a bundled machine-learning model
+  entirely in the browser. Paste a credential dump, a threat report or an email
+  body and it pulls out every identifier it contains: emails, IP addresses,
+  domains, URLs, crypto wallets, file hashes, E.164 phone numbers and handles,
+  each matched verbatim from the text and shape-checked so there are no false
+  positives. It also labels the topic (a small bag-of-words classifier with
+  checked-in weights recognises credentials, network, financial, threat and
+  personal-data text) and detects the language, each with a confidence. Every
+  extracted identifier can be run as a lookup or dropped into the session graph in
+  one click. The model weights ship with the app, so it needs no network and no
+  key, and it invents nothing: the identifiers are grounded in the text you
+  provide and the topic and language are labels about that text, never claims
+  about a subject.
+- **Optional AI analyst: a grounded natural-language read-out, local by default.**
+  The AI Analysis panel now has an opt-in "AI Analyst" that turns the evidence
+  bundle into a short plain-language assessment using a language model. It is off
+  until you press run. You pick the provider and the model from dropdowns: a
+  curated, current model list per provider, plus a "custom" option to type any
+  model name. The default provider is a local Ollama server, so nothing leaves the
+  machine and no key is needed. A cloud provider (OpenAI, Anthropic, Google Gemini,
+  Groq, DeepSeek, Mistral or OpenRouter) is optional and set up entirely in the
+  panel: paste the provider's key straight into the key field (a one-click link
+  opens the provider's key console, and the key can be remembered in this browser
+  so it survives a reload), or set it in the server environment instead. Either
+  way the key rides only in the request you trigger, going to your own relay,
+  which forwards it and never stores it on the server or writes it to the logs. A
+  disclosure states plainly, before the first run, that a cloud provider is the
+  only feature that transmits a subject's data off the machine. The prompt hands
+  the model only the grounded bundle and
+  forbids invention, and every identifier the model writes back is re-validated
+  against that bundle: anything it made up is flagged as unverified rather than
+  shown as fact. Served by a new opt-in `POST /api/ai-analyst` relay.
+- **AI wiring across cases, reports and the command palette.** A whole-case AI
+  briefing summarises what a case holds and reads the analyst's notes with the
+  on-device model. Every lookup mode now exports the same professional intelligence
+  report in one shared format (plain text, Markdown, a printable HTML page for "Save
+  as PDF", and a STIX 2.1 bundle): a cover, an executive summary, the grounded AI
+  risk assessment, the evidence sections, data-source health, investigative pivots
+  and a methodology note. A phone report and a domain report now read identically,
+  so a handoff carries the reasoning and not just the raw fields. The command palette gained an AI entry
+  that jumps straight to the text-intel tool.
+- **Update checker: "new version available" in the header and a top banner.** A
+  refresh button in the header compares the running build against the latest
+  release published on the project's GitHub and lights an amber dot when a newer
+  version exists, and a full-width bar across the top of the app announces the
+  same update. The bar can be dismissed and stays gone until a still-newer
+  release ships. Both surfaces read one shared check, so they never disagree and
+  the page makes at most one request no matter how many show it. Opening the
+  header button shows the installed and latest versions with a link to the release
   notes, and a "Check for updates" button that forces a fresh check. It is served
   by a new `GET /api/version` endpoint that queries the GitHub Releases API,
   caches the answer for an hour (so a busy instance makes at most one call an hour

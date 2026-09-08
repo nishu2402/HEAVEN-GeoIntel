@@ -263,7 +263,14 @@ describe("AES-256-GCM", () => {
 
   it("fails on a tampered token", async () => {
     const token = await fwd("aes-gcm", "top secret", "pw");
-    const flipped = token.slice(0, -2) + (token.endsWith("A") ? "B" : "A") + token.slice(-1);
+    // Flip a byte inside the packed salt||iv||ciphertext+tag rather than a base64
+    // character. The last base64 characters carry redundant low bits before the
+    // padding, so a character flip can decode to the same bytes and leave the
+    // token perfectly authentic. Flipping the final byte, which lands in the GCM
+    // tag, always breaks authentication.
+    const bytes = base64ToBytes(token);
+    bytes[bytes.length - 1] ^= 0xff;
+    const flipped = bytesToBase64(bytes);
     const r = await runCrypto({ algo: "aes-gcm", text: flipped, key: "pw", decrypt: true });
     expect(r.ok).toBe(false);
   });
