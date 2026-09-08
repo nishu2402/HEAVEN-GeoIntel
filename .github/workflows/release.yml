@@ -286,8 +286,11 @@ jobs:
         with:
           tag_name: ${{ needs.verify.outputs.tag }}
           # Matches every release before it — the list page shows the title and
-          # nothing else, so this is the whole first impression.
-          name: HEAVEN ${{ needs.verify.outputs.tag }}
+          # nothing else, so this is the whole first impression. The published
+          # v2.1.0, v3.0.0 and v3.1.0 releases all read "HEAVEN-GeoIntel <tag>";
+          # this template said "HEAVEN <tag>", so every release had to be renamed
+          # by hand after publishing. Pinned by tests/releaseNotes.test.ts.
+          name: HEAVEN-GeoIntel ${{ needs.verify.outputs.tag }}
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: ${{ needs.verify.outputs.prerelease == 'true' }}

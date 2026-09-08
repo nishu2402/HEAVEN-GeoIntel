@@ -7,26 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+CI and documentation only — no change to the application, its API, or the
+published image.
+
+### Added
+
+- `tests/releaseNotes.test.ts`: eight assertions pinning the release page's
+  shape — no repeated heading in any version, Keep-a-Changelog ordering for the
+  version being released, the title template, the awk that strips the version
+  heading, the Install/verification/scope footer, and the `dist/*` assets whose
+  absence was the most visible difference between the hand-written v3.1.0 page
+  and its predecessors. Each was verified to fail when its regression is
+  reintroduced.
+
+### Changed
+
+- **The case-panel tests wait for outcomes instead of counting event-loop
+  turns.** `<CasesPanel>`'s import and export handlers hash the payload with
+  `crypto.subtle.digest`, which resolves on a threadpool, so how many turns the
+  chain needs depends on how loaded the machine is. The suite spun a hardcoded
+  three turns and then asserted, which passed on an idle machine and failed on a
+  busy one: the v3.1.0 release gate failed on `does not select a case when the
+  import request fails` for the exact commit whose `main` CI had gone green
+  minutes earlier. Each of the seven affected tests now waits for the thing it
+  is actually asserting — the flash message, the confirm prompt, the fifth
+  download — so it takes as long as the machine needs and no longer. Charging
+  the digest extra turns to simulate a loaded runner failed all seven before and
+  none after, up to 120 turns.
+- **The export test no longer depends on which hash finished first.** JSON and
+  Markdown hash before writing while CSV, STIX and Maltego are synchronous, so
+  on a slow enough machine the async pair announced themselves *after* Maltego
+  and overwrote its message. The async pair is now allowed to finish before the
+  synchronous three are clicked, making the last flash deterministic rather than
+  a race the fast path happened to win.
+
+### Fixed
+
+- **The release title no longer has to be corrected by hand.** Every published
+  release is titled `HEAVEN-GeoIntel <tag>`; the workflow's template said
+  `HEAVEN <tag>`.
+- **Merged the duplicate `### Security` section in the 3.1.0 entry.** The
+  section for a version is copied verbatim onto its release page, so a duplicate
+  heading splits related entries there too. The 2.1.0 entry records the same
+  defect being fixed once already, under `[Unreleased]`; that fix shipped
+  without a guard, so it came back. No wording changed — the two blocks were
+  joined and the section put back into the file's declared
+  Added → Changed → Fixed → Security order.
+
 ## [3.1.0] — 2026-09-08
-
-### Security
-
-- **Hardened the file-metadata reader against hostile uploads.** The in-browser
-  parsers now bound every place a crafted file could exhaust memory or stall the
-  tab. A ZIP or Office/EPUB member is refused once it inflates past 32 MB, so a
-  decompression bomb (DEFLATE can reach roughly 1000 to 1) can no longer expand a
-  few kilobytes into gigabytes. The PDF reader caps each string value and the
-  number of times one key is scanned, turning what was a quadratic scan on a file
-  full of unterminated strings into a linear one. The EXIF reader caps an
-  over-long text field instead of reading every byte a hostile tag declares. And
-  the panel now shows a clear message if a file cannot be read rather than leaving
-  a blank result. Legitimate files are unaffected: the caps sit far above any real
-  value.
-- **Closed a redirect-based SSRF in the domain HTTP probe.** The probe already
-  refused a target that resolved to an internal address, but a public site could
-  still redirect the probe onward, and that next hop was fetched with no check.
-  Each redirect hop is now re-checked, so a redirect into a loopback, private, or
-  cloud-metadata address (169.254.169.254) is refused before it is ever requested.
 
 ### Added
 
@@ -236,6 +264,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **Hardened the file-metadata reader against hostile uploads.** The in-browser
+  parsers now bound every place a crafted file could exhaust memory or stall the
+  tab. A ZIP or Office/EPUB member is refused once it inflates past 32 MB, so a
+  decompression bomb (DEFLATE can reach roughly 1000 to 1) can no longer expand a
+  few kilobytes into gigabytes. The PDF reader caps each string value and the
+  number of times one key is scanned, turning what was a quadratic scan on a file
+  full of unterminated strings into a linear one. The EXIF reader caps an
+  over-long text field instead of reading every byte a hostile tag declares. And
+  the panel now shows a clear message if a file cannot be read rather than leaving
+  a blank result. Legitimate files are unaffected: the caps sit far above any real
+  value.
+- **Closed a redirect-based SSRF in the domain HTTP probe.** The probe already
+  refused a target that resolved to an internal address, but a public site could
+  still redirect the probe onward, and that next hop was fetched with no check.
+  Each redirect hop is now re-checked, so a redirect into a loopback, private, or
+  cloud-metadata address (169.254.169.254) is refused before it is ever requested.
 - **The AI Analyst API key is no longer written to the browser.** The optional
   cloud key you paste is held only in memory for the current tab. It is never
   saved to `localStorage` or any other on-disk store, so the secret does not sit
