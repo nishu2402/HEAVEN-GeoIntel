@@ -1,3 +1,5 @@
+# 🛰️ HEAVEN-GeoIntel · Unified OSINT Platform
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
@@ -19,7 +21,7 @@
 <div align="center">
 
   <p>
-    <img src="https://img.shields.io/badge/Version-3.0.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
+    <img src="https://img.shields.io/badge/Version-3.1.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
     <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
     <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
@@ -43,8 +45,9 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/github/stars/nishu2402/HEAVEN-GeoIntel?style=social" alt="Stars"/>
-    <img src="https://img.shields.io/github/forks/nishu2402/HEAVEN-GeoIntel?style=social" alt="Forks"/>
+    <a href="https://github.com/nishu2402/HEAVEN-GeoIntel/stargazers"><img src="https://img.shields.io/github/stars/nishu2402/HEAVEN-GeoIntel?style=flat-square&logo=github&logoColor=black&color=00FF85&label=Star" alt="Stars"/></a>
+    <a href="https://github.com/nishu2402/HEAVEN-GeoIntel/network/members"><img src="https://img.shields.io/github/forks/nishu2402/HEAVEN-GeoIntel?style=flat-square&logo=git&logoColor=black&color=22D3EE&label=Fork" alt="Forks"/></a>
+    <a href="https://github.com/nishu2402/HEAVEN-GeoIntel/issues/new"><img src="https://img.shields.io/badge/Report_a_bug-open_an_issue-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Report a bug"/></a>
   </p>
 
 </div>
@@ -112,6 +115,12 @@
     <td width="50%" align="center" valign="top">
       <img src="./docs/screenshots/bulk-mode.png" alt="Bulk mode scoring a batch of phone numbers offline" width="100%"/>
       <br/><sub><b>Bulk mode.</b> Paste up to twenty-five numbers, score them offline in one pass, then export the table.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <img src="./docs/screenshots/ai-analysis.png" alt="AI Analysis panel: an explainable risk score broken into contributing factors and a narrative, with the optional local AI Analyst below it" width="72%"/>
+      <br/><sub><b>AI Analysis.</b> An explainable, grounded risk read-out for every finished lookup, with the score broken into the factors that produced it. Below it sits an optional, opt-in AI Analyst that turns the same evidence into a short brief and flags anything the model writes that the evidence did not support.</sub>
     </td>
   </tr>
 </table>
@@ -394,12 +403,12 @@ docker compose up -d
 open http://localhost:3000          # macOS (Linux: xdg-open, Windows: start)
 
 # Plain Docker (no compose)
-docker build -t heaven-geointel:3.0.0 .
-docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:3.0.0
+docker build -t heaven-geointel:3.1.0 .
+docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:3.1.0
 
 # …with API keys (omit --env-file entirely if you have no .env.local;
 # docker run fails on a missing env file, it does not skip it)
-docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.0.0
+docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.1.0
 ```
 
 <div align="center">
@@ -1157,7 +1166,7 @@ the same numbers as this page:
 │            Search It.  Enrich It.  Pivot It.  Report It.             │
 │                                                                      │
 │         7 identifiers · 11 modes · 20/29 sources need no key         │
-│            v3.0.0  ·  Lookup -> Enrich -> Pivot -> Report            │
+│            v3.1.0  ·  Lookup -> Enrich -> Pivot -> Report            │
 │                                                                      │
 │           Owned & Developed by  Nisarg Chasmawala (Shroff)           │
 ╰──────────────────────────────────────────────────────────────────────╯

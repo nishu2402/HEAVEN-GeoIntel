@@ -93,7 +93,7 @@ describe("<CryptoWorkbench> keyed algorithms", () => {
     type("Input text", "top secret paragraph");
     type(/Passphrase/, "pw");
     await clickRun();
-    // PBKDF2 (210k iterations) settles after the click, so poll for the result.
+    // PBKDF2 (600k iterations) settles after the click, so poll for the result.
     // Match the note text specifically (the algorithm button also says AES-256-GCM).
     await waitFor(() => expect(screen.getByText(/PBKDF2-SHA256/)).toBeTruthy());
     const token = (screen.getByLabelText("Output") as HTMLTextAreaElement).value;
