@@ -9,11 +9,12 @@
  * A card taller than the viewport is scrolled under the sticky header and cropped
  * at the fold, which reads as "there is more below".
  *
- * The six views here are all offline-deterministic (the phone flow is computed
- * locally, the command palette and bulk table need no network), so they render
- * the same on any machine and never show an upstream error.
+ * The seven views here are all offline-deterministic (the phone flow, its AI
+ * risk read-out, the command palette and the bulk table are all computed
+ * locally), so they render the same on any machine and never show an upstream
+ * error.
  *
- * Prereq: dev server running on http://localhost:3000  (npm run dev)
+ * Prereq: dev server running (SCREENSHOT_BASE overrides http://localhost:3000)
  * Run:    node scripts/capture-screenshots.mjs
  */
 
@@ -24,7 +25,10 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = join(__dirname, "..", "docs", "screenshots");
-const BASE = "http://localhost:3000";
+// Defaults to the dev server's usual port; override with SCREENSHOT_BASE when it
+// runs elsewhere (e.g. a second server on another port so the primary one is
+// left alone).
+const BASE = process.env.SCREENSHOT_BASE || "http://localhost:3000";
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 const WIDTH = 1440;
@@ -138,7 +142,16 @@ await shot("number-intel.png", {
   },
 });
 
-// 5. Command palette — one keystroke to reach any of the eleven modes.
+// 5. AI Analysis — the explainable, grounded risk read-out and the optional,
+//    opt-in AI Analyst below it. Computed locally, so it renders offline.
+await shot("ai-analysis.png", {
+  url: PHONE,
+  setup: async (page) => {
+    await frameCard(page, "AI Analysis");
+  },
+});
+
+// 6. Command palette — one keystroke to reach any of the eleven modes.
 await shot("command-palette.png", {
   url: "/",
   setup: async (page) => {
@@ -150,7 +163,7 @@ await shot("command-palette.png", {
   },
 });
 
-// 6. Bulk mode — score a batch of numbers offline, then export the table.
+// 7. Bulk mode — score a batch of numbers offline, then export the table.
 await shot("bulk-mode.png", {
   url: "/",
   setup: async (page) => {

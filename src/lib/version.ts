@@ -26,7 +26,7 @@
 // SECURITY.md, where "3.0.x" is the claim being made.
 
 /** Full semver, as published. Matches `version` in package.json. */
-export const APP_VERSION = "3.0.0";
+export const APP_VERSION = "3.1.0";
 
 /**
  * `major.minor` — the release *branch*, not a build.
