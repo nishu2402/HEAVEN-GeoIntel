@@ -7,7 +7,7 @@ import type { AiAnalysis } from "@/lib/ai";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  try { localStorage.clear(); } catch { /* storage may be stubbed to throw */ }
+  try { localStorage.clear(); } catch { /* storage may be unavailable */ }
 });
 
 const analysis = {
@@ -180,28 +180,25 @@ describe("<AiAnalystButton>", () => {
     expect((screen.getByLabelText("API key") as HTMLInputElement).type).toBe("password");
   });
 
-  it("remembers a cloud key on this device and restores it on the next visit", () => {
+  it("holds the key in the session only and never writes it to browser storage", () => {
     const first = render(<AiAnalystButton analysis={analysis} />);
     fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    fireEvent.click(screen.getByLabelText("Remember key on this device"));
-    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "sk-remember" } });
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "sk-session" } });
+    // The secret is a liability at rest: nothing is persisted.
+    expect(localStorage.length).toBe(0);
     first.unmount();
-    // A fresh visit: switching back to the provider re-fills the saved key and
-    // shows Remember already ticked.
+    // A fresh mount starts empty — the key was never saved anywhere.
     render(<AiAnalystButton analysis={analysis} />);
     fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("sk-remember");
-    expect((screen.getByLabelText("Remember key on this device") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("");
   });
 
-  it("forgets the remembered key when Remember is unticked", () => {
+  it("clears the key when switching providers so it is never carried across", () => {
     render(<AiAnalystButton analysis={analysis} />);
     fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    fireEvent.click(screen.getByLabelText("Remember key on this device"));
-    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "sk-forget" } });
-    expect(localStorage.getItem("hv-analyst-key:openai")).toBe("sk-forget");
-    fireEvent.click(screen.getByLabelText("Remember key on this device"));
-    expect(localStorage.getItem("hv-analyst-key:openai")).toBeNull();
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "sk-openai" } });
+    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "anthropic" } });
+    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("");
   });
 
   it("offers a Get key link and a check-your-key hint on a cloud provider's error", async () => {
@@ -212,25 +209,5 @@ describe("<AiAnalystButton>", () => {
     await waitFor(() => expect(screen.getByText(/Check the OpenAI key above/i)).toBeTruthy());
     const links = screen.getAllByRole("link", { name: /Get a/i });
     expect(links.some((l) => l.getAttribute("href") === "https://platform.openai.com/api-keys")).toBe(true);
-  });
-
-  it("degrades gracefully when browser storage is unavailable", () => {
-    const failing = () => { throw new Error("unavailable"); };
-    const orig = globalThis.localStorage;
-    Object.defineProperty(globalThis, "localStorage", {
-      configurable: true,
-      value: { getItem: failing, setItem: failing, removeItem: failing },
-    });
-    try {
-      render(<AiAnalystButton analysis={analysis} />);
-      fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } }); // loadKey catch
-      fireEvent.click(screen.getByLabelText("Remember key on this device")); // saveKey catch (empty → removeItem)
-      fireEvent.change(screen.getByLabelText("API key"), { target: { value: "sk-x" } }); // saveKey catch (setItem)
-      fireEvent.click(screen.getByLabelText("Remember key on this device")); // forgetKey catch
-      // The UI keeps working; storage failures are swallowed.
-      expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("sk-x");
-    } finally {
-      Object.defineProperty(globalThis, "localStorage", { configurable: true, value: orig });
-    }
   });
 });

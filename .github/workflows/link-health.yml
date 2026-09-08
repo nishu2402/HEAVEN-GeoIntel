@@ -37,8 +37,12 @@ jobs:
           npm run links:check 2>&1 | tee link-report.txt
 
       # `if: failure()` on the step above would also catch an npm or network
-      # fault and file an issue blaming the sites. Checking the report for the
-      # checker's own DEAD/DOWN verdict keeps the issue about link rot.
+      # fault and file an issue blaming the sites. The probe now exits non-zero
+      # ONLY on a retry-confirmed DNS death (DEAD); a scripted 5xx (DOWN) is
+      # reported but does not fail, because measured against a browser it is
+      # usually a live site refusing a datacenter probe or answering "no such
+      # handle" with a 500. So match the DEAD verdict rows (which start with
+      # "DEAD "), not the "DEAD: n" summary line, to keep the issue about rot.
       - name: Open an issue when links are dead
         if: failure()
         uses: actions/github-script@v7
@@ -47,14 +51,14 @@ jobs:
             const fs = require('fs');
             let report = '';
             try { report = fs.readFileSync('link-report.txt', 'utf8'); } catch { report = '(no report produced)'; }
-            const dead = report.split('\n').filter((l) => /\b(DEAD|DOWN)\b/.test(l));
+            const dead = report.split('\n').filter((l) => /^DEAD\s/.test(l));
             if (dead.length === 0) {
               core.setFailed('links:check failed without reporting a dead link. See the run log.');
               return;
             }
-            const title = `Link rot: ${dead.length} outbound target(s) failing`;
+            const title = `Link rot: ${dead.length} outbound target(s) no longer resolve`;
             const body = [
-              'The weekly link probe found outbound OSINT targets that no longer resolve.',
+              'The weekly link probe found outbound OSINT targets that no longer resolve (DNS).',
               '',
               '```',
               ...dead.slice(0, 50),
