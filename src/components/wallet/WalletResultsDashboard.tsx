@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { Coins, Wallet, ArrowDownLeft, ArrowUpRight, Activity, ExternalLink, AlertTriangle, CheckCircle2, XCircle, BadgeCheck, ShieldAlert } from "lucide-react";
 import type { WalletLookupResponse } from "@/lib/types";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import CopyButton from "@/components/shared/CopyButton";
+import UniversalReportExport from "@/components/shared/UniversalReportExport";
+import { buildWalletReport } from "@/lib/analysis/report";
 
 interface Props { data: WalletLookupResponse }
 
@@ -32,7 +35,10 @@ export default function WalletResultsDashboard({ data }: Props) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border tracking-widest" style={{ color: chainColor, borderColor: chainColor + "70", background: chainColor + "16" }}>{chainLabel}</span>
               </div>
-              <div className="text-lg sm:text-xl font-bold gradient-text font-mono break-all mt-1">{data.input}</div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-lg sm:text-xl font-bold gradient-text font-mono break-all min-w-0">{data.input}</span>
+                <CopyButton text={data.input} ariaLabel="Copy wallet address" className="shrink-0 p-1 rounded text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:bg-[var(--hv-glass-border)]/40 transition-colors" />
+              </div>
               {data.ens && (
                 data.ens.verified ? (
                   <div className="inline-flex items-center gap-1.5 mt-1.5 text-[12px] font-mono px-2 py-0.5 rounded border" style={{ color: "#00ff85", borderColor: "#00ff8540", background: "#00ff8512" }}>
@@ -100,6 +106,8 @@ export default function WalletResultsDashboard({ data }: Props) {
           ))}
         </div>
       )}
+
+      <div className="flex justify-end"><UniversalReportExport model={buildWalletReport(data)} /></div>
     </motion.div>
   );
 }

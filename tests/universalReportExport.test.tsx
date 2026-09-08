@@ -30,24 +30,38 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("UniversalReportExport", () => {
-  it("offers four export formats", () => {
+  it("offers five export formats including PDF", () => {
     render(<UniversalReportExport model={model} />);
-    for (const label of ["TXT", "Markdown", "HTML / PDF", "STIX 2.1"]) {
+    for (const label of ["PDF", "TXT", "Markdown", "HTML", "STIX 2.1"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
 
-  it("downloads each format with the right extension and a sanitised filename", () => {
+  it("downloads each file format with the right extension and a sanitised filename", () => {
     render(<UniversalReportExport model={model} />);
-    const expectExt = [["TXT", ".txt"], ["Markdown", ".md"], ["HTML / PDF", ".html"], ["STIX 2.1", ".stix.json"]] as const;
+    const expectExt = [["TXT", ".txt"], ["Markdown", ".md"], ["HTML", ".html"], ["STIX 2.1", ".stix.json"]] as const;
     for (const [label, ext] of expectExt) {
       fireEvent.click(screen.getByText(label));
       const a = anchors[anchors.length - 1];
       expect(a.download.startsWith("geointel_domain_acme.test_")).toBe(true);
       expect(a.download.endsWith(ext)).toBe(true);
     }
+    // PDF opens a print window instead of a blob download, so only the four file
+    // formats create object URLs.
     expect(URL.createObjectURL).toHaveBeenCalledTimes(4);
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(4);
+  });
+
+  it("PDF opens a print-ready report window and invokes the browser print dialog", () => {
+    const write = vi.fn(), close = vi.fn(), focus = vi.fn(), print = vi.fn();
+    const fakeWin = { document: { write, close }, focus, print } as unknown as Window;
+    const open = vi.spyOn(window, "open").mockReturnValue(fakeWin);
+    render(<UniversalReportExport model={model} />);
+    fireEvent.click(screen.getByText("PDF"));
+    expect(open).toHaveBeenCalled();
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("<!DOCTYPE html>"));
+    expect(close).toHaveBeenCalled();
+    expect(print).toHaveBeenCalled();
   });
 
   it("sanitises unusual characters in the subject for the filename", () => {

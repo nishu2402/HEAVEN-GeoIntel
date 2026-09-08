@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  AtSign, ExternalLink, CheckCircle2, HelpCircle, Search, Fingerprint, MapPin, Terminal, Copy, Check,
+  AtSign, ExternalLink, CheckCircle2, HelpCircle, Search, Fingerprint, MapPin, Terminal,
 } from "lucide-react";
 import type { UsernameLookupResponse, UsernameHit, SocialProfile } from "@/lib/types";
 import { USERNAME_CATEGORY_META } from "@/lib/data/usernameSites";
 import Tilt3D from "@/components/shared/Tilt3D";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import CopyButton from "@/components/shared/CopyButton";
 import LeakCheckPanel from "@/components/breach/LeakCheckPanel";
 import InfostealerPanel from "@/components/breach/InfostealerPanel";
 import BreachAggregatePanel from "@/components/breach/BreachAggregatePanel";
@@ -28,24 +29,6 @@ type Filter = "found" | "all";
 
 function catColor(cat: string): string {
   return USERNAME_CATEGORY_META[cat as keyof typeof USERNAME_CATEGORY_META]?.color ?? "#00ff85";
-}
-
-/** Small inline "copy this text" button (for CLI commands). */
-function CopyText({ text, label }: { text: string; label: string }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1500); } catch { /* clipboard blocked */ }
-      }}
-      className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] transition-colors shrink-0"
-      aria-label={`Copy ${label}`}
-    >
-      {done ? <Check className="w-3 h-3 text-[var(--hv-green)]" /> : <Copy className="w-3 h-3" />}
-      {done ? "COPIED" : "COPY"}
-    </button>
-  );
 }
 
 /** Hides itself if the avatar URL is unsafe or fails to load (CSP-blocked / 404). */
@@ -304,7 +287,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
             <div key={cmd} className="flex items-center gap-2 rounded-md border border-[var(--hv-glass-border)] bg-[var(--hv-bg)]/40 px-3 py-2">
               <span className="text-[var(--hv-green)] font-mono text-xs shrink-0">$</span>
               <code className="text-xs font-mono text-[var(--hv-ink)] flex-1 break-all">{cmd}</code>
-              <CopyText text={cmd} label={cmd} />
+              <CopyButton text={cmd} label="COPY" ariaLabel={`Copy ${cmd}`} className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] transition-colors shrink-0" />
             </div>
           ))}
         </div>

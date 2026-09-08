@@ -3,12 +3,12 @@
 import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Shield, AtSign, Network, Globe } from "lucide-react";
+import { Shield, AtSign, Network, Globe, RefreshCw, X, Sparkles } from "lucide-react";
 import type {
   LookupResponse, EmailLookupResponse, UsernameLookupResponse, IpLookupResponse, DomainLookupResponse, WalletLookupResponse, HashLookupResponse,
 } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
-import { MODES, toMode, detectMode, type Mode } from "@/lib/client/modes";
+import { MODES, toMode, detectMode, modeName, type Mode } from "@/lib/client/modes";
 import { postLookup } from "@/lib/client/postLookup";
 import type { GraphEntity } from "@/components/graph/LinkGraph";
 
@@ -39,6 +39,8 @@ import {
   factsFromPhone, factsFromEmail, factsFromUsername, factsFromIp, factsFromDomain,
 } from "@/lib/analysis/caseSnapshot";
 import AutoPivots from "@/components/shared/AutoPivots";
+import AiAnalysisPanel from "@/components/shared/AiAnalysisPanel";
+import AiTextIntel from "@/components/shared/AiTextIntel";
 import LinkGraph from "@/components/graph/LinkGraph";
 import LoadingSkeletons from "@/components/dashboard/LoadingSkeletons";
 import ScanProgress from "@/components/dashboard/ScanProgress";
@@ -49,6 +51,7 @@ import EffectsToggle from "@/components/shared/EffectsToggle";
 import SourcesPanel from "@/components/shared/SourcesPanel";
 import NotableBreachesPanel from "@/components/shared/NotableBreachesPanel";
 import UpdateChecker from "@/components/shared/UpdateChecker";
+import UpdateBanner from "@/components/shared/UpdateBanner";
 import HelpPopover from "@/components/shared/HelpPopover";
 import OpsecPanel from "@/components/shared/OpsecPanel";
 import CommandPalette from "@/components/shared/CommandPalette";
@@ -67,6 +70,9 @@ const HistorySidebar = dynamic(() => import("@/components/dashboard/HistorySideb
 type Status = "idle" | "loading" | "done" | "error";
 
 const BOOTED_KEY = "hv-booted-v1";
+// Separate from BOOTED_KEY so the one-time orientation can be reset (or added
+// for existing users) without replaying the boot animation.
+const TOUR_KEY = "hv-tour-seen-v1";
 
 // One-click sample values so a first-time user is never staring at a blank box.
 function ExampleChips({ items, onPick }: { items: string[]; onPick: (v: string) => void }) {
@@ -83,6 +89,53 @@ function ExampleChips({ items, onPick }: { items: string[]; onPick: (v: string) 
           {v}
         </button>
       ))}
+    </div>
+  );
+}
+
+// First-run orientation: a single dismissible card that points a brand-new
+// visitor at the few things worth knowing, then never shows again. Kept
+// deliberately light (one card, no multi-step spotlight overlay) so it guides
+// without getting in the way of the affordances that already exist — the boot
+// splash, the example chips, the ⌘K hint, and Help.
+function WelcomeTour({ onDismiss }: { onDismiss: () => void }) {
+  const steps = [
+    { n: "1", accent: "var(--hv-green)", title: "Pick a mode", body: "Use the tabs below (or press 1 to 9) to switch between phone, email, username, IP, domain, wallet, hash, and more." },
+    { n: "2", accent: "var(--hv-cyan)", title: "Not sure? Try one", body: "Tap an example chip under the box, or press ⌘K to search every mode from a single bar." },
+    { n: "3", accent: "var(--hv-amber)", title: "Go deeper", body: "Every result copies, exports, and pivots to related identifiers. Add optional API keys later under Sources for wider coverage." },
+  ];
+  return (
+    <div className="terminal-card holo p-4 sm:p-5 mb-4 relative">
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss the welcome guide"
+        className="absolute top-2.5 right-2.5 p-1 rounded text-[var(--hv-ink-dim)] hover:text-[var(--hv-ink)] hover:bg-[var(--hv-glass-border)]/40 transition-colors"
+      >
+        <X className="w-4 h-4" />
+      </button>
+      <div className="flex items-center gap-2 mb-2 pr-8">
+        <Sparkles className="w-4 h-4 text-[var(--hv-cyan)]" />
+        <span className="font-mono font-bold tracking-widest uppercase text-sm">New here? 30-second orientation</span>
+      </div>
+      <p className="text-[13px] text-[var(--hv-ink-dim)] leading-relaxed mb-3">
+        Pick what you are investigating, drop in one identifier, and get a keyless OSINT read. No account, no API key.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
+        {steps.map((s) => (
+          <div key={s.n} className="rounded-md border border-[var(--hv-glass-border)] p-2.5">
+            <div className="text-[11px] font-mono font-bold uppercase tracking-widest mb-1" style={{ color: s.accent }}>{s.n} · {s.title}</div>
+            <div className="text-[12px] text-[var(--hv-ink-dim)] leading-snug">{s.body}</div>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="btn-neon px-4 py-2 text-[11px] font-mono font-bold uppercase tracking-widest"
+      >
+        Got it, start investigating
+      </button>
     </div>
   );
 }
@@ -126,6 +179,21 @@ function PageContent() {
   const [hashStatus, setHashStatus] = useState<Status>("idle");
   const [hashResult, setHashResult] = useState<HashLookupResponse | null>(null);
   const [hashErr, setHashErr] = useState("");
+
+  // Last dispatched lookup (mode + value), captured at the top of every runner.
+  // When a lookup fails, the error card uses it to re-run in one click, so a
+  // dropped connection or a rate-limited upstream never forces a full re-type.
+  const [lastRun, setLastRun] = useState<{ mode: Mode; value: string } | null>(null);
+
+  // First-run orientation card. Defaults to hidden and is switched on from an
+  // effect after mount (never during SSR, where there is no localStorage) so the
+  // server and first client render agree — the same hydration-safe pattern the
+  // boot flag uses.
+  const [showTour, setShowTour] = useState(false);
+  const dismissTour = useCallback(() => {
+    setShowTour(false);
+    try { localStorage.setItem(TOUR_KEY, "1"); } catch { /* ignore */ }
+  }, []);
 
   // Session graph — every successful lookup seeds it with the primary identifier
   // AND the identifiers that result derived (a domain's IPs, an IP's reverse host,
@@ -189,7 +257,7 @@ function PageContent() {
   // ── Lookup runners ──────────────────────────────────────────────────────
   const runLookup = useCallback(async (number: string) => {
     setPhoneStatus("loading"); setPhoneResult(null); setPhoneErr(""); setCurrentE164(number);
-    syncUrl("phone", number);
+    setLastRun({ mode: "phone", value: number }); syncUrl("phone", number);
     const out = await postLookup<LookupResponse>("/api/lookup", { number });
     if (!out.ok) { setPhoneErr(out.error); setPhoneStatus("error"); return; }
     const data = out.data;
@@ -199,42 +267,42 @@ function PageContent() {
   }, [syncUrl, addEntities]);
 
   const runEmail = useCallback(async (email: string) => {
-    setEmailStatus("loading"); setEmailResult(null); setEmailErr(""); syncUrl("email", email);
+    setEmailStatus("loading"); setEmailResult(null); setEmailErr(""); setLastRun({ mode: "email", value: email }); syncUrl("email", email);
     const out = await postLookup<EmailLookupResponse>("/api/email-lookup", { email });
     if (!out.ok) { setEmailErr(out.error); setEmailStatus("error"); return; }
     setEmailResult(out.data); setEmailStatus("done"); addEntities(entitiesFromEmail(out.data));
   }, [syncUrl, addEntities]);
 
   const runUsername = useCallback(async (username: string) => {
-    setUserStatus("loading"); setUserResult(null); setUserErr(""); syncUrl("username", username);
+    setUserStatus("loading"); setUserResult(null); setUserErr(""); setLastRun({ mode: "username", value: username }); syncUrl("username", username);
     const out = await postLookup<UsernameLookupResponse>("/api/username-lookup", { username });
     if (!out.ok) { setUserErr(out.error); setUserStatus("error"); return; }
     setUserResult(out.data); setUserStatus("done"); addEntities(entitiesFromUsername(out.data));
   }, [syncUrl, addEntities]);
 
   const runIp = useCallback(async (ipAddr: string) => {
-    setIpStatus("loading"); setIpResult(null); setIpErr(""); syncUrl("ip", ipAddr);
+    setIpStatus("loading"); setIpResult(null); setIpErr(""); setLastRun({ mode: "ip", value: ipAddr }); syncUrl("ip", ipAddr);
     const out = await postLookup<IpLookupResponse>("/api/ip-lookup", { ip: ipAddr });
     if (!out.ok) { setIpErr(out.error); setIpStatus("error"); return; }
     setIpResult(out.data); setIpStatus("done"); addEntities(entitiesFromIp(out.data));
   }, [syncUrl, addEntities]);
 
   const runDomain = useCallback(async (domain: string) => {
-    setDomStatus("loading"); setDomResult(null); setDomErr(""); syncUrl("domain", domain);
+    setDomStatus("loading"); setDomResult(null); setDomErr(""); setLastRun({ mode: "domain", value: domain }); syncUrl("domain", domain);
     const out = await postLookup<DomainLookupResponse>("/api/domain-lookup", { domain });
     if (!out.ok) { setDomErr(out.error); setDomStatus("error"); return; }
     setDomResult(out.data); setDomStatus("done"); addEntities(entitiesFromDomain(out.data));
   }, [syncUrl, addEntities]);
 
   const runWallet = useCallback(async (address: string) => {
-    setWalletStatus("loading"); setWalletResult(null); setWalletErr(""); syncUrl("wallet", address);
+    setWalletStatus("loading"); setWalletResult(null); setWalletErr(""); setLastRun({ mode: "wallet", value: address }); syncUrl("wallet", address);
     const out = await postLookup<WalletLookupResponse>("/api/wallet-lookup", { address });
     if (!out.ok) { setWalletErr(out.error); setWalletStatus("error"); return; }
     setWalletResult(out.data); setWalletStatus("done");
   }, [syncUrl]);
 
   const runHash = useCallback(async (hash: string) => {
-    setHashStatus("loading"); setHashResult(null); setHashErr(""); syncUrl("hash", hash);
+    setHashStatus("loading"); setHashResult(null); setHashErr(""); setLastRun({ mode: "hash", value: hash }); syncUrl("hash", hash);
     const out = await postLookup<HashLookupResponse>("/api/hash-lookup", { hash });
     if (!out.ok) { setHashErr(out.error); setHashStatus("error"); return; }
     setHashResult(out.data); setHashStatus("done");
@@ -309,6 +377,18 @@ function PageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Show the orientation card once, to anyone who has never dismissed it. Read
+  // in an effect (not initial state) so SSR and the first client render match.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(TOUR_KEY) !== "1") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setShowTour(true);
+      }
+    } catch { /* ignore */ }
+    // run once on mount
+  }, []);
+
   // Command palette smart-run
   const onQuickLookup = useCallback((m: Mode, value: string) => {
     setMode(m);
@@ -320,6 +400,23 @@ function PageContent() {
     else if (m === "wallet") void runWallet(value);
     else if (m === "hash") void runHash(value);
   }, [runLookup, runEmail, runUsername, runIp, runDomain, runWallet, runHash]);
+
+  // Re-run the last dispatched lookup — the action behind the error card's RETRY
+  // button, so a transient upstream failure is one click to recover from.
+  const retryLast = useCallback(() => {
+    if (lastRun) onQuickLookup(lastRun.mode, lastRun.value);
+  }, [lastRun, onQuickLookup]);
+
+  // Dismiss the active mode's error and return that mode to its idle input state.
+  const dismissError = useCallback(() => {
+    if (mode === "phone") { setPhoneStatus("idle"); setPhoneErr(""); }
+    else if (mode === "email") { setEmailStatus("idle"); setEmailErr(""); }
+    else if (mode === "username") { setUserStatus("idle"); setUserErr(""); }
+    else if (mode === "ip") { setIpStatus("idle"); setIpErr(""); }
+    else if (mode === "domain") { setDomStatus("idle"); setDomErr(""); }
+    else if (mode === "wallet") { setWalletStatus("idle"); setWalletErr(""); }
+    else if (mode === "hash") { setHashStatus("idle"); setHashErr(""); }
+  }, [mode]);
 
   // Keyboard shortcuts: 1–8 switch mode, "/" focuses the input. Ignored while the
   // user is typing or holding a modifier (so ⌘K and normal input still work).
@@ -346,12 +443,19 @@ function PageContent() {
       <MatrixRain />
 
       <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Update bar — full width across the very top, shown only when a genuine
+            newer release exists (same shared check as the header button). */}
+        <UpdateBanner />
+
         {/* Header */}
-        <header className="border-b border-[var(--hv-glass-border)] px-4 sm:px-6 py-3 flex items-center justify-between glass sticky top-0 z-20">
+        <header className="border-b border-[var(--hv-glass-border)] px-3 sm:px-6 py-3 flex items-center justify-between gap-2 glass sticky top-0 z-20">
           <h1 className="m-0 min-w-0 text-sm sm:text-base">
             <LogoLockup size={30} tagline animated compact />
           </h1>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* flex-wrap + min-w-0 (not shrink-0): on a phone the control cluster
+              wraps to a second row instead of forcing the whole page into a
+              horizontal scroll. */}
+          <div className="flex items-center flex-wrap justify-end gap-1.5 sm:gap-3 min-w-0">
             <CommandPalette onMode={setMode} onQuickLookup={onQuickLookup} />
             <RecentLookups onRun={onQuickLookup} />
             <SourcesPanel />
@@ -390,6 +494,10 @@ function PageContent() {
             </div>
           )}
 
+          {/* One-time orientation, above the input so a first-run user reads it
+              before the box. Dismissible and never shown again. */}
+          {!isBooting && showTour && <WelcomeTour onDismiss={dismissTour} />}
+
           {/* relative z-10 on the input card: lift it above the sibling cards below
               it (History, results) so the country dropdown — trapped in this card's
               backdrop-filter stacking context — overlays them instead of being
@@ -405,8 +513,11 @@ function PageContent() {
                 </div>
                 {/* 9-mode switcher */}
                 <div className="flex flex-wrap gap-1.5 font-mono text-sm" role="tablist" aria-label="Lookup mode">
-                  {MODES.map((m) => (
+                  {MODES.map((m, i) => (
+                    // Keys 1-9 switch the first nine modes; surface that in the
+                    // tooltip so the shortcut is discoverable without opening Help.
                     <button key={m.id} onClick={() => selectMode(m.id)} role="tab" aria-selected={mode === m.id}
+                      title={i < 9 ? `${modeName(m)} · press ${i + 1}` : modeName(m)}
                       className={`px-3 py-2 rounded-md border tracking-widest uppercase transition-all text-xs sm:text-sm focus:outline-none ${
                         mode === m.id
                           ? "border-[var(--hv-green)] text-[var(--hv-green)] bg-[var(--hv-green)]/10 shadow-[0_0_14px_-2px_var(--hv-green)]"
@@ -515,21 +626,48 @@ function PageContent() {
                 <span className="opacity-60">[ERROR] </span>
                 {mode === "phone" ? phoneErr : mode === "email" ? emailErr : mode === "username" ? userErr : mode === "ip" ? ipErr : mode === "domain" ? domErr : mode === "wallet" ? walletErr : hashErr}
               </div>
+              {/* A failure is usually a transient upstream (a free source hits its
+                  per-IP quota, or the network blips). Offer a one-click re-run and
+                  a dismiss, so the user is never stranded having to re-type. */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {lastRun && (
+                  <button
+                    onClick={retryLast}
+                    className="btn-neon flex items-center gap-1.5 px-4 py-2 text-[11px] font-mono font-bold uppercase tracking-widest"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Retry
+                  </button>
+                )}
+                <button
+                  onClick={dismissError}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-[var(--hv-glass-border)] text-[11px] font-mono uppercase tracking-widest text-[var(--hv-ink-dim)] hover:text-[var(--hv-ink)] hover:border-[var(--hv-glass-hi)] transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" /> Dismiss
+                </button>
+                <span className="text-[11px] font-mono text-[var(--hv-ink-dim)]">
+                  Free sources rate-limit by IP: waiting a moment and retrying usually clears it.
+                </span>
+              </div>
             </div>
           )}
 
           {/* Results — each can pin its primary + derived identifiers to a case in one click */}
-          {mode === "phone"    && phoneStatus === "done" && phoneResult && <PanelErrorBoundary label="Phone results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromPhone(phoneResult)} edges={edgesFromPivots({ kind: "phone", value: phoneResult.input.e164 }, pivotsFromPhone(phoneResult))} snapshot={{ kind: "phone", value: phoneResult.input.e164, facts: factsFromPhone(phoneResult), fromCache: phoneResult.cachedAt !== undefined }} /></div><ResultsDashboard data={phoneResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} onEmailLookup={(e) => { setMode("email"); void runEmail(e); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromPhone(phoneResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
-          {mode === "email"    && emailStatus === "done" && emailResult && <PanelErrorBoundary label="Email results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromEmail(emailResult)} edges={edgesFromPivots({ kind: "email", value: emailResult.email }, pivotsFromEmail(emailResult))} snapshot={{ kind: "email", value: emailResult.email, facts: factsFromEmail(emailResult), fromCache: emailResult.cachedAt !== undefined }} /></div><EmailResultsDashboard data={emailResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromEmail(emailResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
-          {mode === "username" && userStatus === "done"  && userResult  && <PanelErrorBoundary label="Username results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromUsername(userResult)} edges={edgesFromPivots({ kind: "username", value: userResult.username }, pivotsFromUsername(userResult))} snapshot={{ kind: "username", value: userResult.username, facts: factsFromUsername(userResult), fromCache: userResult.cachedAt !== undefined }} /></div><UsernameResultsDashboard data={userResult} /><div className="mt-4"><AutoPivots pivots={pivotsFromUsername(userResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
-          {mode === "ip"       && ipStatus === "done"    && ipResult    && <PanelErrorBoundary label="IP results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromIp(ipResult)} edges={edgesFromPivots({ kind: "ip", value: ipResult.input }, pivotsFromIp(ipResult))} snapshot={{ kind: "ip", value: ipResult.input, facts: factsFromIp(ipResult), fromCache: ipResult.cachedAt !== undefined }} /></div><IpResultsDashboard data={ipResult} onDomainLookup={(d) => { setMode("domain"); void runDomain(d); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromIp(ipResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
-          {mode === "domain"   && domStatus === "done"   && domResult   && <PanelErrorBoundary label="Domain results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromDomain(domResult)} edges={edgesFromPivots({ kind: "domain", value: domResult.domain }, pivotsFromDomain(domResult))} snapshot={{ kind: "domain", value: domResult.domain, facts: factsFromDomain(domResult), fromCache: domResult.cachedAt !== undefined }} /></div><DomainResultsDashboard data={domResult} onIpLookup={(v) => { setMode("ip"); void runIp(v); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromDomain(domResult)} onRun={onQuickLookup} /></div></PanelErrorBoundary>}
+          {mode === "phone"    && phoneStatus === "done" && phoneResult && <PanelErrorBoundary label="Phone results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromPhone(phoneResult)} edges={edgesFromPivots({ kind: "phone", value: phoneResult.input.e164 }, pivotsFromPhone(phoneResult))} snapshot={{ kind: "phone", value: phoneResult.input.e164, facts: factsFromPhone(phoneResult), fromCache: phoneResult.cachedAt !== undefined }} /></div><ResultsDashboard data={phoneResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} onEmailLookup={(e) => { setMode("email"); void runEmail(e); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromPhone(phoneResult)} onRun={onQuickLookup} /></div><div className="mt-4"><AiAnalysisPanel input={{ kind: "phone", data: phoneResult }} /></div></PanelErrorBoundary>}
+          {mode === "email"    && emailStatus === "done" && emailResult && <PanelErrorBoundary label="Email results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromEmail(emailResult)} edges={edgesFromPivots({ kind: "email", value: emailResult.email }, pivotsFromEmail(emailResult))} snapshot={{ kind: "email", value: emailResult.email, facts: factsFromEmail(emailResult), fromCache: emailResult.cachedAt !== undefined }} /></div><EmailResultsDashboard data={emailResult} onUsernameSweep={(h) => { setMode("username"); void runUsername(h); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromEmail(emailResult)} onRun={onQuickLookup} /></div><div className="mt-4"><AiAnalysisPanel input={{ kind: "email", data: emailResult }} /></div></PanelErrorBoundary>}
+          {mode === "username" && userStatus === "done"  && userResult  && <PanelErrorBoundary label="Username results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromUsername(userResult)} edges={edgesFromPivots({ kind: "username", value: userResult.username }, pivotsFromUsername(userResult))} snapshot={{ kind: "username", value: userResult.username, facts: factsFromUsername(userResult), fromCache: userResult.cachedAt !== undefined }} /></div><UsernameResultsDashboard data={userResult} /><div className="mt-4"><AutoPivots pivots={pivotsFromUsername(userResult)} onRun={onQuickLookup} /></div><div className="mt-4"><AiAnalysisPanel input={{ kind: "username", data: userResult }} /></div></PanelErrorBoundary>}
+          {mode === "ip"       && ipStatus === "done"    && ipResult    && <PanelErrorBoundary label="IP results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromIp(ipResult)} edges={edgesFromPivots({ kind: "ip", value: ipResult.input }, pivotsFromIp(ipResult))} snapshot={{ kind: "ip", value: ipResult.input, facts: factsFromIp(ipResult), fromCache: ipResult.cachedAt !== undefined }} /></div><IpResultsDashboard data={ipResult} onDomainLookup={(d) => { setMode("domain"); void runDomain(d); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromIp(ipResult)} onRun={onQuickLookup} /></div><div className="mt-4"><AiAnalysisPanel input={{ kind: "ip", data: ipResult }} /></div></PanelErrorBoundary>}
+          {mode === "domain"   && domStatus === "done"   && domResult   && <PanelErrorBoundary label="Domain results"><div className="mt-6 flex justify-end"><AddToCase entities={entitiesFromDomain(domResult)} edges={edgesFromPivots({ kind: "domain", value: domResult.domain }, pivotsFromDomain(domResult))} snapshot={{ kind: "domain", value: domResult.domain, facts: factsFromDomain(domResult), fromCache: domResult.cachedAt !== undefined }} /></div><DomainResultsDashboard data={domResult} onIpLookup={(v) => { setMode("ip"); void runIp(v); }} /><div className="mt-4"><AutoPivots pivots={pivotsFromDomain(domResult)} onRun={onQuickLookup} /></div><div className="mt-4"><AiAnalysisPanel input={{ kind: "domain", data: domResult }} /></div></PanelErrorBoundary>}
 
-          {mode === "wallet"   && walletStatus === "done" && walletResult && <PanelErrorBoundary label="Wallet results"><WalletResultsDashboard data={walletResult} /></PanelErrorBoundary>}
-          {mode === "hash"     && hashStatus === "done"   && hashResult   && <PanelErrorBoundary label="Hash results"><HashResultsDashboard data={hashResult} /></PanelErrorBoundary>}
+          {mode === "wallet"   && walletStatus === "done" && walletResult && <PanelErrorBoundary label="Wallet results"><WalletResultsDashboard data={walletResult} /><div className="mt-4"><AiAnalysisPanel input={{ kind: "wallet", data: walletResult }} /></div></PanelErrorBoundary>}
+          {mode === "hash"     && hashStatus === "done"   && hashResult   && <PanelErrorBoundary label="Hash results"><HashResultsDashboard data={hashResult} /><div className="mt-4"><AiAnalysisPanel input={{ kind: "hash", data: hashResult }} /></div></PanelErrorBoundary>}
 
           {!isBooting && mode === "graph" && (
-            <div className="mt-6"><PanelErrorBoundary label="Graph"><LinkGraph entities={sessionEntities} title="SESSION LINK GRAPH" onChange={setSessionEntities} /></PanelErrorBoundary></div>
+            <div className="mt-6 space-y-4">
+              {/* Paste raw text (a dump, a report), extract identifiers on-device,
+                  and drop them straight into the graph below or run one as a lookup. */}
+              <PanelErrorBoundary label="AI text intel"><AiTextIntel onAddEntities={addEntities} onQuickLookup={onQuickLookup} /></PanelErrorBoundary>
+              <PanelErrorBoundary label="Graph"><LinkGraph entities={sessionEntities} title="SESSION LINK GRAPH" onChange={setSessionEntities} /></PanelErrorBoundary>
+            </div>
           )}
           {!isBooting && mode === "cases" && <PanelErrorBoundary label="Cases"><CasesPanel /></PanelErrorBoundary>}
         </main>

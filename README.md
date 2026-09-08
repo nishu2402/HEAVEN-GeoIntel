@@ -2,12 +2,12 @@
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
     <source media="(prefers-color-scheme: dark)" srcset="public/brand/poster.svg"/>
-    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 29 sources need no API key, 23 of 38 username sites auto-verified, 22 API operations, 100% test coverage"/>
+    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 29 sources need no API key, 23 of 38 username sites auto-verified, 23 API operations, 100% test coverage"/>
   </picture>
 </p>
 
 <p align="center">
-<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=00FF85&center=true&vCenter=true&width=1200&lines=Unified+OSINT+Intelligence+Platform;Phone+%C2%B7+Email+%C2%B7+Username+%C2%B7+IP+%C2%B7+Domain+%C2%B7+5+Identifier+Types;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;Link-Analysis+Graph+%C2%B7+Persistent+Cases+%C2%B7+%E2%8C%98K+Command+Palette;Real+Data+Only+%C2%B7+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+16+%C2%B7+TypeScript"/>
+<img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&weight=700&size=26&duration=2500&pause=700&color=00FF85&center=true&vCenter=true&width=1200&lines=Unified+OSINT+Intelligence+Platform;Phone+%C2%B7+Email+%C2%B7+Username+%C2%B7+IP+%C2%B7+Domain+%C2%B7+Wallet+%C2%B7+Hash+%C2%B7+7+Identifier+Types;Hudson+Rock+Infostealer+%C2%B7+1000%2B+Breach+DBs+%C2%B7+Zero+API+Keys+Required;Link-Analysis+Graph+%C2%B7+Persistent+Cases+%C2%B7+%E2%8C%98K+Command+Palette;Real+Data+Only+%C2%B7+No+Placeholders%2C+No+Simulations;Docker+%C2%B7+OpenAPI+3.1+%C2%B7+CI+%C2%B7+Next.js+16+%C2%B7+TypeScript"/>
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Identifiers-Phone_·_Email_·_Username_·_IP_·_Domain-BF5FFF?style=flat-square&logo=target&logoColor=white" alt="Identifier types"/>
+    <img src="https://img.shields.io/badge/Identifiers-Phone_·_Email_·_Username_·_IP_·_Domain_·_Wallet_·_Hash-BF5FFF?style=flat-square&logo=target&logoColor=white" alt="Identifier types"/>
     <img src="https://img.shields.io/badge/Modes-11_(incl._Graph_+_Cases)-00D9D9?style=flat-square&logo=hexo&logoColor=black" alt="Modes"/>
     <img src="https://img.shields.io/badge/Command_Palette-%E2%8C%98K-44FF88?style=flat-square&logo=raycast&logoColor=black" alt="Command palette"/>
     <img src="https://img.shields.io/badge/Themes-Light_+_Dark-FFAA00?style=flat-square&logo=tailwindcss&logoColor=black" alt="Themes"/>
@@ -181,7 +181,7 @@
 | 🌍 **Country Dataset** | 100 countries: capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict, auto-invalidated when an API key changes) · file-backed cases |
 | 🚦 **Rate Limiting** | 60 requests/minute **per client** + a server-wide ceiling; fixed-window, all limits env-tunable |
-| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 22 operations across 17 endpoints |
+| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 23 operations across 18 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
 | 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
@@ -210,7 +210,7 @@ Target  ─►  phone │ email │ username │ IP │ domain
         ├─ OSINT pivot matrix           (37 phone links · 22 email links · tier-tagged · deduplicated)
         ├─ Link-analysis graph          (connect phone ⇄ email ⇄ username ⇄ IP ⇄ domain)
         ├─ Persistent cases             (group identifiers across sessions · analyst notes)
-        └─ Export                       (.txt · .html report · CSV · graph PNG)
+        └─ Export                       (unified report: PDF · .txt · .md · .html · STIX · CSV · graph PNG)
 ```
 
 > **Scope:** Returns publicly derivable *metadata* only. Does **not** provide real-time GPS, live device tracking, SS7 interception, or any form of unauthorized surveillance.
@@ -442,7 +442,7 @@ Every phone lookup returns real data derived from the number structure and bundl
 | **Number Permutations** | 12 format variants for OSINT/database searching |
 | **OSINT Pivots** | 37 links across 5 categories, each tagged **FREE / CAPTCHA / APP / LOGIN / PAID / BLOCKED**; filter chips default to FREE + CAPTCHA + APP. Every link takes the number directly, with no dead "did not match any documents" results |
 | **QR Code** | Canvas-rendered QR for the `tel:` URI · downloadable as PNG |
-| **Report Export** | Full intelligence report as `.txt` or `.html` |
+| **Report Export** | One professional intelligence report, identical for every mode, in five formats: **one-click PDF** (Print → Save as PDF), `.txt`, Markdown, a self-contained `.html` page, and a STIX 2.1 bundle. Cover page, Contents index, executive summary, grounded AI risk assessment, evidence sections, source health and a methodology note |
 | **History Drawer** | Last 20 lookups (browser localStorage) |
 | **Shareable URL** | `?q=+14155552671` auto-runs the lookup |
 
@@ -498,7 +498,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **Reputation** | EmailRep.io: suspicious · blacklisted · malicious · credentials leaked · spam · first/last seen · registered platforms |
 | **Validation / Deliverability** | AbstractAPI (SMTP/MX, quality, catch-all) · Hunter.io (deliverable/risky/undeliverable + confidence) |
 | **OSINT Matrix** | 26 investigation links across 4 categories |
-| **Report Export** | Full report as `.txt` including breach + FullContact data |
+| **Report Export** | The same unified report as every other mode (PDF · `.txt` · Markdown · `.html` · STIX 2.1), including breach + FullContact data |
 
 </div>
 
@@ -887,7 +887,7 @@ curl -s localhost:3000/api/cases | jq '.cases'
 curl -s localhost:3000/api/docs  | jq .info
 ```
 
-The seventeen endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/wallet-lookup` · `/api/hash-lookup` · `/api/pwned-password` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/notable-breaches` · `/api/datasets` · `/api/keys` · `/api/health` · `/api/version` · `/api/docs`; 22 operations in all, and **every one of them is in the spec**.
+The eighteen endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/wallet-lookup` · `/api/hash-lookup` · `/api/pwned-password` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/notable-breaches` · `/api/datasets` · `/api/keys` · `/api/ai-analyst` · `/api/health` · `/api/version` · `/api/docs`; 23 operations in all, and **every one of them is in the spec**.
 
 The spec is generated at request time from a route registry (`src/lib/api/endpoints.ts`), not hand-written, and a test walks `src/app/api/**/route.ts` and fails the build if the registry and the actual routes disagree. Adding a route without documenting it is a red build, so the "import it into Postman" promise cannot quietly stop being true.
 
@@ -1018,7 +1018,7 @@ HEAVEN-GeoIntel/
 │   │   │                 CountryPanel · QrCodePanel
 │   │   ├── shared/       ThemeProvider · ThemeToggle · CommandPalette · ConsentGate ·
 │   │   │                 SimpleLookupInput · Tilt3D · MatrixRain · BootSequence ·
-│   │   │                 PanelErrorBoundary · ShareButton · ReportExport · Logo · … (21 total)
+│   │   │                 PanelErrorBoundary · AiAnalysisPanel · UniversalReportExport · Logo · … (30 total)
 │   │   └── ui/           shadcn/ui primitives (Radix)
 │   │
 │   └── lib/

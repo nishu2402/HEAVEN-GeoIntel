@@ -11,6 +11,7 @@ import { caseTimeline } from "@/lib/analysis/caseTimeline";
 import { LOOKUP_MODES } from "@/lib/client/modes";
 import LinkGraph, { type GraphEntity } from "@/components/graph/LinkGraph";
 import CaseChanges from "@/components/cases/CaseChanges";
+import CaseBriefing from "@/components/cases/CaseBriefing";
 import {
   buildCaseJson, buildCaseMarkdown, verifyCaseImport,
   buildCaseCsv, buildMaltegoCsv, buildStixBundle, buildPrintableHtml,
@@ -498,6 +499,9 @@ export default function CasesPanel() {
           />
 
           <CaseChanges snapshots={active.snapshots ?? []} />
+
+          {/* AI briefing — composition + on-device read of the notes */}
+          <CaseBriefing caseData={active} />
 
           {/* Timeline — creation, pinned identifiers, derived links and lookup snapshots */}
           {(() => {

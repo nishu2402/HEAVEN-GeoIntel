@@ -10,6 +10,7 @@ import { ipToDomainPivot } from "@/lib/analysis/crossPivots";
 import Tilt3D from "@/components/shared/Tilt3D";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
+import CopyButton from "@/components/shared/CopyButton";
 import Term from "@/components/shared/Term";
 import UniversalReportExport from "@/components/shared/UniversalReportExport";
 import { buildIpReport } from "@/lib/analysis/report";
@@ -127,7 +128,10 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
             <div className="flex items-center gap-3">
               <span className="text-4xl">{ip.flagEmoji ?? "🌐"}</span>
               <div>
-                <div className="text-2xl font-bold gradient-text tracking-wider font-mono">{ip.ip}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-2xl font-bold gradient-text tracking-wider font-mono">{ip.ip}</span>
+                  <CopyButton text={ip.ip} ariaLabel="Copy IP address" className="shrink-0 p-1 rounded text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:bg-[var(--hv-glass-border)]/40 transition-colors" />
+                </div>
                 <div className="text-sm text-[var(--hv-ink-dim)] mt-0.5 font-mono">
                   {ip.type} · {[ip.city, ip.region, ip.country].filter(Boolean).join(", ") || "Location unknown"}
                 </div>
