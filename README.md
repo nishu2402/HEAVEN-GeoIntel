@@ -125,8 +125,6 @@
   </tr>
 </table>
 
-<sub>Every shot is captured at one fixed viewport, so the grid stays even. To refresh them, run <code>npm run dev</code> in one terminal and <code>npm run screenshots</code> in another. The <a href="./scripts/capture-screenshots.mjs">capture script</a> drives your system Chrome and writes high-DPI PNGs into <a href="./docs/screenshots/"><code>docs/screenshots/</code></a>.</sub>
-
 ---
 
 ## 📋 Table of Contents
