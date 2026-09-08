@@ -191,7 +191,8 @@ async function hmacHex(hash: "SHA-256" | "SHA-512", key: string, text: string): 
 // AES-256-GCM with a PBKDF2-SHA256 passphrase. A fresh 16-byte salt and 12-byte
 // IV each time, packed salt||iv||ciphertext and Base64'd. Iterations are fixed,
 // so the token is self-describing enough to decrypt with only the passphrase.
-const PBKDF2_ITERS = 210000;
+// 600k is the OWASP 2023 floor for PBKDF2-HMAC-SHA256.
+const PBKDF2_ITERS = 600000;
 
 async function deriveAesKey(passphrase: string, salt: Bytes, usage: "encrypt" | "decrypt"): Promise<CryptoKey> {
   const base = await crypto.subtle.importKey("raw", utf8Encode(passphrase), "PBKDF2", false, ["deriveKey"]);
@@ -438,7 +439,7 @@ const IMPLS: Impl[] = [
   // ENCRYPT — reversible, keyed, real
   { meta: { id: "aes-gcm", label: "AES-256-GCM", category: "encrypt", key: "required", keyLabel: "Passphrase", blurb: "Authenticated AES with a PBKDF2 passphrase." },
     forward: (t, k) => aesGcmEncrypt(k, t), inverse: (t, k) => aesGcmDecrypt(k, t),
-    note: "AES-256-GCM · PBKDF2-SHA256 (210k) · authenticated. A wrong passphrase fails; it never returns garbage." },
+    note: "AES-256-GCM · PBKDF2-SHA256 (600k) · authenticated. A wrong passphrase fails; it never returns garbage." },
 ];
 
 const IMPL_BY_ID = new Map(IMPLS.map((impl) => [impl.meta.id, impl]));

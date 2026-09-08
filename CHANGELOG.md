@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.1.0] — 2026-09-08
+
 ### Security
 
 - **Hardened the file-metadata reader against hostile uploads.** The in-browser
@@ -224,9 +226,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   each label by lowercasing it and letting CSS re-capitalize the first letter,
   which is right for an ordinary word but turned the "IP" acronym into "Ip". Mode
   labels now render in their own proper case, so an acronym stays whole.
+- **The weekly outbound-link check reports real link rot again.** The checker
+  filled only one of the two username placeholders the source uses, so several
+  hundred live sites were probed with a literal `{account}` still in the URL and
+  came back looking dead. It now fills both placeholders and re-checks a failure
+  with a second request before flagging it, so the report shows links that have
+  actually stopped resolving instead of a datacenter being throttled on the first
+  try.
 
 ### Security
 
+- **The AI Analyst API key is no longer written to the browser.** The optional
+  cloud key you paste is held only in memory for the current tab. It is never
+  saved to `localStorage` or any other on-disk store, so the secret does not sit
+  at rest where another script, an extension, or the next person on a shared
+  machine could read it. It still travels only in the request you trigger, to
+  your own relay, which forwards it and keeps no copy.
+- **More code-scanning cleanup.** The exported HTML report now escapes the double
+  quote inside a link's `href`, so a value can never break out of the attribute.
+  An offline breach-catalog script shed a slow regular expression and a tag strip
+  that a single pass could defeat, and two test helpers were tightened, clearing
+  the remaining static-analysis findings.
 - **Markdown report escaping now escapes the backslash before the pipe.** A cell
   value that held a backslash right before a pipe could otherwise reopen a live
   table delimiter, because the doubled backslash consumed the escape. Backslashes
