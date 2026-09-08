@@ -241,7 +241,10 @@ describe("probeHttp", () => {
   ])("refuses to follow a redirect into %s (SSRF)", async (target) => {
     const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
-      if (url.startsWith("http://example.com")) return res({ status: 200 }); // https-upgrade probe
+      const u = new URL(url);
+      // Exact host match, not a prefix: startsWith("http://example.com") would
+      // also accept http://example.com.evil.com.
+      if (u.protocol === "http:" && u.hostname === "example.com") return res({ status: 200 }); // https-upgrade probe
       if (url === "https://example.com/") return res({ status: 302, headers: { location: target } });
       return res({ status: 200, body: "<title>should never be reached</title>" });
     });

@@ -76,7 +76,10 @@ describe("<UpdateChecker>", () => {
     expect(screen.getByRole("button", { name: /software updates/i })).toBeTruthy();
     openPanel();
     expect(screen.getByText(/you are on the latest version/i)).toBeTruthy();
-    expect(screen.getByText(new RegExp(`v${APP_VERSION.replace(/\./g, "\\.")}`))).toBeTruthy();
+    // Escape every regex metacharacter in the version (backslash first, via the
+    // character class) so the literal string is matched, not interpreted.
+    const versionRx = APP_VERSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    expect(screen.getByText(new RegExp(`v${versionRx}`))).toBeTruthy();
   });
 
   it("shows a 'could not check' reason when the endpoint could not reach GitHub", async () => {

@@ -22,9 +22,9 @@ import {
  *
  * A cloud provider needs a key. Rather than force the operator out to a terminal
  * to edit the environment, the key is entered right here: a "Get a key" link
- * opens the provider's console, the field takes the paste, and it can be kept in
- * this browser so it survives a reload. The key rides only in the request body to
- * our own relay, which forwards it and never stores or logs it.
+ * opens the provider's console and the field takes the paste. The key is held in
+ * this tab for the session only, never written to disk, and rides solely in the
+ * request body to our own relay, which forwards it and never stores or logs it.
  */
 
 type Status = "idle" | "loading" | "done" | "error";
@@ -32,46 +32,17 @@ type Status = "idle" | "loading" | "done" | "error";
 // Sentinel value for the model dropdown's "type my own" row.
 const CUSTOM = "__custom__";
 
-// Where a remembered cloud key lives, one entry per provider. This is a per-
-// browser convenience only: the value never leaves the machine except in the
-// request the operator triggers, and it is easy to clear (untick Remember).
-const KEY_PREFIX = "hv-analyst-key:";
-
+// A cloud key is held only in React state for the life of the tab. It is
+// deliberately NOT written to localStorage or any other persistent store: an API
+// key is a secret, and clear-text storage in the browser is a liability that
+// outweighs saving one paste. It leaves the machine only in the request the
+// operator triggers.
 type CloudProvider = Exclude<AnalystProvider, "ollama">;
-
-/** Read a remembered key for a cloud provider, or "" if none/unavailable. */
-function loadKey(p: CloudProvider): string {
-  try {
-    return localStorage.getItem(KEY_PREFIX + p) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-/** Persist (or clear, when empty) a cloud provider's key in this browser. */
-function saveKey(p: CloudProvider, key: string): void {
-  try {
-    if (key) localStorage.setItem(KEY_PREFIX + p, key);
-    else localStorage.removeItem(KEY_PREFIX + p);
-  } catch {
-    /* private mode / quota — best effort */
-  }
-}
-
-/** Drop a remembered key entirely. */
-function forgetKey(p: CloudProvider): void {
-  try {
-    localStorage.removeItem(KEY_PREFIX + p);
-  } catch {
-    /* best effort */
-  }
-}
 
 export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) {
   const [provider, setProvider] = useState<AnalystProvider>("ollama");
   const [model, setModel] = useState<string>(DEFAULT_MODEL.ollama);
   const [apiKey, setApiKey] = useState("");
-  const [remember, setRemember] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<AnalystResult | null>(null);
@@ -96,11 +67,9 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
     setProvider(p);
     setModel(DEFAULT_MODEL[p]);
     setShowKey(false);
-    // Load a key remembered for this provider (none for Ollama), and tick
-    // Remember when one is found so the operator sees it is persisted.
-    const loaded = p === "ollama" ? "" : loadKey(p);
-    setApiKey(loaded);
-    setRemember(loaded !== "");
+    // The key is per-session and lives only in state; switching providers clears
+    // it so one provider's key is never carried to another.
+    setApiKey("");
     reset();
   };
 
@@ -111,19 +80,9 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
     reset();
   };
 
-  // Both handlers take the concrete cloud provider from the render, where it is
-  // already narrowed non-null (the key controls exist only for a cloud provider),
-  // so neither carries a null guard the UI could never reach.
-  const onKeyChange = (c: CloudProvider, v: string) => {
+  const onKeyChange = (v: string) => {
     setApiKey(v);
-    if (remember) saveKey(c, v);
     reset();
-  };
-
-  const onRememberToggle = (c: CloudProvider, checked: boolean) => {
-    setRemember(checked);
-    if (checked) saveKey(c, apiKey);
-    else forgetKey(c);
   };
 
   const run = async () => {
@@ -187,7 +146,7 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
               aria-label="API key"
               type={showKey ? "text" : "password"}
               value={apiKey}
-              onChange={(e) => onKeyChange(cloud, e.target.value)}
+              onChange={(e) => onKeyChange(e.target.value)}
               placeholder={`Paste your ${PROVIDER_LABEL[cloud]} key`}
               autoComplete="off"
               spellCheck={false}
@@ -202,19 +161,8 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
               {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
-          <label className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--hv-ink-dim)] cursor-pointer w-fit">
-            <input
-              type="checkbox"
-              aria-label="Remember key on this device"
-              checked={remember}
-              onChange={(e) => onRememberToggle(cloud, e.target.checked)}
-              className="accent-[var(--hv-cyan)]"
-            />
-            Remember on this device
-          </label>
           <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">
-            Sent only with this request to your own server relay, which forwards it to {PROVIDER_LABEL[cloud]}. Never stored on the server, never logged.
-            {remember ? " Kept in this browser until you untick Remember." : ""}
+            Held in this tab for the session only, never written to disk. Sent solely with this request to your own server relay, which forwards it to {PROVIDER_LABEL[cloud]} and never stores or logs it.
           </p>
         </div>
       )}

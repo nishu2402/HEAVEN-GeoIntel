@@ -45,13 +45,21 @@ const AMBIGUOUS = new Set(["", "unknown", "various", "n/a", "multiple", "undiscl
 
 /** Strip refs, templates, wikilinks and HTML from a cell's inner text. */
 function stripWiki(s) {
+  // Remove <ref…/>, <ref>…</ref> and any other tag, then repeat until the string
+  // stops shrinking. A single pass is an incomplete sanitiser: removing one match
+  // can reveal another (nested refs, `<<x>>`), so loop to a fixpoint.
+  let prev;
+  do {
+    prev = s;
+    s = s
+      .replace(/<ref[^>]*\/>/gi, "")
+      .replace(/<ref[\s\S]*?<\/ref>/gi, "")
+      .replace(/<[^>]*>/g, "");
+  } while (s !== prev);
   return s
-    .replace(/<ref[^>]*\/>/gi, "")
-    .replace(/<ref[\s\S]*?<\/ref>/gi, "")
     .replace(/\{\{[^{}]*\}\}/g, "")
     .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, "$1")
     .replace(/\[[^\s\]]+\s([^\]]*)\]/g, "$1")
-    .replace(/<[^>]+>/g, "")
     .replace(/'''?/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
@@ -60,8 +68,15 @@ function stripWiki(s) {
 
 /** Drop a leading wikitable cell-attribute prefix ('data-sort-value="1"| …'). */
 function dropCellAttrs(cell) {
-  const m = cell.match(/^\s*(?:[\w-]+\s*=\s*(?:"[^"]*"|[^\s|]+)\s*)+\|(?!\|)/);
-  return m ? cell.slice(m[0].length) : cell;
+  // Take everything up to the first single "|" (not a "||" cell separator). The
+  // `[^|]*` scan is linear — no nested quantifier to backtrack — unlike a regex
+  // that tries to validate every attribute in one pass. If that prefix opens
+  // like an HTML attribute (`name=…`) and holds no stray tag brackets, it is an
+  // attribute prefix and gets dropped; otherwise the "|" was content, so keep it.
+  const m = /^([^|]*)\|(?!\|)/.exec(cell);
+  if (!m) return cell;
+  const prefix = m[1];
+  return /^\s*[\w-]+\s*=/.test(prefix) && !/[<>]/.test(prefix) ? cell.slice(m[0].length) : cell;
 }
 
 /** Split one wikitext table row into its cell strings (line and inline cells). */

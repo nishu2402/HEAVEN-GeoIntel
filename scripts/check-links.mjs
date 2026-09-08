@@ -31,6 +31,11 @@
 // you WHERE to look; it does not tell you what you will find.
 //
 // ── Reading the output ──
+// A DEAD, DOWN, UNREACHABLE or RATELIMIT verdict is confirmed with a second
+// probe before it is reported: those are the transient-prone ones (a throttled
+// DNS lookup, a datacenter 5xx, a reset), and the kinder of the two looks wins.
+// Only a link that fails BOTH times is reported below.
+//
 //   DEAD      the host will not resolve at all (DNS NXDOMAIN). Fix it.
 //   NO-RECORD every probe 404'd: either the path is wrong or the probe
 //             identifiers have no record. Check one identifier you know exists.
@@ -66,6 +71,20 @@ const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 const TIMEOUT_MS = 20000;
 const CONCURRENCY = 6;
+const RETRY_DELAY_MS = 1500;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Severity rank, lower is worse. Sorts the report and, on a retry, decides which
+// of two verdicts to keep (the kinder one — a link that recovers was not broken).
+const SEVERITY = { DEAD: 0, DOWN: 1, UNREACHABLE: 2, "NO-RECORD": 3, BLOCKED: 4, WALLED: 5, RATELIMIT: 6, OK: 7 };
+
+// Verdicts that are commonly transient rather than real rot: a DNS lookup
+// throttled under load (this run makes ~1600 of them), a datacenter 5xx, a
+// momentary reset or rate-limit. Every one of these gets a second, confirming
+// probe before the report believes it — the single biggest source of false
+// DEAD/DOWN issues is a CI datacenter IP being throttled on the first look, and
+// a genuinely dead host stays dead on the retry.
+const RETRY_STATES = new Set(["DEAD", "DOWN", "UNREACHABLE", "RATELIMIT"]);
 
 // Substituted into every URL template. Two identifiers per kind: one that the
 // site is very likely to hold a record for, one arbitrary — a template is only
@@ -78,7 +97,13 @@ const SUBSTITUTIONS = {
   "${ccLc}": ["us", "us"],
   "${e164}": ["+18002662278", "+14155552671"],
   "${encDomain}": ["github.com", "example.com"],
+  // Two username placeholders exist in the tree: usernameSites.ts uses {u},
+  // extendedUsernameSites.ts uses {account} (filled at runtime with the
+  // URL-encoded handle). Both must be substituted, or the ~700 extended-site
+  // templates get probed with a literal "{account}" in the host/path — which
+  // NXDOMAINs or 404s wholesale and floods the report with false DEAD/NO-RECORD.
   "{u}": ["torvalds", "jack"],
+  "{account}": ["torvalds", "jack"],
 };
 
 /** Pull every literal URL out of a source file, template holes and all. */
@@ -105,8 +130,8 @@ function expand(template) {
     variants[i] = url;
   }
   // A template with a hole we do not know how to fill is unusable — say so
-  // rather than probing a URL with a literal "${…}" in it.
-  if (variants.some((u) => /\$\{|\{u\}/.test(u))) return null;
+  // rather than probing a URL with a literal "${…}", "{u}" or "{account}" in it.
+  if (variants.some((u) => /\$\{|\{u\}|\{account\}/.test(u))) return null;
   return [...new Set(variants)];
 }
 
@@ -214,14 +239,22 @@ async function main() {
     Array.from({ length: CONCURRENCY }, async () => {
       while (cursor < entries.length) {
         const [template, { file, expanded }] = entries[cursor++];
-        const results = await Promise.all(expanded.map(probe));
-        report.push({ template, file, state: verdict(results), results });
+        let results = await Promise.all(expanded.map(probe));
+        let state = verdict(results);
+        // Confirm a transient-looking verdict with a second look; believe the
+        // kinder result so a link that recovers is not filed as broken.
+        if (RETRY_STATES.has(state)) {
+          await sleep(RETRY_DELAY_MS);
+          const retry = await Promise.all(expanded.map(probe));
+          const retryState = verdict(retry);
+          if (SEVERITY[retryState] > SEVERITY[state]) { results = retry; state = retryState; }
+        }
+        report.push({ template, file, state, results });
       }
     }),
   );
 
-  const order = { DEAD: 0, DOWN: 1, UNREACHABLE: 2, "NO-RECORD": 3, BLOCKED: 4, WALLED: 5, RATELIMIT: 6, OK: 7 };
-  report.sort((a, b) => order[a.state] - order[b.state] || a.template.localeCompare(b.template));
+  report.sort((a, b) => SEVERITY[a.state] - SEVERITY[b.state] || a.template.localeCompare(b.template));
 
   for (const row of report) {
     if (row.state === "OK") continue;
@@ -233,12 +266,22 @@ async function main() {
   const counts = report.reduce((acc, r) => ({ ...acc, [r.state]: (acc[r.state] ?? 0) + 1 }), {});
   console.log(`\n${Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join("  ·  ")}`);
 
-  // Only an unresolvable host and a persistently-down origin are unambiguous
-  // enough to fail on. WALLED is expected for captcha-tier links, and NO-RECORD
-  // needs a human to disambiguate.
-  const broken = report.filter((r) => r.state === "DEAD" || r.state === "DOWN").length;
-  if (broken > 0) {
-    console.log(`\n${broken} link(s) are dead or down and need fixing.`);
+  // Only a retry-confirmed DNS death (DEAD) is unambiguous enough to fail on.
+  // DOWN is deliberately NOT a failure: measured against a browser, a scripted
+  // 5xx here is usually a live site answering "no account for this handle" with
+  // a 500 instead of a 404 (chatovka.net and soup.io both serve 200 at the root
+  // while 5xx-ing the probe handle), or a datacenter IP being refused — the same
+  // ambiguity as NO-RECORD and WALLED, which already do not fail. It is still
+  // printed above and saved in the artifact for a human to review; it just does
+  // not gate. That keeps the weekly run from filing an issue over links that are
+  // not actually broken, while a genuinely vanished domain (DEAD) still does.
+  const dead = report.filter((r) => r.state === "DEAD").length;
+  const down = report.filter((r) => r.state === "DOWN" || r.state === "UNREACHABLE").length;
+  if (down > 0) {
+    console.log(`\n${down} link(s) returned 5xx / did not connect from this vantage — review, do not assume dead.`);
+  }
+  if (dead > 0) {
+    console.log(`\n${dead} link(s) no longer resolve (DNS) and need fixing.`);
     process.exitCode = 1;
   }
 }
