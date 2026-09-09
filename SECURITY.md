@@ -107,13 +107,30 @@ Out of scope (please report these to the upstream maintainers):
 We track `npm audit` and keep the framework on the latest stable (Next.js 16).
 **Current status: `npm audit` reports 0 vulnerabilities.**
 
-Three advisories were resolved and are documented here for the record:
+`npm audit` resolves the **lockfile**, so it answers "what is in the artifact we
+ship" and cannot answer "what could a fresh install of this manifest produce".
+Those are different questions, and they have come apart twice here (`postcss`,
+`next` — both below). `npm run audit:floors` asks the second one: it resolves the
+lowest version every declared range admits and checks that against the OSV
+advisory database.
+
+Four advisories were resolved and are documented here for the record:
 
 - **`postcss` `</style>` XSS** (GHSA-qx2v-qp2m-jg93): Next pins an older
   `postcss@8.4.31` as a nested dependency. We pin it forward to the patched
   `8.5.x` line with an npm `overrides` entry (`"postcss": "$postcss"`), which
   dedupes it to the already-patched top-level copy. Build-time only; the app
   never stringifies untrusted CSS.
+- **`next` unauthenticated RCE, two advisories** ([GHSA-2xp9-vwfh-vxw4](https://github.com/advisories/GHSA-2xp9-vwfh-vxw4),
+  RCE in the Image Optimization API when AVIF files are used; and
+  [GHSA-p293-qw3h-jr36](https://github.com/advisories/GHSA-p293-qw3h-jr36) /
+  CVE-2026-75604, RCE on Windows-hosted servers — both critical, both affecting
+  `>=16.0.0 <16.3.3`). Nothing shipped or ran vulnerable: the lockfile has held
+  16.3.4 throughout, so `npm ci`, the Docker image and the standalone tarball all
+  resolved a patched version and `npm audit` reported zero. The exposure was in
+  the manifest — the declared range was `^16.2.12`, which admits 16.2.12 through
+  16.3.2, so an install that did not use this lockfile could have taken a version
+  with a published exploit. The floor is now `^16.3.4`.
 - **`esbuild` / `vitest` dev-server advisory**: cleared by upgrading the test
   runner to `vitest@4`. Dev-only; never shipped to production.
 - **`brace-expansion` unbounded-expansion DoS** ([GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg)
@@ -128,7 +145,8 @@ Three advisories were resolved and are documented here for the record:
   glob pattern the repo owner writes.
 
 Run `npm audit` (or `npm audit --omit=dev` for the production-only picture) to
-confirm.
+confirm what is installed, and `npm run audit:floors` to confirm what the
+manifest would allow to be installed.
 
 ## Known limitations (accepted risk)
 

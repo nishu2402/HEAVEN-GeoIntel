@@ -54,6 +54,37 @@ published image.
   joined and the section put back into the file's declared
   Added → Changed → Fixed → Security order.
 
+### Security
+
+- **Raised the `next` floor to `^16.3.4`, above two unauthenticated-RCE
+  advisories.** The declared range was `^16.2.12`, which admits 16.2.12 through
+  16.3.2 — every one of them inside the affected range of GHSA-2xp9-vwfh-vxw4
+  (RCE in the Image Optimization API via AVIF) and GHSA-p293-qw3h-jr36 /
+  CVE-2026-75604 (RCE on Windows-hosted servers), both critical and both fixed
+  in 16.3.3. Nothing shipped vulnerable and nothing was running vulnerable: the
+  lockfile has held 16.3.4 throughout, so `npm ci`, the Docker image and the
+  standalone tarball all resolved a patched version, and `npm audit` reported
+  zero because it resolves the lock. The manifest was the exposure — a fresh
+  install without this lock could have taken a version with a published exploit.
+  The floor now sits above the fixed-in version, matching what was done for
+  `postcss` in 3.0.0. No dependency resolution changed: `next` and
+  `eslint-config-next` were already installed at 16.3.4, so only the declared
+  ranges moved.
+- **A check for the class of defect that hid it.** `npm audit` resolves the
+  lockfile, which is the right question for "what does the artifact contain" and
+  cannot answer "what could a fresh install of this manifest produce". Those
+  answers had now come apart twice — `postcss`'s `^8` and `next`'s `^16.2.12` —
+  and nothing in the repo asked the second question. `npm run audit:floors`
+  resolves the lowest version every declared range admits and checks it against
+  the OSV advisory database, blocking only on a floor that ships. It is
+  deliberately not wired into the release gate: it needs an advisory database
+  that changes with no commit to this repo, which is the same property
+  `audit-gate.mjs` argues should keep something out of a tag-time gate. An
+  offline assertion in `tests/releaseGate.test.ts` pins the two floors that have
+  already had to be raised, so neither can be lowered again without the ordinary
+  test run failing.
+
+
 ## [3.1.0] — 2026-09-08
 
 ### Added

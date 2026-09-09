@@ -4,6 +4,7 @@ import { join } from "node:path";
 // Plain-Node gate script, deliberately not TypeScript: it has to run on a cold
 // CI runner before anything is installed.
 import { flatten, covers, classifyReports, badge } from "../scripts/audit-gate.mjs";
+import { classifyFloors } from "../scripts/floor-audit.mjs";
 
 // ── The release's dependency-advisory policy ─────────────────────────────────
 //
@@ -251,5 +252,79 @@ describe("both gates run the same policy", () => {
 
   it("`npm run audit` is the documented way to run it", () => {
     expect(JSON.parse(read("package.json")).scripts.audit).toBe("node scripts/audit-gate.mjs");
+  });
+});
+
+// ── The declared-floor check ─────────────────────────────────────────────────
+//
+// `npm audit` resolves the lockfile, so it answers "what does the artifact
+// contain" and cannot answer "what could a fresh install of this manifest
+// produce". Those diverged twice: postcss's `^8` floor admitted 8.0.x with
+// seven advisories, and `next`'s `^16.2.12` floor admitted 16.2.12–16.3.2,
+// every one inside the affected range of two unauthenticated-RCE advisories
+// fixed in 16.3.3. Both times the lock held a patched version, so the gate was
+// clean and an external scan reading package.json was right to disagree.
+//
+// Driven with fixtures for the same reason the policy above is: a healthy
+// manifest never produces the blocking state, so a test that ran the real
+// check would prove only that today's floors are clean.
+describe("declared floors, which npm audit cannot see", () => {
+  const row = (name: string, prod: boolean, vulns: string[], min: string | null = "1.0.0") =>
+    ({ name, range: "^1.0.0", prod, min, vulns });
+
+  it("blocks when something that ships can be installed vulnerable", () => {
+    const v = classifyFloors([
+      row("next", true, ["GHSA-2xp9-vwfh-vxw4", "GHSA-p293-qw3h-jr36"]),
+      row("clsx", true, []),
+    ]);
+    expect(v.blocking.map((r) => r.name)).toEqual(["next"]);
+    expect(v.reported).toEqual([]);
+    expect(v.checked).toBe(2);
+  });
+
+  // Same reachability argument the advisory policy makes: a dev-only floor
+  // cannot reach anyone running the tool.
+  it("reports a dev-only floor without blocking", () => {
+    const v = classifyFloors([row("vitest", false, ["GHSA-dev"]), row("next", true, [])]);
+    expect(v.blocking).toEqual([]);
+    expect(v.reported.map((r) => r.name)).toEqual(["vitest"]);
+  });
+
+  it("passes a manifest whose floors are all clean", () => {
+    const v = classifyFloors([row("next", true, []), row("vitest", false, [])]);
+    expect(v.blocking).toEqual([]);
+    expect(v.reported).toEqual([]);
+    expect(v.checked).toBe(2);
+  });
+
+  // A range nothing published satisfies is not a clean range; it is an
+  // unanswered question, and it is counted separately from the ones checked.
+  it("separates a range it could not resolve from a range it cleared", () => {
+    const v = classifyFloors([row("ghost", true, [], null), row("next", true, [])]);
+    expect(v.unresolved.map((r) => r.name)).toEqual(["ghost"]);
+    expect(v.checked).toBe(1);
+    expect(v.blocking).toEqual([]);
+  });
+});
+
+describe("the checked-in manifest", () => {
+  it("declares no floor below a version the project has already had to escape", () => {
+    // Pins the two fixes rather than the whole manifest: `npm run audit:floors`
+    // checks every range against the live database, but a checked-in assertion
+    // is what stops these two specific floors being lowered again by a careless
+    // range edit, offline and in the ordinary test run.
+    const pkg = JSON.parse(read("package.json"));
+    const floor = (r: string) => r.replace(/^[^0-9]*/, "").split(".").map(Number);
+    const atLeast = (r: string, min: number[]) => {
+      const v = floor(r);
+      for (let i = 0; i < min.length; i++) {
+        if ((v[i] ?? 0) !== min[i]) return (v[i] ?? 0) > min[i]!;
+      }
+      return true;
+    };
+    // next < 16.3.3 is GHSA-2xp9-vwfh-vxw4 / GHSA-p293-qw3h-jr36 (both critical,
+    // unauthenticated RCE); postcss < 8.4.31 is CVE-2023-44270 and six others.
+    expect(atLeast(pkg.dependencies.next, [16, 3, 3])).toBe(true);
+    expect(atLeast(pkg.devDependencies.postcss, [8, 4, 31])).toBe(true);
   });
 });
