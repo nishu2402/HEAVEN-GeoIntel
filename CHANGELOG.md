@@ -50,7 +50,7 @@ published image.
   section for a version is copied verbatim onto its release page, so a duplicate
   heading splits related entries there too. The 2.1.0 entry records the same
   defect being fixed once already, under `[Unreleased]`; that fix shipped
-  without a guard, so it came back. No wording changed — the two blocks were
+  without a guard, so it came back. No wording changed, the two blocks were
   joined and the section put back into the file's declared
   Added → Changed → Fixed → Security order.
 
