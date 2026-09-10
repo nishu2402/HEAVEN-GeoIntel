@@ -16,7 +16,7 @@ import { POST as bulk } from "@/app/api/bulk-lookup/route";
 import { POST as aiAnalyst } from "@/app/api/ai-analyst/route";
 
 // Every rate-limited route charges the quota BEFORE it validates the body, so a
-// 400 has already spent a request. Seven of them answered that 400 without
+// 400 has already spent a request. Eight of them answered that 400 without
 // X-RateLimit-*, leaving a client unable to see the budget it had just used.
 // This drives each route with bad input, and holds the endpoint registry to the
 // list: a new rate-limited route missing from ROUTES fails the first test.
@@ -34,7 +34,7 @@ const ROUTES: Record<string, { handler: Handler; bad: unknown[] }> = {
   "/api/hash-lookup":     { handler: hash,      bad: ["{oops", {}, { hash: "xyz" }] },
   "/api/pwned-password":  { handler: pwned,     bad: ["{oops", {}, { prefix: "zz" }] },
   "/api/bulk-lookup":     { handler: bulk,      bad: ["{oops", {}, { numbers: [] }] },
-  "/api/ai-analyst":      { handler: aiAnalyst, bad: ["{oops", {}] },
+  "/api/ai-analyst":      { handler: aiAnalyst, bad: ["{oops", {}, { provider: "nope", model: "m", system: "s", user: "u" }] },
 };
 
 let dir: string;
