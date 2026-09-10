@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+// Same "max" metadata as the server's phoneAnalysis, so the input's valid /
+// invalid mark can never disagree with the result it leads to.
 import {
   AsYouType, getCountries, getCountryCallingCode, isValidPhoneNumber,
   parsePhoneNumberFromString,
-} from "libphonenumber-js";
-import type { CountryCode } from "libphonenumber-js";
+} from "libphonenumber-js/max";
+import type { CountryCode } from "libphonenumber-js/max";
 import { CheckCircle2, XCircle, Search, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 

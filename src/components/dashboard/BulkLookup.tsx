@@ -8,6 +8,7 @@ interface BulkRow {
   ok: boolean;
   error?: string;
   e164?: string;
+  valid?: boolean;
   country?: string | null;
   countryName?: string;
   type?: string | null;
@@ -28,7 +29,7 @@ const MAX_BULK = 25;
 
 function toCsv(rows: BulkRow[]): string {
   const headers = [
-    "input", "ok", "error", "e164", "country", "countryName",
+    "input", "ok", "error", "e164", "valid", "country", "countryName",
     "type", "carrier", "timezone", "utcOffset", "npaState", "npaRegion", "cached",
   ];
   const esc = (v: unknown): string => {
@@ -112,8 +113,11 @@ export default function BulkLookup() {
     URL.revokeObjectURL(url);
   }
 
-  const okCount = rows?.filter((r) => r.ok).length ?? 0;
-  const errCount = (rows?.length ?? 0) - okCount;
+  // Three disjoint buckets: a parsed row is either a valid number or an invalid
+  // one, and an unparsed row failed. "OK" used to count invalid numbers too.
+  const validCount = rows?.filter((r) => r.ok && r.valid === true).length ?? 0;
+  const invalidCount = rows?.filter((r) => r.ok && r.valid === false).length ?? 0;
+  const errCount = rows?.filter((r) => !r.ok).length ?? 0;
 
   return (
     <div className="space-y-3">
@@ -167,7 +171,8 @@ export default function BulkLookup() {
       {rows && (
         <div className="space-y-2">
           <div className="text-[12px] font-mono text-[#00ff41]/65 flex flex-wrap gap-3">
-            <span className="text-[#00ff41]">✓ {okCount} OK</span>
+            <span className="text-[#00ff41]">✓ {validCount} valid</span>
+            {invalidCount > 0 && <span className="text-[#ffaa00]">⚠ {invalidCount} invalid</span>}
             {errCount > 0 && <span className="text-[#ff3e3e]">✗ {errCount} failed</span>}
             <span className="text-[#00ff41]/54">bulk mode is offline-only; rerun individual numbers in the PHONE tab for full enrichment.</span>
           </div>
@@ -179,6 +184,7 @@ export default function BulkLookup() {
                   <th className="text-left px-2 py-1.5 font-normal">#</th>
                   <th className="text-left px-2 py-1.5 font-normal">INPUT</th>
                   <th className="text-left px-2 py-1.5 font-normal">E.164</th>
+                  <th className="text-left px-2 py-1.5 font-normal">VALID</th>
                   <th className="text-left px-2 py-1.5 font-normal">CC</th>
                   <th className="text-left px-2 py-1.5 font-normal">TYPE</th>
                   <th className="text-left px-2 py-1.5 font-normal">CARRIER</th>
@@ -190,11 +196,16 @@ export default function BulkLookup() {
                 {rows.map((r, i) => (
                   <tr
                     key={i}
-                    className={`border-t border-[#00ff41]/10 ${r.ok ? "" : "bg-[#ff3e3e]/[0.04]"}`}
+                    className={`border-t border-[#00ff41]/10 ${!r.ok ? "bg-[#ff3e3e]/[0.04]" : r.valid === false ? "bg-[#ffaa00]/[0.05]" : ""}`}
                   >
                     <td className="px-2 py-1.5 text-[#00ff41]/54">{i + 1}</td>
                     <td className="px-2 py-1.5 text-[#00ff41]/75">{r.input}</td>
                     <td className="px-2 py-1.5 text-[#00d9ff]">{r.e164 ?? "—"}</td>
+                    <td className="px-2 py-1.5">
+                      {r.valid === undefined ? <span className="text-[#00ff41]/54">—</span>
+                        : r.valid ? <span className="text-[#00ff41]">✓</span>
+                        : <span className="text-[#ffaa00]">✗ INVALID</span>}
+                    </td>
                     <td className="px-2 py-1.5 text-[#00ff41]/65">{r.country ?? "—"}</td>
                     <td className="px-2 py-1.5 text-[#00ff41]/65">{r.type ?? "—"}</td>
                     <td className="px-2 py-1.5 text-[#00ff41]/65">{r.carrier ?? "—"}</td>

@@ -75,6 +75,15 @@ const CSP = cspDirectives.join("; ");
 // byte-for-byte what they were.
 const standalone = process.env.BUILD_STANDALONE === "1";
 
+// Every route that takes a target identifier, stores case data, or relays an
+// evidence bundle to a model. Held to the endpoint registry by
+// tests/apiHeaders.test.ts.
+const PRIVATE_API_ROUTES = [
+  "lookup", "email-lookup", "bulk-lookup", "username-lookup", "ip-lookup",
+  "domain-lookup", "wallet-lookup", "hash-lookup", "pwned-password",
+  "ai-analyst", "cases",
+];
+
 const nextConfig = {
   ...(standalone ? { output: "standalone" } : {}),
   // Next 16's `next dev` blocks cross-origin requests to dev internals (HMR,
@@ -118,61 +127,24 @@ const nextConfig = {
             : []),
         ],
       },
-      {
-        // Lookup API routes — never indexed, never cached, never embeddable.
-        // We intentionally do NOT send an Access-Control-Allow-Origin header
-        // here: omitting it means browsers enforce same-origin by default and
-        // block cross-site reads. ("same-origin" is NOT a valid ACAO value, so
-        // sending it would be a no-op at best and a malformed duplicate header
-        // when a route also sets its own — e.g. the public /api/docs spec.)
-        source: "/api/lookup(.*)",
+      // Lookup, case and AI routes — never indexed, never cached, never
+      // embeddable. We intentionally do NOT send an Access-Control-Allow-Origin
+      // header here: omitting it means browsers enforce same-origin by default
+      // and block cross-site reads. ("same-origin" is NOT a valid ACAO value, so
+      // sending it would be a no-op at best and a malformed duplicate header
+      // when a route also sets its own — e.g. the public /api/docs spec.)
+      //
+      // One list, not one hand-copied block per route: the copies covered the
+      // first seven routes and silently missed wallet, hash, pwned-password and
+      // ai-analyst when those were added. tests/apiHeaders.test.ts fails the
+      // build if a lookup or case route in the endpoint registry is missing.
+      ...PRIVATE_API_ROUTES.map((route) => ({
+        source: `/api/${route}(.*)`,
         headers: [
           { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
           { key: "Cache-Control", value: "no-store, max-age=0" },
         ],
-      },
-      {
-        source: "/api/email-lookup(.*)",
-        headers: [
-          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
-          { key: "Cache-Control", value: "no-store, max-age=0" },
-        ],
-      },
-      {
-        source: "/api/bulk-lookup(.*)",
-        headers: [
-          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
-          { key: "Cache-Control", value: "no-store, max-age=0" },
-        ],
-      },
-      {
-        source: "/api/username-lookup(.*)",
-        headers: [
-          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
-          { key: "Cache-Control", value: "no-store, max-age=0" },
-        ],
-      },
-      {
-        source: "/api/ip-lookup(.*)",
-        headers: [
-          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
-          { key: "Cache-Control", value: "no-store, max-age=0" },
-        ],
-      },
-      {
-        source: "/api/domain-lookup(.*)",
-        headers: [
-          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
-          { key: "Cache-Control", value: "no-store, max-age=0" },
-        ],
-      },
-      {
-        source: "/api/cases(.*)",
-        headers: [
-          { key: "X-Robots-Tag",  value: "noindex, nofollow, noarchive" },
-          { key: "Cache-Control", value: "no-store, max-age=0" },
-        ],
-      },
+      })),
     ];
   },
 };

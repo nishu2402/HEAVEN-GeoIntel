@@ -17,7 +17,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (rl.limited) return rl.limited;
 
   const body = await parseBody(req, aiAnalystBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rl.headers });
 
   // Audit the provider name only. Never the prompt (it names the subject) and
   // never body.apiKey (the operator's own credential).

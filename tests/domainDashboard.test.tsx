@@ -93,6 +93,23 @@ describe("<DomainResultsDashboard>", () => {
     expect(screen.queryByText(/^SPF: /)).toBeNull();
   });
 
+  it("shows an unanswered DNS query as unknown, never as spoofable or absent", () => {
+    render(<DomainResultsDashboard data={domainData({
+      dns: { a: [], aaaa: [], mx: [], txt: [], ns: [rec("ns1.example.com", { type: "NS" })], cname: [] },
+      emailSecurity: { hasSpf: null, spf: null, hasDmarc: null, dmarcPolicy: null, hasMx: null },
+      dnssec: null,
+      dnsFailed: ["A", "MX", "TXT", "DMARC", "DNSKEY"],
+    })} />);
+    expect(screen.queryByText(/spoofable/)).toBeNull();
+    expect(screen.queryByText(/No mail servers/)).toBeNull();
+    expect(screen.getAllByText("No DNS answer: not determined")).toHaveLength(3); // SPF, DMARC, MX
+    expect(screen.getAllByText("Unknown")).toHaveLength(3);                       // their glance tiles
+    expect(screen.getByText(/\? A · \? MX · 1 NS/)).toBeTruthy();               // "?" never "0"
+    expect(screen.getByText(/No answer for A, MX, TXT, DMARC, DNSKEY/)).toBeTruthy();
+    expect(screen.queryByText(/No DNS records resolved/)).toBeNull();
+    expect(screen.queryByText(/Not signed/)).toBeNull();
+  });
+
   it("renders the WHOIS-unavailable and unsigned-DNSSEC states", () => {
     render(<DomainResultsDashboard data={domainData({
       whois: null, dnssec: false, wayback: null,

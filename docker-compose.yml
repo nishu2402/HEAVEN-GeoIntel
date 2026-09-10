@@ -40,9 +40,19 @@ services:
     # tmpfs keeps the lookup cache fast even on slow disks
     tmpfs:
       - /tmp:size=128M
+    # Cases, in-app API keys and the audit log. A named volume keeps them when
+    # `docker compose up --build` recreates the container, which would otherwise
+    # throw away its writable layer and every case with it. Docker seeds a new
+    # named volume from the image's /app/.data, so it starts out owned by the
+    # non-root app user.
+    volumes:
+      - geointel-data:/app/.data
     # No healthcheck override here on purpose — the image's own HEALTHCHECK
     # (GET /api/health) is inherited. This block used to POST a real lookup to
     # /api/lookup every 30s, which fans out to seven third-party OSINT APIs:
     # ~2,880 lookups a day burning free-tier rate limits just to answer "is the
     # container up?". /api/health makes no outbound calls. Keeping the probe in
     # one place (the Dockerfile) is what stops the two drifting apart again.
+
+volumes:
+  geointel-data:

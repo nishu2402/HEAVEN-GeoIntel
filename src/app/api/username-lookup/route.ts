@@ -128,6 +128,13 @@ async function checkSite(
     return { ...base, status: "manual" };
   }
 
+  // A handle the site cannot hold is not registered there, whatever the probe
+  // would say. An overlay's JSON cannot carry a RegExp, so only bundled
+  // entries set one.
+  if (site.pattern instanceof RegExp && !site.pattern.test(username)) {
+    return { ...base, status: "notfound" };
+  }
+
   try {
     const res = await fetch(url, {
       method: "GET",
@@ -179,12 +186,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const body = await parseBody(req, usernameBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
 
   const username = body.username.trim().replace(/^@/, "");
-  if (!username) return NextResponse.json({ error: "Missing username" }, { status: 400 });
+  if (!username) return NextResponse.json({ error: "Missing username" }, { status: 400, headers: rlHeaders });
   if (!isPlausibleUsername(username)) {
-    return NextResponse.json({ error: "Username must be 2-40 chars: letters, digits, . _ -" }, { status: 400 });
+    return NextResponse.json({ error: "Username must be 2-40 chars: letters, digits, . _ -" }, { status: 400, headers: rlHeaders });
   }
   void audit("username", username, client, 200);
 

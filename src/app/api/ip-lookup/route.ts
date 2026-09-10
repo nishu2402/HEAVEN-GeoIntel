@@ -318,11 +318,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const body = await parseBody(req, ipBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
 
   const target = body.ip.trim();
-  if (!target) return NextResponse.json({ error: "Missing IP address" }, { status: 400 });
-  if (!isValidIp(target)) return NextResponse.json({ error: "Not a valid IPv4 / IPv6 address" }, { status: 400 });
+  if (!target) return NextResponse.json({ error: "Missing IP address" }, { status: 400, headers: rlHeaders });
+  if (!isValidIp(target)) return NextResponse.json({ error: "Not a valid IPv4 / IPv6 address" }, { status: 400, headers: rlHeaders });
 
   // Offline IANA scope classification. A non-routable address (private, loopback,
   // CGNAT, documentation, …) can never be geolocated, so short-circuit here with a

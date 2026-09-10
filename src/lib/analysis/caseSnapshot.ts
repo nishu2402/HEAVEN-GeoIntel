@@ -14,7 +14,7 @@
 
 import type {
   LookupResponse, EmailLookupResponse, UsernameLookupResponse,
-  IpLookupResponse, DomainLookupResponse, CaseSnapshot, EntityKind,
+  IpLookupResponse, DomainLookupResponse, CaseSnapshot, EntityKind, DnsQueryKind,
 } from "../types";
 
 export type Facts = Record<string, number | string>;
@@ -110,14 +110,18 @@ export function factsFromIp(d: IpLookupResponse): Facts {
 }
 
 export function factsFromDomain(d: DomainLookupResponse): Facts {
+  // A count or posture whose DNS query got no answer is left out, never stored
+  // as 0 or "missing": otherwise one timeout reads as "MX 2 → 0" on the re-run.
+  const failed = new Set<DnsQueryKind>(d.dnsFailed ?? []);
+  const count = (kind: DnsQueryKind, n: number) => (failed.has(kind) ? undefined : n);
   return defined({
-    aRecords: d.dns.a.length,
-    mxRecords: d.dns.mx.length,
-    nsRecords: d.dns.ns.length,
+    aRecords: count("A", d.dns.a.length),
+    mxRecords: count("MX", d.dns.mx.length),
+    nsRecords: count("NS", d.dns.ns.length),
     subdomains: d.subdomains.length,
     registrar: d.whois?.registrar,
     expires: d.whois?.expiresDate,
-    spf: d.emailSecurity.hasSpf ? "present" : "missing",
+    spf: d.emailSecurity.hasSpf === null ? undefined : d.emailSecurity.hasSpf ? "present" : "missing",
     dmarcPolicy: d.emailSecurity.dmarcPolicy,
     dnssec: d.dnssec === null ? undefined : d.dnssec ? "signed" : "unsigned",
   });

@@ -117,6 +117,21 @@ describe("fact summarisers keep only what a source actually answered", () => {
     // than asserting the domain is unsigned.
     expect(factsFromDomain({ ...base, dnssec: null } as unknown as DomainLookupResponse).dnssec).toBeUndefined();
   });
+
+  it("domain: omits what an unanswered DNS query could not tell, so a timeout is not a change", () => {
+    const facts = factsFromDomain({
+      dns: { a: [{}], mx: [], ns: [{}] }, subdomains: [], whois: null,
+      emailSecurity: { hasSpf: null, dmarcPolicy: null }, dnssec: null,
+      dnsFailed: ["MX", "TXT", "DNSKEY"],
+    } as unknown as DomainLookupResponse);
+    expect(facts).toEqual({ aRecords: 1, nsRecords: 1, subdomains: 0 });
+    // Against a healthy earlier run the facts stop being reported ("—"); they
+    // are never recorded as dropping to 0 MX or a "missing" SPF.
+    expect(diffFacts({ aRecords: 1, nsRecords: 1, subdomains: 0, mxRecords: 2, spf: "present" }, facts)).toEqual([
+      { fact: "mxRecords", from: 2, to: null },
+      { fact: "spf", from: "present", to: null },
+    ]);
+  });
 });
 
 // ── diffing ──────────────────────────────────────────────────────────────────

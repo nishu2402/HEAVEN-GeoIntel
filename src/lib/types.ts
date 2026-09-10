@@ -743,6 +743,9 @@ export interface DomainBreach {
   verified: boolean;
 }
 
+/** The DNS queries a domain lookup makes. DMARC is the TXT query on `_dmarc.<domain>`. */
+export type DnsQueryKind = "A" | "AAAA" | "MX" | "TXT" | "NS" | "CNAME" | "DMARC" | "DNSKEY";
+
 export interface DomainLookupResponse {
   domain: string;
   isValid: boolean;
@@ -757,16 +760,27 @@ export interface DomainLookupResponse {
   whois: DomainWhois | null;
   /** Subdomains discovered via certificate transparency (crt.sh) */
   subdomains: string[];
-  /** Email-security posture derived from TXT records */
+  /**
+   * Email-security posture derived from TXT / _dmarc TXT / MX. Each `has*` is
+   * null when its DNS query got no answer: unknown, which is never the same as
+   * absent. Reading a timed-out TXT lookup as "no SPF" called a real domain
+   * spoofable.
+   */
   emailSecurity: {
-    hasSpf: boolean;
+    hasSpf: boolean | null;
     spf: string | null;
-    hasDmarc: boolean;
+    hasDmarc: boolean | null;
     dmarcPolicy: string | null;   // none / quarantine / reject
-    hasMx: boolean;
+    hasMx: boolean | null;
   };
   /** DNSSEC signed? (DNSKEY present). null = couldn't determine. */
   dnssec: boolean | null;
+  /**
+   * DNS queries that got no answer (timeout, network error, SERVFAIL). Their
+   * record sets above are empty because they are unknown, not because the
+   * domain has none. NXDOMAIN is an answer and never appears here.
+   */
+  dnsFailed?: DnsQueryKind[];
   /** Internet Archive first-snapshot evidence (free, no key). */
   wayback: { available: boolean; firstSnapshot: string | null; snapshotUrl: string | null } | null;
   /**

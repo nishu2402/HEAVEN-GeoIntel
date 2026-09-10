@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 import { getCached, setCached } from "@/lib/server/cache";
 import { guardRateLimit } from "@/lib/server/rateLimit";
 import { settleSources } from "@/lib/server/sourceHealth";
@@ -402,14 +402,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   await ensureDatasets();
 
   const body = await parseBody(req, phoneBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
 
   const raw = body.number.trim();
-  if (!raw) return NextResponse.json({ error: "Missing phone number" }, { status: 400 });
+  if (!raw) return NextResponse.json({ error: "Missing phone number" }, { status: 400, headers: rlHeaders });
 
   const parsed = parsePhoneNumberFromString(raw);
   if (!parsed || !parsed.isPossible()) {
-    return NextResponse.json({ error: "Invalid or unparseable phone number" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid or unparseable phone number" }, { status: 400, headers: rlHeaders });
   }
 
   const e164 = parsed.format("E.164");
@@ -424,7 +424,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
      number above, so analyzePhoneNumber cannot return null here. Kept so a
      future change to the parser can't produce a 500 instead of a 400. */
   if (!analysis) {
-    return NextResponse.json({ error: "Failed to analyze number" }, { status: 400 });
+    return NextResponse.json({ error: "Failed to analyze number" }, { status: 400, headers: rlHeaders });
   }
 
   const countryIntel = analysis.country ? getCountryIntel(analysis.country) : null;

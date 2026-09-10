@@ -74,6 +74,13 @@ describe("OpenAPI spec covers every route", () => {
     for (const e of ENDPOINTS) {
       const responses = paths[e.path][e.method].responses;
       expect(Boolean(responses["429"]), `429 on ${e.method} ${e.path}`).toBe(Boolean(e.rateLimited));
+      // The quota is charged before validation, so the documented errors carry
+      // the headers too.
+      for (const err of e.errors ?? []) {
+        const r = responses[String(err.status)] as { headers?: Record<string, unknown> };
+        expect(Boolean(r.headers?.["X-RateLimit-Remaining"]), `headers on ${err.status} ${e.method} ${e.path}`)
+          .toBe(Boolean(e.rateLimited));
+      }
     }
   });
 });

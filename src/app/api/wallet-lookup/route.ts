@@ -93,7 +93,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const body = await parseBody(req, walletBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
 
   const raw = body.address.trim();
 
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const resolved = await addressFromEns(name);
     if (!resolved) {
       void audit("wallet", raw, client, 400);
-      return NextResponse.json({ error: "That ENS name does not resolve to an address" }, { status: 400 });
+      return NextResponse.json({ error: "That ENS name does not resolve to an address" }, { status: 400, headers: rlHeaders });
     }
     address = resolved;
     ens = { name, address, verified: true };
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const chain = detectChain(address);
   if (!chain) {
-    return NextResponse.json({ error: "Not a recognised BTC or ETH address" }, { status: 400 });
+    return NextResponse.json({ error: "Not a recognised BTC or ETH address" }, { status: 400, headers: rlHeaders });
   }
   void audit("wallet", address, client, 200);
 
