@@ -58,6 +58,18 @@ describe("fetchEmailMx", () => {
     expect(r).toEqual({ ok: true, data: { hasMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" } });
   });
 
+  it("surfaces a SERVFAIL (HTTP 200, Status 2) as a failure, never as no exchangers", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => resp(200, { Status: 2 })));
+    expect(await fetchEmailMx("broken.test")).toEqual({ ok: false, error: "DNS SERVFAIL" });
+  });
+
+  it("reads NXDOMAIN as a definitive answer: the domain has no exchangers", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => resp(200, { Status: 3 })));
+    const r = await fetchEmailMx("nx.test");
+    expect(r.ok).toBe(true);
+    expect(r.data?.hasMx).toBe(false);
+  });
+
   it("surfaces a non-2xx as an explicit failure, never an empty result", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => resp(500, {})));
     expect(await fetchEmailMx("boom.test")).toEqual({ ok: false, error: "HTTP 500" });

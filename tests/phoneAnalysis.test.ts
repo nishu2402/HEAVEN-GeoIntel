@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { analyzePhoneNumber, countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 
 describe("analyzePhoneNumber", () => {
@@ -22,18 +24,38 @@ describe("analyzePhoneNumber", () => {
   });
 
   it("never claims isMobile=true for FIXED_LINE_OR_MOBILE numbers", () => {
-    // Italian fixed/mobile numbers are intentionally ambiguous
-    const it = analyzePhoneNumber("+390666543210");
-    if (it && it.type === "FIXED_LINE_OR_MOBILE") {
-      expect(it.isMobile).toBe(false);
-      expect(it.isFixedLine).toBe(false);
-      expect(it.isAmbiguousType).toBe(true);
-    }
+    // NANP numbers are the canonical ambiguous case: libphonenumber cannot tell
+    // a US mobile from a landline. The Italian sample this used sat behind an
+    // `if` on its type, so the assertions only ran when libphonenumber happened
+    // to classify it that way; this one always runs.
+    const us = analyzePhoneNumber("+14155552671");
+    expect(us!.type).toBe("FIXED_LINE_OR_MOBILE");
+    expect(us!.isMobile).toBe(false);
+    expect(us!.isFixedLine).toBe(false);
+    expect(us!.isAmbiguousType).toBe(true);
   });
 
   it("returns null for unparseable input", () => {
     expect(analyzePhoneNumber("not a number")).toBeNull();
     expect(analyzePhoneNumber("")).toBeNull();
+  });
+
+  // The package default is libphonenumber's "min" metadata, which has no
+  // number-type patterns and validates on length alone. Under it every mobile
+  // below came back with type null ("Unknown"), and the Mumbai-shaped number
+  // passed as valid. Both fail if phone analysis is pointed back at min.
+  it("resolves the line type for mobiles outside NANP, GB and AU", () => {
+    for (const n of ["+919876543210", "+33612345678", "+4915112345678", "+8613800138000", "+5511987654321"]) {
+      const a = analyzePhoneNumber(n);
+      expect(a!.type, n).toBe("MOBILE");
+      expect(a!.isMobile, n).toBe(true);
+    }
+  });
+
+  it("validates strictly, not on length alone", () => {
+    const a = analyzePhoneNumber("+912212345678");
+    expect(a).not.toBeNull();
+    expect(a!.isValid).toBe(false);
   });
 
   it("resolves IANA timezone + UTC offset for a known country", () => {
@@ -126,6 +148,19 @@ describe("analyzePhoneNumber", () => {
     const us = analyzePhoneNumber("+14155552671");
     expect(us!.nationalNumber).toBe("4155552671");
     expect(us!.subscriberNumber).toBe("5552671");
+  });
+});
+
+describe("libphonenumber metadata", () => {
+  // Every parse in the app, server and browser, must use the same "max"
+  // metadata: a route on min would accept numbers the analysis rejects, and the
+  // input's valid mark would disagree with the result it leads to.
+  it("nothing imports the package default (min) metadata", () => {
+    const src = join(process.cwd(), "src");
+    const offenders = readdirSync(src, { recursive: true, encoding: "utf8" })
+      .filter((f) => /\.tsx?$/.test(f))
+      .filter((f) => /from "libphonenumber-js"/.test(readFileSync(join(src, f), "utf8")));
+    expect(offenders).toEqual([]);
   });
 });
 

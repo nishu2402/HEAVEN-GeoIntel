@@ -239,6 +239,9 @@ describe("signalsFromDomain", () => {
     expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: false } })), "infra.no_dmarc")).toBeTruthy();
     expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: true } })), "infra.no_dmarc")).toBeUndefined();
     expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: false, hasDmarc: false } })), "infra.no_dmarc")).toBeUndefined();
+    // null = the DNS query got no answer, which is not a missing DMARC.
+    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: null } })), "infra.no_dmarc")).toBeUndefined();
+    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: null, hasDmarc: false } })), "infra.no_dmarc")).toBeUndefined();
   });
 
   it("flags takeover candidates, catalogued breaches, and disabled DNSSEC", () => {

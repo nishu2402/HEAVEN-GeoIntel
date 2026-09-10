@@ -69,6 +69,9 @@ function operation(e: EndpointDef): Json {
   for (const err of e.errors ?? []) {
     responses[String(err.status)] = {
       description: err.description,
+      // The quota is charged before validation, so an error response carries
+      // the same headers as a 200.
+      ...(e.rateLimited ? { headers: RATE_LIMIT_HEADERS } : {}),
       content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
     };
   }
@@ -226,8 +229,16 @@ const SCHEMAS: Json = {
       dns: { type: "object", description: "A, AAAA, MX, TXT, NS, CNAME record sets." },
       whois: { type: "object", description: "RDAP registration data, or null." },
       subdomains: { type: "array", items: { type: "string" }, description: "From certificate transparency." },
-      emailSecurity: { type: "object", description: "SPF / DMARC / MX posture." },
-      dnssec: { type: "boolean" },
+      emailSecurity: {
+        type: "object",
+        description: "SPF / DMARC / MX posture. Each `has*` flag is true, false, or null when its DNS query got no answer (unknown, never absent).",
+      },
+      dnssec: { type: ["boolean", "null"], description: "DNSKEY present; null when the DNSKEY query got no answer." },
+      dnsFailed: {
+        type: "array",
+        items: { type: "string", enum: ["A", "AAAA", "MX", "TXT", "NS", "CNAME", "DMARC", "DNSKEY"] },
+        description: "DNS queries that got no answer (timeout, network error, SERVFAIL). Their records are unknown, not absent; NXDOMAIN is an answer and never listed.",
+      },
       wayback: { type: "object", description: "Oldest archived snapshot, or null." },
       pivots: { type: "array", items: { type: "object" } },
       sourceHealth: { type: "array", items: { $ref: "#/components/schemas/SourceProvenance" } },

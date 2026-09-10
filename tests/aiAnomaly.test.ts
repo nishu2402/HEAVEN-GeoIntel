@@ -138,5 +138,8 @@ describe("anomaliesFromDomain", () => {
     expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: false } })), "domain.spoofable")).toBe(true);
     expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: true } })), "domain.spoofable")).toBe(false);
     expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: false, hasDmarc: false } })), "domain.spoofable")).toBe(false);
+    // null = the DNS query got no answer: an unknown is not evidence of spoofing.
+    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: null } })), "domain.spoofable")).toBe(false);
+    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: null, hasDmarc: false } })), "domain.spoofable")).toBe(false);
   });
 });

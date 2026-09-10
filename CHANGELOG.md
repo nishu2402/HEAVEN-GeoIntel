@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-CI and documentation only — no change to the application, its API, or the
-published image.
+Application fixes found by an end-to-end run against live targets (the
+username sweep, phone validation, Docker persistence, DNS failures in the domain
+lookup, bulk validity, and rate-limit headers on errors), plus CI and
+documentation work.
 
 ### Added
 
@@ -53,6 +55,66 @@ published image.
   without a guard, so it came back. No wording changed, the two blocks were
   joined and the section put back into the file's declared
   Added → Changed → Fixed → Security order.
+- **The username sweep no longer claims an X account for a handle X cannot
+  hold.** x.com answers any path that is not a valid X handle with a 200 page,
+  so a handle with a dot, a hyphen or more than 15 characters came back FOUND:
+  `john.doe`, `john-doe` and a 30-character handle all did in a live sweep. X
+  handles are 1-15 letters, digits and underscores, and a handle outside that is
+  now reported not found without sending a request. Catalog entries take an
+  optional `pattern` for this. A regression test holds X to it with every
+  upstream answering 200, and fails on the old code.
+- **Phone analysis validates strictly and reports the line type for every
+  country.** It imported libphonenumber's default *min* metadata, which has no
+  number-type patterns and checks length only. Mobiles in India, France,
+  Germany, China, Brazil and most other countries came back as type Unknown, and
+  a malformed Indian number (`+91 22 1234 5678`) passed as valid. The analysis,
+  both phone routes and the input's valid/invalid mark now use the *max*
+  metadata, so the input can no longer disagree with the result it leads to. A
+  test fails if any file imports the default again. The browser bundle grows by
+  about 20 KB gzipped. The existing ambiguous-type test asserted inside an `if` on
+  the number's type, so its assertions only ran when libphonenumber happened to
+  classify the sample that way; it now uses a US number and always runs.
+- **The Docker image can save cases and API keys.** `/app` is created by root and
+  the app runs as uid 1001, so the first write to `/app/.data` failed with
+  EACCES and every case or key save returned a 500. The runner stage now creates
+  that directory for the app user, and `docker-compose.yml` mounts it on a named
+  volume, so cases and keys also survive `docker compose up --build`, which
+  recreates the container.
+- **A DNS query that fails no longer reads as a record that is missing.** The
+  domain lookup's DoH helper returned an empty list for a timeout, a network
+  error, a non-2xx and a SERVFAIL alike (Cloudflare answers a failed lookup with
+  HTTP 200 and the RCODE in `Status`). One timed-out TXT query on a real domain
+  therefore showed "No SPF: spoofable", raised the AI `domain.spoofable` anomaly
+  and `infra.no_dmarc` signal, printed "missing" in the exported report, and
+  stored "missing" in the case snapshot, so the next re-run reported a change
+  that never happened. A failed query is now unknown: `emailSecurity.hasSpf`,
+  `hasDmarc` and `hasMx` are `null` when their query got no answer, `dnssec` is
+  `null` when the DNSKEY query did, and a new `dnsFailed` array names the
+  queries. The dashboard shows them as Unknown in neutral grey, shows `?` rather
+  than 0 for their record counts, and says which records are unknown rather
+  than absent. The report prints "unknown (no DNS answer)", the snapshot leaves
+  the fact out instead of storing 0 MX or a missing SPF, and neither AI detector
+  fires on an unknown. NXDOMAIN is an answer, so a domain that does not exist no
+  longer marks the `dns` source as failed, and a partial failure names the
+  unanswered queries in that source's error. Email mode's MX lookup read a
+  SERVFAIL as "No published mail exchangers" the same way and now reports it as
+  a failure; `src/lib/server/doh.ts` decides what counts as an answer for both.
+- **Bulk triage flags invalid numbers.** A number that parses and has the right
+  length but is not assigned (`+91 22 1234 5678`) came back as an ordinary row,
+  and the summary counted it as OK. Each row now carries `valid` (strict
+  libphonenumber validity), the table has a VALID column, the CSV has a `valid`
+  column after `e164`, and the summary counts valid, invalid and failed
+  separately.
+- **A 400 from a rate-limited route now carries the `X-RateLimit-*` headers.**
+  The quota is charged before the body is validated, so a 400 has already spent
+  a request, but eight of the ten rate-limited routes (all but email and bulk)
+  answered it without the headers, leaving a client unable to see the budget it
+  had just used. The OpenAPI spec now documents them on the error responses too,
+  and `tests/rateLimitOnErrors.test.ts` drives every rate-limited route in the
+  endpoint registry with malformed JSON, a missing field and an invalid value.
+
+  The tests added for these three fail on the previous code (23 assertions) and
+  pass on this one.
 
 ### Security
 
@@ -83,6 +145,12 @@ published image.
   offline assertion in `tests/releaseGate.test.ts` pins the two floors that have
   already had to be raised, so neither can be lowered again without the ordinary
   test run failing.
+- **`wallet-lookup`, `hash-lookup`, `pwned-password` and `ai-analyst` now send
+  `X-Robots-Tag: noindex` and `Cache-Control: no-store`**, as the README already
+  said every lookup route did. The headers came from one hand-copied block per
+  route in `next.config.mjs`, and the copies stopped at the first seven. One list
+  drives them now, and `tests/apiHeaders.test.ts` fails the build if a
+  rate-limited or case route in the endpoint registry is missing from it.
 
 
 ## [3.1.0] — 2026-09-08

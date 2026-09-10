@@ -29,7 +29,12 @@ const json = (body: unknown, status = 200) =>
 // A DoH answer set keyed by record type; TXT distinguishes SPF vs _dmarc by name.
 // `certspotter` / `crtsh` override the two certificate-transparency sources so a
 // test can exercise the sparse-Certspotter → crt.sh fallback and the failure path.
-function stubDomainUpstreams(opts: { certspotter?: Response; crtsh?: Response } = {}) {
+// `dns` overrides one DoH query: return a Response, throw to simulate a network
+// failure, or return undefined to keep the default answer.
+function stubDomainUpstreams(opts: {
+  certspotter?: Response; crtsh?: Response;
+  dns?: (name: string, type: string) => Response | undefined;
+} = {}) {
   vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
     const u = new URL(String(url));
     const host = u.hostname;
@@ -37,6 +42,8 @@ function stubDomainUpstreams(opts: { certspotter?: Response; crtsh?: Response } 
     if (host === "cloudflare-dns.com") {
       const name = u.searchParams.get("name") ?? "";
       const type = u.searchParams.get("type") ?? "";
+      const override = opts.dns?.(name, type);
+      if (override) return override;
       const answer = (data: string, t = 16) => json({ Answer: [{ name, type: t, TTL: 300, data }] });
       if (type === "A") return answer("104.20.0.1", 1);
       if (type === "AAAA") return answer("2606:4700::1", 28);
@@ -220,6 +227,73 @@ describe("POST /api/domain-lookup: full recon merge", () => {
     const res = await post({ domain: "https://www.ACME.test/some/path?x=1" });
     expect(res.status).toBe(200);
     expect((await res.json()).domain).toBe("acme.test");
+  });
+});
+
+// ── An unanswered DNS query is unknown, never absent ─────────────────────────
+// The DoH helper used to return [] for a timeout, a non-2xx and a SERVFAIL
+// alike, so one failed TXT query called a real domain spoofable.
+describe("POST /api/domain-lookup: DNS answers vs. failures", () => {
+  type Health = { source: string; ok: boolean; error?: string };
+  const dnsHealth = (j: { sourceHealth: Health[] }) => j.sourceHealth.find((h) => h.source === "dns")!;
+  const timeout = () => { throw new DOMException("t", "TimeoutError"); };
+
+  it("leaves SPF unknown when the TXT query times out, and names the query", async () => {
+    stubDomainUpstreams({ dns: (name, type) => (type === "TXT" && !name.startsWith("_dmarc.") ? timeout() : undefined) });
+    const j = await (await post({ domain: "acme.test" })).json();
+    expect(j.emailSecurity.hasSpf).toBeNull();
+    expect(j.emailSecurity.spf).toBeNull();
+    expect(j.emailSecurity.hasDmarc).toBe(true); // its own query answered
+    expect(j.emailSecurity.hasMx).toBe(true);
+    expect(j.dns.txt).toEqual([]);
+    expect(j.dnsFailed).toEqual(["TXT"]);
+    expect(dnsHealth(j)).toMatchObject({ ok: false, error: "no answer for TXT" });
+  });
+
+  it("treats SERVFAIL, REFUSED and a non-2xx as no answer, not as no records", async () => {
+    stubDomainUpstreams({
+      dns: (name, type) =>
+        type === "MX" ? json({ Status: 2 })               // SERVFAIL arrives as HTTP 200
+        : name.startsWith("_dmarc.") ? json({}, 503)
+        : type === "DNSKEY" ? json({ Status: 5 })         // REFUSED
+        : undefined,
+    });
+    const j = await (await post({ domain: "acme.test" })).json();
+    expect(j.emailSecurity).toMatchObject({ hasSpf: true, hasDmarc: null, dmarcPolicy: null, hasMx: null });
+    expect(j.dnssec).toBeNull();
+    expect(j.dnsFailed).toEqual(["MX", "DMARC", "DNSKEY"]);
+    expect(dnsHealth(j).error).toBe("no answer for MX, DMARC, DNSKEY");
+  });
+
+  it("reports every posture as unknown when no query is answered", async () => {
+    stubDomainUpstreams({ dns: timeout });
+    const res = await post({ domain: "acme.test" });
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.dns).toEqual({ a: [], aaaa: [], mx: [], txt: [], ns: [], cname: [] });
+    expect(j.emailSecurity).toEqual({ hasSpf: null, spf: null, hasDmarc: null, dmarcPolicy: null, hasMx: null });
+    expect(j.dnssec).toBeNull();
+    expect(j.dnsFailed).toEqual(["A", "AAAA", "MX", "TXT", "NS", "CNAME", "DMARC", "DNSKEY"]);
+    expect(j.takeoverCandidates).toEqual([]);
+  });
+
+  it("treats NXDOMAIN as a definitive answer: no records, and a healthy source", async () => {
+    stubDomainUpstreams({ dns: () => json({ Status: 3 }) });
+    const j = await (await post({ domain: "acme.test" })).json();
+    expect(j.emailSecurity).toEqual({ hasSpf: false, spf: null, hasDmarc: false, dmarcPolicy: null, hasMx: false });
+    expect(j.dnssec).toBe(false);
+    expect(j.dnsFailed).toEqual([]);
+    const h = dnsHealth(j);
+    expect(h.ok).toBe(true);
+    expect(h.error).toBeUndefined();
+  });
+
+  it("reports no failures when every query answers", async () => {
+    stubDomainUpstreams({ dns: (_n, type) => (type === "NS" ? json({ Status: 0, Answer: [] }) : undefined) });
+    const j = await (await post({ domain: "acme.test" })).json();
+    expect(j.dnsFailed).toEqual([]);
+    expect(j.dns.ns).toEqual([]);
+    expect(dnsHealth(j).ok).toBe(true);
   });
 });
 

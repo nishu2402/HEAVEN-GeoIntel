@@ -69,9 +69,23 @@ describe("POST /api/bulk-lookup: offline triage rows", () => {
 
     expect(uk.ok).toBe(true);
     expect(uk.country).toBe("GB");
+    expect(us.valid).toBe(true);
+    expect(uk.valid).toBe(true);
+    expect(empty.valid).toBeUndefined(); // an unparsed row makes no validity claim
+    expect(bad.valid).toBeUndefined();
 
     expect(res.headers.get("X-RateLimit-Limit")).toBe("60"); // shipped default
     expect(res.headers.get("X-RateLimit-Scope")).toBe("client");
+  });
+});
+
+describe("POST /api/bulk-lookup: validity", () => {
+  it("flags a well-formed but unassigned number instead of passing it as a normal row", async () => {
+    // +91 22 1234 5678 has the right length for India, so it parses and is
+    // "possible", but no such Mumbai number exists.
+    const json = await (await post({ numbers: ["+919876543210", "+912212345678"] })).json();
+    expect(json.rows[0]).toMatchObject({ ok: true, valid: true, e164: "+919876543210" });
+    expect(json.rows[1]).toMatchObject({ ok: true, valid: false, e164: "+912212345678" });
   });
 });
 

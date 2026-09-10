@@ -163,7 +163,9 @@ export function anomaliesFromDomain(d: DomainLookupResponse): Anomaly[] {
     });
   }
 
-  if (d.emailSecurity.hasMx && !d.emailSecurity.hasDmarc) {
+  // Strict comparisons: null means the DNS query got no answer, and an unknown
+  // DMARC is not evidence the domain is spoofable.
+  if (d.emailSecurity.hasMx === true && d.emailSecurity.hasDmarc === false) {
     out.push({
       id: "domain.spoofable",
       title: "Mail domain can be spoofed",

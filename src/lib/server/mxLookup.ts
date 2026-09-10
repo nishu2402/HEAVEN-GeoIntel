@@ -6,17 +6,17 @@
 // corroboration: it names where the domain's mail lands without a key and
 // without asserting a specific address is valid.
 //
-// Accuracy discipline: only a real answer is returned as ok. A non-2xx or a
-// network error is an explicit failure, never an empty MX list that would read
-// as "this domain has no mail", so the panel can tell "no exchangers" apart from
-// "the resolver did not answer".
+// Accuracy discipline: only a real answer is returned as ok. A non-2xx, a
+// network error or a failed DNS RCODE (SERVFAIL arrives as HTTP 200) is an
+// explicit failure, never an empty MX list that would read as "this domain has
+// no mail", so the panel can tell "no exchangers" apart from "the resolver did
+// not answer".
 
 import { describeError, withUserAgent } from "./fetchSafe";
 import { fetchTimeoutMs } from "./config";
+import { DOH_URL, dohFailure } from "./doh";
 import { buildMailProviderData, type MxHost } from "../analysis/mailProvider";
 import type { MailProviderData, SourceResult } from "../types";
-
-const DOH = "https://cloudflare-dns.com/dns-query";
 
 interface DohAnswer { name: string; type: number; TTL: number; data: string; }
 
@@ -42,13 +42,15 @@ export async function fetchEmailMx(domain: string): Promise<SourceResult<MailPro
   const d = domain.trim().toLowerCase();
   if (!d) return { ok: false, error: "no domain" };
   try {
-    const res = await fetch(`${DOH}?name=${encodeURIComponent(d)}&type=MX`, withUserAgent({
+    const res = await fetch(`${DOH_URL}?name=${encodeURIComponent(d)}&type=MX`, withUserAgent({
       headers: { Accept: "application/dns-json" },
       signal: AbortSignal.timeout(fetchTimeoutMs()),
       next: { revalidate: 0 },
     }));
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
-    const json = (await res.json()) as { Answer?: DohAnswer[] };
+    const json = (await res.json()) as { Status?: number; Answer?: DohAnswer[] };
+    const failure = dohFailure(json.Status);
+    if (failure) return { ok: false, error: failure };
     return { ok: true, data: buildMailProviderData(parseMxAnswers(json.Answer)) };
   } catch (err) {
     return { ok: false, error: describeError(err) };

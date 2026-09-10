@@ -1,5 +1,10 @@
-import { parsePhoneNumberFromString } from "libphonenumber-js";
-import type { CountryCode } from "libphonenumber-js";
+// The "max" metadata, not the package default ("min"). Min carries no
+// number-type patterns, so getType() came back undefined for mobiles in India,
+// France, Germany, China, Brazil and most of the world, and it validates on
+// length alone, so +91 22 1234 5678 passed as valid. Max is what the README's
+// "libphonenumber strict" and the number-type fields actually require.
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import type { CountryCode } from "libphonenumber-js/max";
 import { getNpaInfo } from "../data/usNpaDatabase";
 import type { NpaInfo } from "../data/usNpaDatabase";
 
