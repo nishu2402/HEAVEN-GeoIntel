@@ -33,6 +33,13 @@ export interface UsernameSite {
   check: CheckMethod;
   /** For check==="body": substring that appears ONLY when the user does NOT exist. */
   absence?: string;
+  /**
+   * The handles this site can actually hold. A username outside it cannot be
+   * registered there, so it is reported `notfound` without a request. Needed
+   * where the site answers an impossible handle with a 200 page, which a status
+   * probe would otherwise claim as found.
+   */
+  pattern?: RegExp;
 }
 
 // NOTE: GitHub, GitLab, Codeberg, Hacker News, Reddit, Bluesky, Mastodon,
@@ -70,7 +77,11 @@ export const USERNAME_SITES: UsernameSite[] = [
   // twitter.com still answers a server-side GET with a clean 200/404 split.
   // Measured over 8 known-real and 6 known-absent handles: zero false positives
   // and zero false negatives, which is what promotion out of `manual` requires.
-  { name: "X / Twitter",   category: "social",       url: "https://twitter.com/{u}",                check: "status" },
+  // That split only holds for handles X can hold (1-15 letters, digits and
+  // underscores). For anything else, x.com serves a 200 page: john.doe,
+  // john-doe and a 30-character handle were all claimed FOUND in a live sweep
+  // on 2026-09-10, so impossible handles are ruled out before the probe.
+  { name: "X / Twitter",   category: "social",       url: "https://twitter.com/{u}",                check: "status", pattern: /^[A-Za-z0-9_]{1,15}$/ },
   { name: "TikTok",        category: "social",       url: "https://www.tiktok.com/@{u}",            check: "manual" },
   { name: "Telegram",      category: "social",       url: "https://t.me/{u}",                       check: "manual" },
   { name: "Threads",       category: "social",       url: "https://www.threads.net/@{u}",           check: "manual" },

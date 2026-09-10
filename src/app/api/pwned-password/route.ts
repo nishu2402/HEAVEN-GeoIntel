@@ -28,11 +28,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const body = await parseBody(req, pwnedPrefixBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
 
   const prefix = normalizePrefix(body.prefix);
   if (!prefix) {
-    return NextResponse.json({ error: "The prefix must be exactly five hex characters." }, { status: 400 });
+    return NextResponse.json({ error: "The prefix must be exactly five hex characters." }, { status: 400, headers: rlHeaders });
   }
   void audit("pwned-password", prefix, client, 200);
 

@@ -39,12 +39,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const body = await parseBody(req, hashBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
 
   const hash = body.hash.trim().toLowerCase();
   const kind = detectHashKind(hash);
   if (!kind) {
-    return NextResponse.json({ error: "Not a recognised MD5, SHA-1 or SHA-256 hash" }, { status: 400 });
+    return NextResponse.json({ error: "Not a recognised MD5, SHA-1 or SHA-256 hash" }, { status: 400, headers: rlHeaders });
   }
   void audit("hash", hash, client, 200);
 

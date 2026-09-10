@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 import { getCached } from "@/lib/server/cache";
 import { guardRateLimit } from "@/lib/server/rateLimit";
 import { audit } from "@/lib/server/auditLog";
@@ -24,6 +24,12 @@ interface BulkRow {
   ok: boolean;
   error?: string;
   e164?: string;
+  /**
+   * Strict libphonenumber validity (full metadata). A number can parse and be
+   * the right length yet be unassigned, and before this field such a row read
+   * exactly like a real one.
+   */
+  valid?: boolean;
   country?: string | null;
   countryName?: string;
   type?: string | null;
@@ -69,6 +75,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const e164 = parsed.format("E.164");
+    const valid = parsed.isValid();
     const cached = getCached(e164);
 
     if (cached) {
@@ -76,6 +83,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         input:       cleaned,
         ok:          true,
         e164,
+        valid,
         country:     cached.aggregated.country ?? null,
         countryName: cached.aggregated.countryName,
         type:        cached.aggregated.lineType ?? cached.analysis.type ?? null,
@@ -97,6 +105,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       input:       cleaned,
       ok:          true,
       e164,
+      valid,
       country:     analysis.country,
       countryName: analysis.countryName,
       type:        analysis.type,

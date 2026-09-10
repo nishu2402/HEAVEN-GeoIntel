@@ -157,7 +157,12 @@ function retryAfterFor(bucket: Bucket, windowMs: number, now: number): number {
   return Math.max(1, Math.ceil((bucket.windowStart + windowMs - now) / 1000));
 }
 
-/** Standard rate-limit headers, identical on every route and on both 200 and 429. */
+/**
+ * Standard rate-limit headers, identical on every route. The quota is charged
+ * before the body is validated, so they belong on EVERY response a guarded
+ * route returns: 200, 400, 502 and 429 alike. A 400 that spent quota without
+ * saying so left a client unable to see its remaining budget.
+ */
 export function rateLimitHeaders(v: RateLimitVerdict): Record<string, string> {
   return {
     "X-RateLimit-Limit": String(v.limit),

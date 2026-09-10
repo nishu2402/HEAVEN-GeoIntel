@@ -371,7 +371,8 @@ export function signalsFromDomain(d: DomainLookupResponse): Signal[] {
     });
   }
 
-  if (d.emailSecurity.hasMx && !d.emailSecurity.hasDmarc) {
+  // null = the DNS query got no answer; only a definite "no DMARC" counts.
+  if (d.emailSecurity.hasMx === true && d.emailSecurity.hasDmarc === false) {
     out.push({
       id: "infra.no_dmarc",
       label: "No DMARC on a mail domain",

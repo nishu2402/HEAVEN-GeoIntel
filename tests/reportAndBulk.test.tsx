@@ -42,12 +42,12 @@ afterEach(() => {
 
 // ── BulkLookup ───────────────────────────────────────────────────────────────
 interface BulkRow {
-  input: string; ok: boolean; error?: string; e164?: string; country?: string | null;
+  input: string; ok: boolean; error?: string; e164?: string; valid?: boolean; country?: string | null;
   type?: string | null; carrier?: string | null; utcOffset?: string | null;
   npaState?: string | null; npaRegion?: string | null; cached?: boolean;
 }
 const row = (over: Partial<BulkRow> = {}): BulkRow => ({
-  input: "+14155552671", ok: true, e164: "+14155552671", country: "US",
+  input: "+14155552671", ok: true, e164: "+14155552671", valid: true, country: "US",
   type: "mobile", carrier: "Verizon", utcOffset: "UTC-08:00", npaState: "CA", npaRegion: "Bay Area",
   ...over,
 });
@@ -76,15 +76,21 @@ describe("<BulkLookup>", () => {
       // an all-null row exercises every `?? "—"` cell fallback and the region-less branch
       row({ input: "carrier, inc", type: null, carrier: null, utcOffset: null, npaRegion: null, npaState: null }),
       row({ input: "+14155552672" }), // full NPA → "Bay Area, CA" (region + state)
-      row({ input: "bad", ok: false, error: "invalid", e164: undefined, country: null, npaRegion: "Metro only", npaState: null, cached: true }),
+      row({ input: "bad", ok: false, error: "invalid", e164: undefined, valid: undefined, country: null, npaRegion: "Metro only", npaState: null, cached: true }),
+      // parses and has the right length, but is not an assigned number
+      row({ input: "+912212345678", e164: "+912212345678", valid: false, country: "IN", npaRegion: null, npaState: null }),
     ];
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ count: 3, rows }) }) as Response));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ count: 4, rows }) }) as Response));
     render(<BulkLookup />);
-    type("+14155552671\n+14155552672\nbad");
+    type("+14155552671\n+14155552672\nbad\n+912212345678");
     await act(async () => { fireEvent.click(runBtn()); });
 
-    expect(screen.getByText(/✓ 2 OK/)).toBeTruthy();
+    // Three disjoint buckets: the invalid number is not counted as OK.
+    expect(screen.getByText(/✓ 2 valid/)).toBeTruthy();
+    expect(screen.getByText(/⚠ 1 invalid/)).toBeTruthy();
     expect(screen.getByText(/✗ 1 failed/)).toBeTruthy();
+    expect(screen.getByText("✗ INVALID")).toBeTruthy();
+    expect(screen.getAllByText("✓")).toHaveLength(2);
     expect(screen.getByText("Bay Area, CA")).toBeTruthy(); // region + state
     expect(screen.getByText("Metro only")).toBeTruthy();   // npaRegion without npaState
     expect(screen.getByText("[c]")).toBeTruthy();           // cached marker
@@ -92,7 +98,8 @@ describe("<BulkLookup>", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /download csv/i }));
     const csv = downloads[0]!.body;
-    expect(csv.split("\n")[0]).toMatch(/^input,ok,error,e164/);
+    expect(csv.split("\n")[0]).toMatch(/^input,ok,error,e164,valid,country/);
+    expect(csv).toContain("'+912212345678,false,IN"); // e164, valid, country
     expect(csv).toContain("'+14155552671");    // leading + escaped against formula injection
     expect(csv).toContain('"carrier, inc"');    // comma-bearing cell gets quoted
   });

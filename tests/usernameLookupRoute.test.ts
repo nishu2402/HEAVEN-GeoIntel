@@ -92,6 +92,19 @@ describe("POST /api/username-lookup: no false positives", () => {
     expect(json.username).toBe("torvalds");
   });
 
+  it("X / Twitter is never claimed for a handle X cannot hold, even on HTTP 200", async () => {
+    // x.com answers 200 for a path that is not a valid X handle (a dot, a
+    // hyphen, more than 15 characters), so a bare status probe claimed
+    // john.doe as FOUND. Every site answers 200 here, as X did live.
+    stubAllSites(200, false);
+    const json = await (await post({ username: "john.doe" })).json();
+    const x = json.hits.find((h: { site: string }) => h.site === "X / Twitter");
+    expect(x.status).toBe("notfound");
+    expect(x.httpStatus).toBeUndefined();
+    const probed = vi.mocked(fetch).mock.calls.map(([u]) => String(u));
+    expect(probed.some((u) => isHost(u, "twitter.com"))).toBe(false);
+  });
+
   it("strips a leading @ from the handle", async () => {
     stubAllSites(404, false);
     const json = await (await post({ username: "@torvalds" })).json();

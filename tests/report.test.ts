@@ -228,6 +228,21 @@ describe("buildDomainReport", () => {
     expect(setPolicy.sections.find((s) => s.heading === "Email security")!.rows).toContainEqual({ label: "DMARC", value: "set" });
   });
 
+  it("reports an unanswered DNS query as unknown, never as missing", () => {
+    const m = buildDomainReport({
+      ...base, whois: null, dnsFailed: ["MX", "TXT", "DMARC"],
+      emailSecurity: { hasSpf: null, spf: null, hasDmarc: null, dmarcPolicy: null, hasMx: null },
+    } as unknown as DomainLookupResponse);
+    expect(m.sections.find((s) => s.heading === "Email security")!.rows).toEqual([
+      { label: "SPF", value: "unknown (no DNS answer)" },
+      { label: "DMARC", value: "unknown (no DNS answer)" },
+      { label: "MX", value: "unknown (no DNS answer)" },
+    ]);
+    expect(m.sections.find((s) => s.heading === "DNS")!.rows).toContainEqual({ label: "No answer for", value: "MX, TXT, DMARC" });
+    expect(m.summary).toContainEqual({ label: "Email posture", value: "SPF unknown (no DNS answer), DMARC unknown (no DNS answer)" });
+    expect(JSON.stringify(m)).not.toContain("missing");
+  });
+
   it("omits WHOIS/subdomains/takeover/http when absent", () => {
     const data = { ...base, whois: null } as unknown as DomainLookupResponse;
     const m = buildDomainReport(data);

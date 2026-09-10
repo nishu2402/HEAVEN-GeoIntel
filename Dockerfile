@@ -26,9 +26,13 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 
-# Non-root user
+# Non-root user, and the one directory it has to write. Cases, in-app API keys
+# and the audit log live in /app/.data; WORKDIR creates /app owned by root, so
+# without this the first case or key save failed with EACCES (a 500 in the UI)
+# and the container could persist nothing.
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser  --system --uid 1001 geointel
+    adduser  --system --uid 1001 --ingroup nodejs geointel && \
+    mkdir -p /app/.data && chown geointel:nodejs /app/.data
 
 # Copy build output + minimal runtime files.
 # `public/` is required, not optional: `next start` serves it from the working

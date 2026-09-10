@@ -311,6 +311,11 @@ export function buildIpReport(data: IpLookupResponse): ReportModel {
   };
 }
 
+// A posture whose DNS query got no answer is unknown. Printing "missing" for it
+// put a false finding into an exported report.
+const DNS_UNKNOWN = "unknown (no DNS answer)";
+const postureWord = (v: boolean | null, yes: string, no: string) => (v === null ? DNS_UNKNOWN : v ? yes : no);
+
 export function buildDomainReport(data: DomainLookupResponse): ReportModel {
   const sections: ReportSection[] = [];
   const { dns, whois, emailSecurity: es } = data;
@@ -323,14 +328,15 @@ export function buildDomainReport(data: DomainLookupResponse): ReportModel {
       ["AAAA", dns.aaaa.map((r) => r.value).join(", ")],
       ["MX", dns.mx.map((r) => r.value).join(", ")],
       ["NS", dns.ns.map((r) => r.value).join(", ")],
+      ["No answer for", (data.dnsFailed ?? []).join(", ")],
     ]),
   });
   sections.push({
     heading: "Email security",
     rows: [
-      { label: "SPF", value: es.hasSpf ? "present" : "missing" },
-      { label: "DMARC", value: es.hasDmarc ? (es.dmarcPolicy ?? "set") : "missing" },
-      { label: "MX", value: es.hasMx ? "yes" : "no" },
+      { label: "SPF", value: postureWord(es.hasSpf, "present", "missing") },
+      { label: "DMARC", value: postureWord(es.hasDmarc, es.dmarcPolicy ?? "set", "missing") },
+      { label: "MX", value: postureWord(es.hasMx, "yes", "no") },
     ],
   });
   if (whois) {
@@ -357,7 +363,7 @@ export function buildDomainReport(data: DomainLookupResponse): ReportModel {
     ["Domain", data.domain],
     ["Registrar", whois?.registrar ?? null],
     ["Subdomains", data.subdomains.length ? String(data.subdomains.length) : null],
-    ["Email posture", `SPF ${es.hasSpf ? "present" : "missing"}, DMARC ${es.hasDmarc ? "present" : "missing"}`],
+    ["Email posture", `SPF ${postureWord(es.hasSpf, "present", "missing")}, DMARC ${postureWord(es.hasDmarc, "present", "missing")}`],
   ]);
 
   const observables: StixObservable[] = [

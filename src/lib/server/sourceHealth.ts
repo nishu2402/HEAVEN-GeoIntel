@@ -57,18 +57,24 @@ export async function settleSources<T extends Record<string, Promise<Envelope>>>
 /**
  * Time a source that resolves to plain data rather than an `{ok}` envelope
  * (the DNS/WHOIS/subdomain fetchers, the username sweep). `ok` decides from the
- * value whether the source actually answered.
+ * value whether the source actually answered; `reason`, when given, says why it
+ * did not.
  */
 export async function timedValue<T>(
   source: string,
   job: Promise<T>,
-  ok: (value: T) => boolean
+  ok: (value: T) => boolean,
+  reason?: (value: T) => string
 ): Promise<{ value: T; provenance: SourceProvenance }> {
   const at = Date.now();
   const value = await job;
+  const answered = ok(value);
   return {
     value,
-    provenance: mark({ source, ok: ok(value), ms: Date.now() - at, fetchedAt: Date.now() }),
+    provenance: mark({
+      source, ok: answered, ms: Date.now() - at, fetchedAt: Date.now(),
+      ...(!answered && reason ? { error: reason(value) } : {}),
+    }),
   };
 }
 

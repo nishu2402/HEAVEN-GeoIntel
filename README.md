@@ -419,7 +419,7 @@ docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.1
 
 </div>
 
-**Tips.** Update API keys: edit `.env.local` then `docker compose restart`. Custom host port: `GEOINTEL_PORT=8080 docker compose up -d`; do **not** set `PORT`, which moves the port the app listens on while the published mapping stays at 3000, leaving a container that starts cleanly and answers nothing (compose pins `PORT=3000` to prevent exactly that). Expose beyond localhost: `GEOINTEL_BIND=0.0.0.0 docker compose up -d`. Compose reads both variables from your shell or a `.env` file in the repo root, **not** from `.env.local`, which is only forwarded into the container. Logs: `docker compose logs -f geointel`. The image's own `HEALTHCHECK` polls [`/api/health`](#rest-api), a local-only endpoint that makes no third-party calls, and shows the container as `(healthy)` about 20 s after start. In production, terminate TLS in your nginx/Caddy/Traefik and proxy to `localhost:3000` (the default loopback binding is what you want there).
+**Tips.** Update API keys: edit `.env.local` then `docker compose restart`. Custom host port: `GEOINTEL_PORT=8080 docker compose up -d`; do **not** set `PORT`, which moves the port the app listens on while the published mapping stays at 3000, leaving a container that starts cleanly and answers nothing (compose pins `PORT=3000` to prevent exactly that). Expose beyond localhost: `GEOINTEL_BIND=0.0.0.0 docker compose up -d`. Compose reads both variables from your shell or a `.env` file in the repo root, **not** from `.env.local`, which is only forwarded into the container. Cases, in-app API keys and the audit log live in the `geointel-data` volume, so they survive `docker compose up --build`; with plain `docker run`, add `-v geointel-data:/app/.data` to keep them. Logs: `docker compose logs -f geointel`. The image's own `HEALTHCHECK` polls [`/api/health`](#rest-api), a local-only endpoint that makes no third-party calls, and shows the container as `(healthy)` about 20 s after start. In production, terminate TLS in your nginx/Caddy/Traefik and proxy to `localhost:3000` (the default loopback binding is what you want there).
 
 ---
 
@@ -528,7 +528,7 @@ Enter a handle and HEAVEN-GeoIntel checks **38 sites** for it. **23 are auto-ver
 
 Alongside the sweep, **nine platforms are read through their own keyless public API**, which upgrades "the account exists" to "here is who it is": GitHub, GitLab, Codeberg, Hacker News, Reddit, Bluesky, Mastodon, Chess.com and Lichess return a real name, join date, location, follower counts and bio. Two of them hand you a cross-platform edge for free: Chess.com reports a streamer's `twitch_url`, and Codeberg a self-declared website. Every one was promoted only after a clean split across 4 known-real and 4 known-absent handles; npm, Hacker News search and GitLab's user endpoint were tested and rejected for answering 200 to handles that do not exist.
 
-How many handles you test a site with changes the answer. Testing one real handle against one fake one made Kaggle, Last.fm and Telegram all look auto-verifiable; re-running across eight known-real and six known-absent handles showed Kaggle returns 200 for absent handles too, while Last.fm and Telegram report real accounts as missing. Only X/Twitter survived that wider test, so only X/Twitter was promoted.
+How many handles you test a site with changes the answer. Testing one real handle against one fake one made Kaggle, Last.fm and Telegram all look auto-verifiable; re-running across eight known-real and six known-absent handles showed Kaggle returns 200 for absent handles too, while Last.fm and Telegram report real accounts as missing. Only X/Twitter survived that wider test, so only X/Twitter was promoted. It is probed only for handles X can actually hold (1-15 letters, digits and underscores): x.com serves a 200 page for anything else, so `john.doe` or `john-doe` is reported not found there rather than claimed.
 
 <div align="center">
 
@@ -583,7 +583,7 @@ proxy/hosting/mobile flags, so those come back `null` rather than a fabricated
 | Section | Source |
 |---|---|
 | **DNS records** | A · AAAA · MX · NS · CNAME · TXT, via Cloudflare DNS-over-HTTPS |
-| **Email-security posture** | SPF present? · DMARC policy (none/quarantine/reject) · MX present? |
+| **Email-security posture** | SPF present? · DMARC policy (none/quarantine/reject) · MX present? A check whose DNS query gets no answer is shown as unknown, never as missing |
 | **WHOIS** | Registrar · created / updated / expires · nameservers · status, via RDAP (no key) |
 | **Subdomains** | Certificate transparency: Certspotter (fast, no key), with a crt.sh fallback when sparse; up to 100 |
 | **HTTP posture** | Security-header grade (A-F) · redirect chain · http→https upgrade · technology fingerprint · version-disclosing headers · cookie flags |
@@ -691,7 +691,7 @@ curl -s http://localhost:3000/api/bulk-lookup \
   -d '{"numbers":["+14155552671","+447911123456","+919876543210"]}' | jq .
 ```
 
-Returns `{ count, rows: [{ input, ok, e164, country, type, carrier, timezone, utcOffset, npaState, npaRegion, cached }] }`.
+Returns `{ count, rows: [{ input, ok, e164, valid, country, type, carrier, timezone, utcOffset, npaState, npaRegion, cached }] }`. `valid` is strict libphonenumber validity, so a number that parses but is not assigned is flagged instead of passing as a normal row; the table shows it in a VALID column and the CSV carries it too.
 
 ---
 
@@ -898,7 +898,7 @@ The eighteen endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-l
 
 The spec is generated at request time from a route registry (`src/lib/api/endpoints.ts`), not hand-written, and a test walks `src/app/api/**/route.ts` and fails the build if the registry and the actual routes disagree. Adding a route without documenting it is a red build, so the "import it into Postman" promise cannot quietly stop being true.
 
-Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope`, which tells you whether your own limit or the server-wide ceiling is binding) and `X-Robots-Tag: noindex`. Each also returns a uniform `sourceHealth` array (`{ source, ok, ms, fetchedAt, error?, skipped? }`) so one consumer can render source health for any mode; `skipped` means "no API key configured", which is deliberately distinct from a source that was called and failed. `/api/sources` reports what each source did on its **last actual call**, not just whether a key is present. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (provenance only; key **values are never returned**).
+Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope`, which tells you whether your own limit or the server-wide ceiling is binding) on every response, a 400 included, since the request is charged before its body is validated. Each also returns `X-Robots-Tag: noindex`. Each also returns a uniform `sourceHealth` array (`{ source, ok, ms, fetchedAt, error?, skipped? }`) so one consumer can render source health for any mode; `skipped` means "no API key configured", which is deliberately distinct from a source that was called and failed. `/api/sources` reports what each source did on its **last actual call**, not just whether a key is present. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (provenance only; key **values are never returned**).
 
 ---
 

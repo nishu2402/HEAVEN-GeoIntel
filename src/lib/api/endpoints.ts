@@ -237,7 +237,7 @@ export const ENDPOINTS: EndpointDef[] = [
         example: ["+14155552671", "+447911123456"],
       },
     ],
-    responseDescription: "Flat rows of offline analysis, one per input number.",
+    responseDescription: "Flat rows of offline analysis, one per input number. `valid` is strict libphonenumber validity, so a well-formed but unassigned number is flagged rather than passing as a normal row.",
     errors: [{ status: 400, description: "Empty array, or more entries than the bulk limit." }],
   },
 

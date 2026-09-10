@@ -3,13 +3,14 @@ import { guardRateLimit } from "@/lib/server/rateLimit";
 import { timedValue } from "@/lib/server/sourceHealth";
 import { audit } from "@/lib/server/auditLog";
 import { fetchJson, withUserAgent } from "@/lib/server/fetchSafe";
+import { DOH_URL, dohFailure } from "@/lib/server/doh";
 import { fetchWhois } from "@/lib/server/rdap";
 import { probeHttp } from "@/lib/server/httpProbe";
 import { breachesForDomain } from "@/lib/data/breachCatalog";
 import { classifyTakeover } from "@/lib/analysis/subdomainTakeover";
 import { parseBody, domainBody } from "@/lib/server/validation";
 import type {
-  DomainLookupResponse, DnsRecord, TakeoverCandidate,
+  DomainLookupResponse, DnsRecord, DnsQueryKind, TakeoverCandidate,
 } from "@/lib/types";
 
 // ── Domain OSINT — all free, no API key ──────────────────────────────────────
@@ -20,8 +21,6 @@ import type {
 //   HTTP + TLS   : the target itself — security headers, tech stack, certificate
 
 const DOMAIN_RE = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.[a-zA-Z0-9-]{1,63})+$/;
-
-const DOH = "https://cloudflare-dns.com/dns-query";
 
 /**
  * Reassemble a DNS-over-HTTPS TXT value.
@@ -47,14 +46,25 @@ export function joinTxtChunks(data: string): string {
   return chunks.map((c) => c.slice(1, -1).replace(/\\(.)/g, "$1")).join("");
 }
 
-async function doh(name: string, type: string): Promise<DnsRecord[]> {
+/**
+ * One DoH query. Returns the records (an empty array when the name definitively
+ * has none, NXDOMAIN included) or null when there was no answer: a timeout, a
+ * network error, a non-2xx, or a failed RCODE such as SERVFAIL.
+ *
+ * The null is the point. This used to return [] for all of those, so one
+ * timed-out TXT query rendered "No SPF: spoofable" on a real domain, fired the
+ * AI spoofing anomaly, printed "missing" in the report and stored it in the
+ * case snapshot, where the next re-run reported a change that never happened.
+ */
+async function dohQuery(name: string, type: string): Promise<DnsRecord[] | null> {
   try {
-    const res = await fetch(`${DOH}?name=${encodeURIComponent(name)}&type=${type}`, withUserAgent({
+    const res = await fetch(`${DOH_URL}?name=${encodeURIComponent(name)}&type=${type}`, withUserAgent({
       headers: { Accept: "application/dns-json" },
       signal: AbortSignal.timeout(6000), next: { revalidate: 0 },
     }));
-    if (!res.ok) return [];
-    const json = (await res.json()) as { Answer?: { name: string; type: number; TTL: number; data: string }[] };
+    if (!res.ok) return null;
+    const json = (await res.json()) as { Status?: number; Answer?: { name: string; type: number; TTL: number; data: string }[] };
+    if (dohFailure(json.Status)) return null;
     if (!json.Answer) return [];
     return json.Answer.map((a) => {
       // MX data is "10 mail.example.com." — split priority
@@ -68,9 +78,29 @@ async function doh(name: string, type: string): Promise<DnsRecord[]> {
       return { type, value: a.data.replace(/^"|"$/g, "").replace(/\.$/, ""), ttl: a.TTL };
     });
   } catch {
-    return [];
+    return null;
   }
 }
+
+/** For the takeover scan, where an unanswered CNAME simply yields no candidate. */
+async function doh(name: string, type: string): Promise<DnsRecord[]> {
+  return (await dohQuery(name, type)) ?? [];
+}
+
+/** The apex fanout, in the order the DNS job returns them. */
+const DNS_QUERIES: { kind: DnsQueryKind; type: string; prefix?: string }[] = [
+  { kind: "A", type: "A" },
+  { kind: "AAAA", type: "AAAA" },
+  { kind: "MX", type: "MX" },
+  { kind: "TXT", type: "TXT" },
+  { kind: "NS", type: "NS" },
+  { kind: "CNAME", type: "CNAME" },
+  { kind: "DMARC", type: "TXT", prefix: "_dmarc." },
+  { kind: "DNSKEY", type: "DNSKEY" },
+];
+
+const unanswered = (recs: (DnsRecord[] | null)[]): DnsQueryKind[] =>
+  DNS_QUERIES.filter((_, i) => recs[i] === null).map((q) => q.kind);
 
 // Certificate-transparency subdomains. Keep only real hostnames under `domain`,
 // stripping wildcards and dropping the apex itself.
@@ -219,32 +249,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const body = await parseBody(req, domainBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
 
   // Accept bare domains or full URLs; strip scheme/path/port.
   let domain = body.domain.trim().toLowerCase();
   domain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/:.*$/, "").replace(/^www\./, "");
-  if (!domain) return NextResponse.json({ error: "Missing domain" }, { status: 400 });
-  if (!DOMAIN_RE.test(domain)) return NextResponse.json({ error: "Not a valid domain name" }, { status: 400 });
+  if (!domain) return NextResponse.json({ error: "Missing domain" }, { status: 400, headers: rlHeaders });
+  if (!DOMAIN_RE.test(domain)) return NextResponse.json({ error: "Not a valid domain name" }, { status: 400, headers: rlHeaders });
   void audit("domain", domain, client, 200);
 
   // Three logical upstreams (DoH, RDAP, Certspotter) plus the Wayback probe.
   // Each is timed independently so the response reports which one was slow —
   // this fanout is the tool's longest, and "which source cost the 6 seconds?"
   // was previously unanswerable.
+  //
+  // The DNS source is healthy when every query got an answer. An NXDOMAIN is an
+  // answer, so a domain that does not exist no longer reads as a DNS outage; a
+  // query that timed out is named in the error instead of vanishing.
   const dnsJob = timedValue(
     "dns",
-    Promise.all([
-      doh(domain, "A"),
-      doh(domain, "AAAA"),
-      doh(domain, "MX"),
-      doh(domain, "TXT"),
-      doh(domain, "NS"),
-      doh(domain, "CNAME"),
-      doh(`_dmarc.${domain}`, "TXT"),
-      doh(domain, "DNSKEY"),
-    ]),
-    (recs) => recs.some((r) => r.length > 0)
+    Promise.all(DNS_QUERIES.map((q) => dohQuery(`${q.prefix ?? ""}${domain}`, q.type))),
+    (recs) => recs.every((r) => r !== null),
+    (recs) => `no answer for ${unanswered(recs).join(", ")}`,
   );
   const whoisJob = timedValue("whois", fetchWhois(domain), (w) => w !== null);
   // The only job that depends on another: the SSRF guard in probeHttp needs the
@@ -253,7 +279,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // probe overlap WHOIS, subdomains and Wayback.
   const httpJob = timedValue(
     "http",
-    dnsJob.then(({ value: [a4, a6] }) => probeHttp(domain, [...a4, ...a6].map((r) => r.value))),
+    dnsJob.then(({ value: [a4, a6] }) => probeHttp(domain, [...(a4 ?? []), ...(a6 ?? [])].map((r) => r.value))),
     (h) => h !== null,
   );
   const subdomainJob = timedValue("subdomains", fetchSubdomains(domain), () => true);
@@ -262,7 +288,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // list (subdomainJob), and nothing else waits on it. Not source-health-tracked
   // because it reuses the DoH ("dns") source rather than a new upstream.
   const takeoverJob = Promise.all([dnsJob, subdomainJob]).then(
-    ([d, s]) => findTakeovers(domain, d.value[5], s.value),
+    ([d, s]) => findTakeovers(domain, d.value[5] ?? [], s.value),
   );
 
   const [dnsOut, whoisOut, subdomainOut, waybackOut, httpOut, takeoverCandidates] = await Promise.all([
@@ -276,26 +302,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     dnsOut.provenance, whoisOut.provenance, subdomainOut.provenance, waybackOut.provenance,
     httpOut.provenance,
   ];
-  const dnssec = dnskey.length > 0;
+  // Every posture flag below is null when its query got no answer: unknown,
+  // never "missing".
+  const dnssec = dnskey === null ? null : dnskey.length > 0;
 
-  const spfRecord = txt.find((r) => r.value.toLowerCase().startsWith("v=spf1"))?.value ?? null;
-  const dmarcRecord = dmarcTxt.find((r) => r.value.toLowerCase().startsWith("v=dmarc1"))?.value ?? null;
+  const spfRecord = txt?.find((r) => r.value.toLowerCase().startsWith("v=spf1"))?.value ?? null;
+  const dmarcRecord = dmarcTxt?.find((r) => r.value.toLowerCase().startsWith("v=dmarc1"))?.value ?? null;
   const dmarcPolicy = dmarcRecord?.match(/\bp=([a-z]+)/i)?.[1]?.toLowerCase() ?? null;
 
   const response: DomainLookupResponse = {
     domain,
     isValid: true,
-    dns: { a, aaaa, mx, txt, ns, cname },
+    dns: { a: a ?? [], aaaa: aaaa ?? [], mx: mx ?? [], txt: txt ?? [], ns: ns ?? [], cname: cname ?? [] },
     whois,
     subdomains,
     emailSecurity: {
-      hasSpf: !!spfRecord,
+      hasSpf: txt === null ? null : spfRecord !== null,
       spf: spfRecord,
-      hasDmarc: !!dmarcRecord,
+      hasDmarc: dmarcTxt === null ? null : dmarcRecord !== null,
       dmarcPolicy,
-      hasMx: mx.length > 0,
+      hasMx: mx === null ? null : mx.length > 0,
     },
     dnssec,
+    dnsFailed: unanswered(dnsOut.value),
     wayback,
     http: httpOut.value,
     // Offline catalog lookup — no request, no key. Reports breaches publicly
