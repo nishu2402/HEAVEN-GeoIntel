@@ -242,6 +242,15 @@ describe("pivotsFromDomain", () => {
     expect(values(p).filter((v) => /^domain:s\d/.test(v))).toHaveLength(3); // capped
   });
 
+  it("does not offer the root label of a null MX as a domain to pivot to", () => {
+    // RFC 7505's "0 ." is a statement, not a host. `new URL("https://.")`
+    // parses, so without this it became a pivot to the domain ".".
+    const p = pivotsFromDomain(domain({
+      dns: { a: [], aaaa: [], mx: [{ type: "MX", value: ".", priority: 0 }], ns: [], cname: [], txt: [] },
+    } as unknown as Partial<DomainLookupResponse>));
+    expect(p).toEqual([]);
+  });
+
   it("ignores a record value that is not a parseable host", () => {
     const p = pivotsFromDomain(domain({
       dns: { a: [], aaaa: [], mx: [{ type: "MX", value: "" }], ns: [{ type: "NS", value: "http://" }], cname: [], txt: [] },

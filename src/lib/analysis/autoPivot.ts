@@ -280,6 +280,8 @@ export function pivotsFromDomain(d: DomainLookupResponse, subdomainCap = 8): Piv
     p.add("ip", ip, "DNS: A/AAAA record", "confirmed");
   }
   for (const mx of d.dns.mx) {
+    // The root label of an RFC 7505 null MX is not a host, so it is not a pivot.
+    if (mx.value === ".") continue;
     p.addHost(mx.value, "DNS: MX host (mail provider)", "related");
   }
   for (const ns of d.dns.ns) {

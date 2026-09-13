@@ -206,7 +206,7 @@ describe("signalsFromIp", () => {
 describe("signalsFromDomain", () => {
   const dom = (over: Record<string, unknown> = {}): DomainLookupResponse => ({
     domain: "example.com",
-    emailSecurity: { hasMx: false, hasDmarc: false },
+    emailSecurity: { hasMx: false, nullMx: false, hasDmarc: false },
     http: null, dnssec: null,
     ...over,
   } as unknown as DomainLookupResponse);
@@ -236,17 +236,23 @@ describe("signalsFromDomain", () => {
   });
 
   it("flags a mail domain without DMARC, and not otherwise", () => {
-    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: false } })), "infra.no_dmarc")).toBeTruthy();
-    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: true } })), "infra.no_dmarc")).toBeUndefined();
-    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: false, hasDmarc: false } })), "infra.no_dmarc")).toBeUndefined();
+    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, nullMx: false, hasDmarc: false } })), "infra.no_dmarc")).toBeTruthy();
+    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, nullMx: false, hasDmarc: true } })), "infra.no_dmarc")).toBeUndefined();
+    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: false, nullMx: false, hasDmarc: false } })), "infra.no_dmarc")).toBeUndefined();
     // null = the DNS query got no answer, which is not a missing DMARC.
-    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: null } })), "infra.no_dmarc")).toBeUndefined();
-    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: null, hasDmarc: false } })), "infra.no_dmarc")).toBeUndefined();
+    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: true, nullMx: false, hasDmarc: null } })), "infra.no_dmarc")).toBeUndefined();
+    expect(id(signalsFromDomain(dom({ emailSecurity: { hasMx: null, nullMx: false, hasDmarc: false } })), "infra.no_dmarc")).toBeUndefined();
   });
 
   it("flags takeover candidates, catalogued breaches, and disabled DNSSEC", () => {
-    expect(id(signalsFromDomain(dom({ takeoverCandidates: [{ name: "a" }] })), "infra.takeover")!.evidence).toContain("1 dangling record");
-    expect(id(signalsFromDomain(dom({ takeoverCandidates: [{ name: "a" }, { name: "b" }] })), "infra.takeover")!.evidence).toContain("2 dangling records");
+    const unverified = (n: string) => ({ name: n, verification: "unverified" });
+    expect(id(signalsFromDomain(dom({ takeoverCandidates: [unverified("a")] })), "infra.takeover")!.evidence).toContain("1 dangling record");
+    expect(id(signalsFromDomain(dom({ takeoverCandidates: [unverified("a"), unverified("b")] })), "infra.takeover")!.evidence).toContain("2 dangling records");
+    // Unverified leads carry less intensity than a probed, confirmed takeover.
+    expect(id(signalsFromDomain(dom({ takeoverCandidates: [unverified("a")] })), "infra.takeover")!.intensity).toBe(0.4);
+    const confirmed = signalsFromDomain(dom({ takeoverCandidates: [{ name: "a", verification: "unclaimed" }, unverified("b")] }));
+    expect(id(confirmed, "infra.takeover")!.intensity).toBe(0.85);
+    expect(id(confirmed, "infra.takeover")!.evidence).toContain("1 subdomain serve");
     expect(ids(signalsFromDomain(dom({ takeoverCandidates: [] })))).toEqual([]);
     expect(id(signalsFromDomain(dom({ knownBreaches: [{ name: "x" }] })), "breach.domain")!.evidence).toContain("1 catalogued breach");
     expect(id(signalsFromDomain(dom({ knownBreaches: [{ name: "x" }, { name: "y" }] })), "breach.domain")!.evidence).toContain("2 catalogued breaches");

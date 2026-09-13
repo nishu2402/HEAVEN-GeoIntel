@@ -237,10 +237,13 @@ describe("phone threat score includes LeakCheck exposure", () => {
       body: JSON.stringify({ number: "+14155552671" }),
     }));
     const json = await res.json();
-    // 20 records × 3 = 60, capped at 20. Deliberately weighted below
-    // BreachDirectory: LeakCheck's free tier proves records EXIST, not what
-    // they contain.
-    expect(json.threatScore).toBe(20);
+    // LeakCheck volume is EXPOSURE, not abuse: a published switchboard
+    // appearing in eleven indexed records is not evidence the line is
+    // dangerous, and folding the two together is what made it read MODERATE.
+    // 20 records × 2, capped at 25.
+    expect(json.threatScore).toBe(0);
+    expect(json.threatLabel).toBe("CLEAN");
+    expect(json.exposureScore).toBe(25);
     expect(json.sources.leakCheck.data.found).toBe(20);
   });
 });

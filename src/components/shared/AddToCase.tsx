@@ -34,10 +34,19 @@ interface Props {
    * "re-run and show me what changed" loop.
    */
   snapshot?: { kind: EntityKind; value: string; facts: Facts; fromCache?: boolean };
+  /**
+   * The full lookup response. When present, pinning also PRESERVES it in the
+   * case's evidence locker: the bytes are stored and hashed, so the finding can
+   * be re-checked months later against what the tool actually saw rather than
+   * against upstreams that have since changed. Preservation is part of pinning
+   * because that is the moment the analyst decided the result mattered.
+   */
+  evidence?: { mode: string; identifier: string; payload: unknown };
 }
 
 const KIND_COLOR: Record<EntityKind, string> = {
   phone: "#00ff85", email: "#22d3ee", username: "#e879f9", ip: "#fb923c", domain: "#facc15",
+  wallet: "#f7931a", hash: "#a78bfa",
 };
 
 /** "2 IP, 1 domain" style summary of the related entities, by kind. */
@@ -47,7 +56,7 @@ function summarize(entities: ExtractedEntity[]): string {
   return [...counts.entries()].map(([k, n]) => `${n} ${k}`).join(", ");
 }
 
-export default function AddToCase({ entities, edges, snapshot }: Props) {
+export default function AddToCase({ entities, edges, snapshot, evidence }: Props) {
   const [open, setOpen] = useState(false);
   const [cases, setCases] = useState<InvestigationCase[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -116,6 +125,16 @@ export default function AddToCase({ entities, edges, snapshot }: Props) {
         facts: snapshot.facts, fromCache: snapshot.fromCache === true,
       });
       setDiff(j.diff ?? null);
+    }
+
+    // Best-effort: a locker that is full, or an oversized response, must not
+    // undo a pin the analyst already made.
+    if (evidence) {
+      await fetch("/api/evidence", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "capture", caseId: id, ...evidence }),
+      }).catch(() => {});
     }
   }
 

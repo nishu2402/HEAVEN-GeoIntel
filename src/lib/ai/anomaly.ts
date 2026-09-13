@@ -146,11 +146,15 @@ export function anomaliesFromDomain(d: DomainLookupResponse): Anomaly[] {
   const out: Anomaly[] = [];
 
   if (d.takeoverCandidates && d.takeoverCandidates.length > 0) {
+    // Only a host that actually served the provider's unclaimed page is "high".
+    const confirmed = d.takeoverCandidates.filter((c) => c.verification === "unclaimed").length;
     out.push({
       id: "domain.takeover",
-      title: "Subdomain-takeover candidate",
-      detail: `${d.takeoverCandidates.length} dangling DNS ${d.takeoverCandidates.length === 1 ? "record points" : "records point"} at a takeover-prone service and should be verified and reclaimed.`,
-      severity: "high",
+      title: confirmed > 0 ? "Subdomain takeover confirmed" : "Subdomain-takeover candidate",
+      detail: confirmed > 0
+        ? `${confirmed} ${confirmed === 1 ? "subdomain serves" : "subdomains serve"} the provider's unclaimed-resource page, so ${confirmed === 1 ? "it" : "they"} can be claimed by anyone and should be reclaimed or removed now.`
+        : `${d.takeoverCandidates.length} dangling DNS ${d.takeoverCandidates.length === 1 ? "record points" : "records point"} at a takeover-prone service, and ${d.takeoverCandidates.length === 1 ? "the host did not answer a probe, so its state is" : "none of the hosts answered a probe, so their state is"} unknown.`,
+      severity: confirmed > 0 ? "high" : "warn",
     });
   }
 

@@ -27,6 +27,25 @@ const BASE = "https://cavalier.hudsonrock.com/api/json/v2/osint-tools";
 /** Which Cavalier endpoint an identifier belongs to. */
 export type HudsonRockKind = "email" | "identifier";
 
+/**
+ * What the identifier IS, in the words the panel and the report should use.
+ *
+ * The `identifier` endpoint is the username one, and Cavalier answers it with
+ * prose about a username whatever you send it. So a phone lookup's API response
+ * carried "This username is not associated with a computer infected by an
+ * info-stealer" for a phone number — a sentence about the wrong kind of thing,
+ * quoted verbatim from an upstream, in our output. Every message is now written
+ * here from the count and the subject, and the upstream prose is never passed
+ * through.
+ */
+export type HudsonRockSubject = "email address" | "phone number" | "username";
+
+function describe(total: number, subject: HudsonRockSubject): string {
+  return total === 0
+    ? `No infostealer infection in this index captured this ${subject}.`
+    : `${total} infostealer infection${total === 1 ? "" : "s"} captured this ${subject}.`;
+}
+
 /** Cap on stealer records kept — a heavily-infected identity can return dozens. */
 const MAX_STEALERS = 10;
 /** Cap on the sample credentials/logins kept per stealer record. */
@@ -100,6 +119,7 @@ function url(identifier: string, kind: HudsonRockKind): string {
 export async function hudsonRockFor(
   identifier: string,
   kind: HudsonRockKind,
+  subject: HudsonRockSubject = kind === "email" ? "email address" : "username",
 ): Promise<SourceResult<HudsonRockData>> {
   try {
     const res = await fetch(url(identifier, kind), {
@@ -109,16 +129,17 @@ export async function hudsonRockFor(
     });
 
     if (res.status === 429) return { ok: false, error: "RATE_LIMITED" };
-    if (res.status === 404) return { ok: true, data: { total: 0, stealers: [], message: "No infections found" } };
+    if (res.status === 404) return { ok: true, data: { total: 0, stealers: [], message: describe(0, subject) } };
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
 
     const raw = (await res.json()) as HudsonRockRaw;
 
-    // Cavalier returns either a `stealers` array OR a message like "This
-    // e-mail/phone is not associated with a computer infected by an
-    // info-stealer" — the latter is a clean result, not a failure.
+    // Cavalier returns either a `stealers` array OR a message saying the
+    // identifier is not associated with an infected machine — the latter is a
+    // clean result, not a failure. Its wording is discarded (see
+    // HudsonRockSubject) and replaced with our own.
     if (!raw.stealers || raw.stealers.length === 0) {
-      return { ok: true, data: { total: 0, stealers: [], message: raw.message ?? "No infections found" } };
+      return { ok: true, data: { total: 0, stealers: [], message: describe(0, subject) } };
     }
 
     const stealers: HudsonRockStealer[] = raw.stealers.slice(0, MAX_STEALERS).map((s) => ({
@@ -131,7 +152,7 @@ export async function hudsonRockFor(
       topLogins: (s.top_logins ?? []).slice(0, MAX_SAMPLES),
     }));
 
-    return { ok: true, data: { total: raw.stealers.length, stealers, message: raw.message } };
+    return { ok: true, data: { total: raw.stealers.length, stealers, message: describe(raw.stealers.length, subject) } };
   } catch (err) {
     return { ok: false, error: describeError(err) };
   }

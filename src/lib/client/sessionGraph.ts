@@ -10,8 +10,11 @@ import type { EntityKind } from "../types";
 import type { GraphEntity } from "@/components/graph/LinkGraph";
 
 const KEY = "hv-session-graph-v1";
-const MAX = 200; // hard cap so the persisted graph can't grow unbounded
-const VALID_KINDS = new Set<EntityKind>(["phone", "email", "username", "ip", "domain"]);
+// Hard cap so the persisted graph cannot grow unbounded. Raised from 200: the
+// graph now also draws entities from saved cases, and a real investigation's
+// case file carries more identifiers than one browser session does.
+const MAX = 500;
+const VALID_KINDS = new Set<EntityKind>(["phone", "email", "username", "ip", "domain", "wallet", "hash"]);
 
 function isEntity(x: unknown): x is GraphEntity {
   if (typeof x !== "object" || x === null) return false;

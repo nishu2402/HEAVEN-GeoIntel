@@ -87,9 +87,10 @@ describe("route source ids match the manifest", () => {
 
     it(`${mode}: every source the manifest declares is actually reported`, async () => {
       const reported = new Set(await healthFor(handler, path, body));
-      // A `standby` source is only called when its primary is unavailable, so a
-      // healthy run genuinely does not report it. Everything else must appear.
-      for (const s of sourcesForMode(mode).filter((s) => !s.standby)) {
+      // A `standby` source is only called when its primary is unavailable, and
+      // an `onDemand` one only when the analyst starts it, so a healthy run
+      // genuinely does not report either. Everything else must appear.
+      for (const s of sourcesForMode(mode).filter((s) => !s.standby && !s.onDemand)) {
         expect(reported.has(s.id), `manifest declares "${s.id}" for ${mode} but the route never reports it`).toBe(true);
       }
     });
@@ -115,6 +116,23 @@ describe("route source ids match the manifest", () => {
     const reported = new Set(json.sourceHealth.map((h) => h.source));
     for (const s of standbys) {
       expect(reported.has(s.id), `"${s.id}" is declared standby but is never reached`).toBe(true);
+    }
+  });
+
+  it("an on-demand source really is reached by the endpoint that owns it", async () => {
+    // Same discipline as the standby guard: `onDemand` exempts a source from
+    // the "must be reported" check, so it must prove that something reaches it.
+    const onDemand = SOURCES.filter((s) => s.onDemand);
+    expect(onDemand.length).toBeGreaterThan(0);
+
+    vi.stubGlobal("fetch", vi.fn(async () => resp(404, {})));
+    const { POST: sweepPOST } = await import("@/app/api/username-sweep/route");
+    const json = (await (await post(sweepPOST, "http://localhost/api/username-sweep", {
+      username: "torvalds", limit: 1,
+    })).json()) as { sourceHealth: Array<{ source: string }> };
+    const reported = new Set(json.sourceHealth.map((h) => h.source));
+    for (const s of onDemand) {
+      expect(reported.has(s.id), `"${s.id}" is declared on-demand but nothing reaches it`).toBe(true);
     }
   });
 

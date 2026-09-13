@@ -1,15 +1,18 @@
 "use client";
 
 import { FileText, FileCode, FileJson, FileType, Printer } from "lucide-react";
-import {
-  reportToText, reportToMarkdown, reportToHtml, reportToStixBundle, type ReportModel,
-} from "@/lib/analysis/report";
+import { reportToText, reportToMarkdown, reportToStixBundle, type ReportModel } from "@/lib/analysis/report";
+import { reportToHtml } from "@/lib/analysis/reportHtml";
+import { reportToPrintHtml } from "@/lib/analysis/reportPrint";
 
 /**
- * Export buttons for any mode's report — the same professional document in four
- * shapes: plain text, Markdown, a self-contained HTML page, a STIX 2.1 bundle
- * for machine handoff, and a one-click PDF (the print-optimised report is opened
- * and sent straight to the browser's own PDF engine via Print → Save as PDF).
+ * Export buttons for any mode's report. Five formats, and PDF and HTML are two
+ * different documents rather than one file offered twice: PDF opens the paged
+ * A4 report (cover page, numbered sections, ruled tables, ink on white) and
+ * hands it to the browser's own PDF engine, while HTML downloads the on-screen
+ * dossier (the app's palette, a sticky contents rail, live filtering, per-value
+ * copy). Both are built from the same model, so they never disagree.
+ *
  * Everything is generated client-side from data the lookup already returned;
  * nothing leaves the browser.
  */
@@ -26,25 +29,25 @@ export default function UniversalReportExport({ model }: { model: ReportModel })
     URL.revokeObjectURL(url);
   };
 
-  // Render the print-optimised report into a fresh window and hand it to the
-  // browser's PDF engine. The report HTML is fully self-contained (inline styles,
-  // inline SVG logo), so it is ready to print the moment it is written.
+  // The paged document goes to a fresh window and straight into the print
+  // dialog. It is fully self-contained (inline styles, inline SVG mark), so it
+  // is ready to print the moment it is written.
   const printPdf = () => {
     const win = window.open("", "_blank");
     /* v8 ignore next -- window.open only returns null when a popup blocker intervenes */
     if (!win) return;
-    win.document.write(reportToHtml(model));
+    win.document.write(reportToPrintHtml(model));
     win.document.close();
     win.focus();
     win.print();
   };
 
-  const buttons: { label: string; icon: React.ReactNode; color: string; run: () => void }[] = [
-    { label: "PDF", icon: <Printer className="w-3 h-3" />, color: "#ff4d6d", run: printPdf },
-    { label: "TXT", icon: <FileText className="w-3 h-3" />, color: "#00ff85", run: () => download(reportToText(model), "text/plain", "txt") },
-    { label: "Markdown", icon: <FileCode className="w-3 h-3" />, color: "#00d9ff", run: () => download(reportToMarkdown(model), "text/markdown", "md") },
-    { label: "HTML", icon: <FileType className="w-3 h-3" />, color: "#c77dff", run: () => download(reportToHtml(model), "text/html", "html") },
-    { label: "STIX 2.1", icon: <FileJson className="w-3 h-3" />, color: "#fbbf24", run: () => download(JSON.stringify(reportToStixBundle(model), null, 2), "application/json", "stix.json") },
+  const buttons: { label: string; icon: React.ReactNode; color: string; hint: string; run: () => void }[] = [
+    { label: "PDF", icon: <Printer className="w-3 h-3" />, color: "#ff4d6d", hint: "Paged A4 document with a cover page: opens the print dialog, choose Save as PDF", run: printPdf },
+    { label: "HTML", icon: <FileType className="w-3 h-3" />, color: "#c77dff", hint: "Interactive dossier: one self-contained file with a contents rail, filtering and copy buttons", run: () => download(reportToHtml(model), "text/html", "html") },
+    { label: "TXT", icon: <FileText className="w-3 h-3" />, color: "#00ff85", hint: "Plain-text brief for a ticket or an email body", run: () => download(reportToText(model), "text/plain", "txt") },
+    { label: "Markdown", icon: <FileCode className="w-3 h-3" />, color: "#00d9ff", hint: "Markdown with tables, for a wiki or a pull request", run: () => download(reportToMarkdown(model), "text/markdown", "md") },
+    { label: "STIX 2.1", icon: <FileJson className="w-3 h-3" />, color: "#fbbf24", hint: "STIX 2.1 bundle for machine handoff to another platform", run: () => download(JSON.stringify(reportToStixBundle(model), null, 2), "application/json", "stix.json") },
   ];
 
   return (
@@ -54,7 +57,7 @@ export default function UniversalReportExport({ model }: { model: ReportModel })
         <button key={b.label} type="button" onClick={b.run}
           className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded border transition-colors"
           style={{ borderColor: b.color + "40", color: b.color }}
-          title={b.label === "PDF" ? "Open a print-ready report and Save as PDF" : `Download ${b.label} report`}>
+          title={b.hint}>
           {b.icon} {b.label}
         </button>
       ))}

@@ -83,7 +83,7 @@ describe("hudsonRockFor", () => {
     expect(r.data!.stealers[0].topPasswords).toHaveLength(5);
     expect(r.data!.stealers[0].topLogins).toHaveLength(5);
     expect(r.data!.stealers[0].malwareFamily).toBe("Acreed");
-    expect(r.data!.message).toBe("infected");
+    expect(r.data!.message).toBe("12 infostealer infections captured this email address.");
   });
 
   it("defaults every absent stealer field rather than dropping the record", async () => {
@@ -95,22 +95,33 @@ describe("hudsonRockFor", () => {
     });
   });
 
-  it("reports an empty result as a clean answer with the API's own message", async () => {
-    stub(() => resp(200, { message: "not associated with an infection" }));
+  it("writes its own message instead of quoting the upstream's", async () => {
+    // Cavalier answers the username endpoint with prose about a USERNAME
+    // whatever you send it, so a phone lookup used to carry "This username is
+    // not associated with a computer infected by an info-stealer" in its API
+    // response. The wording is ours now, and it names what was actually asked
+    // about.
+    stub(() => resp(200, { message: "This username is not associated with a computer infected by an info-stealer" }));
     expect(await hudsonRockFor("x@y.com", "email")).toEqual({
-      ok: true, data: { total: 0, stealers: [], message: "not associated with an infection" },
+      ok: true,
+      data: { total: 0, stealers: [], message: "No infostealer infection in this index captured this email address." },
     });
+
+    // The same endpoint, asked about a phone number, says so.
+    stub(() => resp(200, { message: "This username is not associated with a computer infected by an info-stealer" }));
+    const phone = await hudsonRockFor("+12024561111", "identifier", "phone number");
+    expect(phone.data!.message).toBe("No infostealer infection in this index captured this phone number.");
   });
 
   it("uses a default message when the API sends none", async () => {
     stub(() => resp(200, { stealers: [] }));
-    expect((await hudsonRockFor("x@y.com", "email")).data!.message).toBe("No infections found");
+    expect((await hudsonRockFor("x@y.com", "email")).data!.message).toBe("No infostealer infection in this index captured this email address.");
   });
 
   it("treats 404 as clean and 429 as rate-limited", async () => {
     stub(() => resp(404, {}));
     expect(await hudsonRockFor("x@y.com", "email")).toEqual({
-      ok: true, data: { total: 0, stealers: [], message: "No infections found" },
+      ok: true, data: { total: 0, stealers: [], message: "No infostealer infection in this index captured this email address." },
     });
     stub(() => resp(429, {}));
     expect(await hudsonRockFor("x@y.com", "email")).toEqual({ ok: false, error: "RATE_LIMITED" });

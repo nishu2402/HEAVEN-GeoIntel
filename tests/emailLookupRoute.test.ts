@@ -69,7 +69,7 @@ describe("POST /api/email-lookup: input validation", () => {
   it("400 on a body with no email field", async () => {
     const res = await post({});
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Invalid request body");
+    expect((await res.json()).error).toMatch(/^Invalid request body: /);
   });
 
   it("400 (Missing email address) on a whitespace-only value", async () => {

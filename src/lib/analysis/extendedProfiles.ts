@@ -1,15 +1,17 @@
 // ── Extended username breadth (WhatsMyName overlay) — pure link building ──────
 //
-// Turns a handle into grouped "open to verify" launch links across the vendored
-// WhatsMyName catalog. This is deliberately NOT an auto-check: we never fetch
-// these sites and never claim a handle exists on one — the analyst opens a link
-// and judges for themselves. That is the whole reason it is safe to carry 700+
-// community-maintained sites without a false-positive surface.
+// Turns a handle into grouped "open to verify" launch links for the sites that
+// NOTHING can check automatically: entries WhatsMyName itself marks invalid, and
+// entries whose probe needs a POST body or custom headers this tool does not
+// send. We never fetch these and never claim a handle exists on one.
 //
-// Sites the main sweep already auto-verifies (and the keyless API providers like
-// GitHub/Reddit) are filtered out, so the overlay only adds NEW ground to cover.
+// Everything else moved: the fast sweep owns its 38 sites, the keyless profile
+// APIs own theirs, and the deep sweep auto-classifies the 672 entries that carry
+// a full detection contract. Offering those as manual links too would ask the
+// analyst to repeat work already done.
 
-import { EXTENDED_USERNAME_SITES } from "../data/extendedUsernameSites";
+import { EXTENDED_USERNAME_SITES, type ExtendedSite } from "../data/extendedUsernameSites";
+import { hasContract } from "./wmnDetect";
 import { USERNAME_SITES } from "../data/usernameSites";
 
 // Names already covered elsewhere: the server-side sweep catalog, plus the
@@ -30,13 +32,27 @@ export interface ExtendedGroup {
   sites: ExtendedLink[];
 }
 
+/**
+ * A site belongs in the manual panel only when nothing else checks it.
+ *
+ * The whole catalog used to land here as launch links. Now that 672 of its
+ * entries carry a detection contract the deep sweep can classify (see
+ * analysis/wmnDetect.ts), listing those as "open to verify" would be asking the
+ * analyst to redo work the tool already did. What remains is the genuinely
+ * unverifiable residue: entries the upstream marks invalid, and those needing a
+ * POST body or custom headers this tool does not send.
+ */
 function isNew(name: string): boolean {
   return !ALREADY_COVERED.has(name.toLowerCase());
 }
 
-/** How many extra sites the overlay offers, after removing already-covered ones. */
+function isManualOnly(site: ExtendedSite): boolean {
+  return isNew(site.n) && (site.skip === true || !hasContract(site));
+}
+
+/** How many sites are left for manual verification, after the sweeps take theirs. */
 export function extendedSiteCount(): number {
-  return EXTENDED_USERNAME_SITES.filter((s) => isNew(s.n)).length;
+  return EXTENDED_USERNAME_SITES.filter(isManualOnly).length;
 }
 
 /**
@@ -49,7 +65,7 @@ export function extendedProfileLinks(username: string): ExtendedGroup[] {
   const enc = encodeURIComponent(handle);
   const groups = new Map<string, ExtendedLink[]>();
   for (const s of EXTENDED_USERNAME_SITES) {
-    if (!isNew(s.n)) continue;
+    if (!isManualOnly(s)) continue;
     const list = groups.get(s.c) ?? [];
     if (list.length === 0) groups.set(s.c, list);
     list.push({ name: s.n, url: s.u.replace(/\{account\}/g, enc) });

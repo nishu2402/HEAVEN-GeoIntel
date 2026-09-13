@@ -62,6 +62,7 @@ const lookup = (over: {
   cachedAt?: number;
   isValid?: boolean;
   threat?: [number, string];
+  assignability?: LookupResponse["assignability"];
 } = {}): LookupResponse => ({
   input: { raw: "4155552671", e164: "+14155552671", national: "(415) 555-2671", country: "US",
     countryCallingCode: "+1", region: null, isValid: over.isValid ?? true, isPossible: true, type: "mobile" },
@@ -76,6 +77,7 @@ const lookup = (over: {
     ...over.sources,
   } as never,
   threatScore: over.threat?.[0] ?? 12, threatLabel: over.threat?.[1] ?? "LOW RISK",
+  assignability: over.assignability,
   cachedAt: over.cachedAt,
 });
 
@@ -97,6 +99,34 @@ describe("<ResultsDashboard>", () => {
     expect(screen.getByTestId("SimIntelPanel")).toBeTruthy();
     expect(screen.getByTestId("CountryPanel")).toBeTruthy();
     expect(screen.getByTestId("PentesterPanel")).toBeTruthy();
+  });
+
+  // A 0 with no explanation reads as "checked and clean", which is the opposite
+  // of what happened: nothing was checked, because nothing could be attributed.
+  it("explains a zero score that came from an unassignable number", () => {
+    render(<ResultsDashboard data={lookup({
+      threat: [0, "NOT ASSIGNABLE"],
+      assignability: { assignable: false, reason: "fictional", block: "020 7946 0000-0999 (London)", detail: "Inside a block the regulator reserves for drama." },
+    })} />);
+    expect(screen.getByText("RESERVED NUMBER RANGE")).toBeTruthy();
+    expect(screen.getByText(/reserves for drama/)).toBeTruthy();
+    expect(screen.getByText("NOT ASSIGNABLE")).toBeTruthy();
+  });
+
+  it("labels an invalid number's notice differently from a reserved one", () => {
+    render(<ResultsDashboard data={lookup({
+      threat: [0, "NOT ASSIGNABLE"],
+      assignability: { assignable: false, reason: "invalid", block: null, detail: "Not a valid number for its country." },
+    })} />);
+    expect(screen.getByText("NOT A VALID NUMBER")).toBeTruthy();
+  });
+
+  it("shows no such notice for an ordinary number", () => {
+    render(<ResultsDashboard data={lookup({
+      assignability: { assignable: true, reason: null, block: null, detail: "" },
+    })} />);
+    expect(screen.queryByText("NOT A VALID NUMBER")).toBeNull();
+    expect(screen.queryByText("RESERVED NUMBER RANGE")).toBeNull();
   });
 
   it("shows the CACHED badge and the singular infostealer wording", () => {

@@ -25,7 +25,7 @@ describe("fact summarisers keep only what a source actually answered", () => {
     } as unknown as LookupResponse);
     // `carrier: null` and the three absent sources must NOT appear — "we don't
     // know" and "zero" are different claims, and a diff would treat them alike.
-    expect(facts).toEqual({ threatScore: 12, threatLabel: "LOW RISK", lineType: "mobile" });
+    expect(facts).toEqual({ abuseScore: 12, abuseLabel: "LOW RISK", lineType: "mobile" });
   });
 
   it("phone: records every source that answered", () => {
@@ -39,7 +39,7 @@ describe("fact summarisers keep only what a source actually answered", () => {
       },
     } as unknown as LookupResponse);
     expect(facts).toEqual({
-      threatScore: 70, threatLabel: "CRITICAL", carrier: "Jio", lineType: "mobile",
+      abuseScore: 70, abuseLabel: "CRITICAL", carrier: "Jio", lineType: "mobile",
       infostealerHits: 2, leakCheckRecords: 9, leakCheckBreaches: 1, breachCredentials: 3,
     });
   });

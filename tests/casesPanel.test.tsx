@@ -100,7 +100,10 @@ async function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
 }
 
 // ── DOM stubs jsdom lacks / that would navigate ──────────────────────────────
-const downloads: { href: string; download: string }[] = [];
+// The blob is captured alongside the filename, so a test can assert what was
+// actually written rather than only what it was called.
+const downloads: { href: string; download: string; blob: Blob }[] = [];
+let lastBlob: Blob = new Blob([""]);
 let confirmReply = true;
 let opened: { html: string } | null = null;
 let popupBlocked = false;
@@ -114,16 +117,19 @@ beforeEach(() => {
   getOmitsCases = false; postSilent = false;
 
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
-  URL.createObjectURL = vi.fn(() => "blob:mock");
+  URL.createObjectURL = vi.fn((b: Blob) => { lastBlob = b; return "blob:mock"; });
   URL.revokeObjectURL = vi.fn();
   vi.spyOn(window, "confirm").mockImplementation(() => confirmReply);
   vi.spyOn(window, "open").mockImplementation(() => {
     if (popupBlocked) return null;
     opened = { html: "" };
-    return { document: { write: (h: string) => { opened!.html = h; }, close: () => {} } } as unknown as Window;
+    return {
+      document: { write: (h: string) => { opened!.html = h; }, close: () => {} },
+      focus: () => {}, print: () => {},
+    } as unknown as Window;
   });
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
-    downloads.push({ href: this.href, download: this.download });
+    downloads.push({ href: this.href, download: this.download, blob: lastBlob });
   });
 });
 
@@ -492,18 +498,31 @@ describe("<CasesPanel> exports", () => {
     expect(downloads[0]!.download).toMatch(/^case-case-\d+\.csv$/);
   });
 
-  it("opens a printable report, and reports a blocked pop-up", async () => {
+  it("opens the paged dossier, and reports a blocked pop-up", async () => {
     await withCase();
-    await click(btn(/print\/pdf/i));
-    // buildPrintableHtml hashes the payload before window.open, so wait for the
+    await click(btn(/^pdf$/i));
+    // buildCasePrintHtml hashes the payload before window.open, so wait for the
     // window rather than for a guessed number of turns.
     await waitFor(() => expect(opened).not.toBeNull());
-    expect(opened!.html).toContain("HEAVEN-GeoIntel: Acme phishing");
-    expect(await screen.findByText(/opening printable report/i)).toBeTruthy();
+    expect(opened!.html).toContain("<h1>Acme phishing</h1>");
+    expect(opened!.html).toContain("@page { size: A4;");
+    expect(await screen.findByText(/opening the paged dossier/i)).toBeTruthy();
 
     popupBlocked = true;
-    await click(btn(/print\/pdf/i));
+    await click(btn(/^pdf$/i));
     expect(await screen.findByText(/pop-up blocked/i)).toBeTruthy();
+  });
+
+  // The PDF and HTML buttons must not hand out the same file.
+  it("downloads the on-screen dossier, which is not the paged one", async () => {
+    await withCase();
+    await click(btn(/^html$/i));
+    await waitFor(() => expect(downloads).toHaveLength(1));
+    expect(downloads[0]!.download).toMatch(/^case-acme-phishing-\d+\.html$/);
+    const dossier = await downloads[0]!.blob.text();
+    expect(dossier).toContain("<h1>Investigation Dossier</h1>");
+    expect(dossier).not.toContain("@page { size: A4;");
+    expect(await screen.findByText(/html dossier exported/i)).toBeTruthy();
   });
 
   it("clears the flash message after its timeout", async () => {

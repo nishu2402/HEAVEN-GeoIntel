@@ -16,6 +16,8 @@ import { mergeCaseInto } from "../analysis/caseMerge";
 import { appendSnapshot, diffSnapshot, type SnapshotDiff } from "../analysis/caseSnapshot";
 import { snapshotHistory } from "./config";
 import { dataDir } from "./dataDir";
+import { dropCaseEvidence, dropAllEvidence } from "./evidenceStore";
+import { notifyChange } from "./changeNotify";
 
 const casesFile = () => path.join(dataDir(), "cases.json");
 
@@ -106,10 +108,21 @@ export async function createCase(name: string): Promise<InvestigationCase> {
 
 /** Wipe every case (the "delete all my data" action). Irreversible. */
 export async function deleteAllCases(): Promise<void> {
+  // The evidence locker holds the same investigation data in more detail, so
+  // "delete my data" has to take it too. Leaving preserved responses behind
+  // after a wipe would be the worst kind of surprise.
+  await dropAllEvidence();
   return serialize(() => persist([]));
 }
 
-const VALID_KINDS = new Set<EntityKind>(["phone", "email", "username", "ip", "domain"]);
+/**
+ * Every identifier kind a case can hold.
+ *
+ * `wallet` and `hash` were missing, which meant a sanctioned address or a
+ * malware hash could be looked up, reported on and pivoted from — but never
+ * pinned to the case it belonged to, and never drawn on the graph.
+ */
+const VALID_KINDS = new Set<EntityKind>(["phone", "email", "username", "ip", "domain", "wallet", "hash"]);
 
 /**
  * Re-import a case from an exported report (always created as a NEW case with a
@@ -209,14 +222,35 @@ function sanitizeSnapshots(raw: unknown, fallbackAt: number): CaseSnapshot[] {
   return out.sort((a, b) => a.takenAt - b.takenAt);
 }
 
-export async function deleteCase(id: string): Promise<boolean> {
+/**
+ * Mark a case's changes as read, so the inbox can tell "moved since you last
+ * looked" from "moved at some point". Returns the updated case, or null when
+ * there is no such case.
+ */
+export async function markCaseReviewed(id: string, at = Date.now()): Promise<InvestigationCase | null> {
   return serialize(async () => {
+    const all = await readAll();
+    const c = all.find((x) => x.id === id);
+    if (!c) return null;
+    c.reviewedAt = at;
+    c.updatedAt = at;
+    await persist(all);
+    return c;
+  });
+}
+
+export async function deleteCase(id: string): Promise<boolean> {
+  const removed = await serialize(async () => {
     const all = await readAll();
     const next = all.filter((c) => c.id !== id);
     if (next.length === all.length) return false;
     await persist(next);
     return true;
   });
+  // Its preserved artifacts go with it: an evidence locker for a case that no
+  // longer exists is orphaned PII on disk.
+  if (removed) await dropCaseEvidence(id);
+  return removed;
 }
 
 export async function renameCase(id: string, name: string): Promise<InvestigationCase | null> {
@@ -398,6 +432,15 @@ export async function recordSnapshot(
     c.snapshots = appendSnapshot(history, next, snapshotHistory());
     c.updatedAt = next.takenAt;
     await persist(all);
+    // Fire-and-forget: the change is already on disk, and a webhook that is
+    // down must not fail the snapshot that produced it. No-op unless
+    // CHANGE_WEBHOOK_URL is set.
+    if (diff.changes.length > 0) {
+      void notifyChange({
+        caseId: c.id, caseName: c.name, kind, value: v,
+        takenAt: next.takenAt, changes: diff.changes, cacheInvolved: diff.cacheInvolved,
+      });
+    }
     return { case: c, diff };
   });
 }

@@ -10,13 +10,18 @@ describe("parseMxAnswers", () => {
   it("returns an empty list when there is no Answer section", () => {
     expect(parseMxAnswers(undefined)).toEqual([]);
   });
-  it("splits priority and host, tolerating a missing host or a non-numeric priority", () => {
+  it("splits priority and host, keeping the root label and tolerating a non-numeric priority", () => {
     expect(parseMxAnswers([
       { name: "x", type: 15, TTL: 300, data: "10 aspmx.l.google.com." },
-      { name: "x", type: 15, TTL: 300, data: "20 ." },          // no host after the dot -> dropped
+      // The root label used to be stripped to "" and dropped here, which is how
+      // an RFC 7505 null MX became invisible. It is kept as "."; the builder
+      // decides whether it is a refusal or just not an exchanger.
+      { name: "x", type: 15, TTL: 300, data: "20 ." },
       { name: "x", type: 15, TTL: 300, data: "bogus mail.self.test" }, // non-numeric priority -> null
+      { name: "x", type: 15, TTL: 300, data: "30 " },          // nothing after the priority -> dropped
     ])).toEqual([
       { host: "aspmx.l.google.com", priority: 10 },
+      { host: ".", priority: 20 },
       { host: "mail.self.test", priority: null },
     ]);
   });
@@ -55,7 +60,15 @@ describe("fetchEmailMx", () => {
   it("reports no exchangers (not a failure) when the domain publishes none", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => resp(200, {})));
     const r = await fetchEmailMx("no-mail.test");
-    expect(r).toEqual({ ok: true, data: { hasMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" } });
+    expect(r).toEqual({ ok: true, data: { hasMx: false, nullMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" } });
+  });
+
+  // example.com answers this way. Read as "no MX published", which is false: it
+  // publishes one, and uses it to say nothing may be delivered.
+  it("reads a null MX as a declared refusal", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => resp(200, { Answer: [{ name: "example.com", type: 15, TTL: 300, data: "0 ." }] })));
+    const r = await fetchEmailMx("example.com");
+    expect(r).toEqual({ ok: true, data: { hasMx: false, nullMx: true, mxHosts: [], provider: "Accepts no mail (null MX)", category: "none" } });
   });
 
   it("surfaces a SERVFAIL (HTTP 200, Status 2) as a failure, never as no exchangers", async () => {

@@ -9,10 +9,207 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 Application fixes found by an end-to-end run against live targets (the
 username sweep, phone validation, Docker persistence, DNS failures in the domain
-lookup, bulk validity, and rate-limit headers on errors), plus CI and
-documentation work.
+lookup, bulk validity, and rate-limit headers on errors), an AI Analyst that
+sets itself up in the panel, a rebuilt report and case-dossier export where PDF
+and HTML are finally two different documents, plus CI and documentation work.
+
+Then a second pass over the findings themselves: what the tool asserts about an
+identity, how much of the internet it actually reaches for a domain or a handle,
+and what an analyst can do with a result once it exists. Identity fusion now
+requires proof, breadth went up by an order of magnitude on several modes
+without adding a single key, and a finished lookup can be preserved, verified,
+watched for change, bulk-run, or driven from a shell.
 
 ### Added
+
+- **Identity fusion now needs proof, and says what the proof is.** A shared
+  handle was being treated as evidence that one person owned every account
+  carrying it. Looking up `torvalds` presented "Portland, OR" (GitHub), "GT"
+  (Chess.com) and "Bern" (Lichess) as one person's locations. There are now
+  exactly two keyless proofs of a link: a **self-link**, where one profile
+  publicly points at the other, and an **avatar** match by perceptual hash. An
+  identity that rests on a proof is RESOLVED and names the proof; one that does
+  not is a CANDIDATE, capped at 40 confidence, with the unmerged values listed
+  separately as leads. Where two proven-linked accounts disagree, the
+  contradiction is printed instead of averaged away. Live: `bagder` fuses GitHub
+  and Mastodon on a 100% avatar match and resolves at 86; `torvalds` no longer
+  fuses anything.
+- **Avatar correlation moved to the server, where it can actually work.** The
+  panel compared profile photographs in the browser, which the same-origin
+  policy makes impossible: reading pixels from another origin's image taints the
+  canvas, so the feature could never have produced a match. Avatars are now
+  fetched through the same SSRF guard as every other outbound request and hashed
+  server-side with a dHash over a 9x8 grey grid, with PNG and JPEG decoded in
+  process and no native dependency. Known placeholder art (the Gravatar default,
+  identicons, lettered initials) is recognised and never used as a link, because
+  two identical default avatars prove nothing.
+- **A deep username sweep of 242 more sites, and 393 more on request.** The
+  bundled WhatsMyName catalog was used for links only. Its **detection
+  contract** (the status and body string that mean "exists", and the pair that
+  mean "free") is now read, so a probe is classified only when the response
+  matches one of those pairs and reported `unknown` otherwise. The sweep is
+  paged, explicitly started and stoppable, with a bounded fan-out that
+  serialises requests to one host. Measured on `bagder`: 56 of 60 sites on one
+  page classified either way.
+- **Passive DNS and reverse IP, keyless.** The roadmap had recorded passive DNS
+  as a keyed capability and parked it. Mnemonic answers without a key (1,000
+  records on `wordpress.org`), as does HackerTarget reverse IP (499 hostnames on
+  one address). Both are read defensively: HackerTarget serves its quota notice
+  as plain text, so every line has to survive hostname validation and a quota
+  message parks the source rather than being parsed as a hostname; Mnemonic
+  sometimes answers with flattened rows (all timestamps zeroed, every record
+  type reported as `A`, including answers that are plainly IPv6), which is
+  detected, retried once, and if it persists the type is kept only where the
+  answer proves it.
+- **Subdomains now come from three sources, and the panel says what each one
+  found.** crt.sh was consulted only when Certspotter returned fewer than five
+  hosts. On `wordpress.org`, Certspotter's recent-issuance window held 9, so the
+  threshold never tripped, while crt.sh held 25, and the tool reported 9 as
+  though it were the answer. Both CT sources now always run, joined by reverse
+  IP and passive DNS, with a per-source coverage strip so a thin result reads as
+  a thin source. The same domain now yields 494 distinct hosts, and the first 40
+  are resolved so a dead CT entry is visibly dead.
+- **Port and CVE exposure for a domain's own addresses.** The tool knew how to
+  ask what is exposed on a host and never asked it about the host it had just
+  resolved. The apex addresses now go through the same keyless Shodan InternetDB
+  and GreyNoise path the IP mode uses, bounded to three so a round-robin A set
+  cannot multiply one lookup into a dozen calls.
+- **Legal-entity identifiers, from the half of WHOIS that GDPR did not
+  redact.** An OV or EV certificate carries an organisation a CA actually
+  verified, and GLEIF's register can be queried with it keylessly. The lookup
+  runs on the WHOIS registrant when there is one and the certificate
+  organisation when there is not, and the answer says which. `paypal.com` has no
+  registrant in RDAP and resolves through its certificate to LEI
+  `LBQ3CAGQB6M55WHL3G85`. The register does word matching ("PayPal, Inc." alone
+  returns 76,760 hits), so only an exact normalised match is reported as the
+  entity and the rest are offered as candidates.
+- **Internationalised domains and addresses, in both spellings.** `münchen.de`
+  and `test@münchen.de` were rejected as invalid while their punycode spelling
+  passed, which is backwards for a tool whose users investigate homoglyph
+  phishing. Every domain-shaped input is normalised once to its ASCII A-label
+  form through the platform's own UTS-46 implementation, and A-labels are
+  decoded back for display (a label that will not decode is shown exactly as it
+  arrived). The look-alike generator gained Cyrillic, Greek and Armenian
+  homoglyph variants, each carrying the punycode name to resolve and the Unicode
+  name a victim sees.
+- **Look-alike domains are resolved, not just generated.** "Resolve every
+  look-alike" runs the candidates through DNS and reports which answer, which
+  take mail, and how old the registration is, so a name registered days ago
+  reads differently from one a brand has held since 2009. Unanswered queries are
+  retried once, because a burst draws throttling and an unanswered candidate is
+  a hole in the scan rather than a result.
+- **OFAC sanctions screening for wallet addresses, offline.** A snapshot of the
+  US Treasury SDN list ships with the app: 1,056 addresses across 20 chains,
+  parsed from the XML export because the CSV's remarks column is truncated and
+  loses half of them. The screen runs before the balance lookup and reports the
+  designated entity, OFAC's entry id and the listing programs, so a hit is
+  traceable to the list. It answers for chains whose balance the tool cannot
+  read: a listed Tron address returns the match plus a plain statement of that
+  limit. Scope is stated rather than implied, since a negative result means "not
+  on this list", never "clean".
+- **Wallet results carry activity and holdings.** Bitcoin addresses report first
+  and last transaction seen, how many were sampled, distinct counterparties and
+  whether there is more history than the sample covers. Ethereum addresses
+  report ERC-20 balances for ten assets read from a keyless public RPC, with
+  zero balances simply not reported. The token list is deliberately fixed and
+  short, because no keyless way exists to enumerate every token an address
+  holds.
+- **An evidence locker.** A case snapshot holds a handful of scalars by design,
+  which means a challenged finding could only be re-run against upstreams that
+  have since changed. Pinning with preserve now writes the API response exactly
+  as returned, hashes it with SHA-256 and records it in a per-case manifest;
+  verify recomputes every hash and reports each artifact as ok, modified or
+  missing. What is preserved is stated exactly rather than implied, and it is
+  opt-in, case-scoped, capped at 4 MB and 500 artifacts per case, and behind the
+  same lock as the case store.
+- **A change inbox.** Snapshot history knew a breach count had grown and told
+  nobody. Every fact that moved across every case is now one list, newest first,
+  with a per-case reviewed mark; a first snapshot is reported as a baseline
+  rather than as a change, and a diff involving a cached side is flagged as
+  soft. Set `CHANGE_WEBHOOK_URL` and new changes are also POSTed there, best
+  effort, to an https host that is not on a private network.
+- **Bulk runs the real lookup, for every mode, as a job.** Bulk was phone-only,
+  offline-only and capped at 25 rows, so triaging 200 domains meant 200 manual
+  lookups. It now queues up to 500 mixed identifiers and runs the actual route
+  for each, with the same validation, sources and provenance as a single-target
+  search: `POST` starts it and returns an id, `GET` polls progress and rows,
+  `GET …&format=csv` exports, `DELETE` stops it. Rows that cannot be looked up
+  as their resolved kind are reported as skipped with a reason immediately,
+  instead of spending a slot and failing minutes later.
+- **A headless CLI.** `geointel` started the web app and nothing else, which
+  ruled the tool out of shells, pipelines and cron jobs. `geointel domain
+  example.com --json | jq`, `geointel bulk targets.txt --csv` and the rest now
+  talk to the same HTTP API the console uses, reusing a running instance or
+  starting a private one and shutting it down. Exit codes distinguish a failed
+  lookup from bad usage.
+- **The graph renders any case, across all seven identifier kinds.** It drew
+  only the current session and knew five kinds; wallets and hashes were
+  unroutable nodes. Both graphs now cover phone, email, username, IP, domain,
+  wallet and hash, each with its own colour.
+
+- **PDF and HTML are two different documents.** Both export buttons handed out
+  the same file: `reportToHtml()` rendered one page that was downloaded as the
+  HTML export and printed as the PDF, so neither reader was served well. They
+  are now built separately from one model. The PDF is a paged A4 document with a
+  cover sheet, a document-control block, a risk stamp, a contents page, numbered
+  sections, ruled tables, and ink chosen to survive a monochrome laser printer.
+  The HTML is an interactive dossier in the app's own palette: a sticky contents
+  rail with scroll-spy, a filter that narrows every field in the report as you
+  type and says how many entries still match, foldable sections, a copy button
+  on every value, and a light toggle. One self-contained file either way, with
+  no network calls, no external stylesheet and no external font.
+- **Every report carries the evidence it always had but never showed.** The
+  builders were reading a fraction of what the lookups collect. A domain report
+  now includes TXT records, CNAME, DNSSEC, the live HTTP posture (final URL,
+  status, redirect chain, HTTPS upgrade, and each security-header check with the
+  note that scored it), the TLS certificate (issuer, protocol, validity, days
+  remaining, trust), technology fingerprints, version disclosures, cookie flags,
+  the Internet Archive first snapshot, and the breaches catalogued for the
+  domain. A phone report leads with the assignability verdict, so a number no
+  subscriber can hold is not read as one with a carrier, and adds SIM and caller
+  fields, all timezones, and the breach and credential evidence. A username
+  report adds the sites that are open to verify (listed apart from the confirmed
+  accounts, because a probe cannot decide them), profile metrics, and the
+  locations, biographies and avatars it was already collecting but printing only
+  names from. An IP report adds the address scope, the GreyNoise classification,
+  hostnames and exposure tags. An unknown file hash, which used to produce an
+  empty report, now says what a catalog miss does and does not mean. On one live
+  `github.com` lookup this took the report from 4 sections and 12 fields to 12
+  sections, 38 fields and 76 list entries.
+- **A source that was never called is no longer reported as one that failed.**
+  Provenance carries `skipped`, and every format prints three states in words:
+  `answered`, `failed`, `not configured`. An optional source with no API key
+  reads as a setup fact rather than an outage or a negative finding.
+- **Reports say how to read themselves.** Each one ends with a methodology
+  section, a legend explaining the score, the bands, the confidence and the
+  omission rule for a reader outside this tool, an observables appendix carrying
+  the same STIX identifiers the bundle uses, and a collection-statistics
+  appendix (sources queried and answered, median source latency, recorded
+  fields, factors, pivots). Every document also carries a Document ID derived
+  from the subject and the generation time, so two runs of one subject are two
+  distinguishable artefacts.
+- **The case dossier is a document rather than a memo in a `<pre>` tag.** It was
+  Markdown wrapped in a monospace block and printed. There are now two: a paged
+  dossier with a cover sheet, the SHA-256 payload hash in its document control,
+  per-identifier change history, methodology, and a prepared-by / reviewed-by /
+  date signature strip; and an interactive one in the app's palette with
+  kind-coloured identifier chips. Both render from a single normalised case
+  model, which also feeds the Markdown export, and the panel gained an HTML
+  button next to PDF.
+- **The AI Analyst reports what this machine can actually run.**
+  `GET /api/ai-analyst` probes the local Ollama server for the models it holds
+  and checks every cloud provider for a saved or environment key. It reports
+  that a key exists and where it came from, never the value. The panel opens on
+  a provider that works, prefers the local one because it is keyless, and offers
+  Ollama's installed models rather than a suggestion list, so the first run
+  cannot ask for a model that is not there.
+- **A cloud key can be saved from the AI Analyst panel.** The seven provider key
+  names joined the allow-list behind `/api/keys`, so a pasted key is kept in
+  `.data/keys.json` (mode 0600, git-ignored) alongside the OSINT keys and is
+  entered once instead of on every run. The relay resolves a key in the order
+  pasted, saved, environment, so a key can still be tried for a single run and
+  forgotten. The panel also removes a saved key, and never writes one to browser
+  storage.
 
 - `tests/releaseNotes.test.ts`: eight assertions pinning the release page's
   shape — no repeated heading in any version, Keep-a-Changelog ordering for the
@@ -24,6 +221,27 @@ documentation work.
 
 ### Changed
 
+- **One threat score became two figures, because it was answering two
+  questions.** A number appearing in four breaches and a number used by a scam
+  call centre both scored high, and the label said the same thing about both, so
+  the White House switchboard read as a threat. Phone and email results now
+  carry **abuse risk** (reputation verdicts: blacklisted, malicious, spam,
+  known-fraud, disposable) and **exposure** (named breaches, credential records,
+  infostealer captures) as separate 0-100 figures, each listing the signals
+  behind it. Exposure's bands say what they measure (`NONE OBSERVED`, `LIMITED`,
+  `SIGNIFICANT`, `EXTENSIVE`) rather than borrowing the language of danger. The
+  switchboard now reads abuse 0 CLEAN, exposure 46 SIGNIFICANT. Responses that
+  predate the split still render, with the older single score read as abuse.
+- **Hudson Rock failures are reported in our own words, and 400s name the field
+  that was wrong.** The upstream's message was passed through verbatim, which
+  put a third party's phrasing in our error surface, and a validation failure
+  said only that the body was invalid. Errors are now phrased by this tool, and
+  a 400 carries the field it rejected.
+- **The configured fan-out concurrency is actually used.** `FANOUT_CONCURRENCY`
+  was read by nothing. Every multi-target fan-out (the sweep, subdomain
+  resolution, the typosquat scan, bulk rows) now runs through one bounded worker
+  pool that also serialises requests to a single host, so three probes of the
+  same site are three sequential requests rather than three simultaneous ones.
 - **The case-panel tests wait for outcomes instead of counting event-loop
   turns.** `<CasesPanel>`'s import and export handlers hash the payload with
   `crypto.subtle.digest`, which resolves on a threadpool, so how many turns the
@@ -45,6 +263,154 @@ documentation work.
 
 ### Fixed
 
+- **A username lookup no longer invents a person.** The identity card merged
+  every profile the sweep found under one heading, so three unrelated people
+  holding one handle were presented as one subject with three locations. Nothing
+  is merged now without a proof, and what is not merged is shown as what it is:
+  a lead.
+- **An address at an internationalised TLD is no longer called malformed.** Both
+  the email field and the analysis tested the whole address against a pattern
+  ending `\.[a-zA-Z]{2,}`, which cannot match an A-label, so `a@пример.рф`
+  (`xn--e1afmkfd.xn--p1ai` once encoded) was flagged invalid as you typed it and
+  classified `unknown` if you ran it anyway. `.рф` alone has millions of
+  registrations. There is now one shared `isValidEmailFormat`, so the field and
+  the result cannot disagree again.
+- **An internationalised corporate domain was named by its encoding.**
+  `test@münchen.de` was labelled "Xn--mnchen-3ya (Corporate)", which names
+  nothing that exists. It reads "München (Corporate)".
+- **A domain that refuses mail was reported as receiving it.** RFC 7505 lets a
+  domain publish a null MX, one record of preference 0 whose exchange is the
+  root label, to state that it accepts no mail at all. `example.com` publishes
+  exactly that. The MX parser stripped the trailing dot every other record type
+  needs, which turned the root label into an empty string, so the panel drew a
+  blank MX row, the report dropped the field, and the email-security card read
+  the phantom record as a mail server and said "Receives mail". The record now
+  keeps its wire form, `emailSecurity.nullMx` says the refusal was declared, and
+  the panel and the report both state it. Email mode had the same hole from the
+  other end: its MX fingerprint dropped the root label while parsing and then
+  printed "No published MX records", a false statement about a domain that
+  publishes one, so `MailProviderData.nullMx` now carries the same distinction.
+  In the same line, an MX preference of 0 was being discarded because
+  `parseInt(...) || undefined` reads 0 as falsy, so ordinary exchangers at
+  preference 0 lost their priority. `github.com` is one of them.
+- **A domain no longer names three companies as its registrant.** The legal-entity
+  lookup flagged a register row as the exact match when its name matched the
+  queried organisation, and the comparison dropped every corporate suffix before
+  comparing. So "PayPal, Inc.", "PAYPAL HOLDINGS, INC." and "PAYPAL LIMITED" all
+  reduced to "paypal", and one lookup of `paypal.com` presented three separate
+  companies, in two countries, holding three different LEIs, as the identified
+  registrant. The suffix is now normalised rather than removed, so a certificate
+  writing "Incorporated" still matches a register writing "Inc." while a parent,
+  a subsidiary and a foreign arm stay three companies.
+- **A keyless source is no longer reported as "not configured".** GLEIF, reverse
+  IP and the host-exposure scanners need no key, but a lookup that gave them
+  nothing to ask about (no resolved address, no registrant organisation) marked
+  them the same way a missing API key does. An exported report therefore told
+  its reader that a key would have produced an answer, which was false. They are
+  now reported as `not applicable`, counted separately in the collection
+  statistics, and explained in the report's own note.
+- **A bulk run from the CLI dropped unclassifiable rows in silence.** The web UI
+  and the API both listed them with a reason; piping a list through
+  `geointel bulk` gave you a short file and no way to tell which rows were
+  missing. Skipped rows now go to stderr, so a redirected CSV stays clean data.
+- **`geointel bulk` on a path that does not exist started a whole server before
+  failing**, and exited 1 rather than the documented 2 for bad usage.
+- **The avatar panel was reporting on a comparison that never ran.** It was
+  written against browser-side pixel reads that the same-origin policy forbids,
+  so it could only ever report "no match". It now renders clusters the server
+  computed.
+- **`münchen.de`, `xn--mnchen-3ya.de` and `test@münchen.de` are one target.**
+  The first and third were rejected outright as invalid input.
+- **A domain's subdomain count is no longer whatever one source happened to
+  hold.** See the coverage change above: 9 reported where 494 exist.
+- **A bulk row that cannot be looked up is skipped with a reason instead of
+  burning a lookup.** Mode detection always fell back to `username`, so a line
+  of spreadsheet noise became a username lookup that failed several seconds
+  later. Each row is now pre-validated with the same validator its route uses.
+- **The deterministic STIX identifier generator collided on 6% of its inputs.**
+  `detUuid()` ran a 32-bit linear congruential generator through floating-point
+  multiplication, which pushes the product past the exact-integer range and
+  rounds away exactly the low bits it then read four at a time. It produced
+  identifiers like `d8888888-8888-4888-8888-888888888888` and repeated itself
+  1,258 times over 20,000 distinct seeds. In a STIX bundle that means two
+  unrelated observables sharing one id and a consumer merging them. It now fills
+  the 128 bits from four independently-seeded FNV-1a rounds with a murmur3
+  avalanche, multiplied through `Math.imul`: no collisions over 200,000 seeds.
+  The shape is unchanged; the ids themselves differ from previous exports.
+  Found by reading a generated document, not by a failing test: the old tests
+  checked that the function was deterministic and UUID-shaped, which it was.
+- **The AI Analyst no longer opens on a provider that is not installed.** It
+  defaulted to a local Ollama server whether or not one was there, so on a
+  machine without it the panel's first answer was a red error and two terminal
+  commands, a dead end inside a tool meant to be used from one window. It now
+  asks the server what is available before offering anything, and a provider
+  that cannot run says what is missing and links the one page that fixes it: the
+  provider's own key console for a cloud model, the Ollama download and its two
+  start commands for the local one. A key pasted into the panel runs immediately
+  or saves with one press, Check again re-probes without a reload, and a run
+  that fails against a configured provider reopens the key field instead of
+  leaving the error with nowhere to go. The relay's messages were part of the
+  problem too: a missing Ollama model and an Ollama that is not running were one
+  message with one fix, and they are now separate, while a 400 (which is what
+  Gemini returns for a bad key) names both the key and the model name rather
+  than guessing.
+- **The AI-analyst relay answers by cause instead of calling everything a bad
+  gateway.** Every failed run returned `502`, including the two that never
+  reached a gateway at all: a provider with no key configured, and a key the
+  provider itself rejected. A key the operator could retype in the panel showed
+  up in the browser console as a server fault. The status now follows the cause.
+  A missing key, a rejected key or a model the provider does not have is a `400`
+  the caller can act on; a provider that is rate-limiting has its `429` passed
+  through so a client backs off instead of retrying into the same wall; and
+  `502` is left meaning what it says, a provider that was unreachable or
+  returned nothing usable.
+- **The AI-analyst audit entry recorded a success for runs that failed.** It was
+  written before the relay had even been called, with `200` hardcoded, so a
+  provider that was down or a key that was rejected was filed in the log as a
+  completed analysis. It is now written after the run with the status actually
+  returned, which is what the lookup routes already did. The entry still carries
+  nothing but the provider name, salted and hashed like every other target,
+  and never the prompt, the subject or the key.
+- **Stopped attributing breach and infostealer hits to numbers nobody can
+  hold.** Placeholder numbers are typed into signup forms constantly, so they
+  sit in the leak corpora like any real line, and the tool was reporting those
+  records as the number's own exposure. Live on 2026-09-12, `+1 999-999-9999`
+  came back with five infostealer captures and a thousand breach rows and scored
+  100/CRITICAL, while `+44 20 7946 0958`, a number Ofcom reserves for television
+  drama and never assigns, scored 73/CRITICAL with a named Vidar infection. Both
+  now resolve as NOT ASSIGNABLE: the breach, credential and infostealer sources
+  are not queried at all, the score is withheld rather than zeroed silently, and
+  the panel says whether the number is invalid or inside a reserved block. The
+  rule covers libphonenumber's own invalid verdict, the NANP 555-0100 to
+  555-0199 fiction range and Ofcom's twenty drama blocks. Bulk mode gets the
+  same verdict as a third result bucket, so a reserved number no longer sits in
+  a triage list looking like a live one.
+- **The Wayback probe no longer reports "never archived" when the archive
+  simply did not answer.** It asked an endpoint that returns HTTP 429 under any
+  load and, when it does answer, hands back an empty result for domains archived
+  thousands of times: github.com and example.com both reported no history at
+  all, and a rate-limit response became a stated fact about the domain. The
+  probe now reads the first capture out of the replay endpoint's redirect, which
+  answers in about a second, and only a definitive 404 is reported as never
+  archived. Anything else leaves the field unknown.
+- **Subdomain-takeover candidates are probed before they are shown.** Matching
+  a takeover-prone service was enough to raise a red panel, which on a real
+  target meant raising it for nothing: a sweep of github.com flagged twelve
+  hosts and every one of them was serving real content. Each candidate is now
+  fetched and checked against the provider's own unclaimed-resource page, hosts
+  that answer with anything else are dropped, and the ones that answer nothing
+  are labelled unverified instead of being presented as findings. That sweep now
+  reports zero. The AI risk signal and the exported report follow the same
+  distinction.
+- **DNS answers are filtered to the record type that was asked for.** A
+  resolver returns the whole chain, so querying A on a host behind a CNAME
+  brought the CNAME back too, and every answer was labelled with the requested
+  type. A hostname was being carried as an A record, which is what stopped the
+  takeover verifier from probing anything.
+- **Removed an intermittent test failure from the release gate.** The crypto
+  workbench assertions ran a fixed number of microtask turns after clicking Run,
+  which is enough on an idle machine and not always enough on a loaded runner.
+  They now wait for the output instead.
 - **The release title no longer has to be corrected by hand.** Every published
   release is titled `HEAVEN-GeoIntel <tag>`; the workflow's template said
   `HEAVEN <tag>`.

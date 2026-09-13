@@ -3,14 +3,13 @@
 import { useState, useCallback } from "react";
 import { Search, CheckCircle2, XCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isValidEmailFormat } from "@/lib/analysis/idn";
 
 interface Props {
   onLookup: (email: string) => void;
   onClear?: () => void;
   loading: boolean;
 }
-
-const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 
 type ValidationState = "empty" | "valid" | "invalid";
 
@@ -20,7 +19,9 @@ export default function EmailInput({ onLookup, onClear, loading }: Props) {
   const trimmed = value.trim();
   let validation: ValidationState = "empty";
   if (trimmed) {
-    validation = EMAIL_RE.test(trimmed) ? "valid" : "invalid";
+    // Shared with the analysis, so the field and the result never disagree —
+    // and so an internationalised address is not flagged red as you type it.
+    validation = isValidEmailFormat(trimmed) ? "valid" : "invalid";
   }
 
   const handleSubmit = useCallback(() => {

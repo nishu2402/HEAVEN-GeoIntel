@@ -16,6 +16,9 @@ import EmailPermutations from "./EmailPermutations";
 import DomainKnownBreachesPanel from "./DomainKnownBreachesPanel";
 import SubdomainTakeoverPanel from "./SubdomainTakeoverPanel";
 import TyposquatPanel from "./TyposquatPanel";
+import {
+  SubdomainCoveragePanel, PassiveDnsPanel, HostExposurePanel, ReverseIpPanel, LeiPanel,
+} from "./DomainIntelPanels";
 import UniversalReportExport from "@/components/shared/UniversalReportExport";
 import { buildDomainReport } from "@/lib/analysis/report";
 
@@ -57,6 +60,9 @@ const yesNo = (v: boolean | null) => (v === null ? "Unknown" : v ? "Yes" : "No")
 
 export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
   const { dns, whois, emailSecurity: es, subdomains } = data;
+  // Which discovered subdomains actually resolve, so a stale certificate entry
+  // is visibly different from a live host.
+  const resolvedFor = new Map((data.subdomainHosts ?? []).map((h) => [h.host, h.addresses]));
   const failed = data.dnsFailed ?? [];
   // "?" rather than 0 for a record set whose query got no answer.
   const count = (kind: DnsQueryKind, n: number) => (failed.includes(kind) ? "?" : String(n));
@@ -66,7 +72,7 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
 
   const glanceTiles = [
     { label: "A records", value: count("A", dns.a.length), accent: "var(--hv-green)" },
-    { label: "MX", value: yesNo(es.hasMx), accent: es.hasMx === null ? UNKNOWN : es.hasMx ? undefined : "#fb923c" },
+    { label: "MX", value: es.nullMx ? "Declined" : yesNo(es.hasMx), accent: es.hasMx === null ? UNKNOWN : es.hasMx ? undefined : "#fb923c" },
     { label: <Term k="SPF">SPF</Term>, value: yesNo(es.hasSpf), accent: es.hasSpf === null ? UNKNOWN : es.hasSpf ? undefined : "#ff4d6d" },
     { label: <Term k="DMARC">DMARC</Term>, value: es.dmarcPolicy ?? (es.hasDmarc === null ? "Unknown" : es.hasDmarc ? "set" : "None"), accent: dmarcColor },
     { label: "Subdomains", value: String(subdomains.length), accent: "var(--hv-cyan)" },
@@ -137,7 +143,10 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
           {[
             { label: "SPF", ok: es.hasSpf, detail: said(es.hasSpf, "Sender policy present", "No SPF: spoofable") },
             { label: "DMARC", ok: es.hasDmarc, detail: said(es.hasDmarc, `policy: ${es.dmarcPolicy ?? "set"}`, "No DMARC: spoofable"), color: es.hasDmarc ? dmarcColor : undefined },
-            { label: "MX", ok: es.hasMx, detail: said(es.hasMx, "Receives mail", "No mail servers") },
+            // A null MX is the domain refusing mail on purpose, which is a
+            // stronger statement than "none published" and reads as a finding
+            // rather than a gap.
+            { label: "MX", ok: es.hasMx, detail: es.nullMx ? "Accepts no mail (null MX)" : said(es.hasMx, "Receives mail", "No mail servers") },
           ].map((c) => {
             const color = c.color ?? (c.ok === null ? UNKNOWN : c.ok ? "#00ff85" : "#ff4d6d");
             const Icon = c.ok === null ? ShieldQuestion : c.ok ? ShieldCheck : ShieldAlert;
@@ -226,22 +235,40 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
         </div>
       </div>
 
+      {/* Host exposure, passive DNS, co-hosting and the legal entity. Each
+          self-hides when its source had nothing. */}
+      <HostExposurePanel data={data} />
+      <PassiveDnsPanel data={data} />
+      <ReverseIpPanel data={data} />
+      <LeiPanel data={data} />
+
       {/* Subdomains */}
       {subdomains.length > 0 && (
         <div id="sec-subs" className="terminal-card p-4 space-y-2 scroll-mt-24">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-            <Layers className="w-3 h-3" /> SUBDOMAINS: {subdomains.length} via certificate transparency
+            <Layers className="w-3 h-3" /> SUBDOMAINS: {subdomains.length} discovered
           </div>
           <div className="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto">
-            {subdomains.map((s, i) => (
-              <a key={`${s}-${i}`} href={`https://${s}`} target="_blank" rel="noopener noreferrer"
-                className="text-[11px] font-mono px-2 py-0.5 rounded border border-[var(--hv-glass-border)] text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-colors">
-                {s}
-              </a>
-            ))}
+            {subdomains.map((s, i) => {
+              const resolved = resolvedFor.get(s);
+              return (
+                <a key={`${s}-${i}`} href={`https://${s}`} target="_blank" rel="noopener noreferrer"
+                  title={resolved ? (resolved.length > 0 ? resolved.join(", ") : "resolves to nothing") : "not resolved"}
+                  className="text-[11px] font-mono px-2 py-0.5 rounded border border-[var(--hv-glass-border)] hover:border-[var(--hv-glass-hi)] transition-colors"
+                  style={{ color: resolved && resolved.length === 0 ? "var(--hv-ink-dim)" : "var(--hv-cyan)" }}>
+                  {s}
+                </a>
+              );
+            })}
           </div>
+          <p className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
+            The first {resolvedFor.size} were resolved: a dimmed name has no A record, which is a stale certificate
+            entry rather than a live host.
+          </p>
         </div>
       )}
+
+      <SubdomainCoveragePanel data={data} />
 
       {/* Pivots */}
       <div id="sec-pivots" className="terminal-card p-4 space-y-2 scroll-mt-24">

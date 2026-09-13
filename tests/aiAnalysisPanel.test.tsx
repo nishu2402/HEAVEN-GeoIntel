@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import AiAnalysisPanel from "@/components/shared/AiAnalysisPanel";
 import type { EmailLookupResponse, HashLookupResponse } from "@/lib/types";
 
-afterEach(() => cleanup());
+// The nested analyst panel probes /api/ai-analyst when it mounts. Stub that here
+// so these tests exercise the read-out alone and never reach for a network.
+beforeEach(() => vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); })));
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 // The panel is a thin, deterministic view over analyzeLookup(): a clean subject
 // shows the reassuring state and no anomalies; a badly exposed one shows scored
