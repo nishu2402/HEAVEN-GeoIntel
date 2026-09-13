@@ -6,7 +6,9 @@ import { settleSources } from "@/lib/server/sourceHealth";
 import { ensureDatasets } from "@/lib/server/datasets";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, phoneBody } from "@/lib/server/validation";
+import { assessPhoneAbuse, assessExposure } from "@/lib/analysis/riskModel";
 import { analyzePhoneNumber } from "@/lib/analysis/phoneAnalysis";
+import { classifyAssignability } from "@/lib/analysis/phoneAssignability";
 import { getCountryIntel } from "@/lib/data/countryIntel";
 import { deriveOfflineReputation } from "@/lib/analysis/freePhoneIntel";
 import { lookupMccMnc } from "@/lib/data/mccMnc";
@@ -401,8 +403,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   await ensureDatasets();
 
-  const body = await parseBody(req, phoneBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
+  const parsedBody = await parseBody(req, phoneBody);
+  if (!parsedBody.ok) return NextResponse.json(parsedBody.problem, { status: 400, headers: rlHeaders });
+  const body = parsedBody.data;
 
   const raw = body.number.trim();
   if (!raw) return NextResponse.json({ error: "Missing phone number" }, { status: 400, headers: rlHeaders });
@@ -441,6 +444,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     type: parsed.getType() ?? null,
   };
 
+  // Can anyone actually hold this number? An invalid or regulator-reserved
+  // number still gets typed into signup forms, so the breach and infostealer
+  // indexes answer for it — with somebody else's leaked placeholder. Attributing
+  // that to "this number" is a false positive, so those sources are skipped
+  // entirely rather than queried and then explained away.
+  const assignability = classifyAssignability(analysis);
+  const attributable = assignability.assignable;
+  const skipped = <T,>(): Promise<SourceResult<T>> =>
+    Promise.resolve({ ok: false, error: "NOT_ASSIGNABLE" });
+
   // Optional enrichment — fan-out to APIs if keys are configured.
   // Hudson Rock and LeakCheck are always called (no key required). settleSources
   // times each call and turns a rejection into a failed envelope, so one dead
@@ -450,10 +463,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     ipqs: fetchIpqs(e164),
     abstract: fetchAbstract(e164),
     twilio: fetchTwilio(e164),
-    breachDirectory: fetchBreachDirectoryPhone(e164),
-    fullContact: fetchFullContactPhone(e164),
-    hudsonRock: hudsonRockFor(e164, "identifier"),
-    leakCheck: fetchLeakCheck(e164, "phone"),
+    breachDirectory: attributable ? fetchBreachDirectoryPhone(e164) : skipped<BreachDirectoryData>(),
+    fullContact: attributable ? fetchFullContactPhone(e164) : skipped<FullContactData>(),
+    hudsonRock: attributable ? hudsonRockFor(e164, "identifier", "phone number") : skipped<HudsonRockData>(),
+    leakCheck: attributable ? fetchLeakCheck(e164, "phone") : skipped<LeakCheckData>(),
   });
 
   const aggregated = buildAggregated(
@@ -465,12 +478,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     sources.twilio
   );
 
-  const { score: threatScore, label: threatLabel } = computeThreatScore(
-    aggregated,
-    sources.breachDirectory,
-    sources.hudsonRock,
-    sources.leakCheck
-  );
+  // Two figures, not one. The old single score folded breach volume into a
+  // "threat" number, which is how the White House switchboard came to read
+  // MODERATE off eleven LeakCheck records. See analysis/riskModel.ts.
+  //
+  // A number nobody can hold has neither: the breach sources were never queried
+  // for it, so there is nothing to assess. Mirrors the IP route's "NOT ROUTABLE"
+  // short-circuit for reserved address space.
+  const abuse = attributable
+    ? assessPhoneAbuse(aggregated)
+    : { score: 0, label: "NOT ASSIGNABLE", reasons: [] };
+  const exposure = attributable
+    ? assessExposure({
+        breachRecords: sources.leakCheck.ok ? sources.leakCheck.data?.found : null,
+        namedBreaches: sources.leakCheck.ok ? sources.leakCheck.data?.sources.length : null,
+        credentialRecords: sources.breachDirectory.ok ? sources.breachDirectory.data?.found : null,
+        stealerInfections: sources.hudsonRock.ok ? sources.hudsonRock.data?.total : null,
+      })
+    : {
+        score: 0,
+        label: "NOT ASSESSED",
+        reasons: ["breach and infostealer indexes were not queried: no subscriber can hold this number"],
+      };
 
   const offline = deriveOfflineReputation(analysis);
 
@@ -492,66 +521,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const response: LookupResponse = {
     input, analysis, countryIntel, offline, sources, sourceHealth: health,
-    aggregated, threatScore, threatLabel, breachAggregate, credentialExposure,
+    aggregated,
+    // `threatScore` keeps its name: it is the ABUSE figure, which is what the
+    // name always claimed to mean.
+    threatScore: abuse.score,
+    threatLabel: abuse.label,
+    threatReasons: abuse.reasons,
+    exposureScore: exposure.score,
+    exposureLabel: exposure.label,
+    exposureReasons: exposure.reasons,
+    breachAggregate, credentialExposure,
+    assignability,
   };
   setCached(e164, response);
 
   return NextResponse.json(response, { headers: rlHeaders });
-}
-
-// ── Unified threat score (0-100) ─────────────────────────────────────────────
-// Combines fraud score, breach hits, abuse flags, VOIP, prepaid into one number.
-// Matches the email Threat Score model so the UI can render the same bar.
-function computeThreatScore(
-  agg: AggregatedResult,
-  bd: SourceResult<BreachDirectoryData>,
-  hr: SourceResult<HudsonRockData>,
-  lc: SourceResult<LeakCheckData>
-): { score: number; label: string } {
-  let score = 0;
-
-  // IPQS fraud score — already 0-100, weight 60%
-  if (agg.fraudScore !== null) {
-    score = Math.max(score, Math.round(agg.fraudScore * 0.6));
-  }
-  // Recent abuse / risky flags
-  if (agg.recentAbuse === true) score = Math.max(score, 50);
-  if (agg.isRisky === true)     score = Math.max(score, 55);
-  // Confirmed VOIP raises baseline — VOIP is overused for fraud
-  if (agg.isVoip === true)      score = Math.max(score, 25);
-  // Inactive line is suspicious for active fraud claims
-  if (agg.active === false)     score = Math.max(score, 30);
-  // Prepaid is a small bump — common in burner setups
-  if (agg.prepaid === true)     score += 5;
-  // Premium-rate is inherently risky
-  if (agg.isPremiumRate === true) score = Math.max(score, 60);
-
-  // Breach hits — same model as email
-  if (bd.ok && bd.data && bd.data.found > 0) {
-    score += Math.min(bd.data.found * 8, 30);
-  }
-
-  // Infostealer infections — each captured device is high signal
-  if (hr.ok && hr.data && hr.data.total > 0) {
-    score = Math.max(score, 60);
-    score += Math.min(hr.data.total * 10, 30);
-  }
-
-  // Public breach index. Weighted below BreachDirectory on purpose: LeakCheck's
-  // free tier reports that records EXIST, not what they contain, so appearing in
-  // it is exposure evidence rather than a confirmed credential compromise.
-  if (lc.ok && lc.data && lc.data.found > 0) {
-    score += Math.min(lc.data.found * 3, 20);
-  }
-
-  score = Math.max(0, Math.min(score, 100));
-
-  const label =
-    score >= 70 ? "CRITICAL" :
-    score >= 40 ? "HIGH RISK" :
-    score >= 20 ? "MODERATE" :
-    score > 0   ? "LOW RISK" :
-                  "CLEAN";
-
-  return { score, label };
 }

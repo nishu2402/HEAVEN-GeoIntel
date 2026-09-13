@@ -116,8 +116,11 @@ describe("source manifest", () => {
     expect(sourcesForMode("ip").map((s) => s.id)).toEqual([
       "ip-api.com", "ipwho.is", "Shodan InternetDB", "GreyNoise Community", "ripestat",
     ]);
+    // Domain gained the four sources this release added: passive DNS, reverse
+    // IP, the host-exposure pair and the legal-entity register.
     expect(sourcesForMode("domain").map((s) => s.id)).toEqual([
-      "dns", "whois", "subdomains", "http", "wayback",
+      "Shodan InternetDB", "GreyNoise Community", "dns", "whois", "subdomains", "http", "wayback",
+      "Mnemonic PDNS", "HackerTarget reverse IP", "GLEIF LEI",
     ]);
     // Phone is the mode with the most keyed sources. Keyless it now runs two —
     // Hudson Rock and LeakCheck — which is the whole point of Phase 3.2.

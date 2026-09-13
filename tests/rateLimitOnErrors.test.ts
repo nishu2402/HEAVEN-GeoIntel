@@ -14,6 +14,9 @@ import { POST as hash } from "@/app/api/hash-lookup/route";
 import { POST as pwned } from "@/app/api/pwned-password/route";
 import { POST as bulk } from "@/app/api/bulk-lookup/route";
 import { POST as aiAnalyst } from "@/app/api/ai-analyst/route";
+import { POST as sweep } from "@/app/api/username-sweep/route";
+import { POST as typosquat } from "@/app/api/typosquat-scan/route";
+import { POST as evidence } from "@/app/api/evidence/route";
 
 // Every rate-limited route charges the quota BEFORE it validates the body, so a
 // 400 has already spent a request. Eight of them answered that 400 without
@@ -35,6 +38,9 @@ const ROUTES: Record<string, { handler: Handler; bad: unknown[] }> = {
   "/api/pwned-password":  { handler: pwned,     bad: ["{oops", {}, { prefix: "zz" }] },
   "/api/bulk-lookup":     { handler: bulk,      bad: ["{oops", {}, { numbers: [] }] },
   "/api/ai-analyst":      { handler: aiAnalyst, bad: ["{oops", {}, { provider: "nope", model: "m", system: "s", user: "u" }] },
+  "/api/username-sweep":  { handler: sweep,     bad: ["{oops", {}, { username: "a b!" }] },
+  "/api/typosquat-scan":  { handler: typosquat, bad: ["{oops", {}, { domain: "not a domain!!" }] },
+  "/api/evidence":        { handler: evidence,  bad: ["{oops", {}, { action: "capture", caseId: "../etc" }] },
 };
 
 let dir: string;

@@ -5,16 +5,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST as bulkPOST } from "@/app/api/bulk-lookup/route";
+import { cancelJob } from "@/lib/server/bulkJobs";
 import { POST as casesPOST } from "@/app/api/cases/route";
 import { POST as domainPOST } from "@/app/api/domain-lookup/route";
 import { POST as ipPOST } from "@/app/api/ip-lookup/route";
 import { POST as usernamePOST } from "@/app/api/username-lookup/route";
 import { GET as sourcesGET } from "@/app/api/sources/route";
-import { setCached } from "@/lib/server/cache";
 import { setKey } from "@/lib/server/keyStore";
 import { mark, resetHealth } from "@/lib/server/sourceHealth";
 import { restoreRateLimit, resetServerState } from "./testUtils";
-import type { LookupResponse } from "@/lib/types";
 
 // Error and edge paths across the remaining routes — the branches that only run
 // when an upstream misbehaves, which is exactly what the old gate never checked.
@@ -46,15 +45,24 @@ const post = <T,>(handler: (r: NextRequest) => Promise<T>, url: string, body: un
     body: JSON.stringify(body),
   }) as unknown as NextRequest);
 
-describe("bulk-lookup row classification", () => {
-  it("labels an empty row and an unparseable row", async () => {
+describe("bulk-lookup job queueing", () => {
+  it("classifies each row on its own and reports what it could not place", async () => {
     const res = await post(bulkPOST, "http://localhost/api/bulk-lookup", {
-      numbers: ["   ", "nonsense", "+14155552671"],
+      items: ["   ", "wordpress.org", "+14155552671"],
+      mode: "auto",
     });
-    const { rows } = await res.json();
-    expect(rows[0]).toEqual({ input: "", ok: false, error: "Empty input" });
-    expect(rows[1]).toEqual({ input: "nonsense", ok: false, error: "Unparseable" });
-    expect(rows[2].ok).toBe(true);
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.total).toBe(2);              // the blank row is dropped, not failed
+    expect(typeof json.id).toBe("string");
+    expect(json.state).toBe("running");
+    cancelJob(json.id);                       // do not leave live lookups running
+  });
+
+  it("refuses a body with neither items nor numbers", async () => {
+    const res = await post(bulkPOST, "http://localhost/api/bulk-lookup", {});
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/items/);
   });
 
   it("rejects a non-string entry at the schema, before the route sees it", async () => {
@@ -63,16 +71,14 @@ describe("bulk-lookup row classification", () => {
     expect(res.headers.get("X-RateLimit-Limit")).toBeTruthy(); // 400s carry the headers too
   });
 
-  it("serves a cached row without re-analysing, and flags it as cached", async () => {
-    const e164 = "+14155559123";
-    setCached(e164, {
-      aggregated: { carrier: "CachedCarrier", lineType: "mobile", countryName: "United States" },
-      analysis: { areaCode: "415" },
-    } as unknown as LookupResponse);
-
-    const { rows } = await (await post(bulkPOST, "http://localhost/api/bulk-lookup", { numbers: [e164] })).json();
-    expect(rows[0].cached).toBe(true);
-    expect(rows[0].carrier).toBe("CachedCarrier");
+  it("deduplicates rows so one list cannot look up the same target twice", async () => {
+    const res = await post(bulkPOST, "http://localhost/api/bulk-lookup", {
+      items: ["wordpress.org", "WordPress.org", "wordpress.org"],
+      mode: "domain",
+    });
+    const json = await res.json();
+    expect(json.total).toBe(1);
+    cancelJob(json.id);
   });
 });
 
@@ -114,7 +120,23 @@ describe("domain-lookup upstream failures", () => {
     expect(json.http).toBeNull();
     // ...and says so, rather than implying the domain has no records.
     const health = Object.fromEntries(json.sourceHealth.map((h: { source: string; ok: boolean }) => [h.source, h.ok]));
-    expect(health).toEqual({ dns: false, whois: false, subdomains: true, wayback: false, http: false });
+    // Every source says it failed, including the ones added for passive DNS,
+    // co-hosting, host exposure and the legal-entity register. A source that
+    // could not be asked at all (no A record to reverse, no registrant org to
+    // query) is reported as skipped rather than as an outage.
+    expect(health).toEqual({
+      dns: false, whois: false, subdomains: false, wayback: false, http: false,
+      "Mnemonic PDNS": false, "HackerTarget reverse IP": false, "GLEIF LEI": false,
+      // Nothing resolved, so there is no address to ask about. Reported as
+      // skipped rather than omitted, which is how the source strip can say
+      // "not applicable" instead of leaving a promised source silently absent.
+      "Shodan InternetDB": false, "GreyNoise Community": false,
+    });
+    const skipped = new Set(
+      json.sourceHealth.filter((h: { skipped?: boolean }) => h.skipped)
+        .map((h: { source: string }) => h.source),
+    );
+    expect(skipped).toEqual(new Set(["Shodan InternetDB", "GreyNoise Community", "HackerTarget reverse IP", "GLEIF LEI"]));
   });
 
   it("returns [] for a non-2xx DoH response", async () => {

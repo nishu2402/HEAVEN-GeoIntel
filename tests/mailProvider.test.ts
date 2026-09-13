@@ -34,8 +34,24 @@ describe("classifyMailHost", () => {
 describe("buildMailProviderData", () => {
   it("reports no exchangers when the list is empty", () => {
     expect(buildMailProviderData([])).toEqual({
-      hasMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none",
+      hasMx: false, nullMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none",
     });
+  });
+
+  it("reads a lone preference-0 root label as a declared refusal", () => {
+    expect(buildMailProviderData([{ host: ".", priority: 0 }])).toEqual({
+      hasMx: false, nullMx: true, mxHosts: [], provider: "Accepts no mail (null MX)", category: "none",
+    });
+  });
+
+  it("does not read a root label as a refusal unless RFC 7505 is satisfied", () => {
+    // Wrong preference, and a root label sitting beside a real exchanger: both
+    // are misconfigurations rather than a refusal, and mail still lands.
+    expect(buildMailProviderData([{ host: ".", priority: 20 }])).toMatchObject({ nullMx: false, hasMx: false });
+    expect(buildMailProviderData([
+      { host: ".", priority: 0 },
+      { host: "mail.acme.test", priority: 10 },
+    ])).toMatchObject({ nullMx: false, hasMx: true, mxHosts: ["mail.acme.test"] });
   });
 
   it("skips empty and duplicate hosts and orders by priority", () => {

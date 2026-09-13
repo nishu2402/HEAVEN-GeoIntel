@@ -42,9 +42,11 @@ const KIND_META: Record<EntityKind, { color: string; label: string }> = {
   username: { color: "#e879f9", label: "USERNAME" },
   ip:       { color: "#fb923c", label: "IP" },
   domain:   { color: "#facc15", label: "DOMAIN" },
+  wallet:   { color: "#f7931a", label: "WALLET" },
+  hash:     { color: "#a78bfa", label: "HASH" },
 };
 
-const KIND_ORDER: EntityKind[] = ["phone", "email", "username", "ip", "domain"];
+const KIND_ORDER: EntityKind[] = ["phone", "email", "username", "ip", "domain", "wallet", "hash"];
 
 function KindIcon({ kind, className }: { kind: EntityKind; className?: string }) {
   const c = className ?? "w-3 h-3";

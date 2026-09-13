@@ -10,6 +10,7 @@ import { POST as ipPOST } from "@/app/api/ip-lookup/route";
 import { POST as usernamePOST } from "@/app/api/username-lookup/route";
 import { POST as casesPOST } from "@/app/api/cases/route";
 import { POST as bulkPOST } from "@/app/api/bulk-lookup/route";
+import { cancelJob } from "@/lib/server/bulkJobs";
 import { useRateLimit, restoreRateLimit, clientCookie, resetServerState } from "./testUtils";
 
 // Sparse-payload pass: what happens when an upstream answers 200 but omits the
@@ -93,7 +94,7 @@ describe("phone: sparse upstream payloads", () => {
 
   it("supplies its own message when Hudson Rock returns none", async () => {
     stub([["cavalier.hudsonrock.com", resp(200, { stealers: [] })]]);
-    expect((await (await phone()).json()).sources.hudsonRock.data.message).toBe("No infections found");
+    expect((await (await phone()).json()).sources.hudsonRock.data.message).toBe("No infostealer infection in this index captured this phone number.");
   });
 
   it("nulls every absent stealer field", async () => {
@@ -235,7 +236,7 @@ describe("domain: sparse RDAP and CT payloads", () => {
     stub([]);
     const res = await dom("   ");
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Missing domain");
+    expect((await res.json()).error).toBe("Not a valid domain name");
   });
 });
 
@@ -329,14 +330,16 @@ describe("username / cases / bulk sparse paths", () => {
     expect(noted.case.notes).toBe("");
   });
 
-  it("nulls timezone and UTC offset for a number with neither", async () => {
+  it("still accepts the original phone-only `numbers` body", async () => {
     stub([]);
-    // A number whose country has no timezone data in the offline analysis path.
-    const { rows } = await (await post(bulkPOST, "http://localhost/api/bulk-lookup", {
+    // Bulk grew from "25 phone numbers, offline" to "any identifier, real
+    // lookups, queued". The old field keeps working so an existing script or a
+    // saved workflow does not break on upgrade.
+    const started = await (await post(bulkPOST, "http://localhost/api/bulk-lookup", {
       numbers: ["+6421000000"],
     })).json();
-    expect(rows[0].ok).toBe(true);
-    expect(rows[0].timezone === null || typeof rows[0].timezone === "string").toBe(true);
-    expect(rows[0].utcOffset === null || typeof rows[0].utcOffset === "string").toBe(true);
+    expect(started.total).toBe(1);
+    expect(typeof started.id).toBe("string");
+    cancelJob(started.id);
   });
 });

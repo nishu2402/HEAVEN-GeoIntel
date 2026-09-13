@@ -65,7 +65,7 @@ describe("POST /api/lookup: input validation", () => {
   it("400 on a body with no number field", async () => {
     const res = await post({});
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Invalid request body");
+    expect((await res.json()).error).toBe("Invalid request body: `number` is required");
   });
 
   it("400 (Missing phone number) on a whitespace-only number", async () => {
@@ -114,7 +114,7 @@ describe("POST /api/lookup: offline happy path (no provider keys)", () => {
 });
 
 describe("POST /api/lookup: enrichment merge + threat scoring", () => {
-  it("merges IPQS/breach/Hudson Rock into a CRITICAL score with a resolved carrier", async () => {
+  it("merges IPQS/breach/Hudson Rock into both figures with a resolved carrier", async () => {
     process.env.IPQS_API_KEY = "test-ipqs";
     process.env.RAPIDAPI_KEY = "test-rapid";
 
@@ -140,7 +140,7 @@ describe("POST /api/lookup: enrichment merge + threat scoring", () => {
       })],
     ]);
 
-    const res = await post({ number: "+12125550123" });
+    const res = await post({ number: "+12125552123" });
     expect(res.status).toBe(200);
     const json = await res.json();
 
@@ -157,8 +157,64 @@ describe("POST /api/lookup: enrichment merge + threat scoring", () => {
     expect(json.sources.hudsonRock.data.stealers[0].malwareFamily).toBe("Redline");
 
     // fraud 95→57, +risky/abuse, +breach, +2 infections ⇒ well over 70
-    expect(json.threatScore).toBeGreaterThanOrEqual(70);
-    expect(json.threatLabel).toBe("CRITICAL");
+    // The abuse figure now carries only abuse signals; the breach and
+    // infostealer evidence is reported as exposure beside it.
+    // Abuse: fraud 95 × 0.6, plus the prepaid bump. Exposure: two infostealer
+    // infections and three recovered credential records.
+    expect(json.threatScore).toBe(62);
+    expect(json.threatLabel).toBe("HIGH RISK");
+    expect(json.exposureScore).toBe(95);
+    expect(json.exposureLabel).toBe("EXTENSIVE");
+    expect(json.exposureReasons).toContain("captured by 2 infostealer infections");
+  });
+});
+
+// Breach indexes answer for placeholder numbers, because that is what people
+// type into signup forms. Measured live on 2026-09-12: +1 999-999-9999 returned
+// 5 infostealer records and 1000 breach rows and scored 100/CRITICAL. Nobody
+// holds that number, so nothing may be attributed to it.
+describe("POST /api/lookup: numbers nobody can hold", () => {
+  it("skips the attribution sources and scores nothing for an invalid number", async () => {
+    const fetchMock = vi.fn(async () => { throw new TypeError("no upstream should be called"); });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const json = await (await post({ number: "+19999999999" })).json();
+
+    expect(json.assignability).toEqual({
+      assignable: false,
+      reason: "invalid",
+      detail: expect.stringContaining("no carrier ever issued it"),
+      block: null,
+    });
+    for (const s of ["hudsonRock", "leakCheck", "breachDirectory", "fullContact"]) {
+      expect(json.sources[s]).toEqual({ ok: false, error: "NOT_ASSIGNABLE" });
+    }
+    expect(json.breachAggregate.total).toBe(0);
+    expect(json.credentialExposure.exposed).toBe(false);
+    expect(json.threatScore).toBe(0);
+    expect(json.threatLabel).toBe("NOT ASSIGNABLE");
+    // Not one upstream was asked.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does the same for a regulator's reserved drama range", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("no upstream should be called"); }));
+
+    const json = await (await post({ number: "+442079460958" })).json();
+
+    expect(json.analysis.isValid).toBe(true); // parses fine; just unassignable
+    expect(json.assignability.reason).toBe("fictional");
+    expect(json.assignability.block).toBe("020 7946 0000-0999 (London)");
+    expect(json.sources.hudsonRock.error).toBe("NOT_ASSIGNABLE");
+    expect(json.threatLabel).toBe("NOT ASSIGNABLE");
+  });
+
+  it("still enriches and scores an ordinary number", async () => {
+    stubFetch([["cavalier.hudsonrock.com", hudsonClean], ["leakcheck.io", resp(200, { success: true, found: 0 })]]);
+    const json = await (await post({ number: "+14155552672" })).json();
+    expect(json.assignability).toEqual({ assignable: true, reason: null, detail: "", block: null });
+    expect(json.sources.hudsonRock.ok).toBe(true);
+    expect(json.threatLabel).not.toBe("NOT ASSIGNABLE");
   });
 });
 
@@ -170,16 +226,16 @@ describe("POST /api/lookup: caching", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const first = await post({ number: "+13105550188" });
+    const first = await post({ number: "+13102000188" });
     expect(first.status).toBe(200);
     const callsAfterFirst = fetchMock.mock.calls.length;
     expect(callsAfterFirst).toBeGreaterThan(0); // Hudson Rock was hit
 
-    const second = await post({ number: "+13105550188" });
+    const second = await post({ number: "+13102000188" });
     expect(second.status).toBe(200);
     // Cache short-circuits before the enrichment fan-out — no new fetches.
     expect(fetchMock.mock.calls.length).toBe(callsAfterFirst);
-    expect((await second.json()).input.e164).toBe("+13105550188");
+    expect((await second.json()).input.e164).toBe("+13102000188");
   });
 });
 

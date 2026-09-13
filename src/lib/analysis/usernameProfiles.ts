@@ -8,6 +8,7 @@
 // then hands the raw payload to a normaliser. Unknown / partial shapes collapse
 // to `null` rather than inventing data.
 
+import { isPlaceholderAvatar } from "./avatarPlaceholders";
 import type { SocialProfile, IdentitySignals } from "../types";
 
 // ── small shared helpers ─────────────────────────────────────────────────────
@@ -366,7 +367,9 @@ export function deriveIdentity(profiles: SocialProfile[]): IdentitySignals {
       const k = p.location.toLowerCase();
       if (!seenLoc.has(k)) { seenLoc.add(k); locations.push({ value: p.location, source: p.platform }); }
     }
-    if (p.avatarUrl && !seenAvatar.has(p.avatarUrl)) {
+    // A platform's own "no photo" placeholder is not this subject's avatar, and
+    // two accounts that both left the default in place are not the same person.
+    if (p.avatarUrl && !seenAvatar.has(p.avatarUrl) && !isPlaceholderAvatar(p.avatarUrl)) {
       seenAvatar.add(p.avatarUrl); avatars.push({ url: p.avatarUrl, source: p.platform });
     }
     if (p.bio) {

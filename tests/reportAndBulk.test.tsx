@@ -41,98 +41,121 @@ afterEach(() => {
 });
 
 // ── BulkLookup ───────────────────────────────────────────────────────────────
-interface BulkRow {
-  input: string; ok: boolean; error?: string; e164?: string; valid?: boolean; country?: string | null;
-  type?: string | null; carrier?: string | null; utcOffset?: string | null;
-  npaState?: string | null; npaRegion?: string | null; cached?: boolean;
+//
+// Bulk is a queued JOB now: POST starts it and returns an id, GET reports
+// progress until the job stops. The component polls, so the fetch stub answers
+// both shapes.
+
+interface FakeRow {
+  mode: string; input: string; ok: boolean; status: number; error?: string;
+  summary: Record<string, string | number | boolean | null>;
+  sources: { source: string; ok: boolean }[]; ms: number;
 }
-const row = (over: Partial<BulkRow> = {}): BulkRow => ({
-  input: "+14155552671", ok: true, e164: "+14155552671", valid: true, country: "US",
-  type: "mobile", carrier: "Verizon", utcOffset: "UTC-08:00", npaState: "CA", npaRegion: "Bay Area",
+
+const fakeRow = (over: Partial<FakeRow> = {}): FakeRow => ({
+  mode: "domain", input: "wordpress.org", ok: true, status: 200,
+  summary: { domain: "wordpress.org", registrar: "MarkMonitor Inc." },
+  sources: [{ source: "dns", ok: true }], ms: 12,
   ...over,
 });
 
+/** A fetch that starts a job and then reports it finished with `rows`. */
+function stubJob(rows: FakeRow[], startOver: Record<string, unknown> = {}) {
+  vi.stubGlobal("fetch", vi.fn(async (url: string | URL, init?: RequestInit) => {
+    const s = String(url);
+    if (init?.method === "POST") {
+      return { ok: true, status: 200, json: async () => ({ id: "job-1", total: rows.length, state: "running", skipped: [], ...startOver }) } as Response;
+    }
+    if (s.includes("format=csv")) {
+      return { ok: true, status: 200, text: async () => "mode,input\ndomain,wordpress.org" } as unknown as Response;
+    }
+    return {
+      ok: true, status: 200,
+      json: async () => ({ id: "job-1", state: "done", total: rows.length, done: rows.length, rows, startedAt: 1, finishedAt: 2 }),
+    } as Response;
+  }));
+}
+
 describe("<BulkLookup>", () => {
-  const type = (text: string) => fireEvent.change(screen.getByLabelText(/bulk phone-number input/i), { target: { value: text } });
-  const runBtn = () => screen.getByRole("button", { name: /run bulk/i });
+  const type = (text: string) => fireEvent.change(screen.getByLabelText(/bulk identifier input/i), { target: { value: text } });
+  const runBtn = () => screen.getByRole("button", { name: /run bulk lookup/i });
 
-  it("disables RUN until at least one number is present", () => {
+  it("disables RUN until something is pasted", () => {
     render(<BulkLookup />);
     expect(runBtn()).toHaveProperty("disabled", true);
-    type("+14155552671");
+    type("wordpress.org");
     expect(runBtn()).toHaveProperty("disabled", false);
-    expect(screen.getByText(/run bulk \(1\)/i)).toBeTruthy();
   });
 
-  it("blocks and warns past the 25-number cap", () => {
+  it("runs a job, renders the rows as they land, and downloads a formula-safe CSV", async () => {
+    stubJob([
+      fakeRow(),
+      fakeRow({ mode: "phone", input: "+14155552671", summary: { e164: "+14155552671", carrier: "carrier, inc" } }),
+      fakeRow({ mode: "ip", input: "nope", ok: false, status: 400, error: "Not a valid IPv4 / IPv6 address", summary: {} }),
+    ]);
     render(<BulkLookup />);
-    type(Array.from({ length: 26 }, (_, i) => `+1415555${String(i).padStart(4, "0")}`).join("\n"));
-    expect(screen.getByText(/26 pasted: max is 25/i)).toBeTruthy();
-    expect(runBtn()).toHaveProperty("disabled", true);
-  });
-
-  it("runs a batch, renders the results table, and downloads a formula-safe CSV", async () => {
-    const rows = [
-      // an all-null row exercises every `?? "—"` cell fallback and the region-less branch
-      row({ input: "carrier, inc", type: null, carrier: null, utcOffset: null, npaRegion: null, npaState: null }),
-      row({ input: "+14155552672" }), // full NPA → "Bay Area, CA" (region + state)
-      row({ input: "bad", ok: false, error: "invalid", e164: undefined, valid: undefined, country: null, npaRegion: "Metro only", npaState: null, cached: true }),
-      // parses and has the right length, but is not an assigned number
-      row({ input: "+912212345678", e164: "+912212345678", valid: false, country: "IN", npaRegion: null, npaState: null }),
-    ];
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ count: 4, rows }) }) as Response));
-    render(<BulkLookup />);
-    type("+14155552671\n+14155552672\nbad\n+912212345678");
+    type("wordpress.org\n+14155552671\nnope");
     await act(async () => { fireEvent.click(runBtn()); });
 
-    // Three disjoint buckets: the invalid number is not counted as OK.
-    expect(screen.getByText(/✓ 2 valid/)).toBeTruthy();
-    expect(screen.getByText(/⚠ 1 invalid/)).toBeTruthy();
-    expect(screen.getByText(/✗ 1 failed/)).toBeTruthy();
-    expect(screen.getByText("✗ INVALID")).toBeTruthy();
-    expect(screen.getAllByText("✓")).toHaveLength(2);
-    expect(screen.getByText("Bay Area, CA")).toBeTruthy(); // region + state
-    expect(screen.getByText("Metro only")).toBeTruthy();   // npaRegion without npaState
-    expect(screen.getByText("[c]")).toBeTruthy();           // cached marker
-    expect(screen.getByText("invalid")).toBeTruthy();       // per-row error
+    expect(screen.getByText(/DONE: 3\/3/)).toBeTruthy();
+    expect(screen.getByText(/2 answered · 1 failed/)).toBeTruthy();
+    expect(screen.getByText(/registrar=MarkMonitor Inc./)).toBeTruthy();
+    expect(screen.getByText("Not a valid IPv4 / IPv6 address")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /download csv/i }));
+    fireEvent.click(screen.getByRole("button", { name: /download bulk results as csv/i }));
     const csv = downloads[0]!.body;
-    expect(csv.split("\n")[0]).toMatch(/^input,ok,error,e164,valid,country/);
-    expect(csv).toContain("'+912212345678,false,IN"); // e164, valid, country
-    expect(csv).toContain("'+14155552671");    // leading + escaped against formula injection
-    expect(csv).toContain('"carrier, inc"');    // comma-bearing cell gets quoted
+    expect(csv.split("\n")[0]).toMatch(/^mode,input,ok,status,error/);
+    expect(csv).toContain("'+14155552671");   // leading + escaped against formula injection
+    expect(csv).toContain('"carrier, inc"');  // comma-bearing cell gets quoted
+  });
+
+  it("lists rows the server could not classify", async () => {
+    stubJob([fakeRow()], { skipped: [{ input: "???", reason: 'no bulk lookup for mode "file"' }] });
+    render(<BulkLookup />);
+    type("wordpress.org\n???");
+    await act(async () => { fireEvent.click(runBtn()); });
+    expect(screen.getByText(/SKIPPED: 1/)).toBeTruthy();
+    expect(screen.getByText(/no bulk lookup for mode "file"/)).toBeTruthy();
   });
 
   it("shows a server-provided error message", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 429, json: async () => ({ error: "Rate limited" }) }) as Response));
     render(<BulkLookup />);
-    type("+14155552671");
+    type("wordpress.org");
     await act(async () => { fireEvent.click(runBtn()); });
     expect(screen.getByText("Rate limited")).toBeTruthy();
   });
 
-  it("falls back to the HTTP status when the error body omits a message", async () => {
+  it("falls back to its own message when the error body omits one", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }) as Response));
     render(<BulkLookup />);
-    type("+14155552671");
+    type("wordpress.org");
     await act(async () => { fireEvent.click(runBtn()); });
-    expect(screen.getByText(/HTTP 500/)).toBeTruthy();
+    expect(screen.getByText(/could not be started/)).toBeTruthy();
   });
 
   it("reports a network failure", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("down"); }));
     render(<BulkLookup />);
-    type("+14155552671");
+    type("wordpress.org");
     await act(async () => { fireEvent.click(runBtn()); });
-    expect(screen.getByText(/network error/i)).toBeTruthy();
+    expect(screen.getByText(/could not be started/)).toBeTruthy();
   });
 
-  it("handles a 200 response that omits the rows array", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ count: 0 }) }) as Response));
+  it("reports a job whose progress cannot be read", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL, init?: RequestInit) =>
+      (init?.method === "POST"
+        ? { ok: true, status: 200, json: async () => ({ id: "job-2", total: 1, state: "running", skipped: [] }) }
+        : { ok: false, status: 500, json: async () => ({}) }) as Response));
     render(<BulkLookup />);
-    type("+14155552671");
+    type("wordpress.org");
     await act(async () => { fireEvent.click(runBtn()); });
-    expect(screen.getByText(/HTTP 200/)).toBeTruthy();
+    expect(screen.getByText(/could not be read/)).toBeTruthy();
+  });
+
+  it("refuses to start with an empty box", () => {
+    render(<BulkLookup />);
+    type("   ");
+    expect(runBtn()).toHaveProperty("disabled", true);
   });
 });

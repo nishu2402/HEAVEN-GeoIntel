@@ -383,12 +383,17 @@ export function signalsFromDomain(d: DomainLookupResponse): Signal[] {
   }
 
   if (d.takeoverCandidates && d.takeoverCandidates.length > 0) {
+    // A probed-and-unclaimed host is a live finding; one that simply did not
+    // answer is a lead. Scoring them the same overstated the second.
+    const confirmed = d.takeoverCandidates.filter((c) => c.verification === "unclaimed").length;
     out.push({
       id: "infra.takeover",
       label: "Subdomain-takeover candidate",
       category: "infrastructure",
-      intensity: 0.85,
-      evidence: `${d.takeoverCandidates.length} dangling ${plural(d.takeoverCandidates.length, "record")} point at a takeover-prone service`,
+      intensity: confirmed > 0 ? 0.85 : 0.4,
+      evidence: confirmed > 0
+        ? `${confirmed} ${plural(confirmed, "subdomain")} serve the provider's unclaimed-resource page and can be taken over`
+        : `${d.takeoverCandidates.length} dangling ${plural(d.takeoverCandidates.length, "record")} point at a takeover-prone service, none answering a probe`,
     });
   }
 

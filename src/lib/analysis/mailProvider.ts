@@ -72,6 +72,15 @@ export function buildMailProviderData(records: MxHost[]): MailProviderData {
   // A missing priority sorts last; normalize it here so the comparator is a
   // single numeric path (no per-comparison nullish branch that depends on the
   // sort's internal call order).
+  // RFC 7505: a lone MX of preference 0 pointing at the root label is the
+  // domain stating that it accepts no mail. That is a published record and a
+  // definite answer, so reporting it as "no MX published" was wrong twice over.
+  // It has to be the ONLY record, because a set that also names a real host is
+  // a misconfiguration and mail still lands there.
+  if (records.length === 1 && records[0]?.host === "." && records[0]?.priority === 0) {
+    return { hasMx: false, nullMx: true, mxHosts: [], provider: "Accepts no mail (null MX)", category: "none" };
+  }
+
   const cleaned: { host: string; priority: number }[] = [];
   for (const r of records) {
     const host = r.host.toLowerCase().replace(/\.$/, "").trim();
@@ -82,7 +91,7 @@ export function buildMailProviderData(records: MxHost[]): MailProviderData {
   cleaned.sort((a, b) => a.priority - b.priority || a.host.localeCompare(b.host));
 
   if (cleaned.length === 0) {
-    return { hasMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" };
+    return { hasMx: false, nullMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" };
   }
 
   let category: MailProviderCategory = "other";
@@ -95,5 +104,5 @@ export function buildMailProviderData(records: MxHost[]): MailProviderData {
       break;
     }
   }
-  return { hasMx: true, mxHosts: cleaned.map((c) => c.host), provider, category };
+  return { hasMx: true, nullMx: false, mxHosts: cleaned.map((c) => c.host), provider, category };
 }

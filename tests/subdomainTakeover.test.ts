@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyTakeover, scanTakeover } from "@/lib/analysis/subdomainTakeover";
+import { bodyProvesUnclaimed, classifyTakeover, scanTakeover } from "@/lib/analysis/subdomainTakeover";
 
 describe("classifyTakeover", () => {
   it("flags well-known takeover-prone services with a fingerprint", () => {
@@ -52,5 +52,28 @@ describe("scanTakeover", () => {
 
   it("returns [] when nothing matches", () => {
     expect(scanTakeover(["one.example.com", "two.example.org"])).toEqual([]);
+  });
+});
+
+describe("bodyProvesUnclaimed", () => {
+  const pages = classifyTakeover("victim.github.io")!;
+  const s3 = classifyTakeover("bucket.s3.amazonaws.com")!;
+
+  it("matches the provider's own unclaimed page, case-insensitively", () => {
+    expect(bodyProvesUnclaimed(pages, "<h1>There isn't a GitHub Pages site here.</h1>")).toBe(true);
+    expect(bodyProvesUnclaimed(pages, "THERE ISN'T A GITHUB PAGES SITE HERE")).toBe(true);
+  });
+
+  it("accepts any of a service's markers", () => {
+    expect(bodyProvesUnclaimed(s3, "<Code>NoSuchBucket</Code>")).toBe(true);
+    expect(bodyProvesUnclaimed(s3, "The specified bucket does not exist")).toBe(true);
+  });
+
+  it("rejects a host that is serving real content", () => {
+    // The github.com sweep case: a live Pages site matched the service rule but
+    // served a real page, so it is not a finding.
+    expect(bodyProvesUnclaimed(pages, "<html><body>Real docs site</body></html>")).toBe(false);
+    expect(bodyProvesUnclaimed(s3, "<Error><Code>AccessDenied</Code></Error>")).toBe(false);
+    expect(bodyProvesUnclaimed(pages, "")).toBe(false);
   });
 });

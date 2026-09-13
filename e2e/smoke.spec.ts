@@ -53,7 +53,8 @@ test("cases: create a case + all interop export buttons render", async ({ page }
   await page.locator('input[placeholder^="New case name"]').fill("E2E Smoke");
   await page.getByRole("button", { name: /^CREATE/ }).click();
 
-  for (const label of ["JSON", "REPORT", "CSV", "STIX", "MALTEGO"]) {
+  // PDF and HTML are two separate documents, so both buttons must be there.
+  for (const label of ["PDF", "HTML", "JSON", "REPORT", "CSV", "STIX", "MALTEGO"]) {
     await expect(page.getByRole("button", { name: new RegExp(`^${label}$`) }).first()).toBeVisible();
   }
 

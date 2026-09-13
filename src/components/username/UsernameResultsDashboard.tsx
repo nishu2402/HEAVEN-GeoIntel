@@ -19,6 +19,7 @@ import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analys
 import UniversalReportExport from "@/components/shared/UniversalReportExport";
 import ResolvedIdentityCard from "@/components/username/ResolvedIdentityCard";
 import ExtendedSitesPanel from "@/components/username/ExtendedSitesPanel";
+import DeepSweepPanel from "@/components/username/DeepSweepPanel";
 import AvatarCorrelationPanel from "@/components/username/AvatarCorrelationPanel";
 import { buildUsernameReport } from "@/lib/analysis/report";
 import { safeExternalUrl } from "@/lib/utils";
@@ -178,11 +179,11 @@ export default function UsernameResultsDashboard({ data }: Props) {
 
       <div className="flex justify-end"><UniversalReportExport model={buildUsernameReport(data)} /></div>
 
-      {/* Distilled most-likely identity with a corroboration-based confidence (self-hides when empty). */}
-      <ResolvedIdentityCard identity={identity} />
+      {/* Identity, fused only across accounts a proof links (self-hides when empty). */}
+      <ResolvedIdentityCard identity={identity} resolved={data.resolvedIdentity} proofs={data.identityProofs} />
 
-      {/* Same-photo-across-platforms perceptual match (self-hides when nothing correlates). */}
-      <AvatarCorrelationPanel avatars={identity.avatars} />
+      {/* Same-photo-across-platforms perceptual match, computed server-side. */}
+      <AvatarCorrelationPanel clusters={data.avatarClusters ?? []} skipped={data.avatarSkipped} />
 
       {hasIdentity && (
         <div className="terminal-card p-4 space-y-3">
@@ -281,7 +282,7 @@ export default function UsernameResultsDashboard({ data }: Props) {
 
         <div className="pt-2 space-y-1.5">
           <div className="text-[11px] uppercase tracking-widest text-[var(--hv-ink-dim)] font-mono flex items-center gap-1.5">
-            <Terminal className="w-3 h-3" /> CLI deep sweep: run locally for 400+ sites
+            <Terminal className="w-3 h-3" /> Third-party CLI sweeps, if you want a second opinion
           </div>
           {[`sherlock ${data.username}`, `maigret ${data.username}`].map((cmd) => (
             <div key={cmd} className="flex items-center gap-2 rounded-md border border-[var(--hv-glass-border)] bg-[var(--hv-bg)]/40 px-3 py-2">
@@ -298,7 +299,10 @@ export default function UsernameResultsDashboard({ data }: Props) {
         </p>
       </div>
 
-      {/* Breadth overlay — 600+ WhatsMyName sites as manual launch links, in-browser. */}
+      {/* The wide sweep: WhatsMyName sites auto-classified against their own
+          detection contract, server-side and paged. */}
+      <DeepSweepPanel username={data.username} />
+
       <ExtendedSitesPanel username={data.username} />
 
       {/* Breach exposure for the handle itself — keyless, so it renders on every

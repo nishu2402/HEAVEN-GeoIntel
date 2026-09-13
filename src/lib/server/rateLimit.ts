@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { randomUUID } from "node:crypto";
 import { rateLimitConfig } from "./config";
 
 const CLEANUP_INTERVAL_MS = 5 * 60_000; // clean stale buckets every 5 min
@@ -195,12 +196,39 @@ export function rateLimitedResponse(v: RateLimitVerdict): NextResponse {
  * ready-made 429 or the headers to attach to the real response, plus the
  * client key for the audit log.
  */
+/**
+ * Per-process token that marks a request the server made to ITSELF.
+ *
+ * The bulk runner reuses the real lookup handlers rather than duplicating their
+ * logic, which means a 200-row job would otherwise spend the analyst's own
+ * rate-limit budget on the first minute and then throttle itself. The token is
+ * random per process and never leaves it, so a client cannot forge the header:
+ * the bulk endpoint is itself rate-limited, which is where the real ceiling is.
+ */
+export const INTERNAL_HEADER = "x-hv-internal";
+const internalToken = randomUUID();
+
+/** The header a self-call must carry to bypass the per-client bucket. */
+export function internalHeaders(): Record<string, string> {
+  return { [INTERNAL_HEADER]: internalToken };
+}
+
+function isInternal(req: NextRequest): boolean {
+  const sent = req.headers.get(INTERNAL_HEADER);
+  return typeof sent === "string" && sent === internalToken;
+}
+
 export function guardRateLimit(
   req: NextRequest
 ):
   | { limited: NextResponse; headers?: never; client: string }
   | { limited: null; headers: Record<string, string>; client: string } {
   const client = getClientKey(req);
+  if (isInternal(req)) {
+    // A self-call from the bulk runner. It is already inside a rate-limited
+    // request and is bounded by the job's own row cap and concurrency.
+    return { limited: null, headers: {}, client };
+  }
   const verdict = checkRateLimit(client);
   if (!verdict.allowed) return { limited: rateLimitedResponse(verdict), client };
   return { limited: null, headers: rateLimitHeaders(verdict), client };

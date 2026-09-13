@@ -41,6 +41,14 @@ export interface SourceDef {
    * rather than special-cased in the test.
    */
   standby?: boolean;
+  /**
+   * Reached only through an endpoint the analyst starts deliberately (the deep
+   * username sweep, the typosquat resolver), so an ordinary lookup never
+   * reports it. Distinct from `standby`, which is a fallback for a source that
+   * failed: an on-demand source is not a substitute for anything, it is simply
+   * expensive enough to be opt-in.
+   */
+  onDemand?: boolean;
 }
 
 export const SOURCES: SourceDef[] = [
@@ -106,14 +114,17 @@ export const SOURCES: SourceDef[] = [
     id: "Shodan InternetDB",
     name: "Shodan InternetDB",
     tier: "free",
-    modes: ["ip"],
+    // Domain too: the addresses a domain resolves to are asked about with the
+    // same source, which is how a domain lookup can report an open Redis port
+    // on its own web server.
+    modes: ["ip", "domain"],
     unlocks: "Open ports · known CVEs · hostnames · classifier tags",
   },
   {
     id: "GreyNoise Community",
     name: "GreyNoise Community",
     tier: "free",
-    modes: ["ip"],
+    modes: ["ip", "domain"],
     unlocks: "Internet background-noise classification (benign / malicious)",
   },
   {
@@ -185,6 +196,42 @@ export const SOURCES: SourceDef[] = [
     tier: "free",
     modes: ["username"],
     unlocks: "Rich verified profiles: real name · join date · karma · repos",
+  },
+  {
+    id: "Mnemonic PDNS",
+    name: "Mnemonic passive DNS",
+    tier: "free",
+    modes: ["domain"],
+    unlocks: "Historical resolutions with first/last-seen dates: what the name used to point at, keyless",
+  },
+  {
+    id: "HackerTarget reverse IP",
+    name: "HackerTarget reverse IP",
+    tier: "free",
+    modes: ["domain"],
+    unlocks: "Other hostnames sharing the domain's address: co-hosting and undiscovered subdomains, keyless",
+  },
+  {
+    id: "GLEIF LEI",
+    name: "GLEIF legal-entity register",
+    tier: "free",
+    modes: ["domain"],
+    unlocks: "The registered company behind a domain: LEI, company number, incorporation address, keyless",
+  },
+  {
+    id: "avatarHash",
+    name: "Avatar perceptual hashing",
+    tier: "free",
+    modes: ["username"],
+    unlocks: "Proof that two accounts use the same profile photo, computed server-side so CORS cannot block it",
+  },
+  {
+    id: "usernameDeepSweep",
+    name: "WhatsMyName deep sweep",
+    tier: "free",
+    modes: ["username"],
+    unlocks: "Hundreds more sites, auto-classified against each site's own presence/absence markers",
+    onDemand: true,
   },
   {
     id: "circl-hashlookup",

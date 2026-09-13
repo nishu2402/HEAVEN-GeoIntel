@@ -55,7 +55,7 @@ describe("POST /api/ip-lookup: input validation", () => {
   it("400 on a malformed body", async () => {
     const res = await post({});
     expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe("Invalid request body");
+    expect((await res.json()).error).toMatch(/^Invalid request body: /);
   });
 
   it("400 on a non-IP target", async () => {

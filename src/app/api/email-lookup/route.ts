@@ -7,6 +7,7 @@ import { settleSources } from "@/lib/server/sourceHealth";
 import { ensureDatasets } from "@/lib/server/datasets";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, emailBody } from "@/lib/server/validation";
+import { assessEmailAbuse, assessExposure } from "@/lib/analysis/riskModel";
 import { resolveKey } from "@/lib/server/keyStore";
 import { describeError } from "@/lib/server/fetchSafe";
 import { hudsonRockFor } from "@/lib/server/hudsonRock";
@@ -551,8 +552,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   await ensureDatasets();
 
-  const body = await parseBody(req, emailBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
+  const parsed = await parseBody(req, emailBody);
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  const body = parsed.data;
 
   const raw = body.email.trim();
   if (!raw) return NextResponse.json({ error: "Missing email address" }, { status: 400, headers: rlHeaders });
@@ -612,9 +614,37 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     stealerCredentialSummary(results.hudsonRock.data),
   );
 
+  // Two figures, as every mode reports them: what this address is already
+  // exposed in, and whether it behaves badly. See analysis/riskModel.ts for why
+  // one number could not honestly be both.
+  const rep = results.emailrep.ok ? results.emailrep.data : undefined;
+  const abuse = assessEmailAbuse({
+    blacklisted: rep?.blacklisted ?? null,
+    maliciousActivity: rep?.maliciousActivity ?? null,
+    suspicious: rep?.suspicious ?? null,
+    spam: rep?.spam ?? null,
+    reputation: rep?.reputation ?? null,
+    isDisposable: analysis.isDisposable,
+  });
+  const exposure = assessExposure({
+    breachRecords: results.leakCheck.ok ? results.leakCheck.data?.found : null,
+    namedBreaches: breachAggregate.breaches.length,
+    credentialRecords: results.comb.ok
+      ? results.comb.data?.pairs
+      : (results.breachDirectory.ok ? results.breachDirectory.data?.found : null),
+    stealerInfections: results.hudsonRock.ok ? results.hudsonRock.data?.total : null,
+    credentialsLeaked: rep?.credentialsLeaked ?? null,
+  });
+
   const response: EmailLookupResponse = {
     email,
     analysis,
+    threatScore: abuse.score,
+    threatLabel: abuse.label,
+    threatReasons: abuse.reasons,
+    exposureScore: exposure.score,
+    exposureLabel: exposure.label,
+    exposureReasons: exposure.reasons,
     // Gravatar is reported as a bare profile for backwards compatibility with
     // the dashboard; its health lives in `sourceHealth` like every other source.
     gravatar: results.gravatar.data ?? EMPTY_GRAVATAR,

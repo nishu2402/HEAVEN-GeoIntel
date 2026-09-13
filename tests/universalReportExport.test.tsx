@@ -13,6 +13,12 @@ const model: ReportModel = {
   observables: [{ type: "domain-name", value: "acme.test" }],
 };
 
+/** The text of the last blob handed to URL.createObjectURL. */
+const lastBlobText = async () => {
+  const calls = (URL.createObjectURL as unknown as { mock: { calls: [Blob][] } }).mock.calls;
+  return calls[calls.length - 1]![0].text();
+};
+
 let anchors: HTMLAnchorElement[];
 const realCreate = document.createElement.bind(document);
 
@@ -52,16 +58,36 @@ describe("UniversalReportExport", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(4);
   });
 
-  it("PDF opens a print-ready report window and invokes the browser print dialog", () => {
+  it("PDF opens the paged document and invokes the browser print dialog", () => {
     const write = vi.fn(), close = vi.fn(), focus = vi.fn(), print = vi.fn();
     const fakeWin = { document: { write, close }, focus, print } as unknown as Window;
     const open = vi.spyOn(window, "open").mockReturnValue(fakeWin);
     render(<UniversalReportExport model={model} />);
     fireEvent.click(screen.getByText("PDF"));
     expect(open).toHaveBeenCalled();
-    expect(write).toHaveBeenCalledWith(expect.stringContaining("<!DOCTYPE html>"));
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("@page { size: A4;"));
     expect(close).toHaveBeenCalled();
     expect(print).toHaveBeenCalled();
+  });
+
+  // The two buttons used to hand out the same file. If they ever converge
+  // again, this is what notices.
+  it("gives PDF and HTML two different documents", async () => {
+    const write = vi.fn(), close = vi.fn(), focus = vi.fn(), print = vi.fn();
+    vi.spyOn(window, "open").mockReturnValue({ document: { write, close }, focus, print } as unknown as Window);
+    render(<UniversalReportExport model={model} />);
+
+    fireEvent.click(screen.getByText("PDF"));
+    const paged = write.mock.calls[0]![0] as string;
+
+    fireEvent.click(screen.getByText("HTML"));
+    const dossier = await lastBlobText();
+
+    expect(paged).not.toBe(dossier);
+    expect(paged).toContain(`<section class="cover">`);   // paper: a cover sheet
+    expect(paged).not.toContain(`<input id="q"`);
+    expect(dossier).toContain(`<input id="q"`);           // screen: live filtering
+    expect(dossier).not.toContain(`<section class="cover">`);
   });
 
   it("sanitises unusual characters in the subject for the filename", () => {

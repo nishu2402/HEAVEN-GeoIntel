@@ -28,6 +28,16 @@ export const KEY_NAMES = [
   "FULLCONTACT_API_KEY",
   "RAPIDAPI_KEY",
   "HIBP_API_KEY",
+  // AI-analyst providers. Not OSINT sources — they narrate a finished analysis —
+  // but they live here so a key can be saved from the panel once instead of
+  // pasted into every run or typed into .env.local from a terminal.
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "GEMINI_API_KEY",
+  "GROQ_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "MISTRAL_API_KEY",
+  "OPENROUTER_API_KEY",
 ] as const;
 export type KeyName = (typeof KEY_NAMES)[number];
 const ALLOWED = new Set<string>(KEY_NAMES);

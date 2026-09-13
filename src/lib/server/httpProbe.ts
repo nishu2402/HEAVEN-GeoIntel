@@ -57,7 +57,7 @@ export function isProbeTarget(addresses: string[]): boolean {
  * residual DNS case the guard note above describes — egress filtering remains
  * the backstop for an internet-exposed deployment.
  */
-function hostAllowed(hostname: string): boolean {
+export function hostAllowed(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/g, ""); // strip IPv6-literal brackets
   const cls = classifyIp(host);
   if (cls) return cls.isGloballyRoutable;
@@ -203,6 +203,14 @@ export function probeTls(domain: string): Promise<TlsInfo | null> {
           cipher: cipher?.name ?? null,
           issuer: cert?.issuer ? (dn(cert.issuer.O) ?? dn(cert.issuer.CN)) : null,
           subject: dn(cert?.subject?.CN),
+          // An OV or EV certificate carries the organisation the CA actually
+          // verified, and an EV one adds its jurisdiction and company number.
+          // That is the only CA-vetted identity in a domain lookup, and it is
+          // what the legal-entity register can be queried with when WHOIS is
+          // redacted — which, for most gTLDs since GDPR, it always is.
+          subjectOrg: dn(cert?.subject?.O),
+          subjectJurisdiction: dn(cert?.subject?.jurisdictionC),
+          subjectRegistrationNumber: dn(cert?.subject?.serialNumber),
           altNames: (cert?.subjectaltname ?? "")
             .split(",").map((s) => s.trim().replace(/^DNS:/, "")).filter(Boolean),
           validFrom: certDate(cert?.valid_from).iso,

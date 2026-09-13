@@ -24,13 +24,19 @@ interface DohAnswer { name: string; type: number; TTL: number; data: string; }
  * Parse DoH MX answers into host/priority pairs. MX rdata is
  * "<priority> <host>." (RFC 1035 §3.3.9); a line with no host is dropped and a
  * non-numeric priority becomes null so the fingerprinter can still sort it last.
+ *
+ * The root label is kept as ".", not stripped to "". An RFC 7505 null MX is
+ * rdata of "0 .", and stripping the trailing dot the way an ordinary exchanger
+ * needs erased it, so a domain that publishes one was reported as publishing no
+ * MX at all. It publishes one; it says nothing may be delivered.
  */
 export function parseMxAnswers(answer: DohAnswer[] | undefined): MxHost[] {
   if (!answer) return [];
   const out: MxHost[] = [];
   for (const a of answer) {
     const [prio, ...rest] = a.data.split(" ");
-    const host = rest.join(" ").replace(/\.$/, "").trim();
+    const raw = rest.join(" ").trim();
+    const host = raw === "." ? "." : raw.replace(/\.$/, "");
     if (!host) continue;
     const p = parseInt(prio, 10);
     out.push({ host, priority: Number.isNaN(p) ? null : p });

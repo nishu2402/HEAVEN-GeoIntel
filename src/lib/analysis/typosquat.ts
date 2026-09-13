@@ -10,9 +10,17 @@
 // click domain lookup), so this module never claims a squat exists — that would
 // be a false positive. It hands over a ranked list of what to check.
 
+import { toAsciiLabel } from "./idn";
+
 export interface TyposquatVariant {
+  /** The name as DNS sees it: ASCII, punycode for an internationalised label. */
   domain: string;
   technique: string;
+  /**
+   * Unicode spelling, set only for an IDN homoglyph variant. `xn--pple-43d.com`
+   * means nothing to a reader; `аpple.com` with a Cyrillic а is the finding.
+   */
+  display?: string;
 }
 
 // Two-label public suffixes we recognise without pulling in the full PSL, so
@@ -36,11 +44,51 @@ const KEYBOARD: Record<string, string> = {
   "7": "68", "8": "79", "9": "80",
 };
 
-// Characters that read as one another in a browser's address bar.
+// ASCII characters that read as one another in a browser's address bar.
 const HOMOGLYPHS: Record<string, string[]> = {
   o: ["0"], l: ["1", "i"], i: ["1", "l"], e: ["3"], a: ["4"], s: ["5"],
   b: ["8"], g: ["9", "q"], "0": ["o"], "1": ["l", "i"], m: ["rn"], w: ["vv"],
   d: ["cl"], q: ["g"],
+};
+
+/**
+ * Non-ASCII characters that are visually identical, or near enough, to a Latin
+ * letter in a browser's address bar.
+ *
+ * The ASCII table above cannot produce the attack that actually gets registered:
+ * `аpple.com` with a Cyrillic а is a DIFFERENT domain from apple.com and renders
+ * identically in most fonts. Restricting the generator to ASCII meant the panel
+ * listed 168 candidates for wordpress.org and not one of them was the class of
+ * look-alike that turns up in real phishing.
+ *
+ * Only single-character substitutions with a near-exact glyph match are listed.
+ * Loose lookalikes would flood the list with candidates nobody would mistake.
+ */
+const UNICODE_HOMOGLYPHS: Record<string, string[]> = {
+  a: ["а", "α"],        // Cyrillic а, Greek α
+  b: ["в", "Ь"],        // Cyrillic в, ь
+  c: ["с", "ϲ"],        // Cyrillic с, Greek lunate ϲ
+  d: ["ԁ"],                  // Cyrillic ԁ
+  e: ["е", "ҽ"],        // Cyrillic е, ҽ
+  g: ["ɡ"],                  // Latin script ɡ
+  h: ["н"],                  // Cyrillic н
+  i: ["і", "ι"],        // Cyrillic і, Greek ι
+  j: ["ј"],                  // Cyrillic ј
+  k: ["к"],                  // Cyrillic к
+  l: ["Ӏ", "ⅼ"],        // Cyrillic palochka Ӏ, Roman numeral ⅼ
+  m: ["м"],                  // Cyrillic м
+  n: ["ո"],                  // Armenian ո
+  o: ["о", "ο", "օ"], // Cyrillic о, Greek ο, Armenian օ
+  p: ["р", "ρ"],        // Cyrillic р, Greek ρ
+  q: ["ԛ"],                  // Cyrillic ԛ
+  s: ["ѕ"],                  // Cyrillic ѕ
+  t: ["τ"],                  // Greek τ
+  u: ["ц", "ս"],        // Cyrillic ц, Armenian ս
+  v: ["ѵ", "ν"],        // Cyrillic ѵ, Greek ν
+  w: ["ш", "ԝ"],        // Cyrillic ш, ԝ
+  x: ["х", "χ"],        // Cyrillic х, Greek χ
+  y: ["у", "ү"],        // Cyrillic у, ү
+  z: ["ʐ"],                  // Latin ʐ
 };
 
 const VOWELS = "aeiou";
@@ -100,6 +148,25 @@ function homoglyphs(s: string): string[] {
   const out: string[] = [];
   for (let i = 0; i < s.length; i++) {
     for (const g of HOMOGLYPHS[s[i]] ?? []) out.push(s.slice(0, i) + g + s.slice(i + 1));
+  }
+  return out;
+}
+
+/**
+ * One-character Unicode look-alike substitutions, as both the readable spelling
+ * and the A-label DNS will actually be asked about.
+ */
+function idnHomoglyphs(s: string): { label: string; display: string }[] {
+  const out: { label: string; display: string }[] = [];
+  for (let i = 0; i < s.length; i++) {
+    for (const g of UNICODE_HOMOGLYPHS[s[i] as string] ?? []) {
+      const display = s.slice(0, i) + g + s.slice(i + 1);
+      const encoded = toAsciiLabel(display);
+      // A substitution that does not survive UTS-46 (a disallowed character, or
+      // one that normalises back to the original) is not a registrable name and
+      // is dropped rather than shown as a candidate.
+      if (encoded && encoded !== s) out.push({ label: encoded, display });
+    }
   }
   return out;
 }
@@ -166,6 +233,21 @@ export function generateTyposquats(domain: string): TyposquatVariant[] {
       out.push({ domain: d, technique });
     }
   }
+  // Internationalised look-alikes, kept separate because each carries a second
+  // spelling: the punycode name to resolve, and the Unicode name a victim sees.
+  for (const { label: encoded, display } of idnHomoglyphs(label)) {
+    const d = `${pre}${encoded}.${suffix}`;
+    /* v8 ignore next -- unreachable with the current glyph table: every
+       substitution encodes to a distinct `xn--` label, and the one glyph that
+       normalises back to ASCII (U+217C) reproduces the input, which
+       idnHomoglyphs already drops. Measured over every 1-to-4 letter label
+       (457k substitutions): no collision, no ASCII result. The guard stays so
+       the dedup invariant survives a new glyph. */
+    if (seen.has(d)) continue;
+    seen.add(d);
+    out.push({ domain: d, technique: "idn-homoglyph", display: `${pre}${display}.${suffix}` });
+  }
+
   // TLD swaps keep the label, change only the suffix. SWAP_TLDS is unique and
   // every entry differs from the label mutations above (which keep `suffix`),
   // so no dedup guard is needed here.

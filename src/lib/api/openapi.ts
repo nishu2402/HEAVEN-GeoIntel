@@ -115,6 +115,11 @@ const SCHEMAS: Json = {
     type: "object",
     properties: {
       error: { type: "string", description: "Human-readable failure reason." },
+      field: {
+        type: "string",
+        description:
+          "Dotted path of the request field that was rejected, on a 400 from body validation. Absent when the whole body is wrong rather than one field.",
+      },
       retryAfter: { type: "integer", description: "Seconds to wait, on a 429." },
     },
   },
@@ -139,10 +144,14 @@ const SCHEMAS: Json = {
       ok: { type: "boolean", description: "Did the source answer?" },
       ms: { type: "integer", description: "Round-trip time in milliseconds." },
       fetchedAt: { type: "integer", description: "Epoch ms when the call completed." },
-      error: { type: "string", description: "Reason, when ok=false." },
+      error: {
+        type: "string",
+        description:
+          "Reason, when ok=false. With skipped=true it is NOT_CONFIGURED (a keyed source whose key is unset) or NO_INPUT (a keyless source this lookup had nothing to ask about).",
+      },
       skipped: {
         type: "boolean",
-        description: "True when the source was never called because its key isn't configured: not an outage.",
+        description: "True when the source was never called at all: not an outage. `error` says which reason applies.",
       },
     },
   },
@@ -161,8 +170,19 @@ const SCHEMAS: Json = {
       },
       sourceHealth: { type: "array", items: { $ref: "#/components/schemas/SourceProvenance" } },
       aggregated: { type: "object", description: "Best-effort merge across sources. A null field means no source supplied it: never a guess." },
-      threatScore: { type: "integer", description: "0-100 unified score." },
-      threatLabel: { type: "string", description: "CLEAN | LOW RISK | MODERATE | HIGH RISK | CRITICAL." },
+      threatScore: { type: "integer", description: "0-100 unified score. Always 0 when assignability.assignable is false." },
+      threatLabel: { type: "string", description: "CLEAN | LOW RISK | MODERATE | HIGH RISK | CRITICAL | NOT ASSIGNABLE." },
+      assignability: {
+        type: "object",
+        description:
+          "Whether a subscriber can hold this number. When assignable is false (invalid, or a regulator's reserved fiction range) the breach and infostealer sources return NOT_ASSIGNABLE and nothing is scored: those indexes answer for placeholder numbers, and the hits belong to whoever typed one into a form.",
+        properties: {
+          assignable: { type: "boolean" },
+          reason: { type: "string", description: "invalid | fictional, or null when assignable." },
+          detail: { type: "string" },
+          block: { type: "string", description: "The reserved block matched, or null." },
+        },
+      },
       cachedAt: { type: "integer", description: "Epoch ms if served from cache." },
     },
   },
@@ -231,7 +251,8 @@ const SCHEMAS: Json = {
       subdomains: { type: "array", items: { type: "string" }, description: "From certificate transparency." },
       emailSecurity: {
         type: "object",
-        description: "SPF / DMARC / MX posture. Each `has*` flag is true, false, or null when its DNS query got no answer (unknown, never absent).",
+        description:
+          "SPF / DMARC / MX posture. Each `has*` flag is true, false, or null when its DNS query got no answer (unknown, never absent). `nullMx` is true when the domain publishes an RFC 7505 null MX, which is it declaring that it accepts no mail: a stronger statement than `hasMx: false`, which only means no exchanger was published.",
       },
       dnssec: { type: ["boolean", "null"], description: "DNSKEY present; null when the DNSKEY query got no answer." },
       dnsFailed: {

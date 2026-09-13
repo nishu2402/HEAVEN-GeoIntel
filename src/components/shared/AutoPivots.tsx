@@ -20,6 +20,8 @@ const KIND_GLYPH: Record<EntityKind, string> = {
   username: "@",
   ip: "⦿",
   domain: "🌐",
+  wallet: "₿",
+  hash: "#",
 };
 
 const KIND_LABEL: Record<EntityKind, string> = {
@@ -28,6 +30,8 @@ const KIND_LABEL: Record<EntityKind, string> = {
   username: "Username",
   ip: "IP",
   domain: "Domain",
+  wallet: "Wallet",
+  hash: "Hash",
 };
 
 /**

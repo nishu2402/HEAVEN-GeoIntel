@@ -11,6 +11,7 @@ interface Props {
 
 const KIND_COLOR: Record<EntityKind, string> = {
   phone: "#00ff85", email: "#22d3ee", username: "#e879f9", ip: "#fb923c", domain: "#facc15",
+  wallet: "#f7931a", hash: "#a78bfa",
 };
 
 const fmt = (at: number) => new Date(at).toLocaleString();

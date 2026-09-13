@@ -1,6 +1,6 @@
 # OSINT depth: gap analysis and roadmap
 
-Last reviewed 2026-09-05.
+Last reviewed 2026-09-13.
 
 This document answers three questions the project keeps coming back to: what can
 the tool already do, where is it genuinely limited, and what is worth building
@@ -11,8 +11,8 @@ expensive mistake an OSINT tool can make is to look confident while being wrong.
 ## 1. Where the tool stands today
 
 - 11 lookup and workbench modes: phone, email, username, IP, domain, wallet,
-  hash, image, bulk, graph, cases.
-- 29 registered sources, 20 of them keyless. Every keyed source degrades to
+  hash, file, bulk, graph, cases.
+- 34 registered sources, 25 of them keyless. Every keyed source degrades to
   "not configured" and never blocks a lookup.
 - One deduplicated breach union across sources, per identifier, with per-breach
   data classes, dates, record counts, verified and password flags.
@@ -107,6 +107,36 @@ Everything below works within those rules.
   with the combined field set instead of one row winning and the other's
   exclusive classes being discarded.
 
+## 3c. What shipped in the depth pass (2026-09-13)
+
+Three of the gaps below were closed by measurement rather than by a key, and two
+workflow items that had been parked as "needs infrastructure" turned out to need
+none.
+
+- **Identity fusion now requires proof.** A shared handle was being read as
+  evidence of one owner. Two keyless proofs are accepted, a public self-link and
+  a server-side perceptual avatar match; everything else is labelled a
+  candidate and capped. This is the false-positive rule applied to the one place
+  in the tool that was still guessing.
+- **The WhatsMyName catalog is read for its detection contract**, not just its
+  URLs: 242 validated sites swept per request, 393 more on request, each
+  classified only when the response matches the contract's found or free pair.
+- **Passive DNS and reverse IP are keyless** (see 4.3), and both feed subdomain
+  coverage alongside two certificate-transparency sources that now always run.
+  `wordpress.org` went from 9 reported subdomains to 494.
+- **Port and CVE exposure is read for a domain's own addresses**, using the
+  sources the IP mode already had.
+- **GLEIF legal-entity lookup**, keyless, driven by the WHOIS registrant or, for
+  the GDPR-redacted majority, by the organisation a CA verified on an OV or EV
+  certificate.
+- **OFAC SDN screening is vendored offline**, 1,056 addresses across 20 chains,
+  in the same pattern as the breach catalogs.
+- **Internationalised names are first-class** in every domain and email input.
+- **An evidence locker** completes the chain a report starts: response bytes,
+  SHA-256, per-case manifest, and a verify pass that re-hashes every artifact.
+- **A change inbox** (see 4.4), **bulk as a real job across every mode**, and a
+  **headless CLI** over the same HTTP API.
+
 ## 4. Gap analysis
 
 ### 4.1 Breach and credential depth
@@ -124,22 +154,32 @@ Everything below works within those rules.
   to hold them.
 
 ### 4.2 Password exposure
-- The tool reports which breaches carried a password, but it cannot yet tell an
-  analyst whether a specific password is in a breach corpus. The Pwned Passwords
-  range API does exactly that, keyless, over k-anonymity (only a hash prefix
-  leaves the browser). This is the single highest value keyless addition left.
+- CLOSED. The tool reports which breaches carried a password, and hash mode now
+  also answers whether a specific password is in a breach corpus, keyless, over
+  the Pwned Passwords range API's k-anonymity (only a five-character SHA-1
+  prefix leaves the browser, relayed through the tool's own endpoint). See
+  section 3b. Nothing keyless remains in this gap.
 
 ### 4.3 Infrastructure and network
 - IP, domain, ASN, routing, subdomain takeover and typosquat are covered
-  keyless. Reverse IP and passive DNS at depth are mostly keyed upstreams, so
-  they remain pivot links rather than native panels. That is the correct call
-  until a keyless source proves reliable.
+  keyless.
+- The claim that reverse IP and passive DNS "at depth are mostly keyed
+  upstreams" was wrong, and was corrected by measurement on 2026-09-13: Mnemonic
+  returns 1,000 passive-DNS records for `wordpress.org` without a key, and
+  HackerTarget returns 499 reverse-IP hostnames for one address. Both are now
+  native panels and both also feed subdomain coverage. See section 3c.
+- What remains genuinely keyed here is historical depth beyond a single free
+  tier: full passive-DNS history over years, and reverse IP without a daily
+  quota. Those stay pivot links.
 
 ### 4.4 Workflow
-- On demand case snapshots and diffs exist. Scheduled re-runs with real alert
-  delivery do not, because delivery needs a persistent scheduler and a
-  notification key (email, push or webhook). Faking either would break keyless
-  first, so it stays unbuilt on purpose.
+- On demand case snapshots and diffs exist, and the half of alerting that needs
+  no key now exists too: an in-tool change inbox over the snapshots already on
+  disk, with an optional outbound webhook (`CHANGE_WEBHOOK_URL`). See section 3c.
+- What is still unbuilt on purpose is the SCHEDULER. Re-running a case on a
+  timer needs a persistent process this deployment model does not assume, and
+  delivery by email or push needs a key. The inbox answers "what moved" without
+  either.
 
 ## 5. Roadmap, keyless first
 
@@ -170,7 +210,15 @@ Ordered by value per unit of effort. None of these add a mandatory dependency.
 5. A local, opt in enrichment cache so repeated lookups during an engagement do
    not re-hit rate limited upstreams.
 6. Case scheduling once a deployment target with a persistent scheduler exists.
-   Alert delivery stays behind an explicit, user supplied channel.
+   Alert delivery stays behind an explicit, user supplied channel. The
+   key-free half of this shipped as the change inbox and its optional webhook
+   (see 3c); only the timer is outstanding.
+7. Re-validate the WhatsMyName catalog on a schedule. 255 of 672 contracts
+   passed validation on 2026-09-12, and the failures are mostly real rather
+   than artefacts: Instagram and Spotify, probed alone and unhurried, answer 200
+   for a real handle and a nonexistent one alike with neither marker present, so
+   no honest server-side classification exists for them. A periodic re-run would
+   let recovered sites rejoin the default sweep.
 
 ## 6. Optional depth, only if you choose a key
 

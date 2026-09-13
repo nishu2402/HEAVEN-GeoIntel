@@ -6,6 +6,7 @@ import {
   XCircle, ExternalLink,
   Building2, Lock, Trash2, Hash, Activity, Briefcase, Phone, AtSign,
 } from "lucide-react";
+import { assessEmailAbuse, assessExposure, type RiskFigure } from "@/lib/analysis/riskModel";
 import type { EmailLookupResponse } from "@/lib/types";
 import { emailToUsernameCandidate } from "@/lib/data/usernameSites";
 import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
@@ -58,42 +59,52 @@ function Badge({ text, color = "#00ff41", bg }: { text: string; color?: string; 
 }
 
 // ── Threat Score ──────────────────────────────────────────────────────────────
-function calcThreatScore(data: EmailLookupResponse): number {
-  let score = 0;
-  const xon = data.xon?.ok ? data.xon.data : null;
-  const rep = data.emailrep?.ok ? data.emailrep.data : null;
-
-  if (xon && xon.breachCount > 0) {
-    score += Math.min(xon.breachCount * 10, 30);
-    if (xon.breaches.some((b) => b.passwordRisk === "ClearText")) score += 30;
-    else if (xon.breaches.some((b) => b.passwordRisk === "EasyToCrack")) score += 20;
-    else if (xon.breaches.some((b) => b.xposedData.some((d) => d.toLowerCase().includes("password")))) score += 10;
-    const thisYear = new Date().getFullYear();
-    if (xon.breaches.some((b) => parseInt(b.xposedDate.slice(0, 4)) >= thisYear - 2)) score += 10;
+/**
+ * Abuse and exposure for a cached response from before the server computed
+ * them. Both figures come from the shared model, so a cached result and a fresh
+ * one read the same way. See analysis/riskModel.ts.
+ */
+function figuresFor(data: EmailLookupResponse): { abuse: RiskFigure; exposure: RiskFigure } {
+  if (data.threatScore !== undefined && data.exposureScore !== undefined) {
+    return {
+      abuse: { score: data.threatScore, label: data.threatLabel ?? "", reasons: data.threatReasons ?? [] },
+      exposure: { score: data.exposureScore, label: data.exposureLabel ?? "", reasons: data.exposureReasons ?? [] },
+    };
   }
-
-  if (rep) {
-    if (rep.credentialsLeaked) score = Math.max(score, 45);
-    if (rep.maliciousActivity) score += 20;
-    if (rep.suspicious) score = Math.max(score, 40);
-    if (rep.blacklisted) score = Math.max(score, 60);
-    if (rep.spam) score += 5;
-  }
-
-  if (data.analysis.isDisposable) score = Math.max(score, 20);
-  return Math.min(score, 100);
+  const rep = data.emailrep?.ok ? data.emailrep.data : undefined;
+  const xon = data.xon?.ok ? data.xon.data : undefined;
+  return {
+    abuse: assessEmailAbuse({
+      blacklisted: rep?.blacklisted ?? null,
+      maliciousActivity: rep?.maliciousActivity ?? null,
+      suspicious: rep?.suspicious ?? null,
+      spam: rep?.spam ?? null,
+      reputation: rep?.reputation ?? null,
+      isDisposable: data.analysis.isDisposable,
+    }),
+    exposure: assessExposure({
+      breachRecords: data.leakCheck?.ok ? data.leakCheck.data?.found : null,
+      namedBreaches: xon?.breachCount ?? null,
+      credentialRecords: data.comb?.ok ? data.comb.data?.pairs : null,
+      stealerInfections: data.hudsonRock?.ok ? data.hudsonRock.data?.total : null,
+      credentialsLeaked: rep?.credentialsLeaked ?? null,
+    }),
+  };
 }
 
-function ThreatScoreBar({ score }: { score: number }) {
-  const color = score >= 70 ? "#ff1a1a" : score >= 40 ? "#ff6600" : score >= 20 ? "#ffaa00" : "#00ff41";
-  const label = score >= 70 ? "CRITICAL" : score >= 40 ? "HIGH RISK" : score >= 20 ? "MODERATE" : score > 0 ? "LOW RISK" : "CLEAN";
+/** One figure, its label and the signals behind it. */
+function ScoreBar({ figure, title }: { figure: RiskFigure; title: string }) {
+  const { score, label, reasons } = figure;
+  const unscored = label === "NOT ASSESSED";
+  const color = unscored ? "#ffaa00"
+    : score >= 70 ? "#ff1a1a" : score >= 40 ? "#ff6600" : score >= 20 ? "#ffaa00" : "#00ff41";
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5" style={{ color }} />
-          <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/70">Threat Score</span>
+          <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/70">{title}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono font-bold text-lg" style={{ color }}>{score}</span>
@@ -110,6 +121,13 @@ function ThreatScoreBar({ score }: { score: number }) {
           style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}60` }}
         />
       </div>
+      {reasons.length > 0 && (
+        <ul className="space-y-0.5">
+          {reasons.map((r) => (
+            <li key={r} className="text-[11px] font-mono text-[#00ff41]/60">· {r}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -156,7 +174,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
     ? gravatar.thumbnailUrl
     : (fcData?.avatar ?? null);
   const platforms = repData?.profiles ?? [];
-  const threatScore = calcThreatScore(data);
+  const { abuse, exposure } = figuresFor(data);
 
   const srState = (r: { ok: boolean; error?: string }): SourceState =>
     r.ok ? "ok" : r.error === "NOT_CONFIGURED" ? "off" : /not[_ ]?found/i.test(r.error ?? "") ? "empty" : "error";
@@ -182,13 +200,14 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
   // The at-a-glance number is the union across every breach source that
   // answered, not XposedOrNot's share of it. `null` only when nothing answered.
   const breachCount = breachAgg.sourcesAnswered.length > 0 ? breachAgg.total : null;
-  const threatColor = threatScore >= 70 ? "#ff1a1a" : threatScore >= 40 ? "#ff6600" : threatScore >= 20 ? "#ffaa00" : "#00ff41";
+  const threatColor = abuse.score >= 70 ? "#ff1a1a" : abuse.score >= 40 ? "#ff6600" : abuse.score >= 20 ? "#ffaa00" : "#00ff41";
   const glanceTiles = [
     { label: "Provider", value: analysis.providerType.toUpperCase(), accent: provColor },
     { label: "Disposable", value: analysis.isDisposable ? "Yes" : "No", accent: analysis.isDisposable ? "#ff3e3e" : undefined },
     { label: "Breaches", value: breachCount != null ? (breachCount > 0 ? String(breachCount) : "None") : "—", accent: breachCount && breachCount > 0 ? "#ff3e3e" : undefined },
     { label: "Reputation", value: repData ? repData.reputation.toUpperCase() : "—" },
-    { label: "Threat", value: `${threatScore}/100`, accent: threatColor },
+    { label: "Abuse", value: `${abuse.score}/100`, accent: threatColor },
+    { label: "Exposure", value: `${exposure.score}/100`, accent: exposure.score >= 60 ? "#ff6600" : exposure.score > 0 ? "#ffaa00" : "#00ff41" },
   ];
   const jump: JumpItem[] = [
     ...(fcData ? [{ id: "sec-identity", label: "Identity" }] : []),
@@ -296,7 +315,10 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
 
         {/* Threat score */}
         <div className="border-t border-[#00ff41]/10 pt-3">
-          <ThreatScoreBar score={threatScore} />
+          <div className="space-y-4">
+            <ScoreBar figure={abuse} title="Abuse Risk" />
+            <ScoreBar figure={exposure} title="Exposure" />
+          </div>
         </div>
 
         {/* Action row */}
@@ -523,7 +545,10 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
                     </div>
                   </>
                 ) : (
-                  <InfoRow label="Mail Provider" value="No published MX records" accent="#ffaa00" />
+                  // The provider string already distinguishes "publishes
+                  // none" from "publishes a null MX and accepts none", so it is
+                  // read from there rather than hard-coded to the first case.
+                  <InfoRow label="Mail Provider" value={mail.data.provider} accent="#ffaa00" />
                 )
               ) : (
                 <InfoRow label="Mail Provider" value="MX lookup unavailable" accent="#888" />

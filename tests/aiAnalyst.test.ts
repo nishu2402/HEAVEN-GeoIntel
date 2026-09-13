@@ -89,8 +89,8 @@ describe("analystDisclosure", () => {
     expect(analystDisclosure("openrouter")).toContain("OpenRouter");
   });
 
-  it("tells the cloud disclosure the key can be pasted in the panel", () => {
-    expect(analystDisclosure("openai")).toMatch(/paste in the panel/i);
+  it("tells the cloud disclosure the key can be pasted or saved in the panel", () => {
+    expect(analystDisclosure("openai")).toMatch(/paste or save in the panel/i);
   });
 });
 

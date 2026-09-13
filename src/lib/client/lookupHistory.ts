@@ -3,7 +3,11 @@
 // can re-run a recent one with a click. Newest first, de-duped by kind+value,
 // capped. A custom event lets any mounted history view update live.
 
-export type LookupKind = "phone" | "email" | "username" | "ip" | "domain";
+/**
+ * Kinds the cross-mode recent-lookups list can hold. It follows EntityKind, so
+ * a wallet or hash lookup lands in the history like any other.
+ */
+export type LookupKind = "phone" | "email" | "username" | "ip" | "domain" | "wallet" | "hash";
 
 export interface LookupItem {
   kind: LookupKind;

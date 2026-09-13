@@ -19,6 +19,19 @@ async function clickRun() {
   await act(async () => { fireEvent.click(runButton()); });
 }
 
+/**
+ * Assert on the output field once it has settled.
+ *
+ * The run handler awaits Web Crypto, so the result lands some number of
+ * microtask turns after the click. `act` flushes a fixed number of them, which
+ * is enough on an idle machine and not always enough on a loaded CI runner —
+ * that mismatch is what made this file fail the release gate intermittently
+ * while passing on its own. Waiting for the value removes the assumption.
+ */
+async function expectOutput(value: string) {
+  await waitFor(() => expect((screen.getByLabelText("Output") as HTMLTextAreaElement).value).toBe(value));
+}
+
 describe("<CryptoWorkbench> digests", () => {
   it("computes an MD5 by default, with no key field and no direction toggle", async () => {
     render(<CryptoWorkbench />);
@@ -26,7 +39,7 @@ describe("<CryptoWorkbench> digests", () => {
     expect(screen.queryByText("Encode")).toBeNull(); // digest is one-way
     type("Input text", "abc");
     await clickRun();
-    expect(screen.getByLabelText("Output")).toHaveProperty("value", "900150983cd24fb0d6963f7d28e17f72");
+    await expectOutput("900150983cd24fb0d6963f7d28e17f72");
   });
 
   it("switches to SHA-256 within the digest category", async () => {
@@ -34,9 +47,7 @@ describe("<CryptoWorkbench> digests", () => {
     fireEvent.click(screen.getByRole("option", { name: "SHA-256" }));
     type("Input text", "abc");
     await clickRun();
-    expect(screen.getByLabelText("Output")).toHaveProperty(
-      "value", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-    );
+    await expectOutput("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
   });
 });
 
@@ -46,7 +57,7 @@ describe("<CryptoWorkbench> encode/decode", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Encode \/ decode/i }));
     type("Input text", "hello");
     await clickRun();
-    expect(screen.getByLabelText("Output")).toHaveProperty("value", "aGVsbG8=");
+    await expectOutput("aGVsbG8=");
 
     // Focusing the output selects it for easy copy.
     fireEvent.focus(screen.getByLabelText("Output"));
@@ -55,7 +66,7 @@ describe("<CryptoWorkbench> encode/decode", () => {
     fireEvent.click(screen.getByRole("button", { name: "Decode" }));
     type("Input text", "aGVsbG8=");
     await clickRun();
-    expect(screen.getByLabelText("Output")).toHaveProperty("value", "hello");
+    await expectOutput("hello");
 
     // Flip back to Encode (covers the forward-direction toggle).
     fireEvent.click(screen.getByRole("button", { name: "Encode" }));
@@ -164,7 +175,7 @@ describe("<CryptoWorkbench> classical ciphers", () => {
     type("Input text", "abc");
     type(/Shift/, "3");
     await clickRun();
-    expect(screen.getByLabelText("Output")).toHaveProperty("value", "def");
+    await expectOutput("def");
     // A non-numeric shift surfaces as an error.
     type(/Shift/, "oops");
     await clickRun();

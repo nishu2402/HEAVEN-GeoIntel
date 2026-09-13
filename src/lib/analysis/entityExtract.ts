@@ -9,7 +9,7 @@
 
 import type {
   EntityKind, LookupResponse, EmailLookupResponse, UsernameLookupResponse,
-  IpLookupResponse, DomainLookupResponse,
+  IpLookupResponse, DomainLookupResponse, WalletLookupResponse, HashLookupResponse,
 } from "../types";
 import { ipToDomainPivot, ipsFromRecords } from "./crossPivots";
 
@@ -71,4 +71,23 @@ export function entitiesFromDomain(d: DomainLookupResponse, ipCap = 6): Extracte
     { kind: "domain", value: d.domain },
     ...ips.map((v) => ({ kind: "ip" as const, value: v })),
   ]);
+}
+
+/**
+ * Wallet and hash results were the two modes that could never reach a case or
+ * the graph: `EntityKind` did not carry them, so a sanctioned address or a
+ * malware hash had nowhere to be pinned. Both now extract the identifier plus
+ * whatever the lookup proved about it.
+ */
+export function entitiesFromWallet(d: WalletLookupResponse): ExtractedEntity[] {
+  const address = d.facts?.address ?? d.input;
+  const list: ExtractedEntity[] = [{ kind: "wallet", value: address }];
+  // A forward-verified ENS name is an identity for the address; an unverified
+  // reverse record is a claim the address itself does not back, so it is left out.
+  if (d.ens?.verified) list.push({ kind: "username", value: d.ens.name });
+  return dedupe(list);
+}
+
+export function entitiesFromHash(d: HashLookupResponse): ExtractedEntity[] {
+  return dedupe([{ kind: "hash", value: d.input }]);
 }

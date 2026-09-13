@@ -57,10 +57,12 @@ describe("sessionGraph", () => {
     expect(getSessionGraph()).toEqual([{ kind: "phone", value: "+14155552671" }]);
   });
 
-  it("caps the persisted graph at 200 nodes", () => {
-    const many: GraphEntity[] = Array.from({ length: 250 }, (_, i) => ({ kind: "ip", value: `10.0.0.${i}` }));
+  it("caps the persisted graph at 500 nodes", () => {
+    // Raised from 200 with the case-backed graph: a real case file carries more
+    // identifiers than one browser session does.
+    const many: GraphEntity[] = Array.from({ length: 600 }, (_, i) => ({ kind: "ip", value: `10.0.0.${i % 255}.${i}` }));
     saveSessionGraph(many);
-    expect(getSessionGraph()).toHaveLength(200);
+    expect(getSessionGraph()).toHaveLength(500);
   });
 
   it("returns [] on corrupt storage instead of throwing", () => {
