@@ -4,6 +4,11 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import AiAnalystButton from "@/components/shared/AiAnalystButton";
 import type { AiAnalysis } from "@/lib/ai";
 
+// The panel does its own setup: on mount it asks /api/ai-analyst what this
+// machine can actually run, adopts a provider that works, and shows what is
+// missing for one that does not. These tests drive that through a routed fetch
+// stub — status GET, key POST/DELETE, and the run POST all go through it.
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -19,160 +24,274 @@ const analysis = {
   summary: ["victim@example.com scores 62 out of 100."],
 } as unknown as AiAnalysis;
 
-// postLookup reads res.text() then JSON.parses it; a stub Response only needs
-// ok/status/text/headers.
-const resp = (status: number, data: unknown) =>
+// postLookup reads res.text() then JSON.parses it; the status probe reads
+// res.json(). A stub Response has to answer both.
+const res = (status: number, data: unknown) =>
   ({
     ok: status >= 200 && status < 300,
     status,
+    json: async () => data,
     text: async () => JSON.stringify(data),
     headers: { get: () => null },
   }) as unknown as Response;
 
-describe("<AiAnalystButton>", () => {
-  it("is idle by default and shows the local-provider disclosure", () => {
+const IDS = ["ollama", "openai", "anthropic", "gemini", "groq", "deepseek", "mistral", "openrouter"] as const;
+
+interface P { id: string; label: string; ready: boolean; keySource: string | null; models: string[]; hint: string }
+
+/** A status body with every provider unconfigured, minus whatever is overridden. */
+function statusBody(over: Partial<Record<(typeof IDS)[number], Partial<P>>> = {}) {
+  const providers: P[] = IDS.map((id) => ({
+    id, label: id, ready: false, keySource: null, models: [],
+    hint: id === "ollama" ? "Ollama is not running on this machine." : "No API key saved for this provider yet.",
+    ...(over[id] ?? {}),
+  }));
+  return {
+    providers,
+    recommended: providers.find((p) => p.ready)?.id ?? null,
+    ollamaRunning: providers[0].ready,
+  };
+}
+
+interface Opts {
+  /** Body for the status GET; null makes the probe reject, as an offline server would. */
+  status?: ReturnType<typeof statusBody> | null;
+  /** Result of the run POST. */
+  run?: { status: number; body: unknown };
+  /** Result of a /api/keys write. */
+  keys?: { status: number } | "throw";
+}
+
+function installFetch(opts: Opts = {}) {
+  const calls: { url: string; init?: RequestInit }[] = [];
+  const fn = vi.fn(async (url: string | URL, init?: RequestInit) => {
+    const u = String(url);
+    calls.push({ url: u, init });
+    if (u.startsWith("/api/keys")) {
+      if (opts.keys === "throw") throw new Error("offline");
+      return res(opts.keys?.status ?? 200, { ok: true });
+    }
+    if ((init?.method ?? "GET") === "GET") {
+      if (opts.status === null) throw new Error("offline");
+      return res(200, opts.status ?? statusBody());
+    }
+    const r = opts.run ?? { status: 200, body: { text: "a grounded brief" } };
+    return res(r.status, r.body);
+  });
+  vi.stubGlobal("fetch", fn);
+  return calls;
+}
+
+/** Render and wait for the opening probe to settle. */
+async function mount() {
+  render(<AiAnalystButton analysis={analysis} />);
+  await waitFor(() => expect(screen.queryByText(/Checking what this machine can run/i)).toBeNull());
+}
+
+const runButton = () => screen.getByRole("button", { name: /Run analyst/i }) as HTMLButtonElement;
+const providerSelect = () => screen.getByLabelText("Analyst provider") as HTMLSelectElement;
+const modelSelect = () => screen.getByLabelText("Analyst model") as HTMLSelectElement;
+
+describe("<AiAnalystButton> setup", () => {
+  it("says it is checking the machine before it knows", async () => {
+    installFetch();
     render(<AiAnalystButton analysis={analysis} />);
-    expect(screen.getByRole("button", { name: /Run analyst/i })).toBeTruthy();
-    expect(screen.getByText(/Nothing leaves this machine/i)).toBeTruthy();
+    expect(screen.getByText(/Checking what this machine can run/i)).toBeTruthy();
+    // Run cannot fire against a provider whose state is still unknown.
+    expect(runButton().disabled).toBe(true);
+    await waitFor(() => expect(screen.queryByText(/Checking what this machine can run/i)).toBeNull());
   });
 
-  it("switches disclosure and default model when the provider changes", () => {
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    expect(screen.getByText(/OpenAI's API/i)).toBeTruthy();
-    const modelSelect = screen.getByLabelText("Analyst model") as HTMLSelectElement;
-    expect(modelSelect.value).toBe("gpt-4o-mini");
-    // Picking another catalogued model updates the selection.
-    fireEvent.change(modelSelect, { target: { value: "gpt-4o" } });
-    expect((screen.getByLabelText("Analyst model") as HTMLSelectElement).value).toBe("gpt-4o");
-  });
-
-  it("offers the newer providers in the picker", () => {
-    render(<AiAnalystButton analysis={analysis} />);
-    const labels = Array.from((screen.getByLabelText("Analyst provider") as HTMLSelectElement).options)
-      .map((o) => o.textContent);
-    expect(labels).toEqual(expect.arrayContaining(["Google Gemini", "DeepSeek", "Groq", "Mistral", "OpenRouter"]));
-  });
-
-  it("reveals a custom-model box, gates Run on it, and sends what was typed", async () => {
-    const fetchMock = vi.fn(async () => resp(200, { text: "brief about victim@example.com" }));
-    vi.stubGlobal("fetch", fetchMock);
-    render(<AiAnalystButton analysis={analysis} />);
-    // No custom box until "Custom model…" is chosen.
-    expect(screen.queryByLabelText("Custom model name")).toBeNull();
-    fireEvent.change(screen.getByLabelText("Analyst model"), { target: { value: "__custom__" } });
-    const custom = screen.getByLabelText("Custom model name") as HTMLInputElement;
-    expect(custom.value).toBe(""); // blanked so the operator can type
-    // An empty model disables Run.
-    expect((screen.getByRole("button", { name: /Run analyst/i }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(custom, { target: { value: "my-local-model" } });
-    expect((screen.getByRole("button", { name: /Run analyst/i }) as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: /Run analyst/i }));
-    await waitFor(() => expect(screen.getByText(/brief about victim/i)).toBeTruthy());
-    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    const sent = JSON.parse(init.body as string);
-    expect(sent.model).toBe("my-local-model");
-  });
-
-  it("keeps a typed custom model when Custom is re-selected", () => {
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst model"), { target: { value: "__custom__" } });
-    fireEvent.change(screen.getByLabelText("Custom model name"), { target: { value: "keep-me" } });
-    // Re-selecting Custom while already custom must not wipe the typed value.
-    fireEvent.change(screen.getByLabelText("Analyst model"), { target: { value: "__custom__" } });
-    expect((screen.getByLabelText("Custom model name") as HTMLInputElement).value).toBe("keep-me");
-  });
-
-  it("runs the analyst and flags an identifier the model invented", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () =>
-      resp(200, { text: "victim@example.com is exposed. Also contact attacker@evil.com." }),
-    ));
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.click(screen.getByRole("button", { name: /Run analyst/i }));
-    await waitFor(() => expect(screen.getByText(/victim@example.com is exposed/i)).toBeTruthy());
-    // The grounded subject is not flagged; the invented address is.
-    expect(screen.getByText(/Unverified/i)).toBeTruthy();
-    expect(screen.getByText(/email attacker@evil.com/i)).toBeTruthy();
-  });
-
-  it("renders a grounded narrative with no unverified warning when the model stays on-evidence", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () =>
-      resp(200, { text: "The subject victim@example.com carries elevated risk from a breach." }),
-    ));
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.click(screen.getByRole("button", { name: /Run analyst/i }));
-    await waitFor(() => expect(screen.getByText(/carries elevated risk/i)).toBeTruthy());
-    expect(screen.queryByText(/Unverified/i)).toBeNull();
-  });
-
-  it("surfaces the relay error and an actionable Ollama hint when the local server is unreachable", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => resp(502, { error: "Could not reach Ollama." })));
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.click(screen.getByRole("button", { name: /Run analyst/i }));
-    await waitFor(() => expect(screen.getByText(/Could not reach Ollama/i)).toBeTruthy());
-    expect(screen.getByText("ollama serve")).toBeTruthy();
-    expect(screen.getByText(/ollama pull/i)).toBeTruthy();
-  });
-
-  it("does not show the Ollama hint for a cloud provider's error", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => resp(502, { error: "The provider rejected the configured API key." })));
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    fireEvent.click(screen.getByRole("button", { name: /Run analyst/i }));
-    await waitFor(() => expect(screen.getByText(/rejected the configured API key/i)).toBeTruthy());
+  it("adopts the local server when one is running, and offers only its installed models", async () => {
+    installFetch({ status: statusBody({ ollama: { ready: true, models: ["llama3:latest", "qwen2.5"], hint: "" } }) });
+    await mount();
+    expect(providerSelect().value).toBe("ollama");
+    expect(screen.getByText(/Ollama \(local\) is ready/i)).toBeTruthy();
+    // The model list is what Ollama actually holds, so the first run cannot 404.
+    expect(Array.from(modelSelect().options).map((o) => o.value)).toEqual(["llama3:latest", "qwen2.5", "__custom__"]);
+    expect(modelSelect().value).toBe("llama3:latest");
+    expect(runButton().disabled).toBe(false);
+    // Nothing to set up, so no setup block.
+    expect(screen.queryByLabelText("API key")).toBeNull();
     expect(screen.queryByText("ollama serve")).toBeNull();
   });
 
-  // ── The in-panel cloud key (do everything here, no terminal) ────────────────
-
-  it("shows an API key field and a link to the provider's key console for a cloud provider", () => {
-    render(<AiAnalystButton analysis={analysis} />);
-    // No key UI for the local, keyless Ollama.
-    expect(screen.queryByLabelText("API key")).toBeNull();
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "anthropic" } });
-    expect(screen.getByLabelText("API key")).toBeTruthy();
-    const getKey = screen.getByRole("link", { name: /Get a key/i });
-    expect(getKey.getAttribute("href")).toBe("https://console.anthropic.com/settings/keys");
-    expect(getKey.getAttribute("rel")).toContain("noopener");
-    // Switching back to the local, keyless provider removes the key UI again.
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "ollama" } });
-    expect(screen.queryByLabelText("API key")).toBeNull();
+  it("adopts a keyed cloud provider when no local server is running", async () => {
+    installFetch({ status: statusBody({ groq: { ready: true, keySource: "ui", hint: "" } }) });
+    await mount();
+    expect(providerSelect().value).toBe("groq");
+    expect(screen.getByText(/key saved on this machine/i)).toBeTruthy();
+    expect(runButton().disabled).toBe(false);
   });
 
-  it("nudges toward the zero-install cloud path when the local provider is selected", () => {
-    render(<AiAnalystButton analysis={analysis} />);
-    expect(screen.getByText(/Prefer zero setup/i)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    expect(screen.queryByText(/Prefer zero setup/i)).toBeNull();
+  it("names the environment as the key's origin when that is where it came from", async () => {
+    installFetch({ status: statusBody({ openai: { ready: true, keySource: "env", hint: "" } }) });
+    await mount();
+    expect(screen.getByText(/key from the server environment/i)).toBeTruthy();
   });
 
-  it("sends the pasted key in the request body for a cloud provider", async () => {
-    const fetchMock = vi.fn(async () => resp(200, { text: "cloud brief about victim@example.com" }));
-    vi.stubGlobal("fetch", fetchMock);
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "sk-live-123" } });
-    fireEvent.click(screen.getByRole("button", { name: /Run analyst/i }));
-    await waitFor(() => expect(screen.getByText(/cloud brief/i)).toBeTruthy());
-    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    const sent = JSON.parse(init.body as string);
-    expect(sent.provider).toBe("openai");
-    expect(sent.apiKey).toBe("sk-live-123");
+  it("opens on the free-tier provider and its key console when nothing is configured", async () => {
+    installFetch();
+    await mount();
+    // Not the local provider: an operator with nothing installed would only see
+    // an error and two terminal commands.
+    expect(providerSelect().value).toBe("gemini");
+    expect(screen.getByText(/No API key saved for this provider yet/i)).toBeTruthy();
+    expect(screen.getByText("free tier")).toBeTruthy();
+    const create = screen.getByRole("link", { name: /Create a key/i });
+    expect(create.getAttribute("href")).toBe("https://aistudio.google.com/app/apikey");
+    expect(create.getAttribute("rel")).toContain("noopener");
+    // Nothing to run against yet.
+    expect(runButton().disabled).toBe(true);
   });
 
-  it("does not send an apiKey field for the keyless local provider", async () => {
-    const fetchMock = vi.fn(async () => resp(200, { text: "local brief" }));
-    vi.stubGlobal("fetch", fetchMock);
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.click(screen.getByRole("button", { name: /Run analyst/i }));
-    await waitFor(() => expect(screen.getByText(/local brief/i)).toBeTruthy());
-    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(JSON.parse(init.body as string).apiKey).toBeUndefined();
+  it("says so plainly when the server could not be asked at all", async () => {
+    installFetch({ status: null });
+    await mount();
+    expect(screen.getByText(/Could not ask the server which providers are available/i)).toBeTruthy();
+    // With no answer to go on, a provider switch still falls back to that
+    // provider's suggested model rather than leaving the box empty.
+    fireEvent.change(providerSelect(), { target: { value: "anthropic" } });
+    expect(modelSelect().value).toBe("claude-3-5-haiku-latest");
   });
 
-  it("toggles API key visibility between password and text", () => {
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
+  it("treats a failed status response the same as no answer", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => res(500, { error: "boom" })));
+    await mount();
+    expect(screen.getByText(/Could not ask the server which providers are available/i)).toBeTruthy();
+  });
+
+  it("falls back to the suggested model for a provider the report omits", async () => {
+    installFetch({ status: { providers: [], recommended: null, ollamaRunning: false } });
+    await mount();
+    fireEvent.change(providerSelect(), { target: { value: "groq" } });
+    expect(modelSelect().value).toBe("llama-3.3-70b-versatile");
+  });
+
+  it("shows the local install path, with a download link, for a provider that is not running", async () => {
+    installFetch();
+    await mount();
+    fireEvent.change(providerSelect(), { target: { value: "ollama" } });
+    expect(screen.getByText(/Ollama is not running on this machine/i)).toBeTruthy();
+    expect(screen.getByText("ollama serve")).toBeTruthy();
+    expect(screen.getByText(/ollama pull llama3\.2/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Download Ollama/i }).getAttribute("href"))
+      .toBe("https://ollama.com/download");
+    // And the way out of installing anything at all.
+    expect(screen.getByText(/Prefer no install/i)).toBeTruthy();
+    expect(runButton().disabled).toBe(true);
+  });
+
+  it("falls back to a suggested model name in the pull command when the box is blank", async () => {
+    installFetch();
+    await mount();
+    fireEvent.change(providerSelect(), { target: { value: "ollama" } });
+    fireEvent.change(modelSelect(), { target: { value: "__custom__" } });
+    expect((screen.getByLabelText("Custom model name") as HTMLInputElement).value).toBe("");
+    expect(screen.getByText(/ollama pull llama3\.2/i)).toBeTruthy();
+  });
+
+  it("re-probes on Check again and flips to ready without a reload", async () => {
+    let ready = false;
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      res(200, ready
+        ? statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } })
+        : statusBody()),
+    ));
+    await mount();
+    fireEvent.change(providerSelect(), { target: { value: "ollama" } });
+    expect(screen.getByText("ollama serve")).toBeTruthy();
+    // Before the server answers there is nothing to enumerate, so the picker
+    // shows the suggestion list.
+    expect(modelSelect().value).toBe("llama3.2");
+    ready = true;
+    fireEvent.click(screen.getByRole("button", { name: /Check again/i }));
+    await waitFor(() => expect(screen.getByText(/Ollama \(local\) is ready/i)).toBeTruthy());
+    expect(screen.queryByText("ollama serve")).toBeNull();
+    // And the selection follows what that server actually holds, rather than
+    // staying on a suggestion it would 404 on.
+    expect(modelSelect().value).toBe("llama3:latest");
+  });
+});
+
+describe("<AiAnalystButton> keys", () => {
+  it("saves a pasted key to the server under the provider's own key name", async () => {
+    const calls = installFetch();
+    await mount();
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "AIza-test" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/i }));
+    await waitFor(() => expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe(""));
+    const save = calls.find((c) => c.url === "/api/keys" && c.init?.method === "POST")!;
+    expect(JSON.parse(String(save.init!.body))).toEqual({ name: "GEMINI_API_KEY", value: "AIza-test" });
+    // The save is followed by a re-probe, so a now-ready provider shows as ready.
+    expect(calls.filter((c) => c.url === "/api/ai-analyst" && (c.init?.method ?? "GET") === "GET").length).toBe(2);
+  });
+
+  it("keeps what was pasted when the server rejects the key", async () => {
+    installFetch({ keys: { status: 400 } });
+    await mount();
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "bad-key" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/i }));
+    await waitFor(() => expect(screen.getByText(/server rejected that key/i)).toBeTruthy());
+    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("bad-key");
+  });
+
+  it("reports an unreachable server rather than losing the key", async () => {
+    installFetch({ keys: "throw" });
+    await mount();
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "AIza-test" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/i }));
+    await waitFor(() => expect(screen.getByText(/Could not reach the server to save the key/i)).toBeTruthy());
+    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("AIza-test");
+  });
+
+  it("Save is disabled until something is typed", async () => {
+    installFetch();
+    await mount();
+    expect((screen.getByRole("button", { name: /^Save$/i }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: " " } });
+    expect((screen.getByRole("button", { name: /^Save$/i }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "k" } });
+    expect((screen.getByRole("button", { name: /^Save$/i }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("removes a saved key, and only offers that for one saved here", async () => {
+    const calls = installFetch({
+      status: statusBody({ gemini: { ready: true, keySource: "ui", hint: "" } }),
+      run: { status: 400, body: { error: "rejected" } },
+    });
+    await mount();
+    // Ready, so the block stays hidden until a run fails.
+    expect(screen.queryByRole("button", { name: /Remove the saved key/i })).toBeNull();
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Remove the saved key/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Remove the saved key/i }));
+    await waitFor(() => expect(
+      calls.some((c) => c.url.startsWith("/api/keys?name=GEMINI_API_KEY") && c.init?.method === "DELETE"),
+    ).toBe(true));
+  });
+
+  it("reports a failed removal instead of pretending the key is gone", async () => {
+    installFetch({ status: statusBody({ gemini: { ready: true, keySource: "ui", hint: "" } }), keys: { status: 400 }, run: { status: 400, body: { error: "rejected" } } });
+    await mount();
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Remove the saved key/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Remove the saved key/i }));
+    await waitFor(() => expect(screen.getByText(/could not remove that key/i)).toBeTruthy());
+  });
+
+  it("reports an unreachable server on removal", async () => {
+    installFetch({ status: statusBody({ gemini: { ready: true, keySource: "ui", hint: "" } }), keys: "throw", run: { status: 400, body: { error: "rejected" } } });
+    await mount();
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Remove the saved key/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Remove the saved key/i }));
+    await waitFor(() => expect(screen.getByText(/Could not reach the server to remove the key/i)).toBeTruthy());
+  });
+
+  it("toggles key visibility between password and text", async () => {
+    installFetch();
+    await mount();
     expect((screen.getByLabelText("API key") as HTMLInputElement).type).toBe("password");
     fireEvent.click(screen.getByLabelText("Show key"));
     expect((screen.getByLabelText("API key") as HTMLInputElement).type).toBe("text");
@@ -180,34 +299,141 @@ describe("<AiAnalystButton>", () => {
     expect((screen.getByLabelText("API key") as HTMLInputElement).type).toBe("password");
   });
 
-  it("holds the key in the session only and never writes it to browser storage", () => {
+  it("never writes a key to browser storage, and never carries one between providers", async () => {
+    installFetch();
     const first = render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "sk-session" } });
-    // The secret is a liability at rest: nothing is persisted.
+    await waitFor(() => expect(screen.getByLabelText("API key")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "AIza-session" } });
     expect(localStorage.length).toBe(0);
+    fireEvent.change(providerSelect(), { target: { value: "anthropic" } });
+    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("");
     first.unmount();
-    // A fresh mount starts empty — the key was never saved anywhere.
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
+    await mount();
     expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("");
   });
+});
 
-  it("clears the key when switching providers so it is never carried across", () => {
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "sk-openai" } });
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "anthropic" } });
-    expect((screen.getByLabelText("API key") as HTMLInputElement).value).toBe("");
+describe("<AiAnalystButton> running", () => {
+  it("runs a one-off key without saving it first", async () => {
+    const calls = installFetch();
+    await mount();
+    expect(runButton().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("API key"), { target: { value: "AIza-once" } });
+    expect(runButton().disabled).toBe(false);
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByText(/a grounded brief/i)).toBeTruthy());
+    const run = calls.find((c) => c.url === "/api/ai-analyst" && c.init?.method === "POST")!;
+    const sent = JSON.parse(String(run.init!.body));
+    expect(sent).toMatchObject({ provider: "gemini", model: "gemini-1.5-flash", apiKey: "AIza-once" });
+    // No key was written to the server: this one was used and forgotten.
+    expect(calls.some((c) => c.url.startsWith("/api/keys"))).toBe(false);
   });
 
-  it("offers a Get key link and a check-your-key hint on a cloud provider's error", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => resp(502, { error: "The provider rejected the configured API key." })));
-    render(<AiAnalystButton analysis={analysis} />);
-    fireEvent.change(screen.getByLabelText("Analyst provider"), { target: { value: "openai" } });
-    fireEvent.click(screen.getByRole("button", { name: /Run analyst/i }));
-    await waitFor(() => expect(screen.getByText(/Check the OpenAI key above/i)).toBeTruthy());
-    const links = screen.getAllByRole("link", { name: /Get a/i });
-    expect(links.some((l) => l.getAttribute("href") === "https://platform.openai.com/api-keys")).toBe(true);
+  it("sends no key for the local provider", async () => {
+    const calls = installFetch({ status: statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } }) });
+    await mount();
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByText(/a grounded brief/i)).toBeTruthy());
+    const run = calls.find((c) => c.init?.method === "POST")!;
+    expect(JSON.parse(String(run.init!.body)).apiKey).toBeUndefined();
+  });
+
+  it("flags an identifier the model invented and leaves grounded ones alone", async () => {
+    installFetch({
+      status: statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } }),
+      run: { status: 200, body: { text: "victim@example.com is exposed. Also contact attacker@evil.com." } },
+    });
+    await mount();
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByText(/victim@example.com is exposed/i)).toBeTruthy());
+    expect(screen.getByText(/Unverified/i)).toBeTruthy();
+    expect(screen.getByText(/email attacker@evil.com/i)).toBeTruthy();
+  });
+
+  it("shows no unverified warning when the model stays on the evidence", async () => {
+    installFetch({
+      status: statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } }),
+      run: { status: 200, body: { text: "The subject victim@example.com carries elevated risk from a breach." } },
+    });
+    await mount();
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByText(/carries elevated risk/i)).toBeTruthy());
+    expect(screen.queryByText(/Unverified/i)).toBeNull();
+  });
+
+  it("reopens the key block when a configured cloud provider rejects the run", async () => {
+    installFetch({
+      status: statusBody({ openai: { ready: true, keySource: "env", hint: "" } }),
+      run: { status: 400, body: { error: "The provider rejected that API key." } },
+    });
+    await mount();
+    // A ready provider hides the key field until something goes wrong.
+    expect(screen.queryByLabelText("API key")).toBeNull();
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByText(/rejected that API key/i)).toBeTruthy());
+    // The fix has to be reachable from the error, not from a terminal.
+    expect(screen.getByLabelText("API key")).toBeTruthy();
+    // And the failure must not sit under a line still calling the provider ready.
+    expect(screen.queryByText(/OpenAI is ready/i)).toBeNull();
+    expect(screen.getByRole("link", { name: /Create a key/i }).getAttribute("href"))
+      .toBe("https://platform.openai.com/api-keys");
+  });
+
+  it("reopens the local block when a running Ollama rejects the run", async () => {
+    installFetch({
+      status: statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } }),
+      run: { status: 400, body: { error: "Ollama is running but does not have the model" } },
+    });
+    await mount();
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByText("ollama serve")).toBeTruthy());
+    // Check again clears the failed run with it: leaving the error on screen
+    // under a provider that has just come back reads as a fresh failure.
+    fireEvent.click(screen.getByRole("button", { name: /Check again/i }));
+    await waitFor(() => expect(screen.getByText(/Ollama \(local\) is ready/i)).toBeTruthy());
+    expect(screen.queryByText(/does not have the model/i)).toBeNull();
+  });
+
+  it("switches disclosure and default model with the provider", async () => {
+    installFetch({ status: statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } }) });
+    await mount();
+    expect(screen.getByText(/Nothing leaves this machine/i)).toBeTruthy();
+    fireEvent.change(providerSelect(), { target: { value: "openai" } });
+    expect(screen.getByText(/OpenAI's API/i)).toBeTruthy();
+    expect(modelSelect().value).toBe("gpt-4o-mini");
+    fireEvent.change(modelSelect(), { target: { value: "gpt-4o" } });
+    expect(modelSelect().value).toBe("gpt-4o");
+  });
+
+  it("offers every provider in the picker", async () => {
+    installFetch();
+    await mount();
+    expect(Array.from(providerSelect().options).map((o) => o.textContent))
+      .toEqual(expect.arrayContaining(["Ollama (local)", "Google Gemini", "DeepSeek", "Groq", "Mistral", "OpenRouter"]));
+  });
+
+  it("takes a custom model, gates Run on it, and sends what was typed", async () => {
+    const calls = installFetch({ status: statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } }) });
+    await mount();
+    expect(screen.queryByLabelText("Custom model name")).toBeNull();
+    fireEvent.change(modelSelect(), { target: { value: "__custom__" } });
+    const custom = screen.getByLabelText("Custom model name") as HTMLInputElement;
+    expect(custom.value).toBe("");
+    expect(runButton().disabled).toBe(true);
+    fireEvent.change(custom, { target: { value: "my-local-model" } });
+    expect(runButton().disabled).toBe(false);
+    fireEvent.click(runButton());
+    await waitFor(() => expect(screen.getByText(/a grounded brief/i)).toBeTruthy());
+    const run = calls.find((c) => c.init?.method === "POST")!;
+    expect(JSON.parse(String(run.init!.body)).model).toBe("my-local-model");
+  });
+
+  it("keeps a typed custom model when Custom is re-selected", async () => {
+    installFetch({ status: statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } }) });
+    await mount();
+    fireEvent.change(modelSelect(), { target: { value: "__custom__" } });
+    fireEvent.change(screen.getByLabelText("Custom model name"), { target: { value: "keep-me" } });
+    fireEvent.change(modelSelect(), { target: { value: "__custom__" } });
+    expect((screen.getByLabelText("Custom model name") as HTMLInputElement).value).toBe("keep-me");
   });
 });

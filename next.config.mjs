@@ -79,9 +79,9 @@ const standalone = process.env.BUILD_STANDALONE === "1";
 // evidence bundle to a model. Held to the endpoint registry by
 // tests/apiHeaders.test.ts.
 const PRIVATE_API_ROUTES = [
-  "lookup", "email-lookup", "bulk-lookup", "username-lookup", "ip-lookup",
-  "domain-lookup", "wallet-lookup", "hash-lookup", "pwned-password",
-  "ai-analyst", "cases",
+  "lookup", "email-lookup", "bulk-lookup", "username-lookup", "username-sweep",
+  "ip-lookup", "domain-lookup", "typosquat-scan", "wallet-lookup", "hash-lookup",
+  "pwned-password", "ai-analyst", "cases", "evidence",
 ];
 
 const nextConfig = {

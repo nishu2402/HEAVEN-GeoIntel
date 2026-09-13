@@ -1,13 +1,16 @@
 // ── Case report export / import (chain-of-custody) ───────────────────────────
-// Produces an analyst-grade, self-describing export of an investigation case in
-// two formats:
+// Produces an analyst-grade, self-describing export of an investigation case:
 //   • JSON  — machine-readable, re-importable, with a SHA-256 integrity hash
 //             over the case payload so tampering is detectable.
 //   • Markdown — human-readable report (entities table, notes, provenance).
+//   • CSV / Maltego CSV / STIX — interop.
+//   • HTML and PDF — two separate documents, rendered from `CaseDocModel` by
+//     ./caseDoc. Everything they show is normalised here first, so the dossier
+//     on screen, the one on paper and the Markdown cannot tell three different
+//     stories about one case.
 // Pure functions + Web Crypto; runs entirely client-side.
 
 import type { InvestigationCase, CaseEdge, CaseEntity, CaseSnapshot, EntityKind } from "../types";
-import { BRAND, logoSvg } from "../brand/logo";
 import { diffFacts } from "./caseSnapshot";
 import { APP_VERSION } from "../version";
 
@@ -112,63 +115,185 @@ export async function buildCaseJson(c: InvestigationCase): Promise<{ json: strin
 const md = (s: string) =>
   s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 
-/**
- * Render the snapshot history as one section per identifier: the baseline, then
- * every fact that moved between consecutive re-runs. This is the "what changed"
- * view — the reason snapshots are stored at all.
- */
-function changeHistory(snapshots: CaseSnapshot[]): string[] {
-  if (snapshots.length === 0) return ["_No lookups have been snapshotted for this case._"];
+// ── Normalised document model ────────────────────────────────────────────────
 
+/** One fact that moved between two consecutive snapshots of an identifier. */
+export interface CaseChange { at: number; fact: string; from: string; to: string }
+
+/** The snapshot history of one identifier: the reason snapshots exist at all. */
+export interface CaseHistory {
+  kind: EntityKind;
+  value: string;
+  snapshots: number;
+  first: number;
+  last: number;
+  /** Only a baseline exists, so there is nothing yet to compare it against. */
+  baselineOnly: boolean;
+  /** Empty with `baselineOnly: false` means re-runs happened and nothing moved. */
+  changes: CaseChange[];
+}
+
+/**
+ * Everything a case dossier states, in one shape, resolved once. Both renderers
+ * and the Markdown export read this and nothing else, so a figure can never
+ * differ between the formats.
+ */
+export interface CaseDocModel {
+  documentId: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  exportedAt: string;
+  entities: CaseEntity[];
+  edges: CaseEdge[];
+  notes: string;
+  /** Identifier counts per kind, highest first: the shape of the case. */
+  kinds: { kind: EntityKind; count: number }[];
+  histories: CaseHistory[];
+  snapshots: number;
+  integrity: { algo: "SHA-256"; hash: string };
+  schema: string;
+  version: string;
+}
+
+/** Group snapshots per identifier and diff each consecutive pair. */
+function historiesOf(snapshots: CaseSnapshot[]): CaseHistory[] {
   const byKey = new Map<string, CaseSnapshot[]>();
   for (const s of snapshots) {
     const key = `${s.kind}:${s.value.toLowerCase()}`;
     if (!byKey.has(key)) byKey.set(key, []);
     byKey.get(key)!.push(s);
   }
-
-  const out: string[] = [];
+  const out: CaseHistory[] = [];
   for (const list of byKey.values()) {
-    const first = list[0];
-    out.push(`### ${first.kind} \`${md(first.value)}\``, "");
-    out.push(`Snapshots: ${list.length} · first ${new Date(first.takenAt).toISOString()} · latest ${new Date(list[list.length - 1].takenAt).toISOString()}`, "");
+    const first = list[0]!;
+    const last = list[list.length - 1]!;
+    const changes: CaseChange[] = [];
+    for (let i = 1; i < list.length; i++) {
+      const prev = list[i - 1]!;
+      const cur = list[i]!;
+      for (const ch of diffFacts(prev.facts, cur.facts)) {
+        // A fact that appeared has no "was", and one that vanished has no
+        // "now"; the dash is the table's way of saying so.
+        changes.push({ at: cur.takenAt, fact: ch.fact, from: String(ch.from ?? "—"), to: String(ch.to ?? "—") });
+      }
+    }
+    out.push({
+      kind: first.kind, value: first.value, snapshots: list.length,
+      first: first.takenAt, last: last.takenAt,
+      baselineOnly: list.length === 1, changes,
+    });
+  }
+  return out;
+}
 
-    if (list.length === 1) {
+function kindCounts(entities: CaseEntity[]): { kind: EntityKind; count: number }[] {
+  const counts = new Map<EntityKind, number>();
+  for (const e of entities) counts.set(e.kind, (counts.get(e.kind) ?? 0) + 1);
+  return [...counts.entries()]
+    .map(([kind, count]) => ({ kind, count }))
+    .sort((a, b) => b.count - a.count || a.kind.localeCompare(b.kind));
+}
+
+export async function buildCaseDoc(c: InvestigationCase): Promise<CaseDocModel> {
+  const payload = payloadOf(c);
+  const hash = await sha256Hex(canonical(payload));
+  return {
+    // Derived from the integrity hash, so the document's own reference and the
+    // thing it attests to are the same number.
+    documentId: `CASE-${hash.slice(0, 10).toUpperCase()}`,
+    name: payload.name,
+    createdAt: payload.createdAt,
+    updatedAt: payload.updatedAt,
+    exportedAt: new Date().toISOString(),
+    entities: payload.entities,
+    edges: payload.edges,
+    notes: payload.notes,
+    kinds: kindCounts(payload.entities),
+    histories: historiesOf(payload.snapshots),
+    snapshots: payload.snapshots.length,
+    integrity: { algo: "SHA-256", hash },
+    schema: REPORT_SCHEMA,
+    version: APP_VERSION,
+  };
+}
+
+/** The classification and handling line every case export carries. */
+export const CASE_CLASSIFICATION =
+  "OSINT // Investigation case file // For authorized investigative use only";
+
+/** What the integrity block means, said once and reused by every renderer. */
+export const CASE_INTEGRITY_NOTE =
+  "The hash covers the canonical case payload: name, timestamps, identifiers, derived links and snapshots. Re-import this file into HEAVEN-GeoIntel to have it recomputed and compared. A mismatch means the payload changed after export.";
+
+export const CASE_METHODOLOGY: string[] = [
+  "A case file is a record of what an analyst collected, not a conclusion. Identifiers were added by hand or from a lookup result; nothing here was inferred.",
+  "Derived links come from lookup results and name the field that produced each one, so every edge can be traced back to its evidence.",
+  "The change history compares consecutive snapshots of the same identifier. A fact that is absent from one side is shown as a dash, never as a value of zero or false.",
+  "For authorized investigative use only. Verify every finding against the primary source before acting on it.",
+];
+
+// ── Markdown report ──────────────────────────────────────────────────────────
+
+function changeHistoryMd(histories: CaseHistory[]): string[] {
+  if (histories.length === 0) return ["_No lookups have been snapshotted for this case._"];
+  const out: string[] = [];
+  for (const h of histories) {
+    out.push(`### ${h.kind} \`${md(h.value)}\``, "");
+    out.push(`Snapshots: ${h.snapshots} · first ${new Date(h.first).toISOString()} · latest ${new Date(h.last).toISOString()}`, "");
+    if (h.baselineOnly) {
       out.push("_Baseline only: re-run this identifier to see what changes._", "");
       continue;
     }
     out.push(`| When | Fact | Was | Now |`, `|------|------|-----|-----|`);
-    let moved = 0;
-    for (let i = 1; i < list.length; i++) {
-      for (const ch of diffFacts(list[i - 1].facts, list[i].facts)) {
-        moved++;
-        out.push(`| ${new Date(list[i].takenAt).toISOString()} | ${md(ch.fact)} | ${md(String(ch.from ?? "—"))} | ${md(String(ch.to ?? "—"))} |`);
-      }
+    for (const ch of h.changes) {
+      out.push(`| ${new Date(ch.at).toISOString()} | ${md(ch.fact)} | ${md(ch.from)} | ${md(ch.to)} |`);
     }
-    if (moved === 0) out.push(`| — | _nothing changed across ${list.length} snapshots_ | — | — |`);
+    if (h.changes.length === 0) out.push(`| — | _nothing changed across ${h.snapshots} snapshots_ | — | — |`);
     out.push("");
   }
   return out;
 }
 
 export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
-  const payload = payloadOf(c);
-  const hash = await sha256Hex(canonical(payload));
+  const d = await buildCaseDoc(c);
   const fmt = (ms: number) => new Date(ms).toISOString();
-  const rows = payload.entities.length
-    ? payload.entities.map((e) => `| ${e.kind} | \`${md(e.value)}\` | ${fmt(e.addedAt)} | ${md(e.note ?? "")} |`).join("\n")
+  const rows = d.entities.length
+    ? d.entities.map((e) => `| ${e.kind} | \`${md(e.value)}\` | ${fmt(e.addedAt)} | ${md(e.note ?? "")} |`).join("\n")
     : "| — | _no identifiers_ | — | — |";
 
   return [
     `# HEAVEN-GeoIntel: Investigation Report`,
     ``,
-    `**Case:** ${payload.name}`,
-    `**Created:** ${fmt(payload.createdAt)}`,
-    `**Last updated:** ${fmt(payload.updatedAt)}`,
-    `**Exported:** ${new Date().toISOString()}`,
-    `**Identifiers:** ${payload.entities.length}`,
-    `**Derived links:** ${payload.edges.length}`,
-    `**Snapshots:** ${payload.snapshots.length}`,
+    `> ${CASE_CLASSIFICATION}`,
+    ``,
+    `**Case:** ${d.name}`,
+    `**Document ID:** ${d.documentId}`,
+    `**Created:** ${fmt(d.createdAt)}`,
+    `**Last updated:** ${fmt(d.updatedAt)}`,
+    `**Exported:** ${d.exportedAt}`,
+    `**Identifiers:** ${d.entities.length}`,
+    `**Derived links:** ${d.edges.length}`,
+    `**Snapshots:** ${d.snapshots}`,
+    `**Produced by:** HEAVEN-GeoIntel v${d.version} (${d.schema})`,
+    ``,
+    `## Contents`,
+    ``,
+    `- [Case profile](#case-profile)`,
+    `- [Identifiers](#identifiers)`,
+    `- [Derived links](#derived-links)`,
+    `- [Change history](#change-history)`,
+    `- [Analyst notes](#analyst-notes)`,
+    `- [Methodology and limitations](#methodology-and-limitations)`,
+    `- [Integrity](#integrity)`,
+    ``,
+    `## Case profile`,
+    ``,
+    `| Identifier type | Count |`,
+    `|------|-------|`,
+    ...(d.kinds.length
+      ? d.kinds.map((k) => `| ${k.kind} | ${k.count} |`)
+      : [`| — | _no identifiers_ |`]),
     ``,
     `## Identifiers`,
     ``,
@@ -178,13 +303,13 @@ export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
     ``,
     `## Derived links`,
     ``,
-    ...(payload.edges.length
+    ...(d.edges.length
       ? [
           `Relationships the tool derived from lookup results, with the source that produced each.`,
           ``,
           `| From | To | Derived from | Added |`,
           `|------|----|--------------|-------|`,
-          ...payload.edges.map(
+          ...d.edges.map(
             (e) => `| ${e.from.kind} \`${md(e.from.value)}\` | ${e.to.kind} \`${md(e.to.value)}\` | ${md(e.reason)} | ${fmt(e.addedAt)} |`,
           ),
         ]
@@ -192,17 +317,25 @@ export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
     ``,
     `## Change history`,
     ``,
-    ...changeHistory(payload.snapshots),
+    ...changeHistoryMd(d.histories),
     ``,
     `## Analyst notes`,
     ``,
-    payload.notes.trim() ? payload.notes.trim() : "_None._",
+    d.notes.trim() ? d.notes.trim() : "_None._",
+    ``,
+    `## Methodology and limitations`,
+    ``,
+    ...CASE_METHODOLOGY.map((l) => `- ${md(l)}`),
+    ``,
+    `## Integrity`,
+    ``,
+    `Integrity (SHA-256 of case payload): \`${d.integrity.hash}\``,
+    ``,
+    CASE_INTEGRITY_NOTE,
     ``,
     `---`,
     ``,
-    `Integrity (SHA-256 of case payload): \`${hash}\``,
-    ``,
-    `_Generated by HEAVEN-GeoIntel v${APP_VERSION}, for authorized use only. Verify all intelligence before relying on it._`,
+    `_${d.documentId} · Generated by HEAVEN-GeoIntel v${APP_VERSION}, for authorized use only. Verify all intelligence before relying on it._`,
   ].join("\n");
 }
 
@@ -262,28 +395,6 @@ export function buildStixBundle(c: InvestigationCase): string {
     }
   }
   return JSON.stringify({ type: "bundle", id: `bundle--${uuid()}`, objects }, null, 2);
-}
-
-/** Self-contained printable HTML (for browser "Save as PDF"). */
-export async function buildPrintableHtml(c: InvestigationCase): Promise<string> {
-  const md = await buildCaseMarkdown(c);
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  // Bound for paper, so the mark is drawn in single-colour ink rather than neon.
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>${BRAND.name}: ${esc(c.name)}</title>
-<style>
-  body{font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;max-width:820px;margin:32px auto;padding:0 20px;color:${BRAND.ink}}
-  .masthead{display:flex;align-items:center;gap:16px;border-bottom:1.5px solid ${BRAND.ink};padding-bottom:14px;margin-bottom:22px}
-  .masthead h1{margin:0;font-size:13px;letter-spacing:.26em;text-transform:uppercase}
-  .masthead p{margin:4px 0 0;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#5a6b63}
-  pre{white-space:pre-wrap;word-break:break-word;margin:0}
-  @media print{@page{margin:14mm} .masthead{break-after:avoid}}
-</style></head><body>
-<header class="masthead">${logoSvg({ size: 46, mono: BRAND.ink })}<div>
-<h1>${BRAND.name}</h1><p>${BRAND.tagline}: Investigation Report</p></div></header>
-<pre>${esc(md)}</pre>
-<script>window.onload=function(){setTimeout(function(){window.print()},250)}</script>
-</body></html>`;
 }
 
 export interface ImportCheck {

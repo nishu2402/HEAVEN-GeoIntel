@@ -4,9 +4,8 @@ import {
   PRIVACY_DOMAINS,
   ROLE_PREFIXES,
 } from "../data/disposableEmailDomains";
+import { isValidEmailFormat, normalizeEmail, toUnicodeHost } from "./idn";
 import type { EmailAnalysis, EmailProviderType } from "../types";
-
-const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 
 function toTitleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
@@ -85,14 +84,19 @@ function getProviderName(domain: string): string | null {
 }
 
 export function analyzeEmail(raw: string): EmailAnalysis {
-  const email = raw.trim().toLowerCase();
+  // The domain half is converted to its ASCII (punycode) form first, so
+  // `test@münchen.de` is analysed as the name DNS will actually be asked about
+  // instead of failing the ASCII format check and being rejected as malformed.
+  // The Unicode spelling is kept for display alongside it.
+  const normalized = normalizeEmail(raw);
+  const email = (normalized?.email ?? raw.trim()).toLowerCase();
   const atIdx = email.lastIndexOf("@");
   const username = atIdx > 0 ? email.slice(0, atIdx) : email;
   const domain = atIdx > 0 ? email.slice(atIdx + 1) : "";
   const tldDot = domain.lastIndexOf(".");
   const tld = tldDot >= 0 ? domain.slice(tldDot + 1) : "";
 
-  const isValidFormat = EMAIL_RE.test(email);
+  const isValidFormat = isValidEmailFormat(email);
 
   const isDisposable = isDisposableDomain(domain);
   const isPrivacyFocused = PRIVACY_DOMAINS.has(domain);
@@ -131,9 +135,15 @@ export function analyzeEmail(raw: string): EmailAnalysis {
   } else if (isEdu) {
     providerName = "Educational Institution";
   } else if (providerType === "corporate") {
-    // Derive from domain: strip TLD, capitalize
-    const base = domain.replace(`.${tld}`, "");
-    providerName = `${toTitleCase(base)} (Corporate)`;
+    // Derive from domain: strip TLD, capitalize. Built from the Unicode
+    // spelling, because the A-label of an internationalised name is an encoding
+    // and not a company: `münchen.de` would otherwise be shown to the analyst
+    // as "Xn--mnchen-3ya (Corporate)".
+    // Dropped label-wise rather than by length, because an IDN TLD decodes to a
+    // different number of characters than its `xn--` form.
+    const labels = toUnicodeHost(domain).split(".");
+    labels.pop();
+    providerName = `${toTitleCase(labels.join("."))} (Corporate)`;
   } else {
     providerName = domain;
   }
@@ -142,6 +152,7 @@ export function analyzeEmail(raw: string): EmailAnalysis {
     email,
     username,
     domain,
+    domainUnicode: toUnicodeHost(domain),
     tld,
     isValidFormat,
     providerType,

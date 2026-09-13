@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildCaseJson, buildCaseMarkdown, verifyCaseImport, REPORT_SCHEMA,
-  buildCaseCsv, buildMaltegoCsv, buildStixBundle, buildPrintableHtml,
+  buildCaseCsv, buildMaltegoCsv, buildStixBundle, buildCaseDoc,
 } from "@/lib/analysis/caseReport";
 import type { InvestigationCase } from "@/lib/types";
 
@@ -195,13 +195,54 @@ describe("caseReport: STIX covers every entity kind", () => {
   });
 });
 
-describe("caseReport: printable HTML", () => {
-  it("produces a self-contained HTML doc with the (escaped) case name", async () => {
-    const c: InvestigationCase = { ...baseCase, name: "A&B <script>" };
-    const html = await buildPrintableHtml(c);
-    expect(html).toMatch(/^<!doctype html>/i);
-    expect(html).toContain("A&amp;B &lt;script&gt;"); // escaped, no raw injection
-    expect(html).not.toContain("<script>A"); // the raw name is not injected as markup
+describe("caseReport: the normalised document model", () => {
+  it("derives the document id from the integrity hash it attests to", async () => {
+    const d = await buildCaseDoc(baseCase);
+    expect(d.documentId).toBe(`CASE-${d.integrity.hash.slice(0, 10).toUpperCase()}`);
+    expect(d.integrity.algo).toBe("SHA-256");
+    expect(d.schema).toBe(REPORT_SCHEMA);
+  });
+
+  it("counts identifiers by kind, most common first", async () => {
+    const d = await buildCaseDoc({
+      ...baseCase,
+      entities: [
+        { kind: "email", value: "a@x.test", addedAt: 1 },
+        { kind: "email", value: "b@x.test", addedAt: 2 },
+        { kind: "domain", value: "x.test", addedAt: 3 },
+      ],
+    });
+    expect(d.kinds).toEqual([{ kind: "email", count: 2 }, { kind: "domain", count: 1 }]);
+  });
+
+  it("reports a baseline, a quiet re-run and a moved fact as three different things", async () => {
+    const d = await buildCaseDoc({
+      ...baseCase,
+      snapshots: [
+        { kind: "domain", value: "x.test", takenAt: 1, facts: { subdomains: 3 } },
+        { kind: "domain", value: "x.test", takenAt: 2, facts: { subdomains: 9 } },
+        { kind: "ip", value: "8.8.8.8", takenAt: 1, facts: { openPorts: 2 } },
+        { kind: "ip", value: "8.8.8.8", takenAt: 2, facts: { openPorts: 2 } },
+        { kind: "email", value: "solo@x.test", takenAt: 1, facts: { breaches: 1 } },
+      ],
+    });
+    const [moved, quiet, baseline] = d.histories;
+    expect(moved!.changes).toEqual([{ at: 2, fact: "subdomains", from: "3", to: "9" }]);
+    expect(quiet!.baselineOnly).toBe(false);
+    expect(quiet!.changes).toEqual([]);           // re-run, nothing moved
+    expect(baseline!.baselineOnly).toBe(true);    // never re-run
+  });
+
+  it("groups an identifier's snapshots regardless of the case it was typed in", async () => {
+    const d = await buildCaseDoc({
+      ...baseCase,
+      snapshots: [
+        { kind: "domain", value: "X.test", takenAt: 1, facts: { a: 1 } },
+        { kind: "domain", value: "x.test", takenAt: 2, facts: { a: 2 } },
+      ],
+    });
+    expect(d.histories).toHaveLength(1);
+    expect(d.histories[0]!.snapshots).toBe(2);
   });
 });
 

@@ -25,6 +25,11 @@ HEAVEN-GeoIntel: one-command startup
 
   (none)     Production mode. Builds if needed, serves on all interfaces so a
              phone on the same Wi-Fi can reach it, then self-tests both URLs.
+
+Headless lookups (no browser):
+  geointel domain example.com --json      one lookup, JSON on stdout
+  geointel bulk targets.txt --csv         a list of targets, CSV on stdout
+  geointel <mode> --help                  modes and flags
   --dev      Hot-reload dev server, bound to localhost only.
   --doctor   Diagnose why the Network URL might not reach your phone, and exit.
   --help     This message.
@@ -37,6 +42,17 @@ Environment:
 Uninstall the global command:  npm run uninstall-global
 USAGE
 }
+
+# A mode name as the first argument means a HEADLESS lookup, not the web app:
+#   geointel domain example.com --json
+# The CLI reuses a running instance when there is one, and otherwise starts a
+# private server, answers, and shuts it down. See scripts/cli.mjs.
+case "${1:-}" in
+  phone|email|username|ip|domain|wallet|hash|bulk)
+    SCRIPT_DIR_EARLY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    exec node "$SCRIPT_DIR_EARLY/cli.mjs" "$@"
+    ;;
+esac
 
 MODE="prod"
 case "${1:-}" in

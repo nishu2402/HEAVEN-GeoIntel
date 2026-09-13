@@ -1,4 +1,5 @@
 import type { PhoneAnalysis } from "./analysis/phoneAnalysis";
+import type { Assignability } from "./analysis/phoneAssignability";
 import type { CountryIntel } from "./data/countryIntel";
 import type { OfflineReputation } from "./analysis/freePhoneIntel";
 import type { IpClassification } from "./analysis/ipClassify";
@@ -6,7 +7,7 @@ import type { BreachAggregate } from "./analysis/breachAggregate";
 import type { CredentialExposure } from "./analysis/credentialExposure";
 
 export type { PhoneAnalysis, CountryIntel, OfflineReputation, IpClassification };
-export type { BreachAggregate, CredentialExposure };
+export type { BreachAggregate, CredentialExposure, Assignability };
 
 export interface PhoneInputData {
   raw: string;
@@ -226,8 +227,27 @@ export interface LookupResponse {
    */
   sourceHealth?: SourceProvenance[];
   aggregated: AggregatedResult;
-  threatScore: number;          // 0-100 unified threat score
-  threatLabel: string;          // "CLEAN" | "LOW RISK" | "MODERATE" | "HIGH RISK" | "CRITICAL"
+  /**
+   * 0-100 ABUSE risk: fraud score, abuse reports, premium-rate billing, VOIP.
+   * It no longer includes breach volume — that is `exposureScore`. Folding the
+   * two together is what made a published switchboard read MODERATE because a
+   * breach index held eleven records mentioning it.
+   */
+  threatScore: number;
+  threatLabel: string;          // "CLEAN" | "LOW RISK" | "MODERATE" | "HIGH RISK" | "CRITICAL" | "NOT ASSIGNABLE"
+  /** Why the abuse figure is what it is, one line per contributing signal. */
+  threatReasons?: string[];
+  /** 0-100 EXPOSURE: how much of this identifier is already public. */
+  exposureScore?: number;
+  exposureLabel?: string;       // "NONE OBSERVED" | "LIMITED" | "SIGNIFICANT" | "EXTENSIVE" | "NOT ASSESSED"
+  exposureReasons?: string[];
+  /**
+   * Whether a subscriber can hold this number at all. When `assignable` is
+   * false the breach and infostealer sources carry `NOT_ASSIGNABLE` instead of
+   * results: those indexes answer for placeholder numbers, and attributing
+   * someone else's leaked form field to this number would be a false positive.
+   */
+  assignability?: Assignability;
   /** Server-computed, catalog-enriched union across this mode's breach sources. */
   breachAggregate?: BreachAggregate;
   /** Fused credential-exposure + reuse assessment (COMB is email-only, so no pairs here). */
@@ -260,7 +280,10 @@ export type EmailProviderType =
 export interface EmailAnalysis {
   email: string;
   username: string;
+  /** ASCII (punycode) domain — what the upstreams are actually asked about. */
   domain: string;
+  /** Unicode spelling of `domain`, for display. Equal to it for an ASCII name. */
+  domainUnicode: string;
   tld: string;
   isValidFormat: boolean;
   providerType: EmailProviderType;
@@ -427,8 +450,14 @@ export type MailProviderCategory =
   | "rackspace" | "other" | "none";
 
 export interface MailProviderData {
-  /** At least one MX record is published for the domain. */
+  /** Mail can be delivered: at least one MX names a real exchanger. */
   hasMx: boolean;
+  /**
+   * True when the domain publishes an RFC 7505 null MX (one record of
+   * preference 0 whose exchange is the root label), which is it declaring that
+   * it accepts no mail. `hasMx: false` alone only means none was published.
+   */
+  nullMx: boolean;
   /** Mail exchangers, primary (lowest priority number) first, deduplicated. */
   mxHosts: string[];
   /** Human-readable provider, e.g. "Google Workspace" or "Self-managed …". */
@@ -439,6 +468,17 @@ export interface MailProviderData {
 export interface EmailLookupResponse {
   email: string;
   analysis: EmailAnalysis;
+  /**
+   * 0-100 ABUSE risk from reputation signals only. Optional so a response
+   * cached before the split still renders; the dashboard recomputes it.
+   */
+  threatScore?: number;
+  threatLabel?: string;
+  threatReasons?: string[];
+  /** 0-100 EXPOSURE: breach records, credential dumps, infostealer captures. */
+  exposureScore?: number;
+  exposureLabel?: string;
+  exposureReasons?: string[];
   gravatar: GravatarProfile;
   /** Keyless mail-exchange fingerprint (Cloudflare DoH). Optional so a response
    * cached before this field existed still renders. */
@@ -522,6 +562,11 @@ export interface IdentitySignals {
   bios: { value: string; source: string }[];
 }
 
+import type { ResolvedIdentity } from "./analysis/identityResolve";
+import type { LinkProof } from "./analysis/identityLinks";
+import type { AvatarCluster } from "./analysis/phash";
+export type { ResolvedIdentity, LinkProof, AvatarCluster };
+
 export interface UsernameLookupResponse {
   username: string;
   /** Sites we could actually auto-verify (excludes `manual` sites). */
@@ -534,6 +579,22 @@ export interface UsernameLookupResponse {
   profiles: SocialProfile[];
   /** Real-name / location / avatar candidates synthesised from `profiles`. */
   identity: IdentitySignals;
+  /**
+   * The server's entity resolution over `identity`, fusing only the accounts
+   * `identityProofs` actually links. Optional so a response cached before this
+   * existed still renders (the client resolves it as a fallback).
+   */
+  resolvedIdentity?: ResolvedIdentity;
+  /** What links two accounts to one subject: a self-link, or a matching photo. */
+  identityProofs?: LinkProof[];
+  /**
+   * Accounts whose profile photos are the same image, by perceptual hash
+   * computed SERVER-side. It used to be computed on a browser canvas, which
+   * needs CORS, so it never worked for a host that does not send the header.
+   */
+  avatarClusters?: AvatarCluster[];
+  /** Avatars that produced no hash, with the reason (a platform default, …). */
+  avatarSkipped?: { url: string; source: string; reason: string }[];
   /** Derived dork/search links to pivot further (no key) */
   pivots: { label: string; url: string }[];
   /** LeakCheck public breach index — free, no key. */
@@ -547,6 +608,44 @@ export interface UsernameLookupResponse {
   /** Uniform per-source provenance — same shape as every other lookup mode. */
   sourceHealth?: SourceProvenance[];
   cachedAt?: number;
+}
+
+/** One deep-sweep probe result. Same three-state honesty as the fast sweep. */
+export interface SweepHit {
+  site: string;
+  category: string;
+  /** The profile URL to show, which can differ from the URL probed. */
+  url: string;
+  status: "found" | "notfound" | "unknown";
+  httpStatus?: number;
+  /**
+   * Anti-bot protection the catalog records for this site. An `unknown` on a
+   * Cloudflare-protected site is explained by this rather than looking like a
+   * tool failure.
+   */
+  protection?: string[];
+}
+
+export interface UsernameSweepResponse {
+  username: string;
+  offset: number;
+  /** Sites probed in THIS page. */
+  limit: number;
+  /** Sites in the sweep this request covers. */
+  total: number;
+  /**
+   * Sites excluded because their detection markers failed the last validation
+   * run. Available with `includeUnvalidated`, and reported so the coverage is
+   * legible rather than silently narrowed.
+   */
+  unvalidated: number;
+  /** Offset for the next page, or null at the end. */
+  nextOffset: number | null;
+  hits: SweepHit[];
+  found: number;
+  notfound: number;
+  unknown: number;
+  sourceHealth?: SourceProvenance[];
 }
 
 // ── IP OSINT ────────────────────────────────────────────────────────────────
@@ -605,9 +704,17 @@ export interface SourceProvenance {
   fetchedAt: number;
   error?: string;
   /**
-   * True when the source was never called because its API key isn't
-   * configured. Distinct from `ok: false`, which means it was called and
-   * failed — an unconfigured optional source is not an outage.
+   * True when the source was never called at all. Distinct from `ok: false`,
+   * which means it was called and failed: a source that was never called is not
+   * an outage. `error` says which of the two reasons applies:
+   *
+   *   NOT_CONFIGURED  its API key is not set, so adding one would enable it
+   *   NO_INPUT        it is keyless, but this lookup had nothing to ask it
+   *                   about (no resolved address, no registrant organisation)
+   *
+   * The distinction is not cosmetic: a report that says "not configured" for a
+   * keyless source tells the reader a key would have produced an answer, which
+   * is false.
    */
   skipped?: boolean;
 }
@@ -692,6 +799,12 @@ export interface TlsInfo {
   cipher: string | null;
   issuer: string | null;
   subject: string | null;
+  /** Subject organisation (OV/EV certificates only): a CA-verified legal name. */
+  subjectOrg?: string | null;
+  /** EV only: ISO country of the jurisdiction of incorporation. */
+  subjectJurisdiction?: string | null;
+  /** EV only: the company registration number the CA verified. */
+  subjectRegistrationNumber?: string | null;
   altNames: string[];
   validFrom: string | null;
   validTo: string | null;
@@ -719,8 +832,8 @@ export interface HttpProbe {
   tls: TlsInfo | null;
 }
 
-import type { TakeoverSignal } from "./analysis/subdomainTakeover";
-export type { TakeoverSignal };
+import type { TakeoverSignal, TakeoverVerification } from "./analysis/subdomainTakeover";
+export type { TakeoverSignal, TakeoverVerification };
 
 /**
  * A dangling-CNAME subdomain-takeover candidate: the affected name plus the
@@ -731,6 +844,12 @@ export type { TakeoverSignal };
 export interface TakeoverCandidate extends TakeoverSignal {
   /** The subdomain (or apex) whose CNAME points at the takeover-prone service. */
   name: string;
+  /**
+   * What a live probe of `name` found. Candidates verified as `claimed` are
+   * dropped server-side, so only "unclaimed" (fingerprint served) and
+   * "unverified" (nothing answered) ever reach the UI.
+   */
+  verification: TakeoverVerification;
 }
 
 /** One breach the vendored HIBP catalog records for a domain. */
@@ -746,8 +865,51 @@ export interface DomainBreach {
 /** The DNS queries a domain lookup makes. DMARC is the TXT query on `_dmarc.<domain>`. */
 export type DnsQueryKind = "A" | "AAAA" | "MX" | "TXT" | "NS" | "CNAME" | "DMARC" | "DNSKEY";
 
+/**
+ * What each subdomain source contributed, so a short list can be read.
+ *
+ * A bare count is not a finding: 9 subdomains from a source that only publishes
+ * recent certificates means something different from 9 from the full CT history.
+ * Measured on wordpress.org, those two answers were 9 and 25.
+ */
+export interface SubdomainCoverage {
+  sources: { source: string; ok: boolean; found: number }[];
+  /** Distinct hosts found across all sources, before the reporting cap. */
+  distinct: number;
+  /** The reporting cap applied to the list. */
+  limit: number;
+  /** True when `distinct` exceeded the cap, so the list is a prefix. */
+  capped: boolean;
+}
+
+/** A discovered subdomain with its current A records. `[]` means it resolves to nothing. */
+export interface SubdomainHost {
+  host: string;
+  addresses: string[];
+}
+
+/** Shodan / GreyNoise exposure for one address. `null` fields mean "not learned". */
+export interface HostExposureRecord {
+  ip: string;
+  ports: number[] | null;
+  vulns: string[] | null;
+  hostnames: string[] | null;
+  tags: string[] | null;
+  greyNoise: IpLookupData["greyNoise"];
+  isTor: boolean | null;
+  isVpn: boolean | null;
+  isProxy: boolean | null;
+}
+
+import type { PassiveDnsResult, PassiveDnsRecord } from "./server/passiveDns";
+import type { LeiOutcome, LeiRecord } from "./server/gleif";
+export type { PassiveDnsResult, PassiveDnsRecord, LeiOutcome, LeiRecord };
+
 export interface DomainLookupResponse {
+  /** ASCII (punycode) form — the name every upstream was asked about. */
   domain: string;
+  /** Unicode spelling, set only for an internationalised name. */
+  domainUnicode?: string;
   isValid: boolean;
   dns: {
     a: DnsRecord[];
@@ -758,8 +920,34 @@ export interface DomainLookupResponse {
     cname: DnsRecord[];
   };
   whois: DomainWhois | null;
-  /** Subdomains discovered via certificate transparency (crt.sh) */
+  /**
+   * Subdomains discovered across certificate transparency (Certspotter + crt.sh)
+   * and reverse IP, deduplicated and sorted. `subdomainCoverage` says which
+   * source found how many, and whether the list was capped.
+   */
   subdomains: string[];
+  subdomainCoverage?: SubdomainCoverage;
+  /** Current A records for the first N discovered subdomains. */
+  subdomainHosts?: SubdomainHost[];
+  /**
+   * Passive-DNS history for the apex: what it used to resolve to, with
+   * first/last-seen. null when the source did not answer, which is never the
+   * same as "this name has no history".
+   */
+  passiveDns?: PassiveDnsResult | null;
+  /** Shodan / GreyNoise exposure for the apex's own resolved addresses. */
+  hostExposure?: HostExposureRecord[];
+  /**
+   * Other hostnames sharing the apex's first A record. Co-hosting, not
+   * subdomains: names under this domain are merged into `subdomains` instead.
+   */
+  reverseIp?: { ip: string; hosts: string[]; total: number } | null;
+  /**
+   * Legal-entity register match for the RDAP registrant organisation. null when
+   * WHOIS was redacted (nothing to query) or the register did not answer;
+   * `records: []` means it answered and held nothing for that name.
+   */
+  lei?: LeiOutcome | null;
   /**
    * Email-security posture derived from TXT / _dmarc TXT / MX. Each `has*` is
    * null when its DNS query got no answer: unknown, which is never the same as
@@ -772,6 +960,13 @@ export interface DomainLookupResponse {
     hasDmarc: boolean | null;
     dmarcPolicy: string | null;   // none / quarantine / reject
     hasMx: boolean | null;
+    /**
+     * True when the domain publishes an RFC 7505 null MX: a single MX of
+     * preference 0 whose exchange is the root label, which is the domain saying
+     * it accepts no mail. Distinct from `hasMx: false`, which only means no
+     * exchanger was published. null when the MX query went unanswered.
+     */
+    nullMx: boolean | null;
   };
   /** DNSSEC signed? (DNSKEY present). null = couldn't determine. */
   dnssec: boolean | null;
@@ -808,11 +1003,67 @@ export interface DomainLookupResponse {
   cachedAt?: number;
 }
 
+// ── Typosquat resolution ────────────────────────────────────────────────────
+
+/** One generated look-alike, and what DNS says about it. */
+export interface TyposquatFinding {
+  /** The candidate as DNS sees it (punycode for an IDN look-alike). */
+  domain: string;
+  /** Unicode spelling, for an IDN homoglyph candidate. */
+  display?: string;
+  technique: string;
+  addresses: string[];
+  /** Mail exchangers, so "this look-alike can receive mail" is visible. */
+  mx: string[];
+  /** True when the name has A or MX records: it is live, not merely generated. */
+  resolves: boolean;
+  /** False when a query got no answer, so `resolves: false` is not an absence. */
+  answered: boolean;
+  /** RDAP registration facts, for the first few resolving candidates only. */
+  whois: { registrar: string | null; createdDate: string | null } | null;
+  /** Days since registration, when RDAP supplied a creation date. */
+  ageDays: number | null;
+}
+
+export interface TyposquatScanResponse {
+  domain: string;
+  /** How many candidates the generator produced. */
+  generated: number;
+  /** How many were actually resolved (bounded by the request's limit). */
+  checked: number;
+  resolving: number;
+  withMail: number;
+  /** Candidates whose DNS queries got no answer: unknown, not absent. */
+  unanswered: number;
+  /** Only the candidates that resolve. The rest are not findings. */
+  findings: TyposquatFinding[];
+  sourceHealth?: SourceProvenance[];
+}
+
 // ── Crypto wallet OSINT ─────────────────────────────────────────────────────
 
 import type { WalletChain, WalletFacts } from "./analysis/wallet";
 import type { EnsIdentity } from "./analysis/ens";
-export type { WalletChain, WalletFacts, EnsIdentity };
+import type { WalletActivity, TokenBalance } from "./analysis/walletActivity";
+import type { SanctionedAddress } from "./data/sanctionedAddresses";
+export type { WalletChain, WalletFacts, EnsIdentity, WalletActivity, TokenBalance, SanctionedAddress };
+
+/**
+ * OFAC screening result for one address, from the vendored SDN snapshot.
+ *
+ * `listed: false` means "not on the SDN list", which is not the same as clean —
+ * the panel says so. Other authorities publish their own lists, and an address
+ * one hop from a designated one is not itself designated.
+ */
+export interface SanctionsScreening {
+  listed: boolean;
+  matches: SanctionedAddress[];
+  source: string;
+  /** ISO date the snapshot was taken, so its age is visible. */
+  snapshotDate: string;
+  /** Addresses in the snapshot, for the scope note. */
+  listSize: number;
+}
 
 export interface WalletLookupResponse {
   input: string;
@@ -826,6 +1077,19 @@ export interface WalletLookupResponse {
    * absent on cached results from before this existed.
    */
   ens?: EnsIdentity | null;
+  /**
+   * OFAC SDN screening. Present for every wallet lookup, including one whose
+   * chain the tool cannot read: the sanctions answer is offline and does not
+   * depend on an explorer.
+   */
+  sanctions?: SanctionsScreening;
+  /**
+   * Recent-history summary (Bitcoin). Every field is explicitly a SAMPLE of the
+   * most recent transactions, never a claim about the whole history.
+   */
+  activity?: WalletActivity | null;
+  /** Non-zero ERC-20 balances from the fixed token list (Ethereum). */
+  tokens?: TokenBalance[];
   sourceHealth?: SourceProvenance[];
   error?: string;
   cachedAt?: number;
@@ -849,7 +1113,14 @@ export interface HashLookupResponse {
 
 // ── Investigation cases (persistent store) ──────────────────────────────────
 
-export type EntityKind = "phone" | "email" | "username" | "ip" | "domain";
+/**
+ * Identifier kinds a case, an edge, a snapshot or the graph can hold.
+ *
+ * `wallet` and `hash` are here because the tool has modes for both: leaving them
+ * out meant a wallet address could be looked up but never pinned, and the link
+ * graph knew five of the seven things the console can investigate.
+ */
+export type EntityKind = "phone" | "email" | "username" | "ip" | "domain" | "wallet" | "hash";
 
 export interface CaseEntity {
   kind: EntityKind;
@@ -913,4 +1184,10 @@ export interface InvestigationCase {
   edges?: CaseEdge[];
   /** Lookup fingerprints, newest last, capped per identifier. */
   snapshots?: CaseSnapshot[];
+  /**
+   * When the analyst last marked this case's changes as read. Anything that
+   * moved after it is unread in the change inbox. Absent means nothing has been
+   * reviewed yet, so every change is unread.
+   */
+  reviewedAt?: number;
 }

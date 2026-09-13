@@ -36,7 +36,7 @@ describe("analyzeLookup dispatch", () => {
   });
 
   it("analyses a domain lookup", () => {
-    const data = { domain: "example.com", emailSecurity: { hasMx: false, hasDmarc: false }, http: null, dnssec: null } as unknown as DomainLookupResponse;
+    const data = { domain: "example.com", emailSecurity: { hasMx: false, nullMx: false, hasDmarc: false }, http: null, dnssec: null } as unknown as DomainLookupResponse;
     expect(analyzeLookup({ kind: "domain", data }).subject).toBe("example.com");
   });
 

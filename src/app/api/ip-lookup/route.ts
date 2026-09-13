@@ -8,6 +8,7 @@ import { markAll } from "@/lib/server/sourceHealth";
 import { getCachedIp, setCachedIp } from "@/lib/server/cache";
 import { fetchBudgeted } from "@/lib/server/upstreamBudget";
 import { parseAbuse, parseNetwork, parseAnnounced } from "@/lib/analysis/ripeStat";
+import { fetchHostExposure, hasExposure } from "@/lib/server/hostExposure";
 import type { IpLookupResponse, IpLookupData, SourceProvenance } from "@/lib/types";
 
 // ── IP OSINT — free, no API key ──────────────────────────────────────────────
@@ -49,25 +50,6 @@ interface IpApiResponse {
   hosting?: boolean;
   continent?: string;
   query?: string;
-}
-
-interface ShodanIDB {
-  ip?: string;
-  ports?: number[];
-  vulns?: string[];
-  hostnames?: string[];
-  tags?: string[];
-  cpes?: string[];
-}
-
-interface GreyNoiseCommunity {
-  ip?: string;
-  noise?: boolean;
-  riot?: boolean;
-  classification?: string;
-  name?: string;
-  last_seen?: string;
-  message?: string;
 }
 
 /** ipwho.is — the fallback geo provider. HTTPS, keyless, different rate pool. */
@@ -317,8 +299,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const rlHeaders = rl.headers;
   const client = rl.client;
 
-  const body = await parseBody(req, ipBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
+  const parsed = await parseBody(req, ipBody);
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  const body = parsed.data;
 
   const target = body.ip.trim();
   if (!target) return NextResponse.json({ error: "Missing IP address" }, { status: 400, headers: rlHeaders });
@@ -351,26 +334,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // Shodan and GreyNoise run alongside the geo lookup — they answer about
-  // exposure rather than location, so neither depends on the other.
-  const shodanJob = fetchBudgeted<ShodanIDB>(`https://internetdb.shodan.io/${encodeURIComponent(target)}`, {
-    source: "Shodan InternetDB", timeoutMs: 6000, allowNon2xx: true,
-  });
-  const gnJob = fetchBudgeted<GreyNoiseCommunity>(`https://api.greynoise.io/v3/community/${encodeURIComponent(target)}`, {
-    source: "GreyNoise Community", timeoutMs: 6000, allowNon2xx: true, // 404 = "not observed", still useful
-  });
-
+  // exposure rather than location, so neither depends on the other. Both live in
+  // hostExposure.ts, which domain mode now uses for the IPs it resolves.
+  const exposureJob = fetchHostExposure(target);
   const ripeJob = resolveRipe(target);
 
-  const [geo, shodan, gn, ripe] = await Promise.all([resolveGeo(target), shodanJob, gnJob, ripeJob]);
+  const [geo, host, ripe] = await Promise.all([resolveGeo(target), exposureJob, ripeJob]);
 
-  // `allowNon2xx` means a non-200 now arrives as ok:false with a reason rather
-  // than as a bare failure, so success has to be stated explicitly.
-  const shodanOk = shodan.status === 200;
-  const gnOk = gn.status === 200 || gn.status === 404;
   const sources: SourceProvenance[] = markAll([
     ...geo.sources,
-    { source: shodan.source, ok: shodanOk, ms: shodan.ms, fetchedAt: shodan.fetchedAt, error: shodanOk ? undefined : shodan.error },
-    { source: gn.source, ok: gnOk, ms: gn.ms, fetchedAt: gn.fetchedAt, error: gnOk ? undefined : gn.error },
+    ...host.provenance,
     ripe.provenance,
   ]);
 
@@ -380,42 +353,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     city: null, region: null, country: null, countryCode: null, continent: null,
     latitude: null, longitude: null, postal: null, timezone: null, utcOffset: null,
     asn: null, asnOrg: null, isp: null, org: null,
-    isProxy: null, isVpn: null, isTor: null, isHosting: null, isMobile: null,
+    isHosting: null, isMobile: null,
     reverse: null,
     ...geo.facts,
     flagEmoji: geo.facts?.countryCode ? countryToFlagEmoji(geo.facts.countryCode) : null,
-    ports: null, vulns: null, hostnames: null, tags: null,
-    greyNoise: null,
+    ports: host.exposure.ports,
+    vulns: host.exposure.vulns,
+    hostnames: host.exposure.hostnames,
+    tags: host.exposure.tags,
+    greyNoise: host.exposure.greyNoise,
+    // Shodan's tags can only ADD an anonymity flag. Spreading the exposure
+    // wholesale would let its null overwrite ip-api's own proxy/VPN answer,
+    // turning "the geo provider says this is a proxy" into "not checked".
+    isTor: host.exposure.isTor,
+    isVpn: host.exposure.isVpn ?? geo.facts?.isVpn ?? null,
+    isProxy: host.exposure.isProxy ?? geo.facts?.isProxy ?? null,
     // RIPEstat enrichment — independent of the geo provider, so present even when
     // ip-api is out of budget and ipwho.is answered.
     abuseContact: ripe.facts.abuseContact,
     prefix: ripe.facts.prefix,
     announcedPrefixes: ripe.facts.announcedPrefixes,
   };
-
-  // Merge Shodan exposure (only on a real 200 with content).
-  if (shodanOk && shodan.data) {
-    const s = shodan.data;
-    data.ports     = s.ports?.length ? s.ports : null;
-    data.vulns     = s.vulns?.length ? s.vulns : null;
-    data.hostnames = s.hostnames?.length ? s.hostnames : null;
-    data.tags      = s.tags?.length ? s.tags : null;
-    const tags = (data.tags ?? []).map((t) => t.toLowerCase());
-    if (tags.includes("tor"))   data.isTor = true;
-    if (tags.includes("vpn"))   data.isVpn = true;
-    if (tags.includes("proxy")) data.isProxy = true;
-  }
-
-  // Merge GreyNoise community classification (200 with a classification field).
-  if (gn.data && gn.status === 200 && gn.data.classification) {
-    data.greyNoise = {
-      classification: gn.data.classification,
-      noise: Boolean(gn.data.noise),
-      riot: Boolean(gn.data.riot),
-      name: gn.data.name ?? null,
-      lastSeen: gn.data.last_seen ?? null,
-    };
-  }
 
   // Only a total blackout is a failure.
   //
@@ -425,15 +383,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // actually learned something — `ip` and `type` are echoes of what the caller
   // typed, so a card containing only those is an empty result dressed up as a
   // success, which is worse than an error.
-  const hasExposure =
-    data.ports !== null || data.vulns !== null ||
-    data.hostnames !== null || data.tags !== null ||
-    data.greyNoise !== null;
-
   // Written as `geo.facts === null` rather than via a combined boolean so the
   // union narrows: in here, `geo.error` is a string by construction and there
   // is no "failed for no stated reason" branch to leave untested.
-  if (geo.facts === null && !hasExposure) {
+  if (geo.facts === null && !hasExposure(host.exposure)) {
     void audit("ip", target, client, 502);
     return fail(target, geo.error, rlHeaders, sources);
   }

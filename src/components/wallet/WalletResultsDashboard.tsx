@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Coins, Wallet, ArrowDownLeft, ArrowUpRight, Activity, ExternalLink, AlertTriangle, CheckCircle2, XCircle, BadgeCheck, ShieldAlert } from "lucide-react";
+import { Coins, Wallet, ArrowDownLeft, ArrowUpRight, Activity, ExternalLink, AlertTriangle, CheckCircle2, XCircle, BadgeCheck, ShieldAlert, Gavel, History } from "lucide-react";
 import type { WalletLookupResponse } from "@/lib/types";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import CopyButton from "@/components/shared/CopyButton";
@@ -77,6 +77,75 @@ export default function WalletResultsDashboard({ data }: Props) {
           </div>
         )}
       </div>
+
+      {/* Sanctions screening. Shown for every lookup, including one whose chain
+          the tool cannot read a balance from — the answer is offline. */}
+      {data.sanctions && (
+        <div className="terminal-card p-4 space-y-2 border"
+          style={{ borderColor: data.sanctions.listed ? "#ff4d6d70" : "var(--hv-glass-border)" }}>
+          <div className="text-[12px] uppercase tracking-widest flex items-center gap-1.5"
+            style={{ color: data.sanctions.listed ? "#ff4d6d" : "var(--hv-ink-dim)" }}>
+            <Gavel className="w-3.5 h-3.5" /> SANCTIONS SCREEN: OFAC SDN
+          </div>
+          {data.sanctions.listed ? (
+            <div className="space-y-1.5">
+              {data.sanctions.matches.map((m) => (
+                <div key={`${m.uid}-${m.address}`} className="text-xs font-mono text-[var(--hv-ink)]">
+                  <span className="text-[#ff4d6d] font-bold">LISTED</span> as {m.entity}
+                  <span className="text-[var(--hv-ink-dim)]"> · {m.entityType} · programs {m.programs.join(", ") || "unspecified"} · SDN entry {m.uid} · {m.ticker}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-xs font-mono text-[var(--hv-green)]">
+              Not on the SDN list.
+            </div>
+          )}
+          <p className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
+            {data.sanctions.listSize.toLocaleString()} designated addresses, snapshot of {data.sanctions.snapshotDate}.
+            This is the OFAC SDN list only: no match means not on this list, which is not the same as clean, and an
+            address that merely transacted with a listed one is not itself listed.
+          </p>
+        </div>
+      )}
+
+      {/* Recent-history sample (Bitcoin). Every figure is labelled as a sample. */}
+      {data.activity && (
+        <div className="terminal-card p-4 space-y-2">
+          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
+            <History className="w-3.5 h-3.5" /> RECENT ACTIVITY
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+            <Row label="Last seen" value={data.activity.lastActivity} accent="var(--hv-cyan)" />
+            <Row label="Oldest sampled" value={data.activity.oldestSampled} />
+            <Row label="Transactions sampled" value={String(data.activity.sampled)} />
+            <Row label="Counterparties" value={String(data.activity.counterparties)} accent="#fb923c" />
+          </div>
+          <p className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
+            From the most recent {data.activity.sampled} transactions{data.activity.capped ? " of a longer history" : ""}.
+            &quot;Oldest sampled&quot; is the earliest in that page, not the address&apos;s first activity, and the
+            counterparty count is a floor.
+          </p>
+        </div>
+      )}
+
+      {/* ERC-20 holdings (Ethereum), zero balances omitted. */}
+      {data.tokens && data.tokens.length > 0 && (
+        <div className="terminal-card p-4 space-y-2">
+          <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
+            <Coins className="w-3.5 h-3.5" /> TOKEN HOLDINGS
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+            {data.tokens.map((t) => (
+              <Row key={t.contract} label={t.symbol} value={t.amount} accent="#627eea" />
+            ))}
+          </div>
+          <p className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
+            Read directly from each token contract over a public RPC. A fixed list of major assets: no keyless source
+            can enumerate every token an address holds, so this is a floor rather than a portfolio.
+          </p>
+        </div>
+      )}
 
       <div className="terminal-card p-4 space-y-2">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Coins className="w-3 h-3" /> DEEPEN: free explorers (no key)</div>

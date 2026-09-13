@@ -1,219 +1,209 @@
 "use client";
 
-import { useState } from "react";
-import { Download, ListChecks, AlertTriangle, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Download, ListChecks, AlertTriangle, Loader2, Play, Square } from "lucide-react";
+import type { BulkRow, BulkJob } from "@/lib/server/bulkJobs";
 
-interface BulkRow {
-  input: string;
-  ok: boolean;
+/** What the POST returns when a job is queued. */
+interface StartResponse {
+  id: string;
+  total: number;
+  state: string;
+  skipped: { input: string; reason: string }[];
+  truncated?: number;
   error?: string;
-  e164?: string;
-  valid?: boolean;
-  country?: string | null;
-  countryName?: string;
-  type?: string | null;
-  carrier?: string | null;
-  timezone?: string | null;
-  utcOffset?: string | null;
-  npaState?: string | null;
-  npaRegion?: string | null;
-  cached?: boolean;
 }
 
-interface BulkResponse {
-  count: number;
-  rows: BulkRow[];
-}
+const MODES = ["auto", "phone", "email", "username", "ip", "domain", "wallet", "hash"] as const;
+type ModeChoice = (typeof MODES)[number];
 
-const MAX_BULK = 25;
-
-function toCsv(rows: BulkRow[]): string {
-  const headers = [
-    "input", "ok", "error", "e164", "valid", "country", "countryName",
-    "type", "carrier", "timezone", "utcOffset", "npaState", "npaRegion", "cached",
-  ];
+/**
+ * CSV of whatever the job produced.
+ *
+ * Built client-side from the rows already on screen so the download matches
+ * exactly what the analyst is looking at. Cells that begin with a formula
+ * character are prefixed with a quote: a phone number starts with "+", and
+ * Excel would otherwise evaluate it.
+ */
+export function toCsv(rows: BulkRow[]): string {
+  const keys = [...new Set(rows.flatMap((r) => Object.keys(r.summary)))];
+  const headers = ["mode", "input", "ok", "status", "error", ...keys];
   const esc = (v: unknown): string => {
     if (v === null || v === undefined) return "";
     let s = String(v);
-    // CSV formula-injection guard: a cell starting with = + - @ (or tab/CR) is
-    // run as a formula by Excel/Sheets. Phone numbers begin with "+", so prefix
-    // a single quote (Excel hides it, value reads as text).
     if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-    if (s.includes(",") || s.includes("\"") || s.includes("\n")) {
-      return `"${s.replace(/"/g, "\"\"")}"`;
-    }
-    return s;
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const body = rows.map((r) =>
-    headers.map((h) => esc((r as unknown as Record<string, unknown>)[h])).join(",")
+  const lines = rows.map((r) =>
+    [r.mode, r.input, r.ok, r.status, r.error ?? "", ...keys.map((k) => r.summary[k])].map(esc).join(","),
   );
-  return [headers.join(","), ...body].join("\n");
+  return [headers.join(","), ...lines].join("\n");
 }
 
+/**
+ * Bulk triage across every mode.
+ *
+ * The old panel ran offline phone analysis over at most 25 numbers. This queues
+ * a real job — the same lookups, the same sources, the same provenance as a
+ * single-target run — and streams rows in as they land, because 200 domains is
+ * minutes of work and a request that long would simply time out.
+ */
 export default function BulkLookup() {
   const [input, setInput] = useState("");
+  const [mode, setMode] = useState<ModeChoice>("auto");
+  const [job, setJob] = useState<BulkJob | null>(null);
+  const [skipped, setSkipped] = useState<StartResponse["skipped"]>([]);
+  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [rows, setRows] = useState<BulkRow[] | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const numbers = input
-    .split(/[\n,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // Stop polling when the panel goes away, so a backgrounded tab does not keep
+  // a timer alive against a job nobody is watching.
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  const tooMany = numbers.length > MAX_BULK;
-
-  async function run() {
-    setErrorMsg(null);
-    setRows(null);
-
-    // Both guards are unreachable from the UI (the RUN button is disabled in
-    // exactly these two states); they keep run() safe if it is ever called from
-    // somewhere else.
-    /* v8 ignore start -- unreachable: RUN is disabled while empty or over the cap */
-    if (numbers.length === 0) {
-      setErrorMsg("Paste at least one phone number.");
-      return;
+  // Polling is a loop rather than a self-referencing callback: a job runs for
+  // minutes, and the client only needs to keep asking until it stops running.
+  const poll = useCallback(async (id: string) => {
+    for (;;) {
+      const res = await fetch(`/api/bulk-lookup?id=${encodeURIComponent(id)}`);
+      if (!res.ok) { setError("the job could not be read"); setBusy(false); return; }
+      const next = (await res.json()) as BulkJob;
+      setJob(next);
+      if (next.state !== "running") { setBusy(false); return; }
+      await new Promise<void>((resolve) => { timer.current = setTimeout(resolve, 1200); });
     }
-    if (tooMany) {
-      setErrorMsg(`Max ${MAX_BULK} numbers per batch: got ${numbers.length}.`);
-      return;
-    }
-    /* v8 ignore stop */
+  }, []);
 
+  const start = useCallback(async () => {
+    const items = input.split(/[\n,;]+/).map((line) => line.trim()).filter(Boolean);
+    if (items.length === 0) { setError("Paste some identifiers first."); return; }
+    setError("");
+    setJob(null);
+    setSkipped([]);
     setBusy(true);
     try {
       const res = await fetch("/api/bulk-lookup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ numbers }),
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ items, mode }),
       });
-      const json = (await res.json()) as BulkResponse | { error: string };
-      if (!res.ok || !("rows" in json)) {
-        setErrorMsg("error" in json ? json.error : `HTTP ${res.status}`);
-        return;
-      }
-      setRows(json.rows);
+      const started = (await res.json()) as StartResponse;
+      if (!res.ok) { setError(started.error ?? "the job could not be started"); setBusy(false); return; }
+      setSkipped(started.skipped ?? []);
+      await poll(started.id);
     } catch {
-      setErrorMsg("Network error: is the dev server running?");
-    } finally {
+      setError("the job could not be started");
       setBusy(false);
     }
-  }
+  }, [input, mode, poll]);
 
-  function downloadCsv() {
-    /* v8 ignore next -- unreachable: the download button only renders once `rows` exists */
-    if (!rows) return;
-    const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" });
+  const cancel = useCallback(async () => {
+    if (!job) return;
+    await fetch(`/api/bulk-lookup?id=${encodeURIComponent(job.id)}`, { method: "DELETE" });
+  }, [job]);
+
+  const download = (done: BulkJob) => {
+    const blob = new Blob([toCsv(done.rows)], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `geointel-bulk-${Date.now()}.csv`;
+    a.download = `bulk-${done.id.slice(0, 8)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }
+  };
 
-  // Three disjoint buckets: a parsed row is either a valid number or an invalid
-  // one, and an unparsed row failed. "OK" used to count invalid numbers too.
-  const validCount = rows?.filter((r) => r.ok && r.valid === true).length ?? 0;
-  const invalidCount = rows?.filter((r) => r.ok && r.valid === false).length ?? 0;
-  const errCount = rows?.filter((r) => !r.ok).length ?? 0;
+  const percent = job && job.total > 0 ? Math.round((job.done / job.total) * 100) : 0;
 
   return (
-    <div className="space-y-3">
-      <label className="block text-[12px] uppercase tracking-widest text-[#00ff41]/55 font-mono">
-        Paste up to {MAX_BULK} phone numbers: one per line, or comma-separated
-      </label>
-      <textarea
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        rows={6}
-        spellCheck={false}
-        aria-label="Bulk phone-number input"
-        placeholder={"+14155552671\n+447911123456\n+919876543210"}
-        className="w-full bg-[#0a0a0a] border border-[#00ff41]/25 focus:border-[#00ff41]/55 focus:outline-none px-3 py-2 font-mono text-sm text-[#00ff41] placeholder:text-[#00ff41]/54 resize-y"
-      />
-
-      <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={run}
-          disabled={busy || numbers.length === 0 || tooMany}
-          className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-widest border border-[#00ff41]/55 text-[#00ff41] px-4 py-2 hover:bg-[#00ff41]/10 disabled:border-[#00ff41]/15 disabled:text-[#00ff41]/54 disabled:cursor-not-allowed transition-colors"
-        >
-          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListChecks className="w-3 h-3" />}
-          {busy ? "ANALYSING…" : `RUN BULK (${numbers.length})`}
-        </button>
-
-        {rows && (
-          <button
-            onClick={downloadCsv}
-            className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-widest border border-[#00d9ff]/55 text-[#00d9ff] px-4 py-2 hover:bg-[#00d9ff]/10 transition-colors"
-          >
-            <Download className="w-3 h-3" />
-            DOWNLOAD CSV ({rows.length})
-          </button>
-        )}
-
-        {tooMany && (
-          <span className="text-[12px] font-mono text-[#ff3e3e] flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" />
-            {numbers.length} pasted: max is {MAX_BULK}
-          </span>
-        )}
+    <div className="space-y-4 mt-6">
+      <div className="terminal-card p-4 space-y-3">
+        <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
+          <ListChecks className="w-3.5 h-3.5" /> BULK TRIAGE: any identifier, up to 500 rows
+        </div>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          aria-label="Bulk identifier input"
+          rows={6}
+          placeholder={"One per line, or comma-separated.\nwordpress.org\nsecurity@example.com\n+14155552671\n8.8.8.8"}
+          className="w-full bg-transparent border border-[var(--hv-glass-border)] rounded-md p-2.5 text-xs font-mono text-[var(--hv-ink)] focus:outline-none focus:border-[var(--hv-glass-hi)]"
+        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="text-[11px] font-mono text-[var(--hv-ink-dim)]" htmlFor="bulk-mode">mode</label>
+          <select id="bulk-mode" value={mode} onChange={(e) => setMode(e.target.value as ModeChoice)}
+            className="bg-transparent border border-[var(--hv-glass-border)] rounded px-2 py-1 text-[11px] font-mono text-[var(--hv-ink)]">
+            {MODES.map((m) => <option key={m} value={m} className="bg-black">{m}</option>)}
+          </select>
+          {busy ? (
+            <button type="button" onClick={() => void cancel()} aria-label="Stop bulk lookup"
+              className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded border border-[var(--hv-glass-border)] text-[#fb923c]">
+              <Square className="w-3 h-3" /> Stop
+            </button>
+          ) : (
+            <button type="button" onClick={() => void start()} disabled={input.trim() === ""}
+              aria-label="Run bulk lookup"
+              className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded border border-[var(--hv-glass-border)] text-[var(--hv-green)] disabled:opacity-40">
+              <Play className="w-3 h-3" /> Run
+            </button>
+          )}
+          {job && job.rows.length > 0 && (
+            <button type="button" onClick={() => download(job)} aria-label="Download bulk results as CSV"
+              className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded border border-[var(--hv-glass-border)] text-[var(--hv-cyan)]">
+              <Download className="w-3 h-3" /> CSV
+            </button>
+          )}
+          {busy && <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--hv-ink-dim)]" />}
+        </div>
+        <p className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
+          Each row runs the real lookup for its mode, so a bulk run costs the same upstream calls as running the rows
+          by hand. In `auto` every row is classified on its own, which is what a mixed spreadsheet column needs.
+        </p>
+        {error && <p className="text-[11px] font-mono text-[#ff4d6d] flex items-center gap-1.5"><AlertTriangle className="w-3 h-3" /> {error}</p>}
       </div>
 
-      {errorMsg && (
-        <div className="text-[13px] font-mono text-[#ff3e3e]/92 border border-[#ff3e3e]/30 bg-[#ff3e3e]/[0.05] px-3 py-2">
-          {errorMsg}
+      {skipped.length > 0 && (
+        <div className="terminal-card p-4 space-y-1">
+          <div className="text-[11px] uppercase tracking-widest text-[#fb923c]">SKIPPED: {skipped.length}</div>
+          {skipped.map((s) => (
+            <div key={s.input} className="text-[11px] font-mono text-[var(--hv-ink-dim)]">{s.input}: {s.reason}</div>
+          ))}
         </div>
       )}
 
-      {rows && (
-        <div className="space-y-2">
-          <div className="text-[12px] font-mono text-[#00ff41]/65 flex flex-wrap gap-3">
-            <span className="text-[#00ff41]">✓ {validCount} valid</span>
-            {invalidCount > 0 && <span className="text-[#ffaa00]">⚠ {invalidCount} invalid</span>}
-            {errCount > 0 && <span className="text-[#ff3e3e]">✗ {errCount} failed</span>}
-            <span className="text-[#00ff41]/54">bulk mode is offline-only; rerun individual numbers in the PHONE tab for full enrichment.</span>
+      {job && (
+        <div className="terminal-card p-4 space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]">
+              {job.state.toUpperCase()}: {job.done}/{job.total}
+            </div>
+            <div className="text-[11px] font-mono text-[var(--hv-ink-dim)]">
+              {job.rows.filter((r) => r.ok).length} answered · {job.rows.filter((r) => !r.ok).length} failed
+            </div>
           </div>
-
-          <div className="border border-[#00ff41]/15 overflow-x-auto">
-            <table className="w-full text-[12px] font-mono">
-              <thead className="bg-[#00ff41]/5 text-[#00ff41]/70">
-                <tr>
-                  <th className="text-left px-2 py-1.5 font-normal">#</th>
-                  <th className="text-left px-2 py-1.5 font-normal">INPUT</th>
-                  <th className="text-left px-2 py-1.5 font-normal">E.164</th>
-                  <th className="text-left px-2 py-1.5 font-normal">VALID</th>
-                  <th className="text-left px-2 py-1.5 font-normal">CC</th>
-                  <th className="text-left px-2 py-1.5 font-normal">TYPE</th>
-                  <th className="text-left px-2 py-1.5 font-normal">CARRIER</th>
-                  <th className="text-left px-2 py-1.5 font-normal">TZ</th>
-                  <th className="text-left px-2 py-1.5 font-normal">NPA REGION</th>
+          <div className="w-full h-1.5 bg-[var(--hv-glass-border)] rounded">
+            <div className="h-full rounded bg-[var(--hv-green)]" style={{ width: `${percent}%` }} />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px] font-mono">
+              <thead>
+                <tr className="text-[var(--hv-ink-dim)] text-left">
+                  <th className="py-1 pr-3">mode</th>
+                  <th className="py-1 pr-3">input</th>
+                  <th className="py-1 pr-3">result</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
-                  <tr
-                    key={i}
-                    className={`border-t border-[#00ff41]/10 ${!r.ok ? "bg-[#ff3e3e]/[0.04]" : r.valid === false ? "bg-[#ffaa00]/[0.05]" : ""}`}
-                  >
-                    <td className="px-2 py-1.5 text-[#00ff41]/54">{i + 1}</td>
-                    <td className="px-2 py-1.5 text-[#00ff41]/75">{r.input}</td>
-                    <td className="px-2 py-1.5 text-[#00d9ff]">{r.e164 ?? "—"}</td>
-                    <td className="px-2 py-1.5">
-                      {r.valid === undefined ? <span className="text-[#00ff41]/54">—</span>
-                        : r.valid ? <span className="text-[#00ff41]">✓</span>
-                        : <span className="text-[#ffaa00]">✗ INVALID</span>}
-                    </td>
-                    <td className="px-2 py-1.5 text-[#00ff41]/65">{r.country ?? "—"}</td>
-                    <td className="px-2 py-1.5 text-[#00ff41]/65">{r.type ?? "—"}</td>
-                    <td className="px-2 py-1.5 text-[#00ff41]/65">{r.carrier ?? "—"}</td>
-                    <td className="px-2 py-1.5 text-[#00ff41]/65">{r.utcOffset ?? "—"}</td>
-                    <td className="px-2 py-1.5 text-[#00ff41]/65">
-                      {r.npaRegion ? `${r.npaRegion}${r.npaState ? `, ${r.npaState}` : ""}` : "—"}
-                      {r.cached && <span className="ml-1 text-[#ffaa00]/65">[c]</span>}
-                      {!r.ok && r.error && <span className="text-[#ff3e3e]/92">{r.error}</span>}
+                {job.rows.map((r) => (
+                  <tr key={`${r.mode}-${r.input}`} className="border-t border-[var(--hv-glass-border)] align-top">
+                    <td className="py-1 pr-3 text-[var(--hv-ink-dim)]">{r.mode}</td>
+                    <td className="py-1 pr-3 text-[var(--hv-cyan)] break-all">{r.input}</td>
+                    <td className="py-1 pr-3 break-all" style={{ color: r.ok ? "var(--hv-ink)" : "#ff4d6d" }}>
+                      {r.ok
+                        ? Object.entries(r.summary)
+                            .filter(([, v]) => v !== null && v !== "")
+                            .map(([k, v]) => `${k}=${v}`)
+                            .join(" · ")
+                        : (r.error ?? `HTTP ${r.status}`)}
                     </td>
                   </tr>
                 ))}

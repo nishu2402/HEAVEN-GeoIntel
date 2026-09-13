@@ -1,76 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Fingerprint } from "lucide-react";
-import { correlateAvatars, dHashFromGray, type HashedAvatar, type AvatarCluster } from "@/lib/analysis/phash";
+import type { AvatarCluster } from "@/lib/types";
 import { safeExternalUrl } from "@/lib/utils";
 
-export interface AvatarInput { url: string; source: string }
-
-/** Resolve an avatar URL to a perceptual hash, or null if it can't be read. */
-export type ComputeHash = (url: string) => Promise<bigint | null>;
-
-/* v8 ignore start -- canvas + Image are browser-only; unavailable in jsdom, exercised live */
-const defaultCompute: ComputeHash = (url) =>
-  new Promise((resolve) => {
-    const safe = safeExternalUrl(url);
-    if (!safe) return resolve(null);
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onerror = () => resolve(null);
-    img.onload = () => {
-      try {
-        const cols = 9, rows = 8;
-        const canvas = document.createElement("canvas");
-        canvas.width = cols;
-        canvas.height = rows;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return resolve(null);
-        ctx.drawImage(img, 0, 0, cols, rows);
-        const { data } = ctx.getImageData(0, 0, cols, rows);
-        const gray: number[] = [];
-        for (let i = 0; i < data.length; i += 4) {
-          gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-        }
-        resolve(dHashFromGray(gray, cols, rows));
-      } catch {
-        // Cross-origin taint: the host sent no CORS header, so getImageData throws.
-        resolve(null);
-      }
-    };
-    img.src = safe;
-  });
-/* v8 ignore stop */
-
 interface Props {
-  avatars: AvatarInput[];
-  /** Injectable for tests; defaults to the in-browser canvas hasher. */
-  compute?: ComputeHash;
+  /** Clusters computed server-side by perceptual hash. */
+  clusters: AvatarCluster[];
+  /** Avatars that produced no hash, with the reason, so absence is explained. */
+  skipped?: { url: string; source: string; reason: string }[];
 }
 
 /**
- * Flags when the same profile photo is reused across platforms, using a
- * perceptual (dHash) match computed in the browser. Only a real match is shown,
- * so it self-hides when nothing correlates or fewer than two avatars are
- * readable. Avatars whose host blocks cross-origin canvas reads drop out.
+ * Flags when the same profile photo is reused across platforms.
+ *
+ * The comparison itself moved to the server. It used to run on a browser canvas,
+ * which requires the image host to send CORS headers — and measured live, only
+ * one of three avatar hosts did, so `getImageData` threw for the rest, one
+ * surviving hash could never form a cluster, and this panel silently rendered
+ * nothing on every lookup that was not pure GitHub. Server-side there is no
+ * CORS, so a GitHub-to-Mastodon match (100%, verified on a real account) is now
+ * visible.
  */
-export default function AvatarCorrelationPanel({ avatars, compute = defaultCompute }: Props) {
-  const [clusters, setClusters] = useState<AvatarCluster[]>([]);
-
-  useEffect(() => {
-    const uniq = [...new Map(avatars.map((a) => [a.url, a])).values()];
-    // Fewer than two avatars can never correlate, so hash nothing and reset via
-    // the same async path (keeps the reset out of the effect body).
-    const work = uniq.length < 2 ? [] : uniq.map(async (a): Promise<HashedAvatar | null> => {
-      const hash = await compute(a.url);
-      return hash === null ? null : { source: a.source, url: a.url, hash };
-    });
-    Promise.all(work).then((hashed) => {
-      setClusters(correlateAvatars(hashed.filter((h): h is HashedAvatar => h !== null)));
-    });
-  }, [avatars, compute]);
-
-  if (clusters.length === 0) return null;
+export default function AvatarCorrelationPanel({ clusters, skipped = [] }: Props) {
+  if (clusters.length === 0 && skipped.length === 0) return null;
 
   return (
     <div className="terminal-card p-4 space-y-2">
@@ -93,8 +46,23 @@ export default function AvatarCorrelationPanel({ avatars, compute = defaultCompu
           </div>
         </div>
       ))}
+      {clusters.length === 0 && (
+        <p className="text-[11px] font-mono text-[var(--hv-ink-dim)]">
+          No two profile photos matched.
+        </p>
+      )}
+      {skipped.length > 0 && (
+        <div className="pt-1.5 border-t border-[var(--hv-glass-border)] space-y-0.5">
+          {skipped.map((s) => (
+            <div key={s.url} className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
+              {s.source}: not compared ({s.reason})
+            </div>
+          ))}
+        </div>
+      )}
       <p className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
-        Perceptual (dHash) match computed in your browser. Avatars whose host blocks cross-origin reads are skipped.
+        Perceptual (dHash) match computed on the server. Platform default avatars are excluded, so two accounts
+        that both left the default photo in place never count as a match.
       </p>
     </div>
   );

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   listCases, createCase, deleteCase, deleteAllCases, renameCase, setCaseNotes,
   addEntity, removeEntity, importCase, mergeCases, addEdges, recordSnapshot,
+  markCaseReviewed,
 } from "@/lib/server/caseStore";
+import { buildInbox } from "@/lib/analysis/changeInbox";
 import { clearAudit } from "@/lib/server/auditLog";
 import {
   CASE_TOKEN_COOKIE, casePassword, issueToken, passwordMatches, verifyToken,
@@ -20,7 +22,7 @@ import type { EntityKind, InvestigationCase } from "@/lib/types";
 // requires a valid unlock cookie (see lib/server/caseLock). Unset — the default
 // — leaves behaviour exactly as it was.
 
-const KINDS: EntityKind[] = ["phone", "email", "username", "ip", "domain"];
+const KINDS: EntityKind[] = ["phone", "email", "username", "ip", "domain", "wallet", "hash"];
 
 /** 401 body the client uses to decide whether to show the unlock form. */
 function locked(): NextResponse {
@@ -43,7 +45,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const denied = guardLock(req);
   if (denied) return denied;
   const cases = await listCases();
-  return NextResponse.json({ cases }, { headers: { "Cache-Control": "no-store" } });
+  // The inbox is derived from the same snapshots, so it costs one pass over
+  // data already in memory rather than a second round trip.
+  return NextResponse.json(
+    { cases, inbox: buildInbox(cases) },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 interface EdgeInput {
@@ -55,7 +62,7 @@ interface EdgeInput {
 interface CaseAction {
   action:
     | "create" | "rename" | "notes" | "addEntity" | "removeEntity"
-    | "import" | "merge" | "addEdges" | "snapshot" | "unlock";
+    | "import" | "merge" | "addEdges" | "snapshot" | "unlock" | "markReviewed";
   id?: string;
   name?: string;
   notes?: string;
@@ -136,6 +143,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (!Array.isArray(body.edges)) return NextResponse.json({ error: "Missing edges" }, { status: 400 });
         const c = await addEdges(body.id, body.edges);
         return c ? NextResponse.json({ case: c }) : NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      case "markReviewed": {
+        if (!body.id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+        const reviewed = await markCaseReviewed(body.id);
+        return reviewed
+          ? NextResponse.json({ case: reviewed })
+          : NextResponse.json({ error: "Not found" }, { status: 404 });
       }
       case "snapshot": {
         if (!body.id || !body.kind || !body.value) return NextResponse.json({ error: "Missing id/kind/value" }, { status: 400 });

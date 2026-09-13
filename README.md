@@ -4,7 +4,7 @@
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
     <source media="(prefers-color-scheme: dark)" srcset="public/brand/poster.svg"/>
-    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 20 of 29 sources need no API key, 23 of 38 username sites auto-verified, 23 API operations, 100% test coverage"/>
+    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 25 of 34 sources need no API key, 23 of 38 username sites auto-verified, 30 API operations, 100% test coverage"/>
   </picture>
 </p>
 
@@ -119,8 +119,8 @@
   </tr>
   <tr>
     <td colspan="2" align="center" valign="top">
-      <img src="./docs/screenshots/ai-analysis.png" alt="AI Analysis panel: an explainable risk score broken into contributing factors and a narrative, with the optional local AI Analyst below it" width="72%"/>
-      <br/><sub><b>AI Analysis.</b> An explainable, grounded risk read-out for every finished lookup, with the score broken into the factors that produced it. Below it sits an optional, opt-in AI Analyst that turns the same evidence into a short brief and flags anything the model writes that the evidence did not support.</sub>
+      <img src="./docs/screenshots/ai-analysis.png" alt="AI Analysis panel: an explainable risk score broken into contributing factors and a narrative, with the optional AI Analyst and its in-panel setup below it" width="72%"/>
+      <br/><sub><b>AI Analysis.</b> An explainable, grounded risk read-out for every finished lookup, with the score broken into the factors that produced it. Below it sits an optional, opt-in AI Analyst that turns the same evidence into a short brief and flags anything the model writes that the evidence did not support. It sets itself up in the panel: it detects a local Ollama server or a saved cloud key, selects one that works, and links straight to the provider's key console when neither is there.</sub>
     </td>
   </tr>
 </table>
@@ -139,7 +139,9 @@
 - [📧 Email Intelligence](#email-intelligence)
 - [🧑‍💻 Username Intelligence](#username-intelligence)
 - [🌐 IP &amp; Domain Intelligence](#ip-domain-intelligence)
+- [🪙 Wallet Intelligence](#wallet-intelligence)
 - [🕸️ Link-Analysis Graph &amp; Cases](#graph-cases)
+- [📄 Reports &amp; Exports](#reports)
 - [≡ Bulk Mode](#bulk-mode)
 - [🔑 Optional API Enrichment](#api-enrichment)
 - [⚙️ How It Works](#how-it-works)
@@ -171,24 +173,28 @@
 
 | Metric | Value |
 |---|---|
-| 🎯 **Scope** | Phone · Email · Username · IP · Domain · Wallet · Hash · File metadata · Bulk · Link-graph · Persistent cases |
+| 🎯 **Scope** | Phone · Email · Username · IP · Domain · Wallet · Hash · File metadata · Bulk · Link-graph · Persistent cases · Evidence locker |
 | 🧭 **Workspace** | 11-mode unified console · ⌘K command palette · light/dark themes · 3D glass UI |
 | 🔑 **Core Requirement** | Zero API keys; offline + free-source enrichment works out of the box |
-| 📞 **Phone OSINT** | Carrier · type · NPA geo · fraud/threat score · pivots · QR · report export |
+| 📞 **Phone OSINT** | Carrier · type · NPA geo · separate abuse-risk and exposure scores · pivots · QR · report export |
 | 📧 **Email OSINT** | Breach (unified across XposedOrNot + LeakCheck, enriched offline from the HIBP catalog) · password exposure (ProxyNova COMB, masked) · reputation · identity · validation · credential hashes |
-| 🧑‍💻 **Username OSINT** | 38 sites checked in parallel, grouped by category, presence-scored |
-| 🌐 **IP / Domain OSINT** | IP geo + ASN + VPN/proxy flags · domain DNS + WHOIS + SPF/DMARC + cert-transparency subdomains + live security headers, TLS cert and tech fingerprint |
+| 🧑‍💻 **Username OSINT** | 38 sites checked in parallel, plus an on-request deep sweep of 242 more; identities fused only on proof (a self-link or a server-side perceptual avatar match), everything else labelled a candidate |
+| 🌐 **IP / Domain OSINT** | IP geo + ASN + VPN/proxy flags · domain DNS + WHOIS + SPF/DMARC + subdomains from certificate transparency, reverse IP and passive DNS + port/CVE exposure on its own addresses + LEI + live security headers, TLS cert and tech fingerprint · internationalised names accepted in both spellings |
 | 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier**: free, no key, always-on, on **phone, email and username** |
 | 💥 **Breach Intelligence** | **One unified, deduplicated view** merging XposedOrNot + LeakCheck (both free, no key) + BreachDirectory (RapidAPI). The headline count is the union across sources, not one source's share. Add an optional **Have I Been Pwned** API key and HIBP's own per-account breaches join the union, so the count can match HIBP directly (the free indexes only know a subset). Bare breach names are enriched offline from three vendored, keyless catalog snapshots (data classes, record counts, dates; no key, works offline): a rich credential tier of **HIBP + XposedOrNot** whose overlapping descriptions are unioned, plus a **Wikipedia notable-breaches tier** for large government and institutional incidents the credential indexes never carry, now browsable in-app as a searchable **Notable breaches** reference (the largest documented institutional breaches by size, keyless and offline). **ProxyNova COMB** adds masked password-exposure evidence with a reuse verdict. Plus 5 one-click free breach lookups |
 | 🔀 **Cross-Identifier Auto-Pivot** | Every result offers the identifiers it derived as one-click lookups; confirmed links separated from related ones, nothing guessed |
 | 🕸️ **Link-Analysis Graph** | Interactive SVG node graph · **derived links persisted server-side per case**, labelled with the source that produced them · PNG export |
 | 🗂️ **Persistent Cases** | File-backed cases: identifiers, notes, derived graph, **snapshot history**; survive restarts · optional `CASE_PASSWORD` lock |
-| 📈 **Change Tracking** | Re-run a pinned lookup and the tool reports exactly which facts moved: breach counts, open ports, subdomains |
+| 📈 **Change Tracking** | Re-run a pinned lookup and the tool reports exactly which facts moved: breach counts, open ports, subdomains. A **change inbox** collects every movement across every case, newest first, with an optional webhook |
+| 📦 **Evidence Locker** | Preserve the response as the API returned it, SHA-256 it into a per-case manifest, and verify every artifact later |
+| 🪙 **Wallet OSINT** | OFAC SDN screening against a bundled 1,056-address snapshot · BTC activity and counterparties · ERC-20 holdings · forward-verified ENS |
+| ≡ **Bulk** | Up to 500 mixed identifiers, run as a real cancellable job with per-row provenance and CSV out |
+| 🖥️ **Headless CLI** | `geointel domain example.com --json`, against the same API the console uses |
 | 🗺️ **NPA Database** | 400+ US/CA area codes → state · metro · timezone (offline) |
 | 🌍 **Country Dataset** | 100 countries: capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict, auto-invalidated when an API key changes) · file-backed cases |
 | 🚦 **Rate Limiting** | 60 requests/minute **per client** + a server-wide ceiling; fixed-window, all limits env-tunable |
-| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 23 operations across 18 endpoints |
+| 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 30 operations across 21 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
 | 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
@@ -208,16 +214,18 @@
 During a penetration test or OSINT investigation, analysts spend significant time manually pivoting across 20-30 separate tools and browser tabs to build intelligence around a single identifier. HEAVEN-GeoIntel centralises that workflow into one console, and lets you **link the identifiers together**:
 
 ```
-Target  ─►  phone │ email │ username │ IP │ domain
+Target  ─►  phone │ email │ username │ IP │ domain │ wallet │ hash
         │
-        ├─ Instant offline analysis    (libphonenumber-js · MCC/MNC · NPA · bundled datasets)
-        ├─ Free no-key source fan-out   (Hudson Rock · XposedOrNot · Gravatar · ip-api ·
-        │                                Cloudflare DoH · RDAP · Certspotter · 38 username sites)
+        ├─ Instant offline analysis    (libphonenumber-js · MCC/MNC · NPA · OFAC SDN · bundled datasets)
+        ├─ Free no-key source fan-out   (Hudson Rock · XposedOrNot · Gravatar · ip-api · Cloudflare DoH ·
+        │                                RDAP · Certspotter + crt.sh · passive DNS · reverse IP ·
+        │                                Shodan · GreyNoise · GLEIF · 38 + 242 username sites)
         ├─ Optional API enrichment      (IPQualityScore · Twilio · Hunter.io · FullContact · BreachDirectory)
         ├─ OSINT pivot matrix           (37 phone links · 22 email links · tier-tagged · deduplicated)
-        ├─ Link-analysis graph          (connect phone ⇄ email ⇄ username ⇄ IP ⇄ domain)
-        ├─ Persistent cases             (group identifiers across sessions · analyst notes)
-        └─ Export                       (unified report: PDF · .txt · .md · .html · STIX · CSV · graph PNG)
+        ├─ Link-analysis graph          (connect phone ⇄ email ⇄ username ⇄ IP ⇄ domain ⇄ wallet ⇄ hash)
+        ├─ Persistent cases             (group identifiers across sessions · analyst notes · change inbox)
+        ├─ Evidence locker              (the response as returned · SHA-256 · verify it months later)
+        └─ Export                       (paged PDF · interactive .html · .txt · .md · STIX · CSV · graph PNG)
 ```
 
 > **Scope:** Returns publicly derivable *metadata* only. Does **not** provide real-time GPS, live device tracking, SS7 interception, or any form of unauthorized surveillance.
@@ -239,15 +247,15 @@ One unified console with an **11-mode switcher**. Seven are live lookups (phone,
 |---|---|
 | 📡 **Phone** | Full phone OSINT: carrier, breach, infostealer, identity, pivots |
 | ✉ **Email** | Full email OSINT: breach, reputation, identity, validation, pivots |
-| @ **Username** | Check a handle across 38 sites in parallel (found / unverified) |
+| @ **Username** | Check a handle across 38 sites in parallel (found / unverified), then a deep sweep of 242 more on request; proves which accounts belong to one person before it fuses them |
 | ⦿ **IP** | Geo · ASN · ISP · reverse DNS · VPN/proxy/hosting flags · risk score |
-| 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · cert-transparency subdomains · HTTP header grade · TLS certificate · email permutations |
-| 🪙 **Wallet** | Crypto address OSINT: BTC / ETH balance, activity, forward-verified ENS name, explorer pivots |
+| 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · subdomains from three sources · passive DNS history · reverse IP · port and CVE exposure on its own addresses · legal entity (LEI) · HTTP header grade · TLS certificate · internationalised names · email permutations |
+| 🪙 **Wallet** | Crypto address OSINT: OFAC sanctions screening against the bundled SDN list, BTC / ETH balance, transaction span and counterparties, ERC-20 holdings, forward-verified ENS name, explorer pivots |
 | # **Hash** | File-hash reputation: CIRCL hashlookup known-software (NSRL) clearance + verdict-engine pivots, plus a local **Crypto Workbench** to hash, encode and encrypt/decrypt any text (MD5/SHA family, HMAC, Base64/hex/URL/binary/Morse/ROT13/Atbash, Caesar/Vigenère/XOR, and AES-256-GCM with a passphrase) offline in the browser, and a keyless **Pwned Passwords** check that tells you whether a password has ever leaked using k-anonymity, so only the first five characters of its SHA-1 hash ever leave the tab |
 | 📄 **File** | Deep metadata from any file, parsed in your browser (the file is never uploaded): identifies ~70 formats by content, extracts EXIF/GPS from photos, GPS and device tags from iPhone HEIC/MOV/MP4, author/company/timestamps from PDF and Office/OpenDocument/EPUB, ID3/FLAC/WAV tags, GZIP/TAR owner and original names, plus SHA-256/SHA-1, entropy, and an extension-vs-content check, with reverse-image pivots for images |
-| ≡ **Bulk** | Triage up to 25 phone numbers → CSV export |
-| 🕸 **Graph** | Link-analysis graph of every identifier looked up this session |
-| 🗂 **Cases** | Persistent investigation cases: group identifiers, notes, per-case graph |
+| ≡ **Bulk** | Triage up to 500 mixed identifiers of any type as a cancellable background job → CSV export |
+| 🕸 **Graph** | Link-analysis graph of this session, or of any saved case, across all seven identifier kinds |
+| 🗂 **Cases** | Persistent investigation cases: group identifiers, notes, per-case graph, a hashed evidence locker and a change inbox |
 
 </div>
 
@@ -370,6 +378,21 @@ requires you to type `yes`. Non-interactively it refuses unless you also pass
 `--yes`. `.env.local`, `node_modules` and the build output are never removed;
 delete the project folder when you want those gone.
 
+### Headless: the same tool in a shell
+
+`geointel` used to start the web app and nothing else, so every lookup had to go through a browser. That rules the tool out of the place a lot of OSINT work actually happens: a shell, a pipeline, a cron job, a list of targets and `jq`.
+
+```bash
+geointel domain example.com --json | jq '.subdomains'
+geointel email someone@example.com                   # readable summary
+geointel username torvalds --json | jq '.resolvedIdentity.confidence'
+geointel bulk targets.txt --csv > triage.csv         # or: cat list | geointel bulk -
+```
+
+It reimplements nothing. It talks to the same HTTP API the console uses, so a CLI answer and a browser answer come from identical code. If an instance is already running it is reused; otherwise one is started on a private port, used, and shut down. `--server URL` points it at an instance running somewhere else, `--json` prints the raw response, `--timeout MS` sets the per-request budget, and `bulk` takes `--mode` and `--csv`. Exit codes are `0` for a lookup that answered, `1` for one that failed, `2` for bad usage, so it composes in a script.
+
+Every flag `geointel` already understood (starting the app, `--help`, the installer) still works: a first argument that names a mode goes to the CLI, anything else starts the console as before.
+
 ### Security & operations (optional)
 
 | Want to… | Do this |
@@ -378,7 +401,7 @@ delete the project folder when you want those gone.
 | **Keep an audit trail** of lookups | automatic; `.data/audit.log` records type · **hashed** target · time · status. Set `AUDIT_PLAINTEXT=1` to store raw targets. |
 | **Health-check** the service | `GET /api/health` → `{ status: "ok", … }` (also the Docker healthcheck). |
 | **Wipe everything** (cases + audit log) | the **WIPE ALL** button in the Cases tab, or `curl -X DELETE '<host>/api/cases?all=1'`. |
-| **Export / hand off a case** | Cases tab → **JSON** (re-importable, SHA-256 integrity-hashed) or **REPORT** (Markdown). Re-import verifies the hash and warns on tampering. |
+| **Export / hand off a case** | Cases tab → **PDF** (paged dossier with a cover sheet and a signature block), **HTML** (interactive dossier), **JSON** (re-importable, SHA-256 integrity-hashed), **REPORT** (Markdown), CSV, STIX or Maltego. Re-import verifies the hash and warns on tampering. |
 
 Persistent data lives in `.data/` (`cases.json`, `audit.log`), written owner-only (`0600`) and git-ignored.
 
@@ -436,7 +459,7 @@ Every phone lookup returns real data derived from the number structure and bundl
 
 | Panel | What It Shows |
 |---|---|
-| **Result Header** | E.164 · country flag · validity · unified **Threat Score (0-100)** with colour-coded label |
+| **Result Header** | E.164 · country flag · validity · two separate 0-100 figures, **Abuse Risk** and **Exposure**, each with its own colour-coded label and the signals behind it |
 | **Identity / Owner Profile** | Real name · employer · social profiles (FullContact). With no key, it points you to the **OSINT Pivot Matrix**: one deduplicated set of reverse-lookup links (no repeated or dead links). |
 | **Credential Breach Search** | BreachDirectory password-hash hits (with key) + 5 always-on **one-click free breach lookups** (HaveIBeenPwned · IntelligenceX · Dehashed · LeakCheck · Snusbase). |
 | **Infostealer Malware Exposure** | Hudson Rock, **no key**. Every infected device that captured the number, paired credential samples, captured sites, malware family (only when identifiable, never a dropper filename passed off as a family), OS, capture date. |
@@ -449,11 +472,24 @@ Every phone lookup returns real data derived from the number structure and bundl
 | **Number Permutations** | 12 format variants for OSINT/database searching |
 | **OSINT Pivots** | 37 links across 5 categories, each tagged **FREE / CAPTCHA / APP / LOGIN / PAID / BLOCKED**; filter chips default to FREE + CAPTCHA + APP. Every link takes the number directly, with no dead "did not match any documents" results |
 | **QR Code** | Canvas-rendered QR for the `tel:` URI · downloadable as PNG |
-| **Report Export** | One professional intelligence report, identical for every mode, in five formats: **one-click PDF** (Print → Save as PDF), `.txt`, Markdown, a self-contained `.html` page, and a STIX 2.1 bundle. Cover page, Contents index, executive summary, grounded AI risk assessment, evidence sections, source health and a methodology note |
+| **Report Export** | One report model, five formats, and **two different documents** for PDF and HTML: the PDF is a paged A4 file (cover sheet, document-control block, numbered sections, ruled tables, print-legible ink) and the HTML is an interactive dossier in the app's own palette (sticky contents rail, live filtering, per-value copy). Plus `.txt`, Markdown and a STIX 2.1 bundle. Every format carries the same executive summary, grounded AI risk assessment, evidence sections, per-source outcome, methodology, legend and collection statistics. See [Reports](#reports-two-documents-not-one-file-offered-twice) |
 | **History Drawer** | Last 20 lookups (browser localStorage) |
 | **Shareable URL** | `?q=+14155552671` auto-runs the lookup |
 
 </div>
+
+### One number could not answer two questions
+
+A single "threat score" conflated two different findings. A number that appears in four breaches and a number used by a scam call centre both scored high, and the label said the same thing about both. The White House switchboard, a public number in public breach indexes, read as a threat.
+
+So there are two figures, and each says what it is:
+
+| Figure | The question it answers | What moves it |
+|---|---|---|
+| **Abuse risk** | Is this identifier being used against people? | Reputation verdicts from sources that actually make them: blacklisted, malicious, spam, known-fraud, disposable |
+| **Exposure** | How much of this identifier is already public? | Named breaches, credential records recovered, infostealer captures, a source stating outright that credentials leaked |
+
+Exposure is evidence volume, not danger, and its bands say so (`NONE OBSERVED`, `LIMITED`, `SIGNIFICANT`, `EXTENSIVE`) rather than borrowing the language of risk. The White House switchboard now reads **abuse 0 CLEAN** with **exposure 46 SIGNIFICANT**, which is the truthful pair of statements. Both figures are computed locally, and each lists the signals that produced it.
 
 ### Phone OSINT Pivots: 37 links, 5 categories
 
@@ -496,7 +532,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | Panel | What It Shows |
 |---|---|
 | **Identity Header** | Confirmed name (FullContact → Gravatar → inferred) · avatar · job title · employer · location · bio · threat-score bar |
-| **Threat Score** | 0-100: breach count · password-risk level · recency · reputation signals |
+| **Abuse Risk / Exposure** | Two figures, not one. Abuse risk reads the reputation signals (blacklisted, malicious, spam, disposable); exposure reads how much of the address is already public (named breaches, credential records, infostealer captures) |
 | **FullContact Enrichment** | Real name · age · gender · social profiles · linked emails & phones · employment history (optional key) |
 | **Breach Database** | XposedOrNot: 1000+ databases, no key. Per-breach: name · year · records · exposed data types · password-risk level (Plaintext / Easy-Crack / Hashed) |
 | **Credential Hashes** | BreachDirectory: real SHA-1/MD5 hashes with one-click crack buttons (CrackStation · Hashes.com), optional RapidAPI key |
@@ -505,7 +541,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **Reputation** | EmailRep.io: suspicious · blacklisted · malicious · credentials leaked · spam · first/last seen · registered platforms |
 | **Validation / Deliverability** | AbstractAPI (SMTP/MX, quality, catch-all) · Hunter.io (deliverable/risky/undeliverable + confidence) |
 | **OSINT Matrix** | 26 investigation links across 4 categories |
-| **Report Export** | The same unified report as every other mode (PDF · `.txt` · Markdown · `.html` · STIX 2.1), including breach + FullContact data |
+| **Report Export** | The same unified report as every other mode (paged PDF · interactive `.html` · `.txt` · Markdown · STIX 2.1), including the mail-exchange fingerprint, the breach list by name and the credential-exposure block |
 
 </div>
 
@@ -546,6 +582,37 @@ How many handles you test a site with changes the answer. Testing one real handl
 - Pivot links (WhatsMyName · Sherlock · IntelligenceX · broad Google sweep) for deeper enumeration.
 - Free · no API key · validated input (`[A-Za-z0-9._-]`, 2-40 chars).
 
+### The deep sweep: 242 more sites, on request
+
+The 38-site sweep is the fast answer. Behind a button sits the wide one: the bundled WhatsMyName catalog, read for its **detection contract** rather than its URL list.
+
+A contract is four fields the catalog records for each site: the status and body string that mean *account exists*, and the status and body string that mean *account free*. A probe is only classified when the response matches one of those two pairs; anything else is reported `unknown` rather than folded into either answer. The catalog previously contributed nothing but links, because the contract was never read.
+
+- **242 sites** are swept by default: the ones that behaved exactly as their contract documents when the catalog was last validated against a known-real and a known-absent handle.
+- **393 more** are one checkbox away. They are offered rather than dropped, because a marker can rot and a site that failed from this machine may answer from yours.
+- Measured on `bagder`, one 60-site page classified **56 of 60** either way: 7 confirmed accounts, 49 confirmed free, 4 unknown.
+
+It is paged, explicitly started and stoppable, for one reason: hundreds of probes is tens of seconds and hundreds of sockets, so folding it into every username lookup would make the fast answer slow. The fan-out is bounded and requests to one host are serialised, so three WordPress.com rows are three sequential probes rather than three simultaneous ones.
+
+### Identity resolution: proven, or a candidate
+
+A shared handle is not evidence. Dozens of people claim a popular name on dozens of platforms; that is the base rate, not an anomaly. Looking up `torvalds` used to present "Portland, OR" (GitHub), "GT" (Chess.com) and "Bern" (Lichess) as one person's locations.
+
+So a link now has to be **proven**, and there are exactly two proofs this tool can obtain without a key:
+
+| Proof | What it is |
+|---|---|
+| **self-link** | One profile publicly points at the other: a website field holding `github.com/<their handle>`, a bio linking their Mastodon. The subject asserted the connection. |
+| **avatar** | The same photograph on both, established by perceptual hash rather than by filename or URL. |
+
+Avatar matching runs **server-side**, which is what makes it work at all: the browser cannot read pixels from another origin's image, so the old client-side comparison could never have produced a match. Each avatar is fetched through the same SSRF guard as every other outbound request, decoded (PNG and JPEG, with no native dependency), reduced to a 9x8 grey grid and hashed by row-wise gradient. Distance is Hamming distance over that hash, and known placeholder art (the Gravatar default, an identicon, a lettered initial) is recognised and never used as a link: identical default avatars prove nothing.
+
+What you get back is a resolved identity with a **confidence** and the proofs it rests on, plus what it deliberately did not merge:
+
+- `bagder` fuses GitHub and Mastodon on a 100% avatar match and resolves at **86**.
+- `torvalds` finds no proof, so it is labelled a **candidate**, capped at **40**, and the Chess.com and Lichess locations are listed separately as unlinked candidates rather than absorbed.
+- Where two proven-linked accounts disagree on a name or a location, the contradiction is printed as a contradiction instead of being averaged away.
+
 ---
 
 <a id="ip-domain-intelligence"></a>
@@ -583,15 +650,57 @@ proxy/hosting/mobile flags, so those come back `null` rather than a fabricated
 | Section | Source |
 |---|---|
 | **DNS records** | A · AAAA · MX · NS · CNAME · TXT, via Cloudflare DNS-over-HTTPS |
-| **Email-security posture** | SPF present? · DMARC policy (none/quarantine/reject) · MX present? A check whose DNS query gets no answer is shown as unknown, never as missing |
+| **Email-security posture** | SPF present? · DMARC policy (none/quarantine/reject) · MX present? A domain publishing an RFC 7505 null MX is reported as accepting no mail, which is its own declaration and not the same finding as publishing no exchanger. A check whose DNS query gets no answer is shown as unknown, never as missing |
 | **WHOIS** | Registrar · created / updated / expires · nameservers · status, via RDAP (no key) |
-| **Subdomains** | Certificate transparency: Certspotter (fast, no key), with a crt.sh fallback when sparse; up to 100 |
+| **Subdomains** | Three sources merged: certificate transparency (Certspotter **and** crt.sh, both always consulted), reverse IP, and passive DNS; up to 250, with the first 40 resolved to live addresses |
 | **HTTP posture** | Security-header grade (A-F) · redirect chain · http→https upgrade · technology fingerprint · version-disclosing headers · cookie flags |
-| **TLS certificate** | Protocol · cipher · issuer · SAN list · expiry countdown · chain-trust result |
+| **TLS certificate** | Protocol · cipher · issuer · SAN list · expiry countdown · chain-trust result · the CA-verified organisation on an OV/EV certificate |
+| **Passive DNS** | What the name used to resolve to, with first and last seen per pair, via Mnemonic (keyless) |
+| **Reverse IP** | Every host the source has seen on the apex address, via HackerTarget (keyless) |
+| **Host exposure** | Open ports and known CVEs on the domain's own addresses, via Shodan InternetDB and GreyNoise |
+| **Legal entity** | The LEI record for the registrant, or for the organisation the CA verified, via GLEIF (keyless) |
 | **Email permutations** | Name + domain → 17 ranked address patterns, or the org's actual rule from one known address |
 | **Pivots** | crt.sh · SecurityTrails · VirusTotal · Shodan · URLScan · Wayback · DNSDumpster · MXToolbox · SSL Labs · Wappalyzer |
 
 Accepts bare domains or full URLs (scheme/path/`www.` are stripped automatically).
+
+#### Subdomains: three sources, and what each one found
+
+Coverage used to be one question with one answer. Certspotter's free issuances API returns roughly the hundred most recent certificates, and crt.sh was only consulted when Certspotter came back with fewer than five hosts. On `wordpress.org`, Certspotter's window held **9** hosts, so the threshold was never crossed, while crt.sh held **25**. The tool reported 9 as though that were the answer.
+
+Now both CT sources always run, in parallel, and two more sources join them: reverse IP contributes the names sharing the apex address, and passive DNS contributes every name beneath the apex it has ever recorded (on `wordpress.org`, 194 of 200 returned rows were for a subdomain rather than the apex). The panel prints a **coverage strip**: each source, whether it answered, and how many hosts it contributed, so a thin result reads as a thin source rather than as a small attack surface. Measured end to end, `wordpress.org` went from 9 hosts to **494 distinct**.
+
+The first 40 are then resolved, so a name from certificate transparency that no longer points anywhere is visibly dead rather than silently listed. A third-party domain that merely shares the server is reported separately as co-hosting, because that is a different finding from a subdomain of the name you asked about.
+
+#### Passive DNS, and reading a degraded answer as degraded
+
+Live DNS says what a name resolves to now. Passive DNS says what it used to, which is the half an investigation usually turns on: when the mail exchanger changed, which address the phishing host sat on last month.
+
+Mnemonic's anonymous tier sometimes answers with **flattened** rows: every timestamp zeroed and every record type reported as `A`, including rows whose answer is plainly an IPv6 address. Measured on the same domain seconds apart, `limit=50` and `limit=100` returned full rows while `limit=25` and `limit=200` came back flattened, so it is a property of the response rather than of the request. A flattened row is not merely thin, it is wrong: an AAAA observation labelled A is a false statement about the record. The tool detects that shape, retries once, and if it persists keeps a type only where the answer itself proves it, marking the rest `UNKNOWN` and telling the panel the answer was degraded.
+
+HackerTarget's failure mode is plain text in the body, so "API count exceeded" would parse as a hostname. Every line has to survive hostname validation, and a quota notice parks the source for an hour instead of being read as data.
+
+#### Exposure on the domain's own addresses
+
+The tool already knew how to ask what is exposed on a host. It just never asked it about the host it had resolved thirty lines earlier, so a domain lookup could not tell you that its own web server has an open Redis port. The apex addresses (at most three, so a round-robin A set cannot turn one lookup into a dozen calls) now go through the same keyless Shodan InternetDB and GreyNoise path the IP mode uses. On `münchen.de` that returns ports 80 and 443 and four CVEs on the apex address.
+
+#### Who legally owns it
+
+GDPR redacted the registrant out of most gTLD WHOIS records. What survived is the **organisation on an OV or EV certificate**, which a CA actually verified, and that is a name the Global LEI Foundation's register can be queried with, keylessly.
+
+So the LEI lookup runs on the WHOIS registrant when there is one and on the certificate organisation when there is not, and the answer says which it used. `paypal.com` has no registrant in RDAP and an OV certificate reading "PayPal, Inc.", which resolves to LEI `LBQ3CAGQB6M55WHL3G85`. The register does word matching, so "PayPal, Inc." alone returns 76,760 hits; only an exact normalised name match is reported as the entity, and the rest are offered as candidates.
+
+#### Internationalised names
+
+`münchen.de` used to be rejected as invalid while its punycode spelling sailed through, which is backwards for OSINT: IDN and homoglyph abuse is a large share of real phishing, and the analyst pasting the name as it appears in the mail is the one to serve first.
+
+Every domain-shaped input is now normalised once, to its ASCII A-label form, using the platform's own UTS-46 implementation rather than a hand-rolled table, and displayed in both spellings. Email addresses are handled the same way, with the local part left exactly as typed. The reverse direction matters for reading: `xn--80ak6aa92e.com` tells you nothing and `аpple.com` tells you everything, so A-labels are decoded for display, and a label that will not decode is shown exactly as it arrived rather than guessed at.
+
+The look-alike generator gained the matching half: Cyrillic, Greek and Armenian homoglyph variants, each carrying both spellings, the punycode name to resolve and the Unicode name a victim sees.
+
+#### Look-alike domains, resolved
+
+The typosquat panel used to generate candidates and stop. **Resolve every look-alike** now runs the list through DNS and reports which ones answer, which have mail, and how old they are: a name registered days ago is a live campaign, one registered in 2009 is usually a brand holding its own defensive names. Unanswered queries are retried once, because a burst at this concurrency draws throttling from the resolver, and an unanswered candidate is a hole in the scan rather than a result.
 
 #### The security-header grade
 
@@ -630,6 +739,39 @@ one being picked.
 
 ---
 
+<a id="wallet-intelligence"></a>
+## 🪙 Wallet Intelligence
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:FFAA00,50:FF3333,100:BF5FFF"/>
+</p>
+
+### Sanctions screening, offline and first
+
+The first question anyone asks about a crypto address is whether it is sanctioned, and the tool could not answer it.
+
+A snapshot of the **US Treasury's SDN list** now ships with the app: **1,056 addresses across 20 chains** (532 Bitcoin, 254 Tron, 120 Ethereum, 94 USDT and the rest), read from the XML export rather than the CSV, whose remarks column is truncated and loses half the addresses. Like the breach catalogs it is offline by design: no key, no network call at lookup time, and no rate limit between an analyst and a sanctions answer.
+
+The screen runs **before** the balance lookup and reports the designated entity, OFAC's own entry id and the programs it is listed under, so a hit can be traced back to the list. It answers even for chains whose balance this tool cannot read: a listed Tron address returns the sanctions match plus a plain statement that the balance is not something it can fetch, rather than a generic failure.
+
+The scope is stated rather than implied: this is the SDN list only. A negative result means *not on this list*, never *clean*. Other authorities publish their own lists, and an address one hop from a listed one is not itself listed.
+
+```bash
+npm run sanctions:refresh    # re-vendor the snapshot from Treasury
+```
+
+### What else the address has been doing
+
+| | |
+|---|---|
+| **Bitcoin activity** | First and last transaction seen in the sampled page, how many transactions were sampled, distinct counterparty addresses, and whether the address has more history than the sample covers |
+| **Ethereum holdings** | ERC-20 balances for ten assets that carry value in an investigation (USDT, USDC, DAI, WETH, WBTC, stETH, LINK, UNI, SHIB, PEPE), read straight from a keyless public RPC. A zero balance is simply not reported |
+| **Identity** | Forward-verified ENS name: the reverse record is resolved and then confirmed forward, so a self-declared name that does not point back is not printed as the owner |
+
+The token list is deliberately fixed and short. There is no keyless way to enumerate every token an address holds, and pretending otherwise would mean either a paid indexer or a made-up answer.
+
+---
+
 <a id="graph-cases"></a>
 ## 🕸️ Link-Analysis Graph &amp; Persistent Cases
 
@@ -660,6 +802,26 @@ Pinning a lookup also records a **snapshot**: a small bag of the scalars worth w
 
 The diff is computed **server-side against what is on disk**, so it works across sessions and machines; a browser that has forgotten everything still gets a correct comparison. A first snapshot is reported as a **baseline**, never as "no change", and if either side of a comparison was served from the result cache the diff says so rather than letting an unchanged result read as stability. Snapshots hold no PII beyond the identifier itself and are capped per identifier (`CASE_SNAPSHOT_HISTORY`, default 5).
 
+### The evidence locker: what the tool actually saw
+
+A snapshot holds a handful of scalars, by design. What it cannot do is let anyone check, six months later, that a finding was real: the raw answer the tool acted on was never written down, so a challenged finding could only be re-run, against upstreams that have since changed.
+
+The locker is the missing half. Pin a result with **preserve** and the API response is written to disk exactly as it was returned, hashed with SHA-256, and recorded in a per-case manifest. **Verify** recomputes every hash and reports each artifact as `ok`, `modified` or `missing`. That completes a chain the report already starts: report document ID → manifest entry → file on disk → hash.
+
+What is preserved is stated exactly rather than implied: the API response for one lookup, including each source's own payload where the response carries it, and every source's provenance row. It is not a packet capture, and nothing claims to hold the upstream's raw HTTP body for sources whose payload the route summarises.
+
+It is opt-in and case-scoped, because writing investigation data to disk should be a decision rather than a side effect of running a lookup. Artifacts are capped at 4 MB each and 500 per case, re-preserving an identical response is recognised as a duplicate instead of stored twice, and the locker sits behind the same lock as the case store. Fetching one artifact returns the exact bytes that were hashed, so anyone can recompute the digest and get the same answer.
+
+### The change inbox: what moved while you were elsewhere
+
+Snapshot history knew that a breach count had grown and then told nobody. The inbox is the list: every fact that moved across every case, newest first, with the case, the identifier, the fact, and its before and after values.
+
+It is computed from the cases already on disk, so it needs no key, no scheduler and no external service. **Mark reviewed** stamps the case, and anything older than that stamp stops counting as unread. A first snapshot is reported as a **baseline** and never as a change, and a diff where either side came from the result cache is flagged as soft rather than presented as movement. Set `CHANGE_WEBHOOK_URL` and new changes are also POSTed there, best effort, to an `https` host that is not on a private network; leave it unset and the inbox is simply a panel.
+
+### The graph, over any case
+
+The same graph renders a saved case, not only the current session: pick a case and you get its identifiers, its membership spokes and the derived edges that were pinned with them. Both graphs cover all **seven** identifier kinds now, wallets and hashes included, each with its own colour, so a crypto address sits in the picture beside the email that paid it.
+
 ### Optional case lock
 
 Cases are **unauthenticated by default** (single-user / self-hosted assumption). `AUTH_PASSWORD` gates the whole app, which is all-or-nothing, so if you want the lookup console open on your LAN while the case history stays sealed, set **`CASE_PASSWORD`** instead:
@@ -674,6 +836,52 @@ CASE_PASSWORD=your-passphrase
 
 ---
 
+<a id="reports"></a>
+## 📄 Reports &amp; Exports
+
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:44FF88,50:00D9D9,100:BF5FFF"/>
+</p>
+
+Every finished lookup, in every mode, exports the same report. One model feeds all of it (`src/lib/analysis/report.ts`), so a phone report and a domain report share a structure, a section numbering and a table of contents, and a figure cannot differ between two formats of the same result.
+
+### Reports: two documents, not one file offered twice
+
+**PDF** and **HTML** used to be the same file behind two buttons. They are now two documents built for two different readers, and they share the model, the outline and the wording rather than a stylesheet.
+
+| | **PDF** (`reportPrint.ts`) | **HTML** (`reportHtml.ts`) |
+|---|---|---|
+| Built for | Paper, and the PDF your browser writes from it | A screen, and an evidence share |
+| Opens | A print-ready window, straight into the print dialog | Downloads as one self-contained `.html` |
+| Layout | A4 cover sheet → contents page → numbered body → appendices | Masthead → sticky contents rail → cards |
+| Palette | Ink on white, print-color-adjust on, so the risk meter survives a mono laser | The app's own dark theme, with a light toggle |
+| Typography | Serif body, sans headings, monospace values | The app's UI stack |
+| Interaction | None. It is a document | Filter every field as you type, fold sections away, copy any value, scroll-spy on the rail |
+| Extras | Document-control block, risk stamp on the cover | Ring gauge, factor bars, per-source pills, evidence counters |
+
+Both carry the same **Document ID** (`HGI-…`, derived from the subject and the generation time, so two runs of one subject are two distinct documents), the same evidence basis line, and the same eight-part outline.
+
+### What is in every report
+
+1. **Executive summary** with the verdict and the curated facts.
+2. **Risk assessment**: score, band, confidence, the rationale, each contributing factor with its share and the evidence it came from, and any flagged patterns. Computed locally by the explainable model in `src/lib/ai`; no language model writes any part of a report.
+3. **Evidence sections**, one per collected area. Fields no source returned are omitted rather than printed as `N/A`.
+4. **Data sources**, with four distinct outcomes: `answered`, `failed`, `not configured`, or `not applicable`. A source with no API key was never called, and a keyless source that this lookup gave nothing to ask about was never called either. Neither is shown as a failure, and neither is read as a negative finding.
+5. **Investigative pivots**, with the URL printed in full on paper.
+6. **Analyst narrative**, grounded in the evidence above.
+7. **Methodology and limitations**, plus a legend explaining the score, the bands, the confidence and the omission rule to someone reading the file outside this tool.
+8. **Appendix A: observables (STIX)** with the same identifiers the STIX 2.1 bundle carries, so a document and its machine handoff can be cited against each other, and **Appendix B: collection statistics** (sources queried and answered, median source latency, recorded fields, factors, pivots).
+
+`.txt` and Markdown follow the identical outline: the text brief is a padded-column document with its own contents index, and the Markdown carries a document-control table, source and factor tables, and anchored section links.
+
+### Case dossiers
+
+The Cases tab exports the same way. **PDF** produces a paged dossier with a cover sheet, a document-control block carrying the SHA-256 payload hash, per-identifier change history, methodology, and a *prepared by / reviewed by / date* signature strip. **HTML** produces the interactive version in the app's palette, with kind-coloured identifier chips. Alongside them: JSON (re-importable and integrity-hashed), Markdown, CSV, a Maltego paste table and a STIX 2.1 bundle.
+
+A change history distinguishes three states that are easy to conflate: an identifier with only a **baseline** (never re-run), one re-run where **nothing moved**, and one with facts that actually changed, shown as a was/now table.
+
+---
+
 <a id="bulk-mode"></a>
 ## ≡ Bulk Mode
 
@@ -681,17 +889,32 @@ CASE_PASSWORD=your-passphrase
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:44FF88,50:00D9D9,100:BF5FFF"/>
 </p>
 
-Paste up to **25 phone numbers** into the `≡ BULK` tab, one per line or comma-separated. The endpoint runs **offline-only analysis** on each number (libphonenumber + NPA + bundled country data + reused cache) and returns a flat result table, downloadable as **CSV** in one click.
+Paste up to **500 identifiers of any kind** into the `≡ BULK` tab, one per line or comma-separated. Bulk used to be phone-only, offline-only and capped at 25, so triaging a column of 200 domains meant 200 manual lookups. It now runs **the real lookup for every row**: the same routes, the same validation, the same sources and the same provenance as a single-target search.
 
-Why offline-only? Most free APIs cap at 100-250 calls/day; a bulk batch would burn an entire day's quota. Use bulk to **triage**, then drill into the interesting rows from the PHONE tab for full enrichment.
+Leave the mode on **auto** and each row is classified on its own, so one paste can mix domains, emails and wallet addresses (which is what a spreadsheet column usually holds). Pick a mode explicitly and every row is read as that kind.
+
+Because a real fan-out takes seconds per row, it is a **job, not a request**:
 
 ```bash
-curl -s http://localhost:3000/api/bulk-lookup \
-  -H 'content-type: application/json' \
-  -d '{"numbers":["+14155552671","+447911123456","+919876543210"]}' | jq .
+# Start it. The response comes back immediately with an id.
+curl -s localhost:3000/api/bulk-lookup -H 'content-type: application/json' \
+  -d '{"items":["wordpress.org","security@example.com","+14155552671","8.8.8.8"]}'
+# → { "id": "…", "total": 4, "state": "running", "skipped": [] }
+
+curl -s 'localhost:3000/api/bulk-lookup?id=<id>'             # progress + rows so far
+curl -s 'localhost:3000/api/bulk-lookup?id=<id>&format=csv'  # the same rows as CSV
+curl -sX DELETE 'localhost:3000/api/bulk-lookup?id=<id>'     # stop it
 ```
 
-Returns `{ count, rows: [{ input, ok, e164, valid, country, type, carrier, timezone, utcOffset, npaState, npaRegion, cached }] }`. `valid` is strict libphonenumber validity, so a number that parses but is not assigned is flagged instead of passing as a normal row; the table shows it in a VALID column and the CSV carries it too.
+The panel polls it, fills the table as rows land, and offers **Stop** while it runs and **CSV** as soon as there is anything to download. Closing the tab does not kill the job.
+
+Three things it refuses to do:
+
+- **Guess.** A row that cannot be looked up as the resolved kind is reported in `skipped` with the reason, straight away, instead of spending a slot and coming back as an error two minutes later.
+- **Burn your quotas blindly.** Rows run through a bounded worker pool, requests to one host are serialised, and every row carries its own `sources` array so you can see which upstream answered for which identifier.
+- **Lose the shape of a mixed job.** The CSV writes one column set per mode, so a job holding domains and phone numbers stays readable rather than collapsing into a lowest-common-denominator table.
+
+The original phone-only body (`{"numbers": [...]}`) is still accepted.
 
 ---
 
@@ -744,6 +967,38 @@ Sign up: [IPQualityScore](https://www.ipqualityscore.com) · [NumVerify](https:/
 > lookup re-runs the fan-out with the new key instead of serving the pre-key
 > result until the 24 h TTL expires.
 
+### The AI Analyst's model
+
+The optional analyst that narrates a finished assessment is set up in its own
+panel, not in this file. Open any result, scroll to **AI Analysis**, and the
+panel reports what this machine can actually run: it probes for a local
+**Ollama** server and lists the models it holds, and checks which cloud
+providers already have a key. It then selects one that works, preferring Ollama
+because it is keyless and the evidence never leaves the box.
+
+If nothing is set up it says so and offers both routes without sending you to a
+terminal. For a cloud model: a **Create a key** link into the provider's own
+console, a paste field, and **Save** to keep the key in the same
+`.data/keys.json` store the OSINT keys use, so it is pasted once and never
+again. Google Gemini and Groq both issue a key on a free tier. For the local
+route: the Ollama download link and the two commands that start it, with
+**Check again** to re-probe without a reload. A pasted key can also be used for
+a single run and forgotten.
+
+However the key arrives it rides only in the request to your own relay, which
+forwards it and never stores, logs or returns it, and the panel never writes it
+to browser storage. Eight backends are supported: local Ollama plus OpenAI,
+Anthropic, Google Gemini, Groq, DeepSeek, Mistral and OpenRouter. Their
+environment variables are listed in `.env.example` if you would rather set them
+there than in the panel.
+
+When a run fails, the panel names the cause and reopens the field that fixes it,
+and the relay answers with a status that matches: a key or model name you can
+correct is a `400`, a provider that is throttling you passes its own `429`
+through, and a `502` is reserved for a provider that was unreachable or sent
+back nothing usable. The audit log records the run afterwards with the status it
+really returned, so a failed analysis is not filed as a completed one.
+
 ---
 
 <a id="runtime-configuration"></a>
@@ -777,6 +1032,9 @@ CASE_SNAPSHOT_HISTORY=5      # lookup snapshots kept per identifier, per case
 CASE_PASSWORD=               # unset = cases open. Set it to seal the case
                              # store while leaving lookups open (see below)
 CASE_UNLOCK_TTL_MS=43200000  # how long one unlock lasts (12 h)
+CHANGE_WEBHOOK_URL=          # unset = the change inbox is the only delivery.
+                             # Set it and each recorded change is also POSTed
+                             # as JSON, best effort (https, non-private host)
 ```
 
 Junk values fall back to the default and are clamped to a sane range, so a typo
@@ -854,12 +1112,19 @@ POST /api/username-lookup { username } → 23 auto-verified + 15 manual → foun
                                        ‖ GitHub · GitLab · Codeberg · HN · Reddit · Bluesky ·
                                        ‖ Mastodon · Chess.com · Lichess profiles · LeakCheck ·
                                        ‖ Hudson Rock (free) + offline HIBP catalog enrichment
+                                       → avatar perceptual hashes + self-link proofs → resolved identity
+POST /api/username-sweep { username, page } → 242 WhatsMyName contracts per page (393 more on request)
 POST /api/ip-lookup     { ip }       → ip-api (→ ipwho.is when throttled): geo · ASN · ISP · reverse DNS + risk
 POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT) ‖ RDAP whois
                                        (rdap.org, then the IANA-bootstrapped registry) ‖
-                                       Certspotter subdomains (crt.sh supplements only when sparse,
-                                       on a 2.5 s budget) ‖ SPF/DMARC posture ‖ offline HIBP
-                                       catalog: breaches recorded for the domain
+                                       Certspotter + crt.sh subdomains ‖ Mnemonic passive DNS ‖
+                                       HackerTarget reverse IP ‖ Shodan + GreyNoise on the apex
+                                       addresses ‖ GLEIF legal entity ‖ SPF/DMARC posture ‖
+                                       offline HIBP catalog: breaches recorded for the domain
+POST /api/typosquat-scan { domain }  → look-alike generation → DNS + MX resolution → RDAP age
+POST /api/wallet-lookup { address }  → OFAC SDN screen (offline) → balance · activity · ERC-20 · ENS
+POST /api/bulk-lookup   { items }    → a background job that runs the real lookup for every row
+POST /api/evidence      { caseId }   → preserve a response verbatim, SHA-256, and verify it later
 
 Every result then feeds the auto-pivot engine (`src/lib/analysis/autoPivot.ts`), a pure
 function that reads the identifiers the response already contains (a domain's MX host,
@@ -894,11 +1159,11 @@ curl -s localhost:3000/api/cases | jq '.cases'
 curl -s localhost:3000/api/docs  | jq .info
 ```
 
-The eighteen endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/wallet-lookup` · `/api/hash-lookup` · `/api/pwned-password` · `/api/bulk-lookup` · `/api/cases` · `/api/sources` · `/api/notable-breaches` · `/api/datasets` · `/api/keys` · `/api/ai-analyst` · `/api/health` · `/api/version` · `/api/docs`; 23 operations in all, and **every one of them is in the spec**.
+The twenty-one endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username-lookup` · `/api/ip-lookup` · `/api/domain-lookup` · `/api/wallet-lookup` · `/api/hash-lookup` · `/api/pwned-password` · `/api/bulk-lookup` · `/api/username-sweep` · `/api/typosquat-scan` · `/api/evidence` · `/api/cases` · `/api/sources` · `/api/notable-breaches` · `/api/datasets` · `/api/keys` · `/api/ai-analyst` · `/api/health` · `/api/version` · `/api/docs`; 30 operations in all, and **every one of them is in the spec**.
 
 The spec is generated at request time from a route registry (`src/lib/api/endpoints.ts`), not hand-written, and a test walks `src/app/api/**/route.ts` and fails the build if the registry and the actual routes disagree. Adding a route without documenting it is a red build, so the "import it into Postman" promise cannot quietly stop being true.
 
-Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope`, which tells you whether your own limit or the server-wide ceiling is binding) on every response, a 400 included, since the request is charged before its body is validated. Each also returns `X-Robots-Tag: noindex`. Each also returns a uniform `sourceHealth` array (`{ source, ok, ms, fetchedAt, error?, skipped? }`) so one consumer can render source health for any mode; `skipped` means "no API key configured", which is deliberately distinct from a source that was called and failed. `/api/sources` reports what each source did on its **last actual call**, not just whether a key is present. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (provenance only; key **values are never returned**).
+Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope`, which tells you whether your own limit or the server-wide ceiling is binding) on every response, a 400 included, since the request is charged before its body is validated. Each also returns `X-Robots-Tag: noindex`. Each also returns a uniform `sourceHealth` array (`{ source, ok, ms, fetchedAt, error?, skipped? }`) so one consumer can render source health for any mode; `skipped` means the source was never called, with `error` saying which reason applies: `NOT_CONFIGURED` when its API key is unset, `NO_INPUT` when it is keyless but this lookup had nothing to ask it about. Both are deliberately distinct from a source that was called and failed. `/api/sources` reports what each source did on its **last actual call**, not just whether a key is present. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (provenance only; key **values are never returned**).
 
 ---
 
@@ -1035,7 +1300,9 @@ HEAVEN-GeoIntel/
 │       │              the animated README poster · banner.ts, the terminal one
 │       ├── analysis/  phoneAnalysis · emailAnalysis · freePhoneIntel · ipClassify ·
 │       │              hashDetect · entityExtract · crossPivots · usernameProfiles ·
-│       │              caseCorrelation · caseMerge · caseReport · caseTimeline
+│       │              caseCorrelation · caseMerge · caseTimeline ·
+│       │              report (model + text/markdown/STIX) · reportHtml (screen
+│       │              dossier) · reportPrint (paged A4) · caseReport (+ caseDoc)
 │       ├── data/      countryIntel · mccMnc · usNpaDatabase · usernameSites ·
 │       │              disposableEmailDomains          (offline datasets)
 │       ├── server/    caseStore (.data/cases.json) · keyStore · auditLog ·
@@ -1071,12 +1338,12 @@ HEAVEN-GeoIntel/
 | **UX** | `cmdk` ⌘K command palette · 3D tilt cards · holographic borders · glassmorphism |
 | **Animation / Viz** | Framer Motion · Canvas API (katakana rain · QR) · hand-rolled SVG link graph |
 | **Breach / Infostealer** | Hudson Rock Cavalier (free) · XposedOrNot (free) · LeakCheck public (free) · ProxyNova COMB (free, masked) · breach catalog (free, vendored offline snapshots: HIBP + XposedOrNot + Wikipedia notable breaches) · BreachDirectory via RapidAPI |
-| **Username OSINT** | 38-site parallel existence checks (server-side, no key) |
-| **IP / Domain OSINT** | ip-api · ipwho.is · Cloudflare DNS-over-HTTPS · RDAP · crt.sh · direct HTTP/TLS probe · RIPEstat (all free · no key) |
-| **Crypto / Hash OSINT** | mempool.space (BTC) · public Ethereum JSON-RPC (ETH balance + on-chain ENS resolution) · CIRCL hashlookup (file-hash NSRL reputation); all free · no key |
+| **Username OSINT** | 38-site parallel existence checks plus an on-request deep sweep of 242 more, from the bundled WhatsMyName detection contracts; server-side avatar perceptual hashing for identity linkage (all no key) |
+| **IP / Domain OSINT** | ip-api · ipwho.is · Cloudflare DNS-over-HTTPS · RDAP · Certspotter · crt.sh · Mnemonic passive DNS · HackerTarget reverse IP · Shodan InternetDB · GreyNoise · GLEIF · direct HTTP/TLS probe · RIPEstat (all free · no key) |
+| **Crypto / Hash OSINT** | OFAC SDN sanctions screen (vendored offline snapshot) · mempool.space (BTC activity + counterparties) · public Ethereum JSON-RPC (ETH balance, ERC-20 holdings, on-chain ENS resolution) · CIRCL hashlookup (file-hash NSRL reputation); all free · no key |
 | **Identity / Reputation** | FullContact · Gravatar · EmailRep.io · Hunter.io |
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
-| **Persistence** | In-memory cache (24 h · 1000 phone / 500 email entries, FIFO) · file-backed cases (`.data/`) |
+| **Persistence** | In-memory cache (24 h · 1000 phone / 500 email entries, FIFO) · file-backed cases and hashed evidence locker (`.data/`) |
 | **Rate Limiting** | Fixed-window counter per client · 60 req/min + 600/min ceiling |
 | **Quality** | ESLint 9 (flat config) · Vitest · GitHub Actions CI |
 | **Font** | JetBrains Mono · 15 px base |
@@ -1112,7 +1379,7 @@ four ways, so the identity can never drift:
 | favicon · app icons · OG image · hero | `npm run brand` → static assets |
 | **README poster** (light + dark + still) | `posterSvg()`: animated SVG, [see below](#the-poster) |
 | **Launcher · installer · uninstaller** | `bannerTrueColor()` / `bannerAnsi()` → `scripts/banner.sh` |
-| HTML + printable reports | `logoSvg()`: full-colour on screen, single-ink on paper |
+| Screen dossier + paged PDF (lookup and case) | `logoSvg()`: the gradient mark on screen, the single-ink one on paper |
 | Plain-text `.txt` reports | `asciiLetterhead()`: the same hexagon in monospace |
 
 <a id="the-poster"></a>
@@ -1127,7 +1394,7 @@ threshold in `vitest.config.ts`:
 npm run brand:poster
 ```
 
-So "20/29 keyless sources" cannot drift out of date the next time a source is added, and
+So "25/34 keyless sources" cannot drift out of date the next time a source is added, and
 `tests/posterAssets.test.ts` fails the build if the committed artwork is older than the
 registries it quotes. It ships in three files: `poster.svg` (dark), `poster-light.svg`
 (GitHub switches with your theme) and `poster-still.svg` for print. Each is one
@@ -1163,7 +1430,7 @@ the same numbers as this page:
 │            ──────────────────────────────────────────────            │
 │            Search It.  Enrich It.  Pivot It.  Report It.             │
 │                                                                      │
-│         7 identifiers · 11 modes · 20/29 sources need no key         │
+│         7 identifiers · 11 modes · 25/34 sources need no key         │
 │            v3.1.0  ·  Lookup -> Enrich -> Pivot -> Report            │
 │                                                                      │
 │           Owned & Developed by  Nisarg Chasmawala (Shroff)           │

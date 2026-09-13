@@ -59,9 +59,21 @@ describe("analyzeEmail: provider classification", () => {
   it("treats an unknown non-webmail domain as corporate", () => {
     const a = analyzeEmail("ceo@acmecorp.io");
     expect(a.providerType).toBe("corporate");
-    expect(a.providerName).toContain("(Corporate)");
+    expect(a.providerName).toBe("Acmecorp (Corporate)");
     expect(a.isDisposable).toBe(false);
     expect(a.isWebmail).toBe(false);
+  });
+
+  it("names an internationalised domain the way it is spelled, not the way it is encoded", () => {
+    // The A-label is a transport encoding, not a company. Showing an analyst
+    // "Xn--mnchen-3ya (Corporate)" for münchen.de names something that does not
+    // exist.
+    const a = analyzeEmail("test@münchen.de");
+    expect(a.domain).toBe("xn--mnchen-3ya.de");
+    expect(a.domainUnicode).toBe("münchen.de");
+    expect(a.providerName).toBe("München (Corporate)");
+    // An internationalised TLD is dropped label-wise, so the name survives it.
+    expect(analyzeEmail("a@пример.рф").providerName).toBe("Пример (Corporate)");
   });
 
   it("marks malformed input unknown (never throws)", () => {

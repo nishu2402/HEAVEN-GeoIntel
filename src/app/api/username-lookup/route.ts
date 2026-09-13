@@ -16,6 +16,12 @@ import {
   normalizeBluesky, normalizeMastodon, normalizeCodeberg, normalizeChessCom,
   normalizeLichess, deriveIdentity,
 } from "@/lib/analysis/usernameProfiles";
+import { hashAvatars } from "@/lib/server/avatarHash";
+import { correlateAvatars } from "@/lib/analysis/phash";
+import { selfLinkProofs, avatarProofs } from "@/lib/analysis/identityLinks";
+import { resolveIdentity } from "@/lib/analysis/identityResolve";
+import { mapLimit, hostKey } from "@/lib/server/concurrency";
+import { fanoutConcurrency } from "@/lib/server/config";
 import type { UsernameLookupResponse, UsernameHit, UsernameHitStatus, SocialProfile } from "@/lib/types";
 
 // ── Rich profile providers — keyless public JSON APIs ────────────────────────
@@ -185,8 +191,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const rlHeaders = rl.headers;
   const client = rl.client;
 
-  const body = await parseBody(req, usernameBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
+  const parsed = await parseBody(req, usernameBody);
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  const body = parsed.data;
 
   const username = body.username.trim().replace(/^@/, "");
   if (!username) return NextResponse.json({ error: "Missing username" }, { status: 400, headers: rlHeaders });
@@ -220,7 +227,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const sites = activeUsernameSites();
 
   const sweepStarted = Date.now();
-  const settled = await Promise.allSettled(sites.map((s) => checkSite(s, username)));
+  // Bounded fan-out. This was `Promise.allSettled` over every site at once,
+  // which opens one socket per site and reads to the far end as a scan. The cap
+  // is FANOUT_CONCURRENCY, and same-host rows are serialised so a site with
+  // three catalog entries is not hit three times in the same instant.
+  const settled = await mapLimit(
+    sites,
+    fanoutConcurrency(),
+    async (s) => {
+      try {
+        return { status: "fulfilled" as const, value: await checkSite(s, username) };
+      /* v8 ignore start -- checkSite catches everything, so a rejection is not
+         reachable; the wrapper keeps one bad site from failing the sweep. */
+      } catch {
+        return { status: "rejected" as const, value: null };
+      }
+      /* v8 ignore stop */
+    },
+    (s) => hostKey(s.url),
+  );
   /* v8 ignore start -- checkSite catches everything, so a rejected promise is not
      reachable; the fallback exists so one bad site can never fail the sweep. */
   const hits: UsernameHit[] = settled.map((r, i) =>
@@ -238,6 +263,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const [rich, leak, hr] = await Promise.all([richJob, leakJob, hrJob]);
   const profiles = rich.value.filter((p): p is SocialProfile => p !== null);
   const identity = deriveIdentity(profiles);
+
+  // ── Linkage, established server-side ──────────────────────────────────────
+  // The avatar comparison used to run on a canvas in the browser, which needs
+  // CORS; measured live, only one of three avatar hosts sent the header, so the
+  // panel silently never rendered. Hashing here also means the result can feed
+  // identity resolution, which is what turns "these accounts share a handle"
+  // into "these accounts are provably the same person".
+  const avatarJob = timedValue(
+    "avatarHash",
+    hashAvatars(identity.avatars.map((a) => ({ url: a.url, source: a.source })), fanoutConcurrency()),
+    (r) => r.hashed.length > 0 || r.skipped.length === 0,
+    (r) => `no avatar could be hashed (${r.skipped.length} skipped)`,
+  );
+  const avatars = await avatarJob;
+  const avatarClusters = correlateAvatars(avatars.value.hashed);
+  const identityProofs = [...selfLinkProofs(profiles), ...avatarProofs(avatarClusters)];
+  const resolvedIdentity = resolveIdentity(identity, identityProofs);
 
   // Catalog-enriched union for the handle. Username has one keyless breach index
   // (LeakCheck), but the offline HIBP catalog still fills its bare breach names
@@ -268,6 +310,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     rich.provenance,
     leak.provenance,
     hr.provenance,
+    avatars.provenance,
   ]);
 
   // `checked` counts only sites we could actually auto-verify — manual sites are
@@ -282,6 +325,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     hits,
     profiles,
     identity,
+    resolvedIdentity,
+    identityProofs,
+    avatarClusters,
+    avatarSkipped: avatars.value.skipped,
     pivots: buildPivots(username),
     leakCheck: leak.value,
     hudsonRock: hr.value,

@@ -258,11 +258,11 @@ describe("FullContact (phone)", () => {
       details: {
         profiles: { twitter: { url: "https://x.test/jane", username: "jane" }, nourl: {} },
         emails: [{ value: "jane@x.test" }, {}],
-        phones: [{ value: "+15550000001" }, { value: "+19999999999" }],
+        phones: [{ value: "+12125552001" }, { value: "+19999999999" }],
         employment: [{ name: "Acme", title: "CTO", current: true }, { title: "no name" }],
       },
     })]]);
-    const d = (await (await lookup("+15550000001")).json()).sources.fullContact.data;
+    const d = (await (await lookup("+12125552001")).json()).sources.fullContact.data;
     expect(d.fullName).toBe("Jane Doe");
     expect(d.profiles).toEqual([{ platform: "Twitter", url: "https://x.test/jane", username: "jane" }]);
     expect(d.otherEmails).toEqual(["jane@x.test"]);
@@ -328,7 +328,7 @@ describe("Hudson Rock (free, always called)", () => {
     stub([["cavalier.hudsonrock.com", resp(404, {})]]);
     const json = await (await lookup()).json();
     expect(json.sources.hudsonRock).toEqual({
-      ok: true, data: { total: 0, stealers: [], message: "No infections found" },
+      ok: true, data: { total: 0, stealers: [], message: "No infostealer infection in this index captured this phone number." },
     });
   });
 
@@ -403,7 +403,10 @@ describe("threat score bands", () => {
   const scoreFor = async (ipqs: Record<string, unknown>, extra: Array<[string, Response]> = []) => {
     process.env.IPQS_API_KEY = "k";
     stub([["ipqualityscore.com", resp(200, { success: true, ...ipqs })], ...extra]);
-    return (await (await lookup()).json()) as { threatScore: number; threatLabel: string };
+    return (await (await lookup()).json()) as {
+      threatScore: number; threatLabel: string;
+      exposureScore: number; exposureLabel: string;
+    };
   };
 
   it("is CLEAN with nothing adverse", async () => {
@@ -436,21 +439,29 @@ describe("threat score bands", () => {
     expect(r.threatLabel).toBe("LOW RISK");
   });
 
-  it("adds breach hits, capped", async () => {
+  it("counts recovered credentials as EXPOSURE, never as abuse", async () => {
+    // The split this release introduced: breach volume says what has happened
+    // TO the subject. Adding it to an abuse score is how the White House
+    // switchboard came to read MODERATE off eleven breach records.
     process.env.RAPIDAPI_KEY = "k";
     const r = await scoreFor({}, [["breachdirectory.p.rapidapi.com", resp(200, { found: 99, result: [] })]]);
-    expect(r.threatScore).toBe(30); // 99*8 capped at 30
+    expect(r.threatScore).toBe(0);
+    expect(r.threatLabel).toBe("CLEAN");
+    expect(r.exposureScore).toBe(70);          // floor 50 + capped 20
+    expect(r.exposureLabel).toBe("EXTENSIVE");
   });
 
-  it("treats an infostealer infection as CRITICAL", async () => {
+  it("treats an infostealer infection as extensive exposure", async () => {
     const r = await scoreFor({}, [["cavalier.hudsonrock.com", resp(200, {
       stealers: [{ computer_name: "A", malware_path: "vidar.exe" }],
     })]]);
-    expect(r.threatScore).toBe(70); // floor 60 + 1×10
-    expect(r.threatLabel).toBe("CRITICAL");
+    expect(r.exposureScore).toBe(75);          // floor 70 + 1×5
+    expect(r.exposureLabel).toBe("EXTENSIVE");
+    // The subject of a stealer infection is the victim, not the abuser.
+    expect(r.threatScore).toBe(0);
   });
 
-  it("never exceeds 100", async () => {
+  it("never exceeds 100 on either figure", async () => {
     process.env.RAPIDAPI_KEY = "k";
     const r = await scoreFor(
       { fraud_score: 100, risky: true, recent_abuse: true, active: false, prepaid: true },
@@ -461,14 +472,16 @@ describe("threat score bands", () => {
         })],
       ],
     );
-    expect(r.threatScore).toBe(100);
-    expect(r.threatLabel).toBe("CRITICAL");
+    expect(r.threatScore).toBe(65);            // fraud 60 + prepaid 5
+    expect(r.threatLabel).toBe("HIGH RISK");
+    expect(r.exposureScore).toBe(100);
+    expect(r.exposureLabel).toBe("EXTENSIVE");
   });
 
   it("flags a premium-rate number without any API help", async () => {
     stub([]);
     // +1 900 numbers are premium-rate, detected entirely offline.
-    const json = await (await lookup("+19005550123")).json();
+    const json = await (await lookup("+19002000123")).json();
     expect(json.aggregated.isPremiumRate).toBe(true);
     expect(json.threatScore).toBeGreaterThanOrEqual(60);
   });

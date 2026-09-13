@@ -4,14 +4,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NextRequest } from "next/server";
-import { POST as bulkPOST } from "@/app/api/bulk-lookup/route";
+import { summarize } from "@/lib/server/bulkJobs";
 import { GET as casesGET, POST as casesPOST, DELETE as casesDELETE } from "@/app/api/cases/route";
 import { POST as domainPOST } from "@/app/api/domain-lookup/route";
 import { POST as ipPOST } from "@/app/api/ip-lookup/route";
 import { POST as usernamePOST } from "@/app/api/username-lookup/route";
-import { setCached } from "@/lib/server/cache";
 import { restoreRateLimit, resetServerState } from "./testUtils";
-import type { LookupResponse } from "@/lib/types";
 
 // Second pass over the route error/merge paths: the enrichment branches that
 // only run when an upstream returns a particular shape.
@@ -312,7 +310,11 @@ describe("domain: DNS record parsing", () => {
       if (s.includes("cloudflare-dns")) {
         const type = new URL(s).searchParams.get("type")!;
         const rows = answers[type];
-        return resp(200, rows ? { Answer: rows.map((r) => ({ name: "x", type: 1, TTL: r.TTL ?? 300, data: r.data })) } : {});
+        // Answers carry the real record-type code: the route now drops any
+        // answer that is not the type it asked for, the way a resolver's answer
+        // section really behaves for a CNAME'd host.
+        const code: Record<string, number> = { A: 1, NS: 2, CNAME: 5, MX: 15, TXT: 16, AAAA: 28 };
+        return resp(200, rows ? { Answer: rows.map((r) => ({ name: "x", type: code[type] ?? 1, TTL: r.TTL ?? 300, data: r.data })) } : {});
       }
       return resp(404, {});
     }));
@@ -384,7 +386,11 @@ describe("domain: certificate-transparency subdomains", () => {
     expect(json.subdomains).toEqual(["a.ct.test", "b.ct.test", "c.ct.test", "wild.ct.test"]);
   });
 
-  it("skips the crt.sh fallback when Certspotter is already rich", async () => {
+  it("always consults crt.sh, and reports what each source contributed", async () => {
+    // It used to consult crt.sh only when Certspotter returned fewer than five
+    // hosts. Measured on wordpress.org that cost real coverage: Certspotter's
+    // recent-issuance window held 9 and crt.sh held 25, so the threshold was
+    // never crossed and the tool reported 9 as though that were the answer.
     const seen: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => {
       const s = String(u);
@@ -392,10 +398,18 @@ describe("domain: certificate-transparency subdomains", () => {
       if (s.includes("certspotter")) {
         return resp(200, [{ dns_names: ["a.rich.test", "b.rich.test", "c.rich.test", "d.rich.test", "e.rich.test", "f.rich.test"] }]);
       }
+      if (s.includes("crt.sh")) return resp(200, [{ name_value: "deep.rich.test" }]);
       return resp(404, {});
     }));
-    await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "rich.test" });
-    expect(seen.some((s) => s.includes("crt.sh"))).toBe(false);
+    const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "rich.test" })).json();
+    expect(seen.some((s) => s.includes("crt.sh"))).toBe(true);
+    expect(json.subdomains).toContain("deep.rich.test");
+    const cov = Object.fromEntries(
+      json.subdomainCoverage.sources.map((c: { source: string; found: number }) => [c.source, c.found]),
+    );
+    expect(cov["Certspotter"]).toBe(6);
+    expect(cov["crt.sh"]).toBe(1);
+    expect(json.subdomainCoverage.distinct).toBe(7);
   });
 
   it("tolerates both CT sources failing", async () => {
@@ -407,80 +421,114 @@ describe("domain: certificate-transparency subdomains", () => {
 });
 
 describe("domain: Wayback probe", () => {
-  it("reports the oldest snapshot", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      isHost(u, "archive.org")
-        ? resp(200, { archived_snapshots: { closest: { timestamp: "19981212000000", url: "http://web.archive.org/web/1998/x" } } })
-        : resp(404, {})));
+  // The replay endpoint answers a 1996 timestamp with a 302 to the canonical
+  // URL of the oldest capture; the timestamp lives in the Location header.
+  const replay = (status: number, location?: string) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: (h: string) => (h.toLowerCase() === "location" ? (location ?? null) : null) },
+    body: null,
+    json: async () => ({}),
+    text: async () => "",
+  }) as unknown as Response;
+
+  const wayback = (r: Response) => {
+    vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => (isHost(u, "web.archive.org") ? r : resp(404, {}))));
+  };
+
+  it("reports the oldest snapshot from the redirect target", async () => {
+    wayback(replay(302, "http://web.archive.org/web/19981212000000/http://wb.test/"));
     const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb.test" })).json();
     expect(json.wayback.available).toBe(true);
     expect(json.wayback.firstSnapshot).toBe("1998-12-12");
     expect(json.wayback.snapshotUrl.startsWith("https://")).toBe(true); // upgraded from http
   });
 
-  it("reports 'no snapshot' distinctly from 'archive unreachable'", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      isHost(u, "archive.org") ? resp(200, { archived_snapshots: {} }) : resp(404, {})));
-    let json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb2.test" })).json();
+  // The old `available` JSON endpoint answered 429 to most requests and served
+  // an empty `archived_snapshots` for github.com and example.com, both archived
+  // thousands of times. Every one of those became "never archived" in the UI.
+  it("reports 'never archived' only on a definitive 404", async () => {
+    wayback(replay(404));
+    const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb2.test" })).json();
     expect(json.wayback).toEqual({ available: false, firstSnapshot: null, snapshotUrl: null });
+  });
 
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("down"); }));
-    json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb3.test" })).json();
+  it("stays null — not 'never archived' — when the archive rate-limits us", async () => {
+    wayback(replay(429));
+    const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb3.test" })).json();
     expect(json.wayback).toBeNull();
   });
 
-  it("keeps an unparseable timestamp verbatim", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (u: string | URL) =>
-      isHost(u, "archive.org")
-        ? resp(200, { archived_snapshots: { closest: { timestamp: "odd" } } })
-        : resp(404, {})));
+  it("stays null when the archive is unreachable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("down"); }));
     const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb4.test" })).json();
-    expect(json.wayback.firstSnapshot).toBe("odd");
-    expect(json.wayback.snapshotUrl).toContain("web.archive.org");
+    expect(json.wayback).toBeNull();
+  });
+
+  it("stays null when the redirect carries no readable timestamp", async () => {
+    wayback(replay(302, "https://web.archive.org/some/other/shape"));
+    const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb5.test" })).json();
+    expect(json.wayback).toBeNull();
+  });
+
+  // Nothing here reads the body — on a 404 it is a full HTML error page — so it
+  // is released explicitly, and a body that refuses to release must not take the
+  // whole domain lookup down with it.
+  it.each([
+    ["releases the body it does not read", async () => {}],
+    ["survives a body that refuses to release", async () => { throw new Error("locked"); }],
+  ])("%s", async (_label, cancelImpl) => {
+    const cancel = vi.fn(cancelImpl);
+    wayback({
+      ok: false, status: 302,
+      headers: { get: () => "https://web.archive.org/web/20050101000000/http://wb6.test/" },
+      body: { cancel },
+      json: async () => ({}), text: async () => "",
+    } as unknown as Response);
+    const json = await (await post(domainPOST, "http://localhost/api/domain-lookup", { domain: "wb6.test" })).json();
+    expect(json.wayback.firstSnapshot).toBe("2005-01-01");
+    expect(cancel).toHaveBeenCalled();
   });
 });
 
 // ── Bulk cached-row fallbacks ────────────────────────────────────────────────
 
-describe("bulk: cached row field fallbacks", () => {
-  it("falls back to the analysis line type and nulls absent timezone/NPA data", async () => {
-    const e164 = "+14155558811";
-    setCached(e164, {
-      aggregated: { country: null, countryName: "United States", lineType: null, carrier: null, timezone: null, utcOffsets: null },
-      analysis: { type: "FIXED_LINE", npaInfo: null },
-    } as unknown as LookupResponse);
-
-    const { rows } = await (await post(bulkPOST, "http://localhost/api/bulk-lookup", { numbers: [e164] })).json();
-    expect(rows[0]).toMatchObject({
-      cached: true, country: null, type: "FIXED_LINE",
-      timezone: null, utcOffset: null, npaState: null, npaRegion: null,
+describe("bulk: the job summary per mode", () => {
+  it("flattens each mode into the handful of fields a triage row needs", () => {
+    expect(summarize("phone", {
+      input: { e164: "+14155552671", isValid: true },
+      assignability: { assignable: true },
+      analysis: { countryName: "United States" },
+      aggregated: { carrier: "C", lineType: "mobile" },
+      threatScore: 0, exposureScore: 25,
+    })).toEqual({
+      e164: "+14155552671", valid: true, assignable: true, country: "United States",
+      carrier: "C", lineType: "mobile", abuseScore: 0, exposureScore: 25,
     });
-  });
 
-  it("uses the cached timezone and NPA data when present", async () => {
-    const e164 = "+14155558812";
-    setCached(e164, {
-      aggregated: {
-        country: "US", countryName: "United States", lineType: "mobile", carrier: "C",
-        timezone: ["America/Los_Angeles"], utcOffsets: ["-08:00"],
-      },
-      analysis: { type: "MOBILE", npaInfo: { state: "California", region: "SF Bay Area" } },
-    } as unknown as LookupResponse);
-
-    const { rows } = await (await post(bulkPOST, "http://localhost/api/bulk-lookup", { numbers: [e164] })).json();
-    expect(rows[0]).toMatchObject({
-      timezone: "America/Los_Angeles", utcOffset: "-08:00",
-      npaState: "California", npaRegion: "SF Bay Area",
+    // A missing branch of the response is null, never a zero: "not reported"
+    // and "none" are different answers.
+    expect(summarize("ip", { input: "8.8.8.8" })).toEqual({
+      ip: "8.8.8.8", country: null, asn: null, reverse: null, openPorts: null,
+      vulns: null, threatScore: null,
     });
-  });
 
-  it("nulls both when the cached entry has neither a line type nor an analysis type", async () => {
-    const e164 = "+14155558813";
-    setCached(e164, {
-      aggregated: { country: "US", countryName: "US", lineType: null, carrier: null },
-      analysis: { type: null, npaInfo: null },
-    } as unknown as LookupResponse);
-    const { rows } = await (await post(bulkPOST, "http://localhost/api/bulk-lookup", { numbers: [e164] })).json();
-    expect(rows[0].type).toBeNull();
+    // Arrays summarise to their length, which is what a spreadsheet column wants.
+    expect(summarize("domain", { domain: "x.com", dns: { a: [1, 2], mx: [] } })).toMatchObject({
+      domain: "x.com", aRecords: 2, mx: 0,
+    });
+
+    expect(summarize("wallet", { chain: "btc", sanctions: { listed: true } })).toMatchObject({
+      chain: "btc", sanctioned: true,
+    });
+    expect(summarize("hash", { input: "d41d8", kind: "md5", facts: { known: false } })).toMatchObject({
+      hash: "d41d8", kind: "md5", known: false,
+    });
+    expect(summarize("username", { username: "u", found: 3, checked: 20 })).toMatchObject({
+      username: "u", found: 3, checked: 20,
+    });
+    expect(summarize("email", { email: "a@b.com" })).toMatchObject({ email: "a@b.com" });
+    // A response that is not an object at all yields nulls rather than throwing.
+    expect(summarize("phone", null).e164).toBeNull();
   });
 });

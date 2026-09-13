@@ -20,7 +20,7 @@ const domainData = (over: Partial<DomainLookupResponse> = {}): DomainLookupRespo
     expiresDate: "2027-01-01T00:00:00Z", nameservers: [], statuses: ["clientTransferProhibited"],
     registrantOrg: "Example Inc", registrantCountry: "US" },
   subdomains: ["www.example.com", "api.example.com"],
-  emailSecurity: { hasSpf: true, spf: "v=spf1 -all", hasDmarc: true, dmarcPolicy: "quarantine", hasMx: true },
+  emailSecurity: { hasSpf: true, spf: "v=spf1 -all", hasDmarc: true, dmarcPolicy: "quarantine", hasMx: true, nullMx: false },
   dnssec: true,
   wayback: { available: true, firstSnapshot: "2001-05-01", snapshotUrl: "https://web.archive.org/x" },
   http: null,
@@ -82,7 +82,7 @@ describe("<DomainResultsDashboard>", () => {
   it("shows the empty-DNS notice and the spoofable email-security posture", () => {
     render(<DomainResultsDashboard data={domainData({
       dns: { a: [], aaaa: [], mx: [], txt: [], ns: [], cname: [] },
-      emailSecurity: { hasSpf: false, spf: null, hasDmarc: false, dmarcPolicy: null, hasMx: false },
+      emailSecurity: { hasSpf: false, spf: null, hasDmarc: false, dmarcPolicy: null, hasMx: false, nullMx: false },
       subdomains: [],
     })} />);
     expect(screen.getByText(/No DNS records resolved/i)).toBeTruthy();
@@ -96,7 +96,7 @@ describe("<DomainResultsDashboard>", () => {
   it("shows an unanswered DNS query as unknown, never as spoofable or absent", () => {
     render(<DomainResultsDashboard data={domainData({
       dns: { a: [], aaaa: [], mx: [], txt: [], ns: [rec("ns1.example.com", { type: "NS" })], cname: [] },
-      emailSecurity: { hasSpf: null, spf: null, hasDmarc: null, dmarcPolicy: null, hasMx: null },
+      emailSecurity: { hasSpf: null, spf: null, hasDmarc: null, dmarcPolicy: null, hasMx: null, nullMx: false },
       dnssec: null,
       dnsFailed: ["A", "MX", "TXT", "DMARC", "DNSKEY"],
     })} />);
@@ -113,7 +113,7 @@ describe("<DomainResultsDashboard>", () => {
   it("renders the WHOIS-unavailable and unsigned-DNSSEC states", () => {
     render(<DomainResultsDashboard data={domainData({
       whois: null, dnssec: false, wayback: null,
-      emailSecurity: { hasSpf: true, spf: "v=spf1", hasDmarc: true, dmarcPolicy: null, hasMx: true },
+      emailSecurity: { hasSpf: true, spf: "v=spf1", hasDmarc: true, dmarcPolicy: null, hasMx: true, nullMx: false },
     })} />);
     expect(screen.getByText(/WHOIS unavailable/i)).toBeTruthy();
     expect(screen.getByText(/Not signed: DNS responses are forgeable/)).toBeTruthy();
@@ -128,7 +128,7 @@ describe("<DomainResultsDashboard>", () => {
 
   it("colours DMARC by policy: reject is the strongest", () => {
     render(<DomainResultsDashboard data={domainData({
-      emailSecurity: { hasSpf: true, spf: null, hasDmarc: true, dmarcPolicy: "reject", hasMx: true },
+      emailSecurity: { hasSpf: true, spf: null, hasDmarc: true, dmarcPolicy: "reject", hasMx: true, nullMx: false },
     })} />);
     // the DMARC glance tile shows the policy value
     expect(screen.getAllByText("reject").length).toBeGreaterThan(0);
@@ -185,5 +185,22 @@ describe("<DomainResultsDashboard>: live HTTP layer", () => {
     render(<DomainResultsDashboard data={domainData({ http: null })} />);
     expect(screen.getByText("EMAIL PERMUTATIONS")).toBeTruthy();
     expect(screen.getByPlaceholderText("known.person@example.com")).toBeTruthy();
+  });
+});
+
+// A domain that publishes an RFC 7505 null MX is refusing mail on purpose, which
+// is not the same finding as publishing no exchanger at all. The card used to
+// say "Receives mail" for it, because the parsed record counted as one.
+describe("DomainResultsDashboard: the null MX", () => {
+  it("says the domain accepts no mail instead of claiming it receives it", () => {
+    render(<DomainResultsDashboard data={domainData({
+      dns: { a: [rec("93.184.216.34")], aaaa: [], mx: [rec(".", { type: "MX", priority: 0, ttl: 300 })],
+        txt: [], ns: [rec("ns1.example.com", { type: "NS" })], cname: [] },
+      emailSecurity: { hasSpf: true, spf: "v=spf1 -all", hasDmarc: true, dmarcPolicy: "reject", hasMx: false, nullMx: true },
+    })} />);
+    expect(screen.getByText("Accepts no mail (null MX)")).toBeTruthy();
+    expect(screen.queryByText("Receives mail")).toBeNull();
+    expect(screen.queryByText("No mail servers")).toBeNull();
+    expect(screen.getByText("Declined")).toBeTruthy();
   });
 });

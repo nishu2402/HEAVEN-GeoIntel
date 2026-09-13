@@ -1,54 +1,105 @@
 import { describe, it, expect } from "vitest";
-import { resolveIdentity } from "@/lib/analysis/identityResolve";
-import type { IdentitySignals } from "@/lib/types";
+import { resolveIdentity, UNPROVEN_CEILING } from "@/lib/analysis/identityResolve";
+import type { IdentitySignals, LinkProof } from "@/lib/types";
 
 const sig = (over: Partial<IdentitySignals> = {}): IdentitySignals => ({ names: [], locations: [], avatars: [], bios: [], ...over });
 
-describe("resolveIdentity", () => {
-  it("picks the name the most platforms agree on and scores high", () => {
+/** A proof of the kind the avatar hasher produces. */
+const avatarProof = (a: string, b: string): LinkProof => ({
+  kind: "avatar",
+  platforms: [a, b],
+  detail: `same profile photo on ${a} and ${b} (100% perceptual match)`,
+});
+
+describe("resolveIdentity: accounts are fused only when something links them", () => {
+  it("refuses to merge accounts that merely share a handle", () => {
+    // The `torvalds` case: GitHub is the real Linus, the chess accounts are
+    // other people who took the same handle. Fusing them produced one identity
+    // holding Portland, GT and Bern.
     const r = resolveIdentity(sig({
-      names: [
-        { value: "Linus Torvalds", source: "GitHub" },
-        { value: "linus torvalds", source: "GitLab" }, // same name, different case → agrees
-        { value: "L. Torvalds", source: "Reddit" },
+      names: [{ value: "Linus Torvalds", source: "GitHub" }],
+      locations: [
+        { value: "Portland, OR", source: "GitHub" },
+        { value: "GT", source: "Chess.com" },
+        { value: "Bern", source: "Lichess" },
       ],
-      locations: [{ value: "Portland", source: "GitHub" }],
-      avatars: [{ url: "https://a/x.png", source: "GitHub" }],
     }));
-    expect(r.name?.value).toBe("Linus Torvalds");
-    expect(r.name?.agreement).toBe(2);       // GitHub + GitLab
-    expect(r.name?.total).toBe(3);           // three distinct platforms overall
-    expect(r.location?.value).toBe("Portland");
-    expect(r.avatar?.value).toBe("https://a/x.png");
-    expect(r.confidence).toBe(35 + 20 + 12 + 8); // 75
-    expect(r.label).toBe("high");
+    expect(r.cluster.platforms).toEqual(["GitHub"]);
+    expect(r.location?.value).toBe("Portland, OR");
+    expect(r.unlinked.map((u) => u.value)).toEqual(["GT", "Bern"]);
+    expect(r.confidence).toBeLessThanOrEqual(UNPROVEN_CEILING);
+    expect(r.label).not.toBe("high");
   });
 
-  it("is unanimous when every platform agrees, and breaks ties by first appearance", () => {
+  it("fuses accounts a proof links, and scores that highly", () => {
+    const r = resolveIdentity(
+      sig({
+        names: [
+          { value: "Daniel Stenberg", source: "GitHub" },
+          { value: "daniel:// stenberg://", source: "Mastodon" },
+          { value: "someone else", source: "Chess.com" },
+        ],
+        locations: [{ value: "Sweden", source: "GitHub" }],
+        avatars: [{ url: "https://a/x.png", source: "GitHub" }],
+      }),
+      [avatarProof("GitHub", "Mastodon")],
+    );
+    expect(r.cluster.platforms).toEqual(["GitHub", "Mastodon"]);
+    expect(r.cluster.proofs).toHaveLength(1);
+    // Punctuation is not disagreement: the two spellings are one name.
+    expect(r.name?.agreement).toBe(2);
+    expect(r.conflicts).toEqual([]);
+    // 25 base + 20 corroboration + 10 unanimous + 15 proof + 8 location + 8 avatar
+    expect(r.confidence).toBe(86);
+    expect(r.label).toBe("high");
+    expect(r.unlinked.map((u) => u.source)).toEqual(["Chess.com"]);
+  });
+
+  it("subtracts confidence when linked accounts contradict each other", () => {
+    const linked = resolveIdentity(
+      sig({
+        names: [{ value: "Ada", source: "A" }, { value: "Bob", source: "B" }],
+        locations: [{ value: "Berlin", source: "A" }, { value: "Lisbon", source: "B" }],
+      }),
+      [avatarProof("A", "B")],
+    );
+    // 25 base + 15 proof + 8 location, minus 15 per contradiction (name, location)
+    expect(linked.conflicts.map((c) => c.field)).toEqual(["name", "location"]);
+    expect(linked.confidence).toBe(18);
+  });
+
+  it("caps confidence while nothing is proven, however many platforms agree", () => {
     const r = resolveIdentity(sig({
       names: [
         { value: "Ada", source: "A" },
         { value: "Ada", source: "B" },
-        { value: "Bob", source: "C" }, // a competing single-source claim
+        { value: "Ada", source: "C" },
       ],
     }));
-    // Ada: 2 sources, unanimous? total=3, agreement=2 → NOT unanimous
+    // Unproven: one platform is the subject and the other two are candidates,
+    // so "three platforms agree" is not corroboration at all — it is one claim
+    // plus two unverified ones, and the score says 25 rather than 75.
+    expect(r.cluster.platforms).toHaveLength(1);
+    expect(r.name?.agreement).toBe(1);
+    expect(r.unlinked).toHaveLength(2);
+    expect(r.confidence).toBe(25);
+    expect(r.confidence).toBeLessThanOrEqual(UNPROVEN_CEILING);
+  });
+
+  it("picks the value the most linked platforms agree on", () => {
+    const r = resolveIdentity(
+      sig({
+        names: [
+          { value: "Ada", source: "A" },
+          { value: "Ada", source: "B" },
+          { value: "Bob", source: "C" },
+        ],
+      }),
+      [avatarProof("A", "B")],
+    );
     expect(r.name?.value).toBe("Ada");
-    expect(r.confidence).toBe(35 + 20); // 55, medium (no unanimity bonus, no loc/avatar)
-    expect(r.label).toBe("medium");
-  });
-
-  it("adds the unanimity bonus when all platforms match", () => {
-    const r = resolveIdentity(sig({ names: [{ value: "Ada", source: "A" }, { value: "ADA", source: "B" }] }));
     expect(r.name?.agreement).toBe(2);
-    expect(r.name?.total).toBe(2);
-    expect(r.confidence).toBe(35 + 20 + 10); // unanimous bonus → 65
-  });
-
-  it("scores a single-source name as low confidence", () => {
-    const r = resolveIdentity(sig({ names: [{ value: "Solo", source: "X" }] }));
-    expect(r.confidence).toBe(35);
-    expect(r.label).toBe("low");
+    expect(r.name?.total).toBe(2);        // only the linked accounts count
   });
 
   it("gives a small confidence when only a location or avatar is known", () => {
@@ -62,5 +113,18 @@ describe("resolveIdentity", () => {
     expect(r.name).toBeNull();
     expect(r.confidence).toBe(0);
     expect(r.label).toBe("low");
+    expect(r.cluster.platforms).toEqual(["X"]);
+  });
+
+  it("ignores a proof that reaches outside the subject cluster", () => {
+    // A proof joining two platforms that have no signals still forms a cluster,
+    // but it must not attach itself to the subject's own evidence.
+    const r = resolveIdentity(
+      sig({ names: [{ value: "Ada", source: "A" }] }),
+      [avatarProof("Y", "Z")],
+    );
+    expect(r.cluster.platforms).toEqual(["Y", "Z"]);
+    expect(r.cluster.proofs).toHaveLength(1);
+    expect(r.unlinked.map((u) => u.source)).toEqual(["A"]);
   });
 });

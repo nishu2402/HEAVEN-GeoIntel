@@ -14,15 +14,21 @@
 //     any that was not in the bundle as an UNVERIFIED claim, so a hallucinated
 //     email or IP is surfaced as suspect rather than rendered as fact.
 //
-// Ollama is the default provider: local, keyless, nothing leaves the machine. A
-// cloud provider is opt-in and, before it runs, the disclosure below states
-// plainly that the bundle is transmitted off-box.
+// No provider is assumed. The panel asks the server what is actually usable on
+// this machine and selects that, preferring a local Ollama server because it is
+// keyless and nothing leaves the box. A cloud provider is opt-in and, before it
+// runs, the disclosure below states plainly that the bundle is transmitted
+// off-box.
 
 import type { AiAnalysis } from "./index";
+import type { KeyName } from "../server/keyStore";
 import { extractEntities } from "./textAnalysis";
 
 export type AnalystProvider =
   | "ollama" | "openai" | "anthropic" | "gemini" | "groq" | "deepseek" | "mistral" | "openrouter";
+
+/** Every provider except the local one, so key-only maps can be indexed safely. */
+export type CloudProvider = Exclude<AnalystProvider, "ollama">;
 
 /** Every provider, in the order the picker lists them (local first). */
 export const ALL_PROVIDERS: readonly AnalystProvider[] = [
@@ -69,12 +75,39 @@ export const DEFAULT_MODEL: Record<AnalystProvider, string> = {
 };
 
 /**
+ * The allow-listed key name each cloud provider reads, in the store and in the
+ * environment. Typed as KeyName so a provider whose key was never added to the
+ * store's allow-list fails to compile rather than failing to save at runtime.
+ */
+export const PROVIDER_KEY_NAME: Record<CloudProvider, KeyName> = {
+  openai: "OPENAI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  groq: "GROQ_API_KEY",
+  deepseek: "DEEPSEEK_API_KEY",
+  mistral: "MISTRAL_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
+};
+
+/**
+ * Providers that issue a working key on a free tier, so the setup card can lead
+ * with one instead of sending an operator to a console that asks for a card.
+ */
+export const FREE_TIER: readonly CloudProvider[] = ["gemini", "groq"];
+
+/** The provider the setup card opens on: a free key, one page, no card. */
+export const SETUP_DEFAULT: CloudProvider = "gemini";
+
+/** Where Ollama is downloaded, for the local path's single link. */
+export const OLLAMA_INSTALL_URL = "https://ollama.com/download";
+
+/**
  * Where an operator gets an API key for each cloud provider. These open the
  * provider's own key console, so the whole cloud path can be set up from the
  * panel without leaving the app: click through, create a key, paste it back.
  * Ollama is local and keyless, so it has no entry.
  */
-export const API_KEY_URL: Record<Exclude<AnalystProvider, "ollama">, string> = {
+export const API_KEY_URL: Record<CloudProvider, string> = {
   openai: "https://platform.openai.com/api-keys",
   anthropic: "https://console.anthropic.com/settings/keys",
   gemini: "https://aistudio.google.com/app/apikey",
@@ -195,7 +228,7 @@ export function parseAnalystResponse(text: string, a: AiAnalysis): AnalystResult
 // ── Opsec disclosure ─────────────────────────────────────────────────────────
 
 /** The provider's name as it reads in the disclosure sentence (no parenthetical). */
-const API_NAME: Record<Exclude<AnalystProvider, "ollama">, string> = {
+const API_NAME: Record<CloudProvider, string> = {
   openai: "OpenAI",
   anthropic: "Anthropic",
   gemini: "Google Gemini",
@@ -210,7 +243,7 @@ export function analystDisclosure(provider: AnalystProvider): string {
   if (provider === "ollama") {
     return "The evidence bundle is sent to your local Ollama server only. Nothing leaves this machine.";
   }
-  return `The evidence bundle is sent to ${API_NAME[provider]}'s API through your own server relay, using the key you paste in the panel or one set on the server. This is the only feature that transmits a subject's data off this machine; it is off unless you enable it.`;
+  return `The evidence bundle is sent to ${API_NAME[provider]}'s API through your own server relay, using the key you paste or save in the panel, or one set on the server. This is the only feature that transmits a subject's data off this machine; it is off unless you enable it.`;
 }
 
 // ── Provider request shaping (pure; the key is injected by the server) ────────

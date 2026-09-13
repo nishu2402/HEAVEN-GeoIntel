@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { History, Trash2, Smartphone, Mail, AtSign, Network, Globe } from "lucide-react";
+import { History, Trash2, Smartphone, Mail, AtSign, Network, Globe, Wallet, Hash } from "lucide-react";
 import { getLookups, clearLookups, LOOKUPS_EVENT, type LookupItem, type LookupKind } from "@/lib/client/lookupHistory";
 
 const ICON: Record<LookupKind, typeof Smartphone> = {
   phone: Smartphone, email: Mail, username: AtSign, ip: Network, domain: Globe,
+  wallet: Wallet, hash: Hash,
 };
 const COLOR: Record<LookupKind, string> = {
   phone: "#00ff85", email: "#22d3ee", username: "#e879f9", ip: "#fb923c", domain: "#facc15",
+  wallet: "#f7931a", hash: "#a78bfa",
 };
 
 /** Short relative time. `now` is passed in (set in state, never read during render). */

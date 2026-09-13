@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FolderPlus, Trash2, Plus, X, Save, FolderOpen, Loader2, RefreshCw,
-  Download, FileText, Upload, ShieldAlert, Printer, Link2, Clock, GitMerge,
+  Download, FileText, FileType, Upload, ShieldAlert, Printer, Link2, Clock, GitMerge,
 } from "lucide-react";
 import type { InvestigationCase, EntityKind } from "@/lib/types";
 import { correlateCases } from "@/lib/analysis/caseCorrelation";
@@ -11,14 +11,19 @@ import { caseTimeline } from "@/lib/analysis/caseTimeline";
 import { LOOKUP_MODES } from "@/lib/client/modes";
 import LinkGraph, { type GraphEntity } from "@/components/graph/LinkGraph";
 import CaseChanges from "@/components/cases/CaseChanges";
+import EvidencePanel from "@/components/cases/EvidencePanel";
+import ChangeInboxPanel from "@/components/cases/ChangeInboxPanel";
+import type { Inbox } from "@/lib/analysis/changeInbox";
 import CaseBriefing from "@/components/cases/CaseBriefing";
 import {
   buildCaseJson, buildCaseMarkdown, verifyCaseImport,
-  buildCaseCsv, buildMaltegoCsv, buildStixBundle, buildPrintableHtml,
+  buildCaseCsv, buildMaltegoCsv, buildStixBundle,
 } from "@/lib/analysis/caseReport";
+import { buildCaseHtml, buildCasePrintHtml } from "@/lib/analysis/caseDoc";
 
 const KIND_COLOR: Record<EntityKind, string> = {
   phone: "#00ff85", email: "#22d3ee", username: "#e879f9", ip: "#fb923c", domain: "#facc15",
+  wallet: "#f7931a", hash: "#a78bfa",
 };
 
 // Module-scope (not a component/hook), so Date.now()/DOM use is allowed here.
@@ -46,6 +51,9 @@ function fmtTime(at: number): string {
 
 export default function CasesPanel() {
   const [cases, setCases] = useState<InvestigationCase[]>([]);
+  // Derived server-side from the same snapshots the cases carry, so the inbox
+  // costs no extra round trip.
+  const [inbox, setInbox] = useState<Inbox | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -74,9 +82,10 @@ export default function CasesPanel() {
     try {
       const res = await fetch("/api/cases", { cache: "no-store" });
       if (res.status === 401) { setLocked(true); setCases([]); return; }
-      const json = (await res.json()) as { cases: InvestigationCase[] };
+      const json = (await res.json()) as { cases: InvestigationCase[]; inbox?: Inbox };
       setLocked(false);
       setCases(json.cases ?? []);
+      setInbox(json.inbox ?? null);
       setActiveId((prev) => prev ?? json.cases?.[0]?.id ?? null);
     } catch { setLoadError(true); }
     finally { setLoading(false); }
@@ -241,14 +250,22 @@ export default function CasesPanel() {
     downloadFile(caseFileName(active.name, "maltego.csv"), buildMaltegoCsv(active), "text/csv");
     ping("Maltego CSV exported");
   }
+  // The dossier on screen and the dossier on paper are two documents built from
+  // the same model: one downloads, the other goes straight to the print dialog.
+  async function exportHtml() {
+    /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
+    if (!active) return;
+    downloadFile(caseFileName(active.name, "html"), await buildCaseHtml(active), "text/html");
+    ping("HTML dossier exported");
+  }
   async function printReport() {
     /* v8 ignore next -- unreachable: only rendered inside `{active && …}` */
     if (!active) return;
-    const html = await buildPrintableHtml(active);
+    const html = await buildCasePrintHtml(active);
     const w = window.open("", "_blank");
     if (!w) { ping("Pop-up blocked: allow pop-ups to print"); return; }
-    w.document.write(html); w.document.close();
-    ping("Opening printable report…");
+    w.document.write(html); w.document.close(); w.focus(); w.print();
+    ping("Opening the paged dossier…");
   }
   // Three outcomes, and they must never be conflated: the hash matched
   // (verified), the hash was present but wrong (tampered), or there was no hash
@@ -328,8 +345,21 @@ export default function CasesPanel() {
     );
   }
 
+  /** Mark one case's changes read, then reload so the inbox reflects it. */
+  const markRead = async (caseId: string) => {
+    await fetch("/api/cases", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "markReviewed", id: caseId }),
+    });
+    await load();
+  };
+
   return (
     <div className="space-y-4 mt-6">
+      {/* What moved since the analyst last looked, across every case. */}
+      {inbox && <ChangeInboxPanel inbox={inbox} onMarkRead={(id) => void markRead(id)} />}
+
       {/* Create + list */}
       <div className="terminal-card p-4 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -426,14 +456,15 @@ export default function CasesPanel() {
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {([
-                  ["JSON", exportJson, Download],
-                  ["REPORT", exportMd, FileText],
-                  ["CSV", exportCsv, FileText],
-                  ["STIX", exportStix, FileText],
-                  ["MALTEGO", exportMaltego, FileText],
-                  ["PRINT/PDF", printReport, Printer],
-                ] as [string, () => void, typeof Download][]).map(([label, fn, Icon]) => (
-                  <button key={label} onClick={fn}
+                  ["PDF", printReport, Printer, "Paged A4 dossier with a cover sheet: opens the print dialog, choose Save as PDF"],
+                  ["HTML", exportHtml, FileType, "Interactive dossier: one self-contained file in the app's own theme"],
+                  ["JSON", exportJson, Download, "Re-importable case file with a SHA-256 integrity hash"],
+                  ["REPORT", exportMd, FileText, "Markdown report for a wiki or a pull request"],
+                  ["CSV", exportCsv, FileText, "Identifiers as a spreadsheet"],
+                  ["STIX", exportStix, FileText, "STIX 2.1 bundle for machine handoff"],
+                  ["MALTEGO", exportMaltego, FileText, "Maltego paste table"],
+                ] as [string, () => void, typeof Download, string][]).map(([label, fn, Icon, hint]) => (
+                  <button key={label} onClick={fn} title={hint}
                     className="flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest px-2 py-1 rounded-md border border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:text-[var(--hv-cyan)] hover:border-[var(--hv-glass-hi)] transition-colors">
                     <Icon className="w-3 h-3" /> {label}
                   </button>
@@ -499,6 +530,12 @@ export default function CasesPanel() {
           />
 
           <CaseChanges snapshots={active.snapshots ?? []} />
+
+          {/* Preserved responses + their hashes: the chain that lets a finding
+              be re-checked months later. */}
+          <div className="terminal-card p-4">
+            <EvidencePanel caseId={active.id} />
+          </div>
 
           {/* AI briefing — composition + on-device read of the notes */}
           <CaseBriefing caseData={active} />

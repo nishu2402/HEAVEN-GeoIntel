@@ -2,10 +2,10 @@
 
 import { motion } from "framer-motion";
 import {
-  Phone, Download, Activity,
+  Phone, Download, Activity, ShieldQuestion,
 } from "lucide-react";
 import SourceStrip, { type SourceStat, type SourceState } from "@/components/shared/SourceStrip";
-import type { LookupResponse } from "@/lib/types";
+import type { Assignability, LookupResponse } from "@/lib/types";
 import { countryToFlagEmoji } from "@/lib/analysis/phoneAnalysis";
 import { aggregateBreaches } from "@/lib/analysis/breachAggregate";
 import { assessCredentialExposure, stealerCredentialSummary } from "@/lib/analysis/credentialExposure";
@@ -51,16 +51,50 @@ function downloadJson(data: LookupResponse) {
   URL.revokeObjectURL(url);
 }
 
-// ── Inline ThreatScoreBar — mirrors the email panel so phone & email look consistent
-function ThreatScoreBar({ score, label }: { score: number; label: string }) {
-  const color = score >= 70 ? "#ff1a1a" : score >= 40 ? "#ff6600" : score >= 20 ? "#ffaa00" : "#00ff41";
+// ── Inline score bars — mirrors the email panel so phone & email look consistent
+/**
+ * Why a number scored nothing. A 0 with no explanation reads as "checked and
+ * clean", which is the opposite of the truth here: the breach and infostealer
+ * indexes were never asked, because a number nobody can hold has no owner to
+ * attribute their answers to.
+ */
+function AssignabilityNotice({ assignability }: { assignability: Assignability }) {
+  if (assignability.assignable) return null;
+  const heading = assignability.reason === "invalid" ? "NOT A VALID NUMBER" : "RESERVED NUMBER RANGE";
+  return (
+    <div className="border-t border-[#00ff41]/10 pt-3">
+      <div className="border px-3 py-2 space-y-1" style={{ borderColor: "#ffaa0055", background: "#ffaa000d" }}>
+        <div className="flex items-center gap-2 text-[12px] uppercase tracking-widest" style={{ color: "#ffaa00" }}>
+          <ShieldQuestion className="w-3.5 h-3.5" /> {heading}
+        </div>
+        <p className="text-[12px] font-mono text-[#00ff41]/70 leading-snug">{assignability.detail}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One 0-100 figure with its own colour, label and reasons.
+ *
+ * Two of these are rendered, not one: abuse risk and exposure. They used to be
+ * a single "Threat Score" that added breach volume to fraud signals, so a
+ * published switchboard scored MODERATE purely because a breach index held
+ * eleven records mentioning it. Exposure describes what has happened TO the
+ * subject; abuse describes what the subject does.
+ */
+function ScoreBar({ score, label, title, reasons = [] }: { score: number; label: string; title: string; reasons?: string[] }) {
+  // "NOT ASSIGNABLE" / "NOT ASSESSED" are a 0 that means "not scored", so they
+  // must not borrow the green that means "scored, and clean".
+  const unscored = label === "NOT ASSIGNABLE" || label === "NOT ASSESSED";
+  const color = unscored ? "#ffaa00"
+    : score >= 70 ? "#ff1a1a" : score >= 40 ? "#ff6600" : score >= 20 ? "#ffaa00" : "#00ff41";
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5" style={{ color }} />
-          <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/70">Threat Score</span>
+          <span className="text-[12px] uppercase tracking-widest text-[#00ff41]/70">{title}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono font-bold text-lg" style={{ color }}>{score}</span>
@@ -82,6 +116,13 @@ function ThreatScoreBar({ score, label }: { score: number; label: string }) {
           style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}60` }}
         />
       </div>
+      {reasons.length > 0 && (
+        <ul className="space-y-0.5">
+          {reasons.map((r) => (
+            <li key={r} className="text-[11px] font-mono text-[#00ff41]/60">· {r}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -185,9 +226,20 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
           </div>
         </div>
 
+        {/* Why nothing was attributed, when nothing could be */}
+        {data.assignability && <AssignabilityNotice assignability={data.assignability} />}
+
         {/* Unified threat score */}
         <div className="border-t border-[#00ff41]/10 pt-3">
-          <ThreatScoreBar score={threatScore} label={threatLabel} />
+          <div className="space-y-4">
+            <ScoreBar score={threatScore} label={threatLabel} title="Abuse Risk" reasons={data.threatReasons} />
+            <ScoreBar
+              score={data.exposureScore ?? 0}
+              label={data.exposureLabel ?? "NONE OBSERVED"}
+              title="Exposure"
+              reasons={data.exposureReasons}
+            />
+          </div>
         </div>
 
         {/* Action buttons */}

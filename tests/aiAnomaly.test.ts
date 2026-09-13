@@ -116,12 +116,32 @@ describe("anomaliesFromIp", () => {
 
 describe("anomaliesFromDomain", () => {
   const dom = (over: Record<string, unknown>): DomainLookupResponse => ({
-    emailSecurity: { hasMx: false, hasDmarc: false }, http: null, ...over,
+    emailSecurity: { hasMx: false, nullMx: false, hasDmarc: false }, http: null, ...over,
   } as unknown as DomainLookupResponse);
 
-  it("flags takeover candidates, singular and plural", () => {
-    expect(anomaliesFromDomain(dom({ takeoverCandidates: [{ name: "a" }] })).find((a) => a.id === "domain.takeover")!.detail).toContain("record points");
-    expect(anomaliesFromDomain(dom({ takeoverCandidates: [{ name: "a" }, { name: "b" }] })).find((a) => a.id === "domain.takeover")!.detail).toContain("records point");
+  // A host that served the provider's unclaimed page is a live finding; one
+  // that never answered is only a lead, and must not carry the same severity.
+  it("separates a confirmed takeover from an unverified dangling record", () => {
+    const unverified = (n: string) => ({ name: n, verification: "unverified" });
+    const confirmed = (n: string) => ({ name: n, verification: "unclaimed" });
+
+    const one = anomaliesFromDomain(dom({ takeoverCandidates: [unverified("a")] })).find((a) => a.id === "domain.takeover")!;
+    expect(one.detail).toContain("record points");
+    expect(one.detail).toContain("the host did not answer a probe");
+    expect(one.severity).toBe("warn");
+
+    const two = anomaliesFromDomain(dom({ takeoverCandidates: [unverified("a"), unverified("b")] })).find((a) => a.id === "domain.takeover")!;
+    expect(two.detail).toContain("records point");
+    expect(two.detail).toContain("none of the hosts answered a probe");
+
+    const hit = anomaliesFromDomain(dom({ takeoverCandidates: [confirmed("a")] })).find((a) => a.id === "domain.takeover")!;
+    expect(hit.title).toBe("Subdomain takeover confirmed");
+    expect(hit.detail).toContain("subdomain serves");
+    expect(hit.severity).toBe("high");
+
+    const hits = anomaliesFromDomain(dom({ takeoverCandidates: [confirmed("a"), confirmed("b")] })).find((a) => a.id === "domain.takeover")!;
+    expect(hits.detail).toContain("subdomains serve");
+
     expect(has(anomaliesFromDomain(dom({ takeoverCandidates: [] })), "domain.takeover")).toBe(false);
     expect(has(anomaliesFromDomain(dom({})), "domain.takeover")).toBe(false);
   });
@@ -135,11 +155,11 @@ describe("anomaliesFromDomain", () => {
   });
 
   it("flags a spoofable mail domain (MX, no DMARC)", () => {
-    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: false } })), "domain.spoofable")).toBe(true);
-    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: true } })), "domain.spoofable")).toBe(false);
-    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: false, hasDmarc: false } })), "domain.spoofable")).toBe(false);
+    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, nullMx: false, hasDmarc: false } })), "domain.spoofable")).toBe(true);
+    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, nullMx: false, hasDmarc: true } })), "domain.spoofable")).toBe(false);
+    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: false, nullMx: false, hasDmarc: false } })), "domain.spoofable")).toBe(false);
     // null = the DNS query got no answer: an unknown is not evidence of spoofing.
-    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, hasDmarc: null } })), "domain.spoofable")).toBe(false);
-    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: null, hasDmarc: false } })), "domain.spoofable")).toBe(false);
+    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: true, nullMx: false, hasDmarc: null } })), "domain.spoofable")).toBe(false);
+    expect(has(anomaliesFromDomain(dom({ emailSecurity: { hasMx: null, nullMx: false, hasDmarc: false } })), "domain.spoofable")).toBe(false);
   });
 });

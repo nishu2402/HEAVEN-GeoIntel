@@ -14,7 +14,8 @@
 
 import type {
   LookupResponse, EmailLookupResponse, UsernameLookupResponse,
-  IpLookupResponse, DomainLookupResponse, CaseSnapshot, EntityKind, DnsQueryKind,
+  IpLookupResponse, DomainLookupResponse, WalletLookupResponse, HashLookupResponse,
+  CaseSnapshot, EntityKind, DnsQueryKind,
 } from "../types";
 
 export type Facts = Record<string, number | string>;
@@ -59,8 +60,13 @@ export function factsFromPhone(d: LookupResponse): Facts {
   const lc = d.sources.leakCheck.ok ? d.sources.leakCheck.data : undefined;
   const bd = d.sources.breachDirectory.ok ? d.sources.breachDirectory.data : undefined;
   return defined({
-    threatScore: d.threatScore,
-    threatLabel: d.threatLabel,
+    // Both figures are watched: exposure moving without abuse moving is a new
+    // breach, and the reverse is a new abuse report. One number could not say
+    // which had happened.
+    abuseScore: d.threatScore,
+    abuseLabel: d.threatLabel,
+    exposureScore: d.exposureScore,
+    exposureLabel: d.exposureLabel,
     carrier: d.aggregated.carrier,
     lineType: d.aggregated.lineType,
     infostealerHits: hr?.total,
@@ -76,6 +82,8 @@ export function factsFromEmail(d: EmailLookupResponse): Facts {
   const lc = d.leakCheck.ok ? d.leakCheck.data : undefined;
   const rep = d.emailrep.ok ? d.emailrep.data : undefined;
   return defined({
+    abuseScore: d.threatScore,
+    exposureScore: d.exposureScore,
     breaches: xon?.breachCount,
     infostealerHits: hr?.total,
     leakCheckRecords: lc?.found,
@@ -93,6 +101,33 @@ export function factsFromUsername(d: UsernameLookupResponse): Facts {
     sitesChecked: d.checked,
     verifiedProfiles: d.profiles.length,
     leakCheckRecords: lc?.found,
+    // A new proven link between two accounts is exactly the kind of change worth
+    // being told about on a re-run.
+    linkedAccounts: d.resolvedIdentity?.cluster.platforms.length,
+    identityConfidence: d.resolvedIdentity?.confidence,
+  });
+}
+
+export function factsFromWallet(d: WalletLookupResponse): Facts {
+  return defined({
+    chain: d.chain ?? undefined,
+    balance: d.facts?.balance,
+    txCount: d.facts?.txCount,
+    // A sanctions designation appearing between two runs is the single most
+    // consequential change a wallet can undergo.
+    sanctioned: d.sanctions ? (d.sanctions.listed ? "listed" : "not listed") : undefined,
+    lastActivity: d.activity?.lastActivity ?? undefined,
+    tokens: d.tokens?.length,
+    ens: d.ens?.verified ? d.ens.name : undefined,
+  });
+}
+
+export function factsFromHash(d: HashLookupResponse): Facts {
+  return defined({
+    kind: d.kind ?? undefined,
+    known: d.facts ? (d.facts.known ? "known software" : "not in the catalog") : undefined,
+    fileName: d.facts?.fileName ?? undefined,
+    product: d.facts?.productName ?? undefined,
   });
 }
 

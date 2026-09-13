@@ -12,9 +12,47 @@ export const emailBody = z.object({ email: z.string().min(3).max(254) });
 export const usernameBody = z.object({ username: z.string().min(1).max(64) });
 export const ipBody = z.object({ ip: z.string().min(1).max(64) });
 export const domainBody = z.object({ domain: z.string().min(1).max(253) });
-export const bulkBody = z.object({ numbers: z.array(z.string().max(40)).min(1).max(25) });
+/**
+ * Bulk accepts `items` (any identifier, any mode) and still accepts the original
+ * phone-only `numbers` array, so an existing script keeps working. One of the
+ * two must be present; the route says which when neither is.
+ */
+export const bulkBody = z.object({
+  items: z.array(z.string().max(256)).min(1).max(1000).optional(),
+  mode: z.enum(["auto", "phone", "email", "username", "ip", "domain", "wallet", "hash"]).optional(),
+  numbers: z.array(z.string().max(40)).min(1).max(1000).optional(),
+});
 export const walletBody = z.object({ address: z.string().min(1).max(120) });
 export const hashBody = z.object({ hash: z.string().min(1).max(80) });
+// The deep username sweep is paged: the client walks `offset` through the
+// catalog so progress is visible and the sweep can be stopped part-way.
+export const sweepBody = z.object({
+  username: z.string().min(1).max(64),
+  offset: z.number().int().min(0).max(5000).optional(),
+  limit: z.number().int().min(1).max(80).optional(),
+  /**
+   * Also probe the sites whose detection markers failed the last validation
+   * run. Off by default: they mostly cannot be classified from a server-side
+   * probe at all, so they would fill the result with "unknown".
+   */
+  includeUnvalidated: z.boolean().optional(),
+});
+// Evidence capture carries a whole lookup response, so its bound is generous;
+// the store applies the real byte cap after serialising.
+export const evidenceBody = z.object({
+  action: z.enum(["capture", "verify"]),
+  caseId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+  mode: z.string().max(32).optional(),
+  identifier: z.string().max(512).optional(),
+  note: z.string().max(2000).optional(),
+  payload: z.unknown().optional(),
+});
+// The typosquat scan resolves generated look-alikes of one domain. `limit` caps
+// how many candidates are resolved, so a caller can trade coverage for speed.
+export const typosquatBody = z.object({
+  domain: z.string().min(1).max(253),
+  limit: z.number().int().min(1).max(300).optional(),
+});
 // Only ever a SHA-1 range prefix (five hex chars). Bounded tight on purpose: the
 // route relays this straight to Pwned Passwords, so nothing password-shaped or
 // hash-length should be accepted here. The exact 5-hex check runs after parsing.
@@ -33,15 +71,83 @@ export const aiAnalystBody = z.object({
   apiKey: z.string().max(500).optional(),
 });
 
+// ── Rejections that say what is wrong ────────────────────────────────────────
+//
+// Every 400 from a lookup route used to read `{"error":"Invalid request body"}`
+// and nothing else. Posting `{"phone":"+12024561111"}` to the phone endpoint —
+// whose field is `number` — got that, and the caller had no way to tell a
+// misspelled field from a rejected value. So a rejection now names the field and
+// says what it expected, which is the difference between a usable API and one
+// you debug by reading the source.
+
+export interface BodyProblem {
+  /** Human-readable, safe to show: names the field and what was wrong with it. */
+  error: string;
+  /** Dotted path of the offending field, absent when the whole body is wrong. */
+  field?: string;
+}
+
+export type ParsedBody<T> = { ok: true; data: T } | { ok: false; problem: BodyProblem };
+
+/** The value at a zod issue path inside the raw body, or undefined. */
+function valueAt(body: unknown, path: readonly PropertyKey[]): unknown {
+  let cur: unknown = body;
+  for (const key of path) {
+    /* v8 ignore next -- zod only reports a path it could actually walk, so a
+       primitive mid-path is unreachable from a schema violation. */
+    if (typeof cur !== "object" || cur === null) return undefined;
+    cur = (cur as Record<PropertyKey, unknown>)[key];
+  }
+  return cur;
+}
+
+/** What was wrong with one field, phrased for the caller rather than for zod. */
+function describeIssue(issue: z.core.$ZodIssue, body: unknown): string {
+  switch (issue.code) {
+    case "invalid_type":
+      return valueAt(body, issue.path) === undefined
+        ? "is required"
+        : `must be a ${issue.expected}`;
+    case "too_small":
+      return issue.origin === "array"
+        /* v8 ignore next -- every array schema here has a minimum of one, so
+           the plural arm is unreachable until one does not. */
+        ? `needs at least ${issue.minimum} ${issue.minimum === 1 ? "entry" : "entries"}`
+        : `must be at least ${issue.minimum} characters`;
+    case "too_big":
+      return issue.origin === "array"
+        ? `accepts at most ${issue.maximum} entries`
+        : `must be at most ${issue.maximum} characters`;
+    case "invalid_value":
+      return `must be one of: ${issue.values.map(String).join(", ")}`;
+    /* v8 ignore next 2 -- every schema here yields one of the codes above; this
+       keeps a future schema from reporting nothing at all. */
+    default:
+      return issue.message;
+  }
+}
+
 /**
- * Parse a Request body against a schema. Returns the typed data or null — the
- * caller turns null into a 400. Never throws (bad JSON → null).
+ * Parse a Request body against a schema. Never throws: malformed JSON and a
+ * schema violation both come back as `{ ok: false, problem }`, ready to be the
+ * 400 body.
  */
-export async function parseBody<T>(req: Request, schema: z.ZodType<T>): Promise<T | null> {
+export async function parseBody<T>(req: Request, schema: z.ZodType<T>): Promise<ParsedBody<T>> {
   let json: unknown;
-  try { json = await req.json(); } catch { return null; }
+  try {
+    json = await req.json();
+  } catch {
+    return { ok: false, problem: { error: "Request body must be valid JSON" } };
+  }
   const r = schema.safeParse(json);
-  return r.success ? r.data : null;
+  if (r.success) return { ok: true, data: r.data };
+
+  const issue = r.error.issues[0] as z.core.$ZodIssue;
+  const field = issue.path.map(String).join(".");
+  const what = describeIssue(issue, json);
+  return field
+    ? { ok: false, problem: { error: `Invalid request body: \`${field}\` ${what}`, field } }
+    : { ok: false, problem: { error: `Invalid request body: the body ${what}` } };
 }
 
 // ── IP validation ────────────────────────────────────────────────────────────

@@ -3,12 +3,19 @@ import { extendedProfileLinks, extendedSiteCount } from "@/lib/analysis/extended
 import { EXTENDED_USERNAME_SITES } from "@/lib/data/extendedUsernameSites";
 
 describe("extendedSiteCount", () => {
-  it("offers hundreds of sites, fewer than the raw catalog (already-covered removed)", () => {
+  it("offers only the sites nothing can check automatically", () => {
+    // The catalog used to arrive here whole. Now the deep sweep classifies every
+    // entry carrying a detection contract, so what is left for the analyst to
+    // open by hand is the residue: entries the upstream marks invalid, and those
+    // whose probe needs a POST body or custom headers this tool does not send.
     const n = extendedSiteCount();
-    expect(n).toBeGreaterThan(500);
-    expect(n).toBeLessThan(EXTENDED_USERNAME_SITES.length + 1);
-    // Some sites ARE removed as already-covered, so it is a strict subset.
-    expect(n).toBeLessThan(EXTENDED_USERNAME_SITES.length);
+    expect(n).toBeGreaterThan(0);
+    expect(n).toBeLessThan(EXTENDED_USERNAME_SITES.length / 10);
+    const contracted = EXTENDED_USERNAME_SITES.filter(
+      (s) => !s.skip && typeof s.ec === "number" && typeof s.mc === "number" && (s.es ?? "") + (s.ms ?? "") !== "",
+    );
+    // The overwhelming majority are auto-classifiable, which is the point.
+    expect(contracted.length).toBeGreaterThan(600);
   });
 });
 
@@ -19,7 +26,7 @@ describe("extendedProfileLinks", () => {
 
   it("builds grouped launch links, largest category first, and drops covered sites", () => {
     const groups = extendedProfileLinks("torvalds");
-    expect(groups.length).toBeGreaterThan(5);
+    expect(groups.length).toBeGreaterThan(3);
     // largest-first ordering
     for (let i = 1; i < groups.length; i++) {
       expect(groups[i - 1].sites.length).toBeGreaterThanOrEqual(groups[i].sites.length);

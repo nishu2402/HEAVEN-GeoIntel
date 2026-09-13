@@ -159,14 +159,24 @@ describe("<EmailResultsDashboard> header + identity", () => {
   });
 });
 
-describe("<EmailResultsDashboard> threat score", () => {
-  it("scores a plaintext, recently-breached, credential-leaked email as critical", () => {
+describe("<EmailResultsDashboard> abuse and exposure", () => {
+  // Two figures, not one. Breach volume is EXPOSURE (what happened to the
+  // subject); blacklisting and malicious activity are ABUSE (what the subject
+  // does). Adding them together is what made a published address read as a
+  // threat purely for appearing in a dump.
+  it("scores a blacklisted, malicious address as high ABUSE risk", () => {
     render(<EmailResultsDashboard data={data({
-      xon: okS(xonD()), // plaintext + recent (2024) → +30 +10 + breachCount
+      xon: okS(xonD()),
       emailrep: okS(rep({ credentialsLeaked: true, maliciousActivity: true, suspicious: true, blacklisted: true, spam: true })),
     })} />);
-    // blacklisted forces >=60; malicious +20 etc → CRITICAL band
-    expect(screen.getByText(/CRITICAL/)).toBeTruthy();
+    expect(screen.getByText("Abuse Risk")).toBeTruthy();
+    expect(screen.getAllByText("Exposure").length).toBeGreaterThan(0);
+    // Blacklisting sets the floor at 60 and the spam report adds five: 65,
+    // HIGH RISK. The breach evidence in the same fixture is reported beside it
+    // as exposure instead of being added on top.
+    expect(screen.getByText("HIGH RISK")).toBeTruthy();
+    expect(screen.getByText(/blacklisted by a reputation source/)).toBeTruthy();
+    expect(screen.getByText(/malicious activity reported/)).toBeTruthy();
     expect(screen.getByText("CREDS LEAKED")).toBeTruthy();
     expect(screen.getByText("SUSPICIOUS")).toBeTruthy();
     expect(screen.getByText(/ADDITIONAL RISK FLAGS/)).toBeTruthy();
@@ -174,13 +184,14 @@ describe("<EmailResultsDashboard> threat score", () => {
     expect(screen.getByText(/Associated with phishing/)).toBeTruthy();
   });
 
-  it("scores an easy-crack breach in the moderate/high band", () => {
+  it("reports a breach as exposure, leaving the abuse figure clean", () => {
     render(<EmailResultsDashboard data={data({
       xon: okS(xonD({ breachCount: 2, breaches: [
         { breach: "A", xposedData: ["Passwords"], xposedDate: "2013-01-01", xposedRecords: 1, domain: "a.com", passwordRisk: "EasyToCrack", verified: true },
       ] })),
     })} />);
-    expect(screen.getByText(/MODERATE|HIGH RISK/)).toBeTruthy();
+    expect(screen.getByText(/named in 2 breaches/)).toBeTruthy();
+    expect(screen.getByText("CLEAN")).toBeTruthy();   // the abuse bar
   });
 
   it("scores a data-breach-only email and shows the data-breach risk flag", () => {
@@ -208,29 +219,43 @@ describe("<EmailResultsDashboard> threat score", () => {
     expect(screen.getByText(/across 2 sources: LeakCheck, XposedOrNot/)).toBeTruthy();
   });
 
-  it("treats a disposable address as at least moderate risk", () => {
+  it("treats a disposable address as at least moderate abuse risk", () => {
     render(<EmailResultsDashboard data={data({ analysis: analysis({ isDisposable: true, providerType: "disposable", providerName: "Mailinator" }) })} />);
     expect(screen.getAllByText("DISPOSABLE").length).toBeGreaterThan(0);
     expect(screen.getByText(/MODERATE/)).toBeTruthy();
+    expect(screen.getByText(/disposable \/ throwaway provider/)).toBeTruthy();
   });
 
-  it("adds password-only and hashed-breach points without plaintext/easy-crack", () => {
+  it("prefers the figures the server computed over recomputing them", () => {
+    render(<EmailResultsDashboard data={data({
+      threatScore: 60, threatLabel: "HIGH RISK", threatReasons: ["server said so"],
+      exposureScore: 12, exposureLabel: "LIMITED", exposureReasons: ["1 indexed breach record"],
+    })} />);
+    expect(screen.getByText("· server said so")).toBeTruthy();
+    expect(screen.getByText("· 1 indexed breach record")).toBeTruthy();
+    expect(screen.getByText("HIGH RISK")).toBeTruthy();
+    expect(screen.getByText("LIMITED")).toBeTruthy();
+  });
+
+  it("bands exposure by evidence volume, not by password strength alone", () => {
     render(<EmailResultsDashboard data={data({
       xon: okS(xonD({ breaches: [
         { breach: "H", xposedData: ["Passwords"], xposedDate: "2010-01-01", xposedRecords: 1, domain: "h.com", passwordRisk: "StrongHash", verified: false },
       ] })),
     })} />);
-    expect(screen.getByText(/LOW RISK|MODERATE/)).toBeTruthy();
+    expect(screen.getByText(/named in 1 breach/)).toBeTruthy();
   });
 
-  it("labels a small non-password breach as LOW RISK", () => {
+  it("labels a single non-password breach as LIMITED exposure and CLEAN abuse", () => {
     render(<EmailResultsDashboard data={data({
       xon: okS(xonD({ breachCount: 1, xposedDataTypes: ["Email addresses"], breaches: [
         { breach: "E", xposedData: ["Email addresses"], xposedDate: "2010-01-01", xposedRecords: 1, domain: "e.com", passwordRisk: "Unknown", verified: false },
       ] })),
     })} />);
-    // +10 for the single breach, no password/recent bonus → score 10 → LOW RISK band
-    expect(screen.getByText("LOW RISK")).toBeTruthy();
+    // One named breach: 8 points of exposure, and nothing at all on the abuse
+    // side — which is the honest reading of "this address was in a dump".
+    expect(screen.getByText("LIMITED")).toBeTruthy();
+    expect(screen.getByText("CLEAN")).toBeTruthy();
   });
 });
 
@@ -364,7 +389,7 @@ describe("<EmailResultsDashboard> unified breach + export", () => {
 describe("<EmailResultsDashboard> mail exchange (MX) card", () => {
   it("names a recognized mail provider and lists the exchangers", () => {
     render(<EmailResultsDashboard data={data({
-      mail: okS({ hasMx: true, mxHosts: ["aspmx.l.google.com", "alt1.aspmx.l.google.com"], provider: "Google Workspace", category: "google" }),
+      mail: okS({ hasMx: true, nullMx: false, mxHosts: ["aspmx.l.google.com", "alt1.aspmx.l.google.com"], provider: "Google Workspace", category: "google" }),
     })} />);
     expect(screen.getByText("MAIL EXCHANGE (MX): keyless")).toBeTruthy();
     expect(screen.getByText("Google Workspace")).toBeTruthy();
@@ -374,16 +399,28 @@ describe("<EmailResultsDashboard> mail exchange (MX) card", () => {
 
   it("flags a self-managed or unrecognized provider", () => {
     render(<EmailResultsDashboard data={data({
-      mail: okS({ hasMx: true, mxHosts: ["mail.self.test"], provider: "Self-managed or unrecognized provider", category: "other" }),
+      mail: okS({ hasMx: true, nullMx: false, mxHosts: ["mail.self.test"], provider: "Self-managed or unrecognized provider", category: "other" }),
     })} />);
     expect(screen.getByText("Self-managed or unrecognized provider")).toBeTruthy();
   });
 
   it("states an honest absence when no MX records are published", () => {
     render(<EmailResultsDashboard data={data({
-      mail: okS({ hasMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" }),
+      mail: okS({ hasMx: false, nullMx: false, mxHosts: [], provider: "No published mail exchangers", category: "none" }),
     })} />);
-    expect(screen.getByText("No published MX records")).toBeTruthy();
+    expect(screen.getByText("No published mail exchangers")).toBeTruthy();
+  });
+
+  // `example.com` publishes an RFC 7505 null MX. The panel used to print a
+  // hard-coded "No published MX records" for anything without exchangers, which
+  // is a false statement about a domain that publishes one and uses it to say
+  // it accepts nothing.
+  it("says a null MX declines mail rather than claiming no MX is published", () => {
+    render(<EmailResultsDashboard data={data({
+      mail: okS({ hasMx: false, nullMx: true, mxHosts: [], provider: "Accepts no mail (null MX)", category: "none" }),
+    })} />);
+    expect(screen.getByText("Accepts no mail (null MX)")).toBeTruthy();
+    expect(screen.queryByText("No published mail exchangers")).toBeNull();
   });
 
   it("reports an MX lookup failure rather than a false clean", () => {

@@ -38,8 +38,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const rlHeaders = rl.headers;
   const client = rl.client;
 
-  const body = await parseBody(req, hashBody);
-  if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400, headers: rlHeaders });
+  const parsed = await parseBody(req, hashBody);
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  const body = parsed.data;
 
   const hash = body.hash.trim().toLowerCase();
   const kind = detectHashKind(hash);

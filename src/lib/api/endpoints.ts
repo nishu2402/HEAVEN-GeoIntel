@@ -222,23 +222,129 @@ export const ENDPOINTS: EndpointDef[] = [
   {
     path: "/api/bulk-lookup",
     method: "post",
-    summary: "Bulk phone triage",
+    summary: "Start a bulk triage job",
     description:
-      "Offline analysis for many numbers at once, suitable for CSV export. Deliberately does NOT fan out to paid APIs per row: it uses offline analysis plus any result already in the cache.",
+      "Queues a job that runs the REAL lookup for every row, in any mode. `items` may mix identifiers and be classified per row with `mode: \"auto\"`. Returns a job id immediately; poll GET for progress. The original phone-only `numbers` array is still accepted.",
     tag: "lookup",
     rateLimited: true,
     body: [
       {
+        name: "items",
+        type: "array",
+        items: "string",
+        description: "Identifiers to look up. Any mode, mixed freely.",
+        example: ["wordpress.org", "security@example.com", "+14155552671"],
+      },
+      {
+        name: "mode",
+        type: "string",
+        description: "Force one mode, or classify each row on its own with \"auto\".",
+        enum: ["auto", "phone", "email", "username", "ip", "domain", "wallet", "hash"],
+        example: "auto",
+      },
+      {
         name: "numbers",
         type: "array",
         items: "string",
-        required: true,
-        description: "Phone numbers to triage.",
-        example: ["+14155552671", "+447911123456"],
+        description: "Phone numbers, the pre-3.2 form of this endpoint.",
+        example: ["+14155552671"],
       },
     ],
-    responseDescription: "Flat rows of offline analysis, one per input number. `valid` is strict libphonenumber validity, so a well-formed but unassigned number is flagged rather than passing as a normal row.",
-    errors: [{ status: 400, description: "Empty array, or more entries than the bulk limit." }],
+    responseDescription: "The job id, its row count, and any rows that could not be classified into a lookup mode.",
+    errors: [{ status: 400, description: "Neither items nor numbers, an empty list, or nothing classifiable." }],
+  },
+  {
+    path: "/api/bulk-lookup",
+    method: "get",
+    summary: "Bulk job progress",
+    description: "Rows completed so far, streaming in as the job runs. `format=csv` returns the same rows as CSV.",
+    tag: "lookup",
+    query: [
+      { name: "id", description: "Job id returned by POST.", required: true, example: "0f2c…" },
+      { name: "format", description: "`csv` for a spreadsheet download instead of JSON.", example: "csv" },
+    ],
+    responseDescription: "Job state, progress counters and the rows finished so far.",
+    errors: [{ status: 404, description: "No job with that id (they are kept for 30 minutes after finishing)." }],
+  },
+  {
+    path: "/api/bulk-lookup",
+    method: "delete",
+    summary: "Stop a bulk job",
+    description: "Stops a running job. Rows already finished stay readable.",
+    tag: "lookup",
+    query: [{ name: "id", description: "Job id to stop.", required: true }],
+    responseDescription: "The job id and its new state.",
+    errors: [{ status: 404, description: "No running job with that id." }],
+  },
+  {
+    path: "/api/username-sweep",
+    method: "post",
+    summary: "Deep username sweep (paged)",
+    description:
+      "Checks the WhatsMyName catalog against each site's own four-field detection contract (status AND body marker, in both directions). Paged: walk `offset` until `nextOffset` is null. Validated sites only by default.",
+    tag: "lookup",
+    rateLimited: true,
+    body: [
+      { name: "username", type: "string", required: true, description: "The handle to check.", example: "torvalds" },
+      { name: "offset", type: "integer", description: "Where to resume in the catalog.", example: 60 },
+      { name: "limit", type: "integer", description: "Sites per page (max 80).", example: 60 },
+      {
+        name: "includeUnvalidated",
+        type: "boolean",
+        description: "Also probe sites whose detection markers failed the last validation run.",
+        example: false,
+      },
+    ],
+    responseDescription: "One page of results, each found / notfound / unknown, with the paging cursor.",
+    errors: IDENTIFIER_ERRORS,
+  },
+  {
+    path: "/api/typosquat-scan",
+    method: "post",
+    summary: "Resolve look-alike domains",
+    description:
+      "Generates typosquat and IDN homoglyph candidates for a domain and resolves every one over DNS-over-HTTPS, then adds an RDAP registration date for the first few that resolve.",
+    tag: "lookup",
+    rateLimited: true,
+    body: [
+      { name: "domain", type: "string", required: true, description: "The domain to protect.", example: "example.com" },
+      { name: "limit", type: "integer", description: "Candidates to resolve (max 300).", example: 200 },
+    ],
+    responseDescription: "Only the candidates that resolve, with addresses, MX and registration age.",
+    errors: IDENTIFIER_ERRORS,
+  },
+  {
+    path: "/api/evidence",
+    method: "get",
+    summary: "Read a case's evidence locker",
+    description:
+      "The manifest of preserved lookup responses for one case, each with the SHA-256 recorded when it was captured. With `id`, returns that artifact's exact bytes.",
+    tag: "cases",
+    query: [
+      { name: "caseId", description: "Case whose locker to read.", required: true },
+      { name: "id", description: "Artifact id, to fetch its bytes verbatim." },
+    ],
+    responseDescription: "The manifest, or one artifact's stored JSON.",
+    errors: [{ status: 404, description: "No such artifact." }],
+  },
+  {
+    path: "/api/evidence",
+    method: "post",
+    summary: "Preserve or verify evidence",
+    description:
+      "`capture` stores a lookup response under the hash of its own bytes. `verify` recomputes every hash in the case and reports which artifacts still match.",
+    tag: "cases",
+    rateLimited: true,
+    body: [
+      { name: "action", type: "string", required: true, description: "capture or verify.", enum: ["capture", "verify"] },
+      { name: "caseId", type: "string", required: true, description: "The case to write to or verify." },
+      { name: "mode", type: "string", description: "Lookup mode the artifact came from.", example: "domain" },
+      { name: "identifier", type: "string", description: "The identifier that was looked up." },
+      { name: "note", type: "string", description: "Why this was preserved." },
+      { name: "payload", type: "object", description: "The lookup response, exactly as the API returned it." },
+    ],
+    responseDescription: "The manifest entry, or the verification result for every artifact.",
+    errors: [{ status: 413, description: "The artifact is larger than the store's limit." }],
   },
 
   // ── Cases ──────────────────────────────────────────────────────────────────
@@ -362,10 +468,19 @@ export const ENDPOINTS: EndpointDef[] = [
   },
   {
     path: "/api/ai-analyst",
+    method: "get",
+    summary: "Which AI providers can run on this instance",
+    description:
+      "Reports, per provider, whether it would run right now: the local Ollama server is probed for the models it actually has, and each cloud provider is checked for a saved or environment key. Key PRESENCE and its origin (\"ui\" or \"env\") are reported; a key value never is. The panel uses this to select a provider that works instead of opening on one that needs installing.",
+    tag: "config",
+    responseDescription: "`{ providers, recommended, ollamaRunning }`, providers local-first.",
+  },
+  {
+    path: "/api/ai-analyst",
     method: "post",
     summary: "Optional AI-analyst relay (Ollama or bring-your-own cloud key)",
     description:
-      "Forwards a strictly grounded prompt, built by the browser from a finished analysis, to a language model and returns the raw completion. The default provider is a local Ollama server, so nothing leaves the machine; a cloud provider is opt-in. Its key is supplied either in the panel with this request (used once, never stored or logged) or from the server environment (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / DEEPSEEK_API_KEY / MISTRAL_API_KEY / OPENROUTER_API_KEY). The audit records the provider name only, never the prompt, the subject, or the key. The client re-validates every identifier the model emits before rendering it, so a hallucinated value is surfaced as unverified rather than trusted.",
+      "Forwards a strictly grounded prompt, built by the browser from a finished analysis, to a language model and returns the raw completion. A local Ollama server is preferred when one is running, so nothing leaves the machine; a cloud provider is opt-in. Its key is resolved in one order: the key in this request body (pasted in the panel, used once, never stored or logged), then a key saved from the panel into the key store, then the server environment (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / DEEPSEEK_API_KEY / MISTRAL_API_KEY / OPENROUTER_API_KEY). The audit records the provider name only (salted and hashed like every other target) with the status the run actually returned, never the prompt, the subject, or the key. Failures are reported by cause rather than all as 502: a key or model the operator can correct is a 400, a provider that is rate-limiting passes its 429 through, and only an unreachable or unusable provider is a 502. The client re-validates every identifier the model emits before rendering it, so a hallucinated value is surfaced as unverified rather than trusted.",
     tag: "config",
     rateLimited: true,
     body: [
@@ -373,10 +488,13 @@ export const ENDPOINTS: EndpointDef[] = [
       { name: "model", type: "string", required: true, description: "Model name for the chosen provider.", example: "llama3.2" },
       { name: "system", type: "string", required: true, description: "The grounding system prompt built client-side." },
       { name: "user", type: "string", required: true, description: "The serialised evidence bundle built client-side." },
-      { name: "apiKey", type: "string", required: false, description: "Optional bring-your-own key for the chosen cloud provider, entered in the panel. Sent only in this request body, used once, never stored or logged; falls back to the server env key when omitted. Ignored for Ollama." },
+      { name: "apiKey", type: "string", required: false, description: "Optional bring-your-own key for the chosen cloud provider, entered in the panel. Sent only in this request body, used once, never stored or logged; when omitted the relay falls back to a key saved through /api/keys, then to the server env var. Ignored for Ollama." },
     ],
     responseDescription: "`{ text }`: the model's raw completion, validated and narrated on the client.",
-    errors: [{ status: 502, description: "The provider is not configured, was unreachable, or returned an empty response." }],
+    errors: [
+      { status: 400, description: "Malformed body, or a setup problem the caller can fix: no key configured for the chosen provider, a key the provider rejected, or a model name it does not have." },
+      { status: 502, description: "The provider was unreachable or answered with an empty completion. A provider that is rate-limiting is passed through as 429 instead." },
+    ],
   },
 
   // ── Meta ───────────────────────────────────────────────────────────────────
