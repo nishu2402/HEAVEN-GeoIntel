@@ -1,6 +1,6 @@
 # Screenshots
 
-The main README references the six PNGs in this folder. Every one is captured at
+The main README references the seven PNGs in this folder. Every one is captured at
 the same fixed viewport (1440x900 at 2x, so 2880x1800), which is what keeps the
 README grid even instead of ragged.
 
@@ -11,11 +11,12 @@ README grid even instead of ragged.
 | `breach-intel.png`    | The unified breach view (one row per breach, merged across sources) above the free no-key lookups |
 | `number-intel.png`    | Number anatomy: country code, area code and subscriber digits with libphonenumber checks and standard formats |
 | `command-palette.png` | The Ctrl/Cmd-K command palette listing all eleven modes |
+| `ai-analysis.png`     | The AI Analysis panel: the explainable risk score broken into its factors, with the optional AI Analyst and its in-panel setup below |
 | `bulk-mode.png`       | The BULK tab with sample numbers pasted in and the offline result table below |
 
-All six come from offline-deterministic views (the phone flow is computed locally,
-the palette and bulk table need no network), so they render the same on any
-machine and never capture an upstream error.
+All seven come from offline-deterministic views (the phone flow is computed
+locally, and the palette, the bulk table and the risk panel need no network), so
+they render the same on any machine and never capture an upstream error.
 
 ## Regenerate
 

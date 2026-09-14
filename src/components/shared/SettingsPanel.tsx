@@ -113,7 +113,7 @@ export default function SettingsPanel() {
       setNote(`${displayKeyLabel(name)} key saved on this machine.`);
       await refresh();
     } catch {
-      setError("Could not reach the server to save that key.");
+      setError("Could not reach the server to save the key.");
     } finally {
       setBusy(null);
     }
@@ -132,7 +132,7 @@ export default function SettingsPanel() {
       setNote(`${displayKeyLabel(name)} key removed from this machine.`);
       await refresh();
     } catch {
-      setError("Could not reach the server to remove that key.");
+      setError("Could not reach the server to remove the key.");
     } finally {
       setBusy(null);
     }

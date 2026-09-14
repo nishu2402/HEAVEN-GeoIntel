@@ -40,7 +40,7 @@ interface TypeMeta {
 function getPrimaryType(data: LookupResponse): TypeMeta {
   const { aggregated, analysis } = data;
   if (aggregated.isVoip === true)        return { label: "VOIP / INTERNET",  color: "#ffaa00", icon: <Wifi className="w-4 h-4" />,        description: "Hosted by a VoIP provider (Twilio, Google Voice, SIP). Easily spoofable; common for businesses and call centers." };
-  if (aggregated.isPremiumRate === true) return { label: "PREMIUM RATE",     color: "#ff3e3e", icon: <AlertTriangle className="w-4 h-4" />, description: "Callers are charged a premium rate. Frequently used in revenue-generating scams." };
+  if (aggregated.isPremiumRate === true) return { label: "PREMIUM RATE",     color: "#ff3e3e", icon: <AlertTriangle className="w-4 h-4" />, description: "Callers are charged a premium rate, which is how revenue-generating scams profit from the call itself." };
   if (analysis.isTollFree)               return { label: "TOLL-FREE",        color: "#00d9ff", icon: <Building2 className="w-4 h-4" />,    description: "Inbound calls billed to the organization, not the caller. Almost always a business or service line." };
   if (analysis.isSharedCost)             return { label: "SHARED COST",      color: "#ffaa00", icon: <Building2 className="w-4 h-4" />,    description: "Caller and recipient share the cost. Common for support and helpdesk lines." };
   if (analysis.isPersonalNumber)         return { label: "PERSONAL NUMBER",  color: "#888",    icon: <PhoneIcon className="w-4 h-4" />,    description: "A reroute-anywhere personal number. Owner controls forwarding behind the scenes." };

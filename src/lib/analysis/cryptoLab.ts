@@ -430,9 +430,9 @@ const IMPLS: Impl[] = [
 
   // CIPHER — reversible, keyed, classical (breakable)
   { meta: { id: "caesar", label: "Caesar shift", category: "cipher", key: "required", keyLabel: "Shift (a whole number)", blurb: "Shift every letter by N. Trivially broken." },
-    forward: (t, k) => caesar(t, k, 1), inverse: (t, k) => caesar(t, k, -1), note: "Classical cipher — for teaching and puzzles, not real secrecy." },
+    forward: (t, k) => caesar(t, k, 1), inverse: (t, k) => caesar(t, k, -1), note: "Classical cipher: for teaching and puzzles, not real secrecy." },
   { meta: { id: "vigenere", label: "Vigenère", category: "cipher", key: "required", keyLabel: "Keyword (letters)", blurb: "Keyword-driven letter shifts. Classical." },
-    forward: (t, k) => vigenere(t, k, 1), inverse: (t, k) => vigenere(t, k, -1), note: "Classical cipher — for teaching and puzzles, not real secrecy." },
+    forward: (t, k) => vigenere(t, k, 1), inverse: (t, k) => vigenere(t, k, -1), note: "Classical cipher: for teaching and puzzles, not real secrecy." },
   { meta: { id: "xor", label: "XOR", category: "cipher", key: "required", keyLabel: "Key", blurb: "Repeating-key XOR. Output is hex. Classical." },
     forward: (t, k) => xorForward(t, k), inverse: (t, k) => xorInverse(t, k), note: "Repeating-key XOR is weak; use AES-GCM for real secrecy." },
 

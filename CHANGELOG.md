@@ -334,6 +334,38 @@ watched for change, bulk-run, or driven from a shell.
 
 ### Fixed
 
+- **The accuracy section named the wrong sites as unverifiable.** It said 19
+  sites answer HTTP 200 for every handle and are never auto-claimed, and gave
+  X and Reddit as examples. There are 15 such sites, X has been auto-verified
+  since it was the only platform to survive a wider validation run, and Reddit
+  is not in the fast catalog at all. A reader checking the tool's own claim
+  against its output would have found the claim wrong, on the one page that
+  exists to state what the tool will and will not assert.
+
+- **Documented counts that no longer matched the code.** The NPA table holds 397
+  area codes and was advertised as "400+", the country dataset holds 99 and was
+  advertised as 100, and the bundled timezone map covers 144 countries and was
+  advertised as "110+". The summary still described the tool as covering five
+  identifier types, two releases after wallets and hashes were added, and still
+  credited breach enrichment to one offline catalog rather than three. Every
+  count in the README is now the number its registry reports.
+
+- **The project tree in the README described an older application.** It listed
+  eight API routes out of twenty-one, called `/api/bulk-lookup` "bulk phone
+  (max 25)" in the same document that explains bulk now runs every mode for up
+  to 500 rows, and omitted the wallet, hash, file, AI, evidence and change-inbox
+  code entirely. The security policy had the same gap: it declared ten routes in
+  scope and is now anchored to the endpoint registry, so it cannot fall behind
+  the code again.
+
+- **Screenshot and script inventories.** The screenshots guide described six
+  images when seven ship, and the Available Scripts table was missing seven of
+  the twenty-three npm scripts, including both audit gates and the three catalog
+  refreshers. The pull-request template told contributors to re-run
+  `npm run brand` (which needs Chrome) after adding a source; the poster and
+  banner that such a change invalidates come from `npm run brand:poster`, which
+  does not.
+
 - **Four platforms' profile photos were blocked before they could be shown.**
   A username lookup pulls rich profiles from six platforms, fetches each avatar,
   and perceptually hashes them to spot the same face across accounts. The
