@@ -628,6 +628,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   });
   const exposure = assessExposure({
     breachRecords: results.leakCheck.ok ? results.leakCheck.data?.found : null,
+    breachRecordsAtLeast: results.leakCheck.ok ? results.leakCheck.data?.atLeast : null,
     namedBreaches: breachAggregate.breaches.length,
     credentialRecords: results.comb.ok
       ? results.comb.data?.pairs

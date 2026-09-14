@@ -29,3 +29,44 @@ describe("private API response headers", () => {
     }
   });
 });
+
+// ── Avatar hosts vs the CSP image allow-list ─────────────────────────────────
+// The username lookup fetches rich profiles from six platforms, and four of
+// them serve the profile photo from a host that was never added here. The
+// avatars were fetched, perceptually hashed and correlated on the server, then
+// blocked by CSP in the browser: the Avatar component hides an image that fails
+// to load, so the only symptom was a console error and four platforms whose
+// photos silently never appeared. Each host below was read off a live profile.
+
+describe("CSP image allow-list", () => {
+  const AVATAR_HOSTS: { platform: string; host: string }[] = [
+    { platform: "GitHub", host: "https://avatars.githubusercontent.com" },
+    { platform: "GitLab", host: "https://gitlab.com" },
+    { platform: "Bluesky", host: "https://cdn.bsky.app" },
+    { platform: "Mastodon", host: "https://files.mastodon.social" },
+    { platform: "Codeberg", host: "https://codeberg.org" },
+    { platform: "Chess.com", host: "https://images.chesscomfiles.com" },
+  ];
+
+  async function imgSrc(): Promise<string> {
+    const rules = await nextConfig.headers();
+    const rule = rules.find((r) =>
+      r.headers.some((h: { key: string }) => h.key === "Content-Security-Policy"));
+    const csp = rule!.headers.find((h: { key: string }) => h.key === "Content-Security-Policy");
+    return csp!.value.split("; ").find((d: string) => d.startsWith("img-src "))!;
+  }
+
+  it("allows the photo host of every platform whose profile carries one", async () => {
+    const directive = await imgSrc();
+    for (const { platform, host } of AVATAR_HOSTS) {
+      expect(directive, `${platform} avatars are blocked by CSP`).toContain(host);
+    }
+  });
+
+  it("stays an allow-list rather than a wildcard", async () => {
+    const directive = await imgSrc();
+    expect(directive).toContain("'self'");
+    expect(directive).not.toContain("*");
+    expect(directive).not.toContain("http://");
+  });
+});

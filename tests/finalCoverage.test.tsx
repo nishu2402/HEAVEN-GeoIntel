@@ -70,7 +70,7 @@ describe("the two score bars explain themselves", () => {
       numverify: { ok: false, error: "NOT_CONFIGURED" }, ipqs: { ok: false, error: "NOT_CONFIGURED" },
       abstract: { ok: false, error: "NOT_CONFIGURED" }, twilio: { ok: false, error: "NOT_CONFIGURED" },
       breachDirectory: { ok: false, error: "NOT_CONFIGURED" }, fullContact: { ok: false, error: "NOT_CONFIGURED" },
-      hudsonRock: { ok: true, data: { total: 0, stealers: [] } }, leakCheck: { ok: true, data: { found: 0, fields: [], sources: [] } },
+      hudsonRock: { ok: true, data: { total: 0, stealers: [] } }, leakCheck: { ok: true, data: { found: 0, fields: [], sources: [], atLeast: false } },
     },
     aggregated: {
       carrier: null, lineType: "mobile", typeDescription: "Mobile", country: "US", countryName: "United States",
