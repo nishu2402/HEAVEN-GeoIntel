@@ -17,6 +17,15 @@ const IMG_ALLOWED = [
   // FullContact serves avatars from its CDN
   "https://d2ojpxxtu63wzl.cloudfront.net",
   "https://img.fullcontact.com",
+  // The other four platforms whose rich profiles carry a photo. Each host was
+  // read off a live profile rather than guessed, and each was missing here:
+  // the avatars were fetched, hashed and correlated server-side, then blocked
+  // in the browser, so four platforms' photos silently never appeared.
+  "https://cdn.bsky.app",                  // Bluesky
+  "https://mastodon.social",               // Mastodon (instance-served)
+  "https://files.mastodon.social",         // Mastodon (media CDN)
+  "https://codeberg.org",                  // Codeberg
+  "https://images.chesscomfiles.com",      // Chess.com
 ].join(" ");
 
 // CSP has to adapt to how the app is actually served. This tool runs over plain

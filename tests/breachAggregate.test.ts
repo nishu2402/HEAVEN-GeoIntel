@@ -20,7 +20,7 @@ const xon = (breaches: XposedOrNotBreach[]): SourceResult<XposedOrNotData> =>
 const leak = (
   sources: { name: string; date: string | null }[], fields: string[] = [],
 ): SourceResult<LeakCheckData> =>
-  ok({ found: sources.length, fields, sources });
+  ok({ found: sources.length, fields, sources, atLeast: false });
 
 const bd = (sources: string[], found = sources.length): SourceResult<BreachDirectoryData> =>
   ok({ found, fields: ["password"], sources, results: [] });

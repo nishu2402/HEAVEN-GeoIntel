@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { UsernameLookupResponse, UsernameHit, SocialProfile } from "@/lib/types";
 import { USERNAME_CATEGORY_META } from "@/lib/data/usernameSites";
+import { isPlaceholderAvatar } from "@/lib/analysis/avatarPlaceholders";
 import Tilt3D from "@/components/shared/Tilt3D";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import CopyButton from "@/components/shared/CopyButton";
@@ -32,10 +33,17 @@ function catColor(cat: string): string {
   return USERNAME_CATEGORY_META[cat as keyof typeof USERNAME_CATEGORY_META]?.color ?? "#00ff85";
 }
 
-/** Hides itself if the avatar URL is unsafe or fails to load (CSP-blocked / 404). */
+/**
+ * Hides itself if the avatar URL is unsafe, is a platform default, or fails to
+ * load (404).
+ *
+ * The placeholder check matters as much as the safety one: a platform's own
+ * "this account has no photo" file is not a picture of the subject, and drawing
+ * it on a profile card presents an absence as evidence.
+ */
 function Avatar({ url, size }: { url: string; size: string }) {
   const [ok, setOk] = useState(true);
-  const safe = safeExternalUrl(url);
+  const safe = isPlaceholderAvatar(url) ? null : safeExternalUrl(url);
   if (!ok || !safe) return null;
   return (
     // eslint-disable-next-line @next/next/no-img-element

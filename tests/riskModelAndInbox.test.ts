@@ -24,6 +24,17 @@ describe("assessExposure", () => {
     expect(dump.reasons[0]).toBe("3 indexed breach records");
   });
 
+  it("marks a saturated record count as a floor in the reason it prints", () => {
+    // LeakCheck stops counting phone and username matches at 1,000. "1000
+    // records" claims a total the source never gave; "1000+" is what it said.
+    const capped = assessExposure({ breachRecords: 1000, breachRecordsAtLeast: true });
+    expect(capped.reasons[0]).toBe("1000+ indexed breach records");
+    const exact = assessExposure({ breachRecords: 1000, breachRecordsAtLeast: false });
+    expect(exact.reasons[0]).toBe("1000 indexed breach records");
+    // The flag is presentation only: a capped count scores the same.
+    expect(capped.score).toBe(exact.score);
+  });
+
   it("counts credential records, named breaches and a reputation claim", () => {
     const r = assessExposure({
       credentialRecords: 2, namedBreaches: 1, credentialsLeaked: true, breachRecords: 1,

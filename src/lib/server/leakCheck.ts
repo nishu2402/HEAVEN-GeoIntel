@@ -18,6 +18,9 @@
 //   • A 429 is reported as RATE_LIMITED. The public tier is shared per source
 //     IP, so a busy instance can exhaust it; that must read as "we could not
 //     ask", never as "this identifier is clean".
+//   • Phone and username counts saturate at 1,000 (see RESULT_CEILING). A
+//     saturated count is flagged `atLeast` so the UI can say "1,000+" instead
+//     of claiming a precise total it was never given.
 
 import { describeError } from "./fetchSafe";
 import { fetchTimeoutMs } from "./config";
@@ -29,7 +32,20 @@ const ENDPOINT = "https://leakcheck.io/api/public";
 /** Which identifier is being checked — decides the `type` hint we send. */
 export type LeakCheckKind = "email" | "phone" | "username";
 
-const EMPTY: LeakCheckData = { found: 0, fields: [], sources: [] };
+const EMPTY: LeakCheckData = { found: 0, fields: [], sources: [], atLeast: false };
+
+/**
+ * The endpoint stops counting phone and username matches at this figure.
+ *
+ * Measured, not assumed: six unrelated heavily-indexed numbers (1111111111,
+ * 0000000000, 1234567890, 9876543210, 8888888888, 5555555555) and three common
+ * usernames (admin, test, john) all answer with exactly 1000 while reporting
+ * wildly different named-breach counts, and a number just short of saturation
+ * answers 938. Email searches are NOT capped here (measured 20191, 8887, 7543),
+ * so the ceiling is applied only to the two kinds where it was observed.
+ */
+const RESULT_CEILING = 1000;
+const CEILINGED: ReadonlySet<LeakCheckKind> = new Set<LeakCheckKind>(["phone", "username"]);
 
 interface LeakCheckRaw {
   success?: boolean;
@@ -102,7 +118,12 @@ export async function fetchLeakCheck(
     const found = typeof raw.found === "number" && Number.isFinite(raw.found) ? raw.found : 0;
     return {
       ok: true,
-      data: { found, fields: strings(raw.fields), sources: parseSources(raw.sources) },
+      data: {
+        found,
+        fields: strings(raw.fields),
+        sources: parseSources(raw.sources),
+        atLeast: CEILINGED.has(kind) && found >= RESULT_CEILING,
+      },
     };
   } catch (err) {
     return { ok: false, error: describeError(err) };

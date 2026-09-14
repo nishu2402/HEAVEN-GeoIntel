@@ -491,6 +491,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const exposure = attributable
     ? assessExposure({
         breachRecords: sources.leakCheck.ok ? sources.leakCheck.data?.found : null,
+        breachRecordsAtLeast: sources.leakCheck.ok ? sources.leakCheck.data?.atLeast : null,
         namedBreaches: sources.leakCheck.ok ? sources.leakCheck.data?.sources.length : null,
         credentialRecords: sources.breachDirectory.ok ? sources.breachDirectory.data?.found : null,
         stealerInfections: sources.hudsonRock.ok ? sources.hudsonRock.data?.total : null,

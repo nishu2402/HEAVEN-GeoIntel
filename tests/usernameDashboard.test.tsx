@@ -132,6 +132,17 @@ describe("<UsernameResultsDashboard>", () => {
     expect(verified.querySelectorAll("img")).toHaveLength(0);
   });
 
+  it("does not draw a platform's own no-photo placeholder as the subject's face", () => {
+    // Mastodon serves this file to every account without a picture. Rendering
+    // it on a profile card presents an absence as evidence of appearance.
+    render(<UsernameResultsDashboard data={resp({
+      profiles: [profile({ avatarUrl: "https://mastodon.social/avatars/original/missing.png" })],
+      identity: { names: [], locations: [], avatars: [], bios: [] },
+    })} />);
+    const verified = screen.getByText(/VERIFIED PROFILES/).closest("div")!.parentElement!;
+    expect(verified.querySelectorAll("img")).toHaveLength(0);
+  });
+
   it("falls back to a raw category label for an unknown category", () => {
     render(<UsernameResultsDashboard data={resp({
       profiles: [], found: 1, manual: 0,
