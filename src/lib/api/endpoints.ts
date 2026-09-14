@@ -469,18 +469,21 @@ export const ENDPOINTS: EndpointDef[] = [
   {
     path: "/api/ai-analyst",
     method: "get",
-    summary: "Which AI providers can run on this instance",
+    summary: "Which AI providers can run on this instance, and which models they offer",
     description:
-      "Reports, per provider, whether it would run right now: the local Ollama server is probed for the models it actually has, and each cloud provider is checked for a saved or environment key. Key PRESENCE and its origin (\"ui\" or \"env\") are reported; a key value never is. The panel uses this to select a provider that works instead of opening on one that needs installing.",
+      "Reports, per provider, whether it would run right now: the local Ollama server is probed for the models it actually has, and each cloud provider is checked for a saved or environment key. Key PRESENCE and its origin (\"ui\" or \"env\") are reported; a key value never is. The panel uses this to select a provider that works instead of opening on one that needs installing. With `?models=<provider>` it instead asks that cloud provider which models its configured key may call, filtered to the ones that can answer a text prompt and ordered with the vetted defaults first. That list is asked for rather than compiled in, because a shipped list goes stale: every Gemini model this app once suggested has since been withdrawn, and the panel offered names the provider answers with a 404.",
     tag: "config",
-    responseDescription: "`{ providers, recommended, ollamaRunning }`, providers local-first.",
+    query: [
+      { name: "models", description: "Ask this cloud provider (openai, anthropic, gemini, groq, deepseek, mistral, openrouter) for the models its saved or environment key may call, instead of the readiness report. Ollama is not accepted: its installed models already come back with the readiness report.", example: "gemini" },
+    ],
+    responseDescription: "`{ providers, recommended, ollamaRunning }`, providers local-first; or `{ models, error? }` with `?models=`.",
   },
   {
     path: "/api/ai-analyst",
     method: "post",
     summary: "Optional AI-analyst relay (Ollama or bring-your-own cloud key)",
     description:
-      "Forwards a strictly grounded prompt, built by the browser from a finished analysis, to a language model and returns the raw completion. A local Ollama server is preferred when one is running, so nothing leaves the machine; a cloud provider is opt-in. Its key is resolved in one order: the key in this request body (pasted in the panel, used once, never stored or logged), then a key saved from the panel into the key store, then the server environment (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / DEEPSEEK_API_KEY / MISTRAL_API_KEY / OPENROUTER_API_KEY). The audit records the provider name only (salted and hashed like every other target) with the status the run actually returned, never the prompt, the subject, or the key. Failures are reported by cause rather than all as 502: a key or model the operator can correct is a 400, a provider that is rate-limiting passes its 429 through, and only an unreachable or unusable provider is a 502. The client re-validates every identifier the model emits before rendering it, so a hallucinated value is surfaced as unverified rather than trusted.",
+      "Forwards a strictly grounded prompt, built by the browser from a finished analysis, to a language model and returns the raw completion. A local Ollama server is preferred when one is running, so nothing leaves the machine; a cloud provider is opt-in. Its key is resolved in one order: the key in this request body (pasted in the panel, used once, never stored or logged), then a key saved from the panel into the key store, then the server environment (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY / GROQ_API_KEY / DEEPSEEK_API_KEY / MISTRAL_API_KEY / OPENROUTER_API_KEY). The audit records the provider name only (salted and hashed like every other target) with the status the run actually returned, never the prompt, the subject, or the key. Failures are reported by cause rather than all as 502: a key or model the operator can correct is a 400 carrying the provider's own explanation, a provider that is rate-limiting or overloaded passes its 429 or 503 through, and only an unreachable or unusable provider is a 502. The client re-validates every identifier the model emits before rendering it, so a hallucinated value is surfaced as unverified rather than trusted.",
     tag: "config",
     rateLimited: true,
     body: [
@@ -492,8 +495,9 @@ export const ENDPOINTS: EndpointDef[] = [
     ],
     responseDescription: "`{ text }`: the model's raw completion, validated and narrated on the client.",
     errors: [
-      { status: 400, description: "Malformed body, or a setup problem the caller can fix: no key configured for the chosen provider, a key the provider rejected, or a model name it does not have." },
-      { status: 502, description: "The provider was unreachable or answered with an empty completion. A provider that is rate-limiting is passed through as 429 instead." },
+      { status: 400, description: "Malformed body, or a setup problem the caller can fix: no key configured for the chosen provider, a key the provider rejected, or a model the key cannot call (retired, renamed, or not offered on this tier). The provider's own sentence about the refusal is appended, since it usually names the fix." },
+      { status: 502, description: "The provider was unreachable or answered with nothing usable. An answer cut off at the model's token ceiling, or blocked by the provider's safety filter, says which of the two it was." },
+      { status: 503, description: "The provider is overloaded. Unlike a 502 this is neither the key nor the model, and the same request usually succeeds shortly after." },
     ],
   },
 

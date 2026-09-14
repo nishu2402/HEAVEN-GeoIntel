@@ -10,6 +10,8 @@ import { POST as usernamePOST } from "@/app/api/username-lookup/route";
 import { POST as ipPOST } from "@/app/api/ip-lookup/route";
 import { POST as domainPOST } from "@/app/api/domain-lookup/route";
 import { SOURCES, SOURCES_BY_ID, sourcesForMode } from "@/lib/sources/manifest";
+import { KEY_NAMES } from "@/lib/server/keyStore";
+import { providerForKey, sourceForKey } from "@/lib/client/keyNames";
 import { restoreRateLimit, resetServerState } from "./testUtils";
 import type { Mode } from "@/lib/client/modes";
 
@@ -142,5 +144,24 @@ describe("route source ids match the manifest", () => {
     ).flatMap((s) => s.modes));
     // Workflow modes (bulk/graph/cases) have no upstreams, so they declare none.
     expect([...modesInManifest].sort()).toEqual(["domain", "email", "ip", "phone", "username"]);
+  });
+});
+
+// Settings lists every name the key store accepts and labels each one from the
+// manifest. A key the store allows but the manifest never describes falls back
+// to the env-var spelling, so it would appear in the pane as "Hibp" rather than
+// "Have I Been Pwned". Nothing else catches that: the pane still renders.
+describe("every key the store accepts has a name to show", () => {
+  it("describes each OSINT key in the manifest", () => {
+    const orphans = KEY_NAMES
+      .filter((n) => providerForKey(n) === null)
+      .filter((n) => sourceForKey(n) === null);
+    expect(orphans).toEqual([]);
+  });
+
+  it("accounts for every allow-listed key as either a provider's or a source's", () => {
+    for (const name of KEY_NAMES) {
+      expect(providerForKey(name) !== null || sourceForKey(name) !== null).toBe(true);
+    }
   });
 });

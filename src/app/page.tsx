@@ -50,6 +50,7 @@ import SimpleLookupInput from "@/components/shared/SimpleLookupInput";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 import EffectsToggle from "@/components/shared/EffectsToggle";
 import SourcesPanel from "@/components/shared/SourcesPanel";
+import SettingsPanel from "@/components/shared/SettingsPanel";
 import NotableBreachesPanel from "@/components/shared/NotableBreachesPanel";
 import UpdateChecker from "@/components/shared/UpdateChecker";
 import UpdateBanner from "@/components/shared/UpdateBanner";
@@ -463,6 +464,7 @@ function PageContent() {
             <NotableBreachesPanel />
             <OpsecPanel />
             <HelpPopover />
+            <SettingsPanel />
             <UpdateChecker />
             <EffectsToggle />
             <ThemeToggle />
@@ -524,7 +526,9 @@ function PageContent() {
                           ? "border-[var(--hv-green)] text-[var(--hv-green)] bg-[var(--hv-green)]/10 shadow-[0_0_14px_-2px_var(--hv-green)]"
                           : "border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:border-[var(--hv-glass-hi)] hover:text-[var(--hv-ink)]"
                       }`}>
-                      <span className="mr-1">{m.glyph}</span>{m.label}
+                      {/* Decorative: the label already names the mode, so a reader
+                          should not announce "satellite antenna PHONE". */}
+                      <span className="mr-1" aria-hidden="true">{m.glyph}</span>{m.label}
                     </button>
                   ))}
                 </div>

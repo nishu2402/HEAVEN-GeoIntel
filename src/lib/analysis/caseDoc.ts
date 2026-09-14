@@ -324,7 +324,7 @@ function printDoc(d: CaseDocModel): string {
 <p class="hint">Print dialog not open? Press Ctrl+P (Cmd+P on a Mac) and choose "Save as PDF". This page is the paged dossier; the HTML export is a different, on-screen one.</p>
 <div class="sheet">
 <section class="cover">
-  <header class="mast">${logoSvg({ size: 44, mono: BRAND.ink, idPrefix: "cp", title: BRAND.name })}
+  <header class="mast">${logoSvg({ size: 44, paper: true, idPrefix: "cp", title: BRAND.name })}
     <div class="mast-t"><strong>${esc(BRAND.name)}</strong><span>${esc(BRAND.tagline)}</span></div>
     <div class="mast-c">${esc(CASE_CLASSIFICATION)}</div>
   </header>

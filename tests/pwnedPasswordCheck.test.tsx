@@ -56,6 +56,17 @@ describe("<PwnedPasswordCheck>", () => {
     expect(msg.textContent).not.toMatch(/times/);
   });
 
+  it("does not fire on an ordinary keystroke", async () => {
+    // Enter is the shortcut; every other key has to be inert, or typing the
+    // password would send a request per character.
+    const fetchSpy = vi.fn(async () => ok(`${PW_SUFFIX}:1`));
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<PwnedPasswordCheck />);
+    type("password");
+    await act(async () => { fireEvent.keyDown(screen.getByLabelText("Password to check"), { key: "a" }); });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("surfaces a service failure inline rather than a false clean", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 502, json: async () => ({ error: "endpoint down" }) }) as Response));
     render(<PwnedPasswordCheck />);

@@ -91,17 +91,43 @@ describe("meta/fileMeta dispatch", () => {
     expect(m.extMismatch).toEqual({ claimed: "png", actual: "jpg" });
   });
 
+  it("routes an executable, a container and a text file to their readers", async () => {
+    // A 64-bit little-endian ELF header, with no section table to walk.
+    const elf = new Uint8Array(64);
+    elf.set([0x7f, ...A("ELF"), 2, 1, 1, 3], 0);
+    elf[16] = 2; // an executable
+    elf[18] = 62; // x86-64
+    const binary = await extractFileMeta(elf, "tool");
+    expect(binary.identity.kind).toBe("elf");
+    expect(field(binary, "Architecture")).toBe("x86-64");
+
+    const ico = cat([0x00, 0x00, 0x01, 0x00, 0x01, 0x00], new Uint8Array(16));
+    const container = await extractFileMeta(ico, "favicon.ico");
+    expect(container.identity.kind).toBe("ico");
+    expect(field(container, "Images")).toBe("1");
+
+    const text = await extractFileMeta(new TextEncoder().encode("id,name\n1,a\n"), "rows.csv");
+    expect(text.identity.kind).toBe("csv");
+    expect(field(text, "Columns")).toBe("2");
+  });
+
   it("notes an unidentified file and a recognized-but-bare file", async () => {
     const unknown = await extractFileMeta(new Uint8Array([0x03, 0x04, 0x99, 0xfa, 0x00, 0x01]));
     expect(unknown.identity.kind).toBe("unknown");
     expect(unknown.hasDeepMeta).toBe(false);
     expect(unknown.notes.some((n) => /could not be identified/i.test(n))).toBe(true);
 
-    // WOFF is recognized by signature but this engine parses no fields from it.
+    // BZIP2 is recognized by signature, and its header carries nothing beyond
+    // the block size, so the engine has no field to report from it.
+    const bz2 = await extractFileMeta(cat(A("BZh9"), new Uint8Array(40)), "archive.bz2");
+    expect(bz2.identity.kind).toBe("bzip2");
+    expect(bz2.hasDeepMeta).toBe(false);
+    expect(bz2.notes.some((n) => /no embedded metadata/i.test(n))).toBe(true);
+    expect(bz2.entropy).not.toBeNull();
+
+    // A WOFF, by contrast, now yields its wrapper's own facts.
     const woff = await extractFileMeta(cat(A("wOFF"), new Uint8Array(40)), "font.woff");
     expect(woff.identity.kind).toBe("woff");
-    expect(woff.hasDeepMeta).toBe(false);
-    expect(woff.notes.some((n) => /no embedded metadata/i.test(n))).toBe(true);
-    expect(woff.entropy).not.toBeNull();
+    expect(woff.hasDeepMeta).toBe(true);
   });
 });

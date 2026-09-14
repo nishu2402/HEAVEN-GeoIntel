@@ -197,9 +197,9 @@ describe("meta/zip office and e-book properties", () => {
     // An entry present but the tag missing -> that field is skipped.
     const noTag = await extractZip("docx", buildZip([{ name: "docProps/core.xml", data: `<cp:coreProperties xmlns:cp="x"></cp:coreProperties>`, method: 0 }]));
     expect(noTag.fields.filter((f) => f.group === "Document")).toEqual([]);
-    // A ZIP that is not an office kind -> archive facts only, no doc props.
-    const jar = await extractZip("jar", buildZip([{ name: "META-INF/MANIFEST.MF", data: "Manifest-Version: 1.0" }]));
-    expect(jar.fields.every((f) => f.group === "Archive")).toBe(true);
+    // A ZIP that is not an office or e-book kind gets no document properties.
+    const plain = await extractZip("zip", buildZip([{ name: "readme.txt", data: "hello" }]));
+    expect(plain.fields.every((f) => f.group === "Archive")).toBe(true);
   });
 
   it("refuses a decompression-bomb member instead of buffering it whole", async () => {
@@ -266,5 +266,199 @@ describe("meta/zip office and e-book properties", () => {
     // A member whose local header itself is out of range -> readMember returns null.
     const badLocal = await extractZip("docx", buildZip([{ name: "docProps/core.xml", data: core("C"), badOffset: true }]));
     expect(badLocal.fields.filter((f) => f.group === "Document")).toEqual([]);
+  });
+});
+
+describe("meta/zip archive-level facts", () => {
+  const at = (r: { fields: { label: string; value: string }[] }, label: string) =>
+    r.fields.find((f) => f.label === label)?.value;
+
+  it("reports folders, sizes, the compression it achieved and a sample of names", async () => {
+    const r = await extractZip("zip", buildZip([
+      { name: "docs/", data: "" },
+      { name: "docs/notes.txt", data: "n".repeat(2048), method: 8 },
+      { name: "docs/data.csv", data: "c".repeat(2048), method: 8 },
+    ]));
+    expect(at(r, "Entries")).toBe("3");
+    expect(at(r, "Folders")).toBe("1");
+    expect(at(r, "Uncompressed")).toBe("4.0 KB");
+    expect(at(r, "Compression")).toMatch(/^9\d\.\d% smaller packed$/);
+    expect(at(r, "Contents")).toBe("docs/notes.txt, docs/data.csv");
+  });
+
+  it("lists no contents for an archive that holds only folders", async () => {
+    const r = await extractZip("zip", buildZip([{ name: "empty/", data: "" }]));
+    expect(at(r, "Entries")).toBe("1");
+    expect(at(r, "Folders")).toBe("1");
+    expect(at(r, "Contents")).toBeUndefined();
+    expect(at(r, "Uncompressed")).toBeUndefined();
+  });
+
+  it("truncates a long content list rather than printing the whole inventory", async () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({ name: `f${i}.txt`, data: "x" }));
+    expect(at(await extractZip("zip", buildZip(many)), "Contents")).toMatch(/, and 12 more$/);
+  });
+
+  it("gives the oldest member only when it differs from the newest", async () => {
+    const oneDate = { date: 0x5885, time: 0x4800 }; // 2024-04-05 09:00:00
+    const older = { date: 0x3021, time: 0x4800 };   // 2004-01-01 09:00:00
+    const spread = await extractZip("zip", buildZip([
+      { name: "a.txt", data: "a", ...oneDate },
+      { name: "b.txt", data: "b", ...older },
+    ]));
+    expect(at(spread, "Oldest member")).toBe("2004-01-01 09:00:00");
+    expect(at(spread, "Newest member")).toBe("2024-04-05 09:00:00");
+    const single = await extractZip("zip", buildZip([{ name: "a.txt", data: "a", ...oneDate }]));
+    expect(at(single, "Oldest member")).toBeUndefined();
+    expect(at(single, "Newest member")).toBe("2024-04-05 09:00:00");
+  });
+
+  it("names executable members and members that escape the extraction folder", async () => {
+    const r = await extractZip("zip", buildZip([
+      { name: "invoice.pdf.exe", data: "x" },
+      { name: "setup.msi", data: "x" },
+      { name: "../../etc/cron.d/backdoor", data: "x" },
+      { name: "/etc/passwd", data: "x" },
+      { name: "nested/../../escape.txt", data: "x" },
+    ]));
+    expect(at(r, "Executable members")).toBe("invoice.pdf.exe, setup.msi");
+    expect(at(r, "Paths outside the archive")).toBe("../../etc/cron.d/backdoor, /etc/passwd, nested/../../escape.txt");
+    expect((r.notes ?? []).some((n) => /zip-slip/.test(n))).toBe(true);
+  });
+
+  it("caps the lists of risky members", async () => {
+    const lots = Array.from({ length: 10 }, (_, i) => ({ name: `../out${i}.exe`, data: "x" }));
+    const r = await extractZip("zip", buildZip(lots));
+    expect(at(r, "Executable members")?.split(", ")).toHaveLength(6);
+    expect(at(r, "Paths outside the archive")?.split(", ")).toHaveLength(6);
+  });
+
+  it("reads the build machine out of a Java manifest and reports the signing", async () => {
+    const manifest = [
+      "Manifest-Version: 1.0",
+      "Built-By: jenkins-agent-04",
+      "Created-By: Apache Maven 3.9.6",
+      "Build-Jdk: 17.0.9",
+      "Main-Class: com.example.Main",
+      "Implementation-Title: billing-service",
+      "Implementation-Version: 2.4.1",
+      "Implementation-Vendor: Northgate Ltd",
+      "Bundle-SymbolicName: com.example.billing",
+    ].join("\n");
+    const r = await extractZip("jar", buildZip([
+      { name: "META-INF/MANIFEST.MF", data: manifest },
+      { name: "META-INF/CERT.RSA", data: "sig" },
+    ]));
+    expect(at(r, "Built by")).toBe("jenkins-agent-04");
+    expect(at(r, "Created by")).toBe("Apache Maven 3.9.6");
+    expect(at(r, "Build JDK")).toBe("17.0.9");
+    expect(at(r, "Main class")).toBe("com.example.Main");
+    expect(at(r, "Implementation title")).toBe("billing-service");
+    expect(at(r, "Implementation version")).toBe("2.4.1");
+    expect(at(r, "Vendor")).toBe("Northgate Ltd");
+    expect(at(r, "Bundle name")).toBe("com.example.billing");
+    expect(at(r, "Signed")).toBe("yes (signature block present)");
+    expect(r.fields.find((f) => f.label === "Built by")?.sensitive).toBe(true);
+  });
+
+  it("keeps the first spelling when a manifest declares a key twice", async () => {
+    const manifest = "Build-Jdk: 17.0.9\nBuild-Jdk-Spec: 21";
+    const r = await extractZip("jar", buildZip([{ name: "META-INF/MANIFEST.MF", data: manifest }]));
+    expect(r.fields.filter((f) => f.label === "Build JDK")).toHaveLength(1);
+    expect(at(r, "Build JDK")).toBe("17.0.9");
+  });
+
+  it("reports an unsigned jar and one with no manifest at all", async () => {
+    const unsigned = await extractZip("jar", buildZip([{ name: "META-INF/MANIFEST.MF", data: "Manifest-Version: 1.0" }]));
+    expect(at(unsigned, "Signed")).toBe("no signature block");
+    const bare = await extractZip("jar", buildZip([{ name: "a.class", data: "x" }]));
+    expect(at(bare, "Signed")).toBe("no signature block");
+    expect(at(bare, "Built by")).toBeUndefined();
+  });
+
+  it("reads an Android package's architectures and DEX files", async () => {
+    const r = await extractZip("apk", buildZip([
+      { name: "AndroidManifest.xml", data: "x" },
+      { name: "classes.dex", data: "x" },
+      { name: "classes2.dex", data: "x" },
+      { name: "lib/arm64-v8a/libnative.so", data: "x" },
+      { name: "lib/x86_64/libnative.so", data: "x" },
+      { name: "lib/arm64-v8a/libother.so", data: "x" },
+    ]));
+    expect(at(r, "Native ABIs")).toBe("arm64-v8a, x86_64");
+    expect(at(r, "DEX files")).toBe("2");
+  });
+
+  it("omits the architecture and DEX lines from a package that has neither", async () => {
+    const r = await extractZip("apk", buildZip([{ name: "resources.arsc", data: "x" }]));
+    expect(at(r, "Native ABIs")).toBeUndefined();
+    expect(at(r, "DEX files")).toBeUndefined();
+  });
+});
+
+describe("meta/zip deeper document properties", () => {
+  const at = (r: { fields: { label: string; value: string }[] }, label: string) =>
+    r.fields.find((f) => f.label === label)?.value;
+
+  it("reads the Office extended properties, statistics included", async () => {
+    const app = `<Properties><Application>Microsoft Office Word</Application><AppVersion>16.0000</AppVersion>` +
+      `<Company>Northgate</Company><Manager>R. Alvarez</Manager><Template>Normal.dotm</Template>` +
+      `<HyperlinkBase>\\\\fileserver\\shared</HyperlinkBase><TotalTime>184</TotalTime><DocSecurity>0</DocSecurity>` +
+      `<Pages>12</Pages><Slides>0</Slides><Notes>0</Notes><HiddenSlides>0</HiddenSlides><Words>3120</Words>` +
+      `<Characters>17800</Characters><CharactersWithSpaces>20900</CharactersWithSpaces>` +
+      `<Lines>148</Lines><Paragraphs>41</Paragraphs></Properties>`;
+    const r = await extractZip("docx", buildZip([{ name: "docProps/app.xml", data: app, method: 8 }]));
+    expect(at(r, "Application version")).toBe("16.0000");
+    expect(at(r, "Template")).toBe("Normal.dotm");
+    expect(at(r, "Hyperlink base")).toBe("\\\\fileserver\\shared");
+    expect(at(r, "Editing time (min)")).toBe("184");
+    expect(at(r, "Pages")).toBe("12");
+    expect(at(r, "Words")).toBe("3120");
+    expect(at(r, "Characters with spaces")).toBe("20900");
+    expect(at(r, "Lines")).toBe("148");
+    expect(at(r, "Paragraphs")).toBe("41");
+    expect(r.fields.find((f) => f.label === "Template")?.sensitive).toBe(true);
+  });
+
+  it("reads OpenDocument's print history and its statistics attributes", async () => {
+    const meta = `<office:meta><dc:title>Budget</dc:title><dc:subject>FY25</dc:subject>` +
+      `<meta:printed-by>k.osei</meta:printed-by><meta:print-date>2024-02-11T08:30:00</meta:print-date>` +
+      `<meta:editing-duration>PT1H24M</meta:editing-duration><meta:keyword>internal</meta:keyword>` +
+      `<meta:document-statistic meta:page-count="9" meta:word-count="1204" meta:character-count="7010" ` +
+      `meta:paragraph-count="63" meta:image-count="4" meta:table-count="2" meta:object-count="1"/></office:meta>`;
+    const r = await extractZip("ods", buildZip([{ name: "meta.xml", data: meta }]));
+    expect(at(r, "Last printed by")).toBe("k.osei");
+    expect(at(r, "Last printed")).toBe("2024-02-11T08:30:00");
+    expect(at(r, "Editing time")).toBe("PT1H24M");
+    expect(at(r, "Keywords")).toBe("internal");
+    expect(at(r, "Pages")).toBe("9");
+    expect(at(r, "Words")).toBe("1204");
+    expect(at(r, "Characters")).toBe("7010");
+    expect(at(r, "Paragraphs")).toBe("63");
+    expect(at(r, "Images")).toBe("4");
+    expect(at(r, "Tables")).toBe("2");
+    expect(at(r, "Embedded objects")).toBe("1");
+  });
+
+  it("skips the statistics when the element is absent or its attributes are blank", async () => {
+    const none = await extractZip("odt", buildZip([{ name: "meta.xml", data: `<office:meta><dc:title>t</dc:title></office:meta>` }]));
+    expect(at(none, "Pages")).toBeUndefined();
+    const blank = await extractZip("odt", buildZip([{ name: "meta.xml", data: `<office:meta><meta:document-statistic meta:page-count=""/></office:meta>` }]));
+    expect(at(blank, "Pages")).toBeUndefined();
+  });
+
+  it("reads the fuller e-book record", async () => {
+    const opf = `<package><metadata><dc:title>The Coast Road</dc:title><dc:creator>H. Nakamura</dc:creator>` +
+      `<dc:contributor>Trans. by L. Park</dc:contributor><dc:publisher>Sable Press</dc:publisher>` +
+      `<dc:identifier>urn:isbn:9781234567897</dc:identifier><dc:language>en</dc:language>` +
+      `<dc:rights>All rights reserved</dc:rights><dc:description>A novel.</dc:description></metadata></package>`;
+    const r = await extractZip("epub", buildZip([
+      { name: "META-INF/container.xml", data: `<rootfile full-path="OEBPS/content.opf"/>` },
+      { name: "OEBPS/content.opf", data: opf, method: 8 },
+    ]));
+    expect(at(r, "Contributor")).toBe("Trans. by L. Park");
+    expect(at(r, "Identifier")).toBe("urn:isbn:9781234567897");
+    expect(at(r, "Rights")).toBe("All rights reserved");
+    expect(at(r, "Description")).toBe("A novel.");
   });
 });

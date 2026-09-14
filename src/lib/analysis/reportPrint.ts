@@ -12,8 +12,8 @@
 // widow control, vector type and vector logos, and it needs no dependency.
 
 import {
-  CLASSIFICATION, HEAD, LEGEND, METHODOLOGY, bandInk, controlRows, esc,
-  observableStixId, reportOutline, reportStats, reportMeta, reportTitle, slug,
+  CLASSIFICATION, HEAD, LEGEND, bandInk, controlRows, esc, methodologyFor, provenanceNotice,
+  observableStixId, reportOutline, reportMeta, reportTitle, slug,
   sourceState, statsRows,
   type ReportModel, type ReportRow, type ReportSection,
 } from "./report";
@@ -43,7 +43,6 @@ function meter(score: number, accent: string): string {
 
 export function reportToPrintHtml(m: ReportModel): string {
   const meta = reportMeta(m);
-  const st = reportStats(m);
   const a = m.assessment;
   const accent = bandInk(a?.band);
   const outline = reportOutline(m);
@@ -136,7 +135,7 @@ export function reportToPrintHtml(m: ReportModel): string {
 
   body.push(
     `<section class="blk">`, h2(HEAD.method),
-    `<ol class="method">${METHODOLOGY.map((l) => `<li>${esc(l)}</li>`).join("")}</ol>`,
+    `<ol class="method">${methodologyFor(m).map((l) => `<li>${esc(l)}</li>`).join("")}</ol>`,
     `<h3>How to read the numbers</h3>`, kv(LEGEND), `</section>`,
   );
 
@@ -164,7 +163,7 @@ export function reportToPrintHtml(m: ReportModel): string {
 
   const cover = `<section class="cover">
   <header class="mast">
-    ${logoSvg({ size: 44, mono: BRAND.ink, idPrefix: "pr", title: BRAND.name })}
+    ${logoSvg({ size: 44, paper: true, idPrefix: "pr", title: BRAND.name })}
     <div class="mast-t"><strong>${esc(BRAND.name)}</strong><span>${esc(BRAND.tagline)}</span></div>
     <div class="mast-c">${esc(CLASSIFICATION)}</div>
   </header>
@@ -177,7 +176,7 @@ export function reportToPrintHtml(m: ReportModel): string {
   </div>
   <h2 class="ctl-h">Document control</h2>
   ${kv(controlRows(m))}
-  <p class="notice">This document was assembled from ${st.sources} open-source ${st.sources === 1 ? "source" : "sources"}, of which ${st.sourcesAnswered} answered. Every field it contains was returned by one of them. Fields no source returned are omitted rather than padded, so a gap means the data was not collected, not that it does not exist. Read section ${String(outline.indexOf(HEAD.method) + 1).padStart(2, "0")} before quoting any figure here.</p>
+  <p class="notice">${esc(provenanceNotice(m))} Read section ${String(outline.indexOf(HEAD.method) + 1).padStart(2, "0")} before quoting any figure here.</p>
   <p class="cover-foot">${esc(meta.documentId)} &middot; ${esc(meta.generatedAt)}</p>
 </section>`;
 

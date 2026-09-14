@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { guardRateLimit } from "@/lib/server/rateLimit";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, aiAnalystBody } from "@/lib/server/validation";
-import { analystStatus, runAnalyst } from "@/lib/server/aiAnalyst";
+import { analystStatus, runAnalyst, listModels } from "@/lib/server/aiAnalyst";
+import { ALL_PROVIDERS, type CloudProvider } from "@/lib/ai/analyst";
 
 // ── AI analyst relay ─────────────────────────────────────────────────────────
 // The optional, opt-in bridge to a language model. The browser builds a strictly
@@ -15,11 +16,37 @@ import { analystStatus, runAnalyst } from "@/lib/server/aiAnalyst";
 // GET answers the panel's opening question — which provider can actually run
 // here — so it selects a working one instead of defaulting to a local server
 // that may not be installed. It reports key PRESENCE only, never a key value.
+//
+// GET ?models=<provider> answers the second question: which models that
+// provider's key may call. The dropdown used to list names compiled into the
+// build, which is how it came to offer Gemini models Google had retired, so the
+// only way to run the analyst was to know the right name and type it in.
 
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<NextResponse> {
-  return NextResponse.json(await analystStatus(), { headers: { "Cache-Control": "no-store" } });
+const noStore = { "Cache-Control": "no-store" };
+
+/** A provider name from the query string, or null when it names no cloud provider. */
+function cloudParam(value: string | null): CloudProvider | null {
+  const found = ALL_PROVIDERS.find((p) => p === value);
+  return found && found !== "ollama" ? found : null;
+}
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const wanted = req.nextUrl.searchParams.get("models");
+  if (wanted !== null) {
+    const provider = cloudParam(wanted);
+    // Ollama is excluded deliberately: its installed models already come back
+    // with the readiness probe, from the machine rather than from a key.
+    if (!provider) {
+      return NextResponse.json(
+        { error: "Unknown provider. Expected one of: openai, anthropic, gemini, groq, deepseek, mistral, openrouter." },
+        { status: 400, headers: noStore },
+      );
+    }
+    return NextResponse.json(await listModels(provider), { headers: noStore });
+  }
+  return NextResponse.json(await analystStatus(), { headers: noStore });
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
