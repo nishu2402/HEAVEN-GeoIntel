@@ -8,7 +8,17 @@
 // (balanced-parenthesis literals, hex strings, or "D:" dates); anything that is
 // not a well-formed string token is skipped rather than guessed at, so a stray
 // key name in the file never becomes a fabricated field.
+//
+// The Info dictionary is only the first layer. A PDF also states how many pages
+// it has and at what paper size, how many times it has been saved (every
+// incremental update leaves its own %%EOF), which typefaces it embeds, whether
+// it carries active content, and, in its XMP packet, a pair of identifiers that
+// survive editing: xmpMM:DocumentID stays the same across every saved copy of a
+// document and xmpMM:InstanceID changes on each save, so two files can be shown
+// to be revisions of one original. All of that is read here as well, because an
+// author's name alone is rarely the whole of what a document discloses.
 
+import { xmpFields, xmpPacket, XMP_DOCUMENT } from "./xmp";
 import type { Extraction, MetaField } from "./types";
 
 const KEYS: { key: string; label: string; date?: boolean; sensitive?: boolean }[] = [
@@ -105,6 +115,109 @@ function normalizePdfDate(raw: string): string {
   return `${y}-${mo}-${d} ${h}:${mi}:${se}`;
 }
 
+// ── Structure: pages, paper size, save history ───────────────────────────────
+
+/**
+ * Count matches of a global pattern in one linear pass. Every pattern passed
+ * here consumes at least one character, so `lastIndex` always advances and the
+ * loop terminates; counting rather than collecting keeps a file with a million
+ * page objects from materialising a million strings.
+ */
+function countMatches(s: string, re: RegExp): number {
+  let n = 0;
+  re.lastIndex = 0;
+  while (re.exec(s) !== null) n++;
+  return n;
+}
+
+// Standard sheets, in PostScript points (1/72 inch), with the millimetre
+// equivalent an analyst actually thinks in. Matched to the nearest 3 points,
+// which absorbs a producer's rounding without letting two sizes collide.
+const PAPER: { name: string; w: number; h: number }[] = [
+  { name: "A4", w: 595, h: 842 },
+  { name: "A3", w: 842, h: 1191 },
+  { name: "A5", w: 420, h: 595 },
+  { name: "Letter", w: 612, h: 792 },
+  { name: "Legal", w: 612, h: 1008 },
+  { name: "Tabloid", w: 792, h: 1224 },
+];
+
+const mm = (pt: number) => Math.round((pt * 25.4) / 72);
+
+/** Name the sheet a width/height pair in points corresponds to, or null. */
+function paperName(w: number, h: number): string | null {
+  for (const p of PAPER) {
+    if (Math.abs(w - p.w) <= 3 && Math.abs(h - p.h) <= 3) return p.name;
+  }
+  return null;
+}
+
+/** Describe the first /MediaBox as a size, a sheet name and an orientation. */
+function pageSize(s: string): string | null {
+  const m = /\/MediaBox\s*\[\s*(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s*\]/.exec(s);
+  if (!m) return null;
+  const w = Math.round(Math.abs(parseFloat(m[3]) - parseFloat(m[1])));
+  const h = Math.round(Math.abs(parseFloat(m[4]) - parseFloat(m[2])));
+  if (w <= 0 || h <= 0) return null;
+  const portrait = h >= w;
+  const name = paperName(Math.min(w, h), Math.max(w, h));
+  const sheet = name ? `${name} ${portrait ? "portrait" : "landscape"}, ` : "";
+  return `${w} × ${h} pt (${sheet}${mm(w)} × ${mm(h)} mm)`;
+}
+
+// ── Encryption ───────────────────────────────────────────────────────────────
+
+/**
+ * Name the encryption a PDF declares, from the /Encrypt dictionary's algorithm
+ * version. Reported as the standard's own terms so the reader can judge what is
+ * withheld, rather than a bare "encrypted".
+ */
+function encryptionKind(s: string): string {
+  if (/\/AESV3\b/.test(s)) return "AES-256";
+  if (/\/AESV2\b/.test(s)) return "AES-128";
+  const v = /\/Encrypt[\s\S]{0,400}?\/V\s+(\d+)/.exec(s);
+  const length = /\/Encrypt[\s\S]{0,400}?\/Length\s+(\d+)/.exec(s);
+  if (v && v[1] === "1") return "RC4 40-bit";
+  if (v && v[1] === "2") return length ? `RC4 ${length[1]}-bit` : "RC4";
+  return "undeclared algorithm";
+}
+
+// ── Active content ───────────────────────────────────────────────────────────
+
+// Features that change what opening the document does. Each is a real key in a
+// real PDF dictionary, so a hit is a statement about the file's structure, not a
+// verdict about intent: a form or an attachment is ordinary in a business
+// document and worth knowing about in one that arrived unexpectedly.
+const ACTIVE: { re: RegExp; label: string }[] = [
+  { re: /\/JavaScript\b|\/JS\b/, label: "JavaScript" },
+  { re: /\/OpenAction\b/, label: "Open action (runs on open)" },
+  { re: /\/Launch\b/, label: "Launch action (starts a program)" },
+  { re: /\/EmbeddedFile(?:s)?\b/, label: "Embedded file attachment" },
+  { re: /\/AcroForm\b/, label: "Fillable form" },
+  { re: /\/XFA\b/, label: "XFA form" },
+  { re: /\/RichMedia\b/, label: "Rich media (video / Flash)" },
+  { re: /\/GoToR\b/, label: "Remote go-to action" },
+  { re: /\/SubmitForm\b/, label: "Form submission action" },
+];
+
+// ── Embedded fonts ───────────────────────────────────────────────────────────
+
+// A subset font is written as "ABCDEF+Helvetica": six letters, a plus, then the
+// real name. The tag is per-file noise, so it is stripped and the names deduped,
+// leaving the typeface list itself, which says a good deal about the authoring
+// machine (a document set in Calibri was written on Windows Office; one in
+// Helvetica Neue on a Mac).
+function fontNames(s: string): string[] {
+  const out = new Set<string>();
+  const re = /\/BaseFont\s*\/([A-Za-z0-9#+._-]{1,127})/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    out.add(m[1].replace(/^[A-Z]{6}\+/, ""));
+    if (out.size >= 24) break; // enough to characterise; not a full inventory
+  }
+  return [...out];
+}
+
 /**
  * Extract the document-information fields from a PDF. Later occurrences of a key
  * win, so an incremental update's newer metadata overrides the original.
@@ -131,8 +244,58 @@ export function extractPdf(bytes: Uint8Array): Extraction {
     fields.push({ label: spec.label, value: spec.date ? normalizePdfDate(last) : last, group: "Document", sensitive: spec.sensitive });
   }
 
-  if (/\/Encrypt\b/.test(s)) notes.push("This PDF is encrypted; some metadata may be withheld or unreadable.");
-  if (s.includes("<x:xmpmeta") || s.includes("<?xpacket")) notes.push("Carries an XMP metadata packet (extended document properties).");
+  const lang = /\/Lang\s*\(([^)]{1,32})\)/.exec(s);
+  if (lang) fields.push({ label: "Language", value: lang[1], group: "Document" });
+
+  // ── Structure ──────────────────────────────────────────────────────────────
+  // Page objects are counted directly rather than trusting /Count, which an
+  // incremental update can leave stale. A PDF whose objects live in compressed
+  // object streams shows none from here, and then the field is simply omitted.
+  const pages = countMatches(s, /\/Type\s*\/Page(?![sA-Za-z])/g);
+  if (pages > 0) fields.push({ label: "Pages", value: String(pages), group: "Structure" });
+
+  const size = pageSize(s);
+  if (size) fields.push({ label: "Page size", value: size, group: "Structure" });
+
+  // Every save appends a new body and its own %%EOF, so the count is the number
+  // of times the file has been written: a document on its fourth revision has
+  // three earlier versions still inside it.
+  const saves = countMatches(s, /%%EOF/g);
+  if (saves > 1) {
+    fields.push({ label: "Saved", value: `${saves} times (${saves - 1} incremental ${saves === 2 ? "update" : "updates"})`, group: "Structure" });
+    notes.push(`This file has been saved ${saves} times. Earlier revisions are still present in the bytes and may contain content that was edited out of the visible document.`);
+  }
+
+  if (/\/Linearized\b/.test(s)) fields.push({ label: "Linearized", value: "yes (optimised for web viewing)", group: "Structure" });
+  if (/\/MarkInfo\b/.test(s)) fields.push({ label: "Tagged PDF", value: "yes (accessibility structure present)", group: "Structure" });
+
+  const images = countMatches(s, /\/Subtype\s*\/Image\b/g);
+  if (images > 0) fields.push({ label: "Embedded images", value: String(images), group: "Structure" });
+
+  const fonts = fontNames(s);
+  if (fonts.length) fields.push({ label: "Embedded fonts", value: fonts.join(", "), group: "Structure" });
+
+  // ── Active content ─────────────────────────────────────────────────────────
+  const active = ACTIVE.filter((a) => a.re.test(s)).map((a) => a.label);
+  if (active.length) {
+    fields.push({ label: "Active content", value: active.join(", "), group: "Structure", sensitive: true });
+    notes.push("Opening this PDF does more than render pages: it declares " + active.join(", ").toLowerCase() + ". Open it in a sandbox if its origin is not trusted.");
+  }
+
+  // ── XMP ────────────────────────────────────────────────────────────────────
+  const xmp = xmpPacket(s);
+  if (xmp) {
+    const read = xmpFields(xmp, XMP_DOCUMENT);
+    fields.push(...read);
+    notes.push(read.length === 0
+      ? "Carries an XMP metadata packet, but none of its standard properties were populated."
+      : "Document ID and Instance ID come from the XMP packet: the document ID is carried by every saved copy of the same original, so two files sharing one are revisions of each other.");
+  }
+
+  if (/\/Encrypt\b/.test(s)) {
+    fields.push({ label: "Encryption", value: encryptionKind(s), group: "Document" });
+    notes.push("This PDF is encrypted; some metadata may be withheld or unreadable.");
+  }
 
   return { fields, notes };
 }

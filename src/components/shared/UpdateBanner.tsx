@@ -16,8 +16,15 @@ import { useUpdateCheck } from "@/lib/update/updateStore";
 
 const DISMISS_KEY = "hv:update-dismissed:v1";
 
-/** The version the user last dismissed, or null. Never throws on a blocked store. */
+/**
+ * The version the user last dismissed, or null. Never throws on a blocked store,
+ * and never reaches for one on the server: there is no dismissal to find during
+ * SSR, and on Node 26 merely naming `localStorage` prints an experimental-feature
+ * warning on every render.
+ */
 function readDismissed(): string | null {
+  /* v8 ignore next -- SSR guard; the component's tests all render in jsdom */
+  if (typeof window === "undefined") return null;
   try {
     return localStorage.getItem(DISMISS_KEY);
   } catch {
@@ -29,7 +36,8 @@ export default function UpdateBanner() {
   const { info } = useUpdateCheck();
   // Lazy init is safe here: the first render shows nothing until `info` arrives
   // (server and first client render both have info === null), so reading storage
-  // during render cannot cause a hydration mismatch.
+  // during render cannot cause a hydration mismatch. On the server the read is
+  // skipped outright, which is the same null it would have returned anyway.
   const [dismissed, setDismissed] = useState<string | null>(readDismissed);
 
   // Show only a real, tagged, undismissed newer release. `updateAvailable` is

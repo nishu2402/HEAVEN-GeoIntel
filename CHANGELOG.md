@@ -22,6 +22,68 @@ watched for change, bulk-run, or driven from a shell.
 
 ### Added
 
+- **Settings: one place for every API key.** The keys had two homes and neither
+  was a settings pane. A source key was entered in the sources dialog, and an AI
+  provider's key only in the analyst panel, which is itself reachable only
+  underneath a finished lookup, so the way to give the app a Gemini key was to
+  run a lookup first. The new **Settings** pane in the header lists every key the
+  server accepts, source keys and provider keys together, each with where it is
+  currently configured, a link to that provider's key console, and a Remove
+  button for the ones saved on this machine. It is driven by the server's own
+  allow-list, so a key added to the store appears here without anyone
+  remembering to list it, and a saved value is still never read back to the
+  browser: the field stays blank and the status says "saved here". Every row is
+  named by its provider rather than by its environment variable, taken from the
+  same source manifest the rest of the app reads, so the Have I Been Pwned key
+  is not listed as "Hibp"; a provider that needs two credentials says which one
+  each row is, and every row links to the page that issues its key.
+
+- **The analyst offers the models your key can actually call.** Once a provider
+  has a key, its model dropdown is the list that provider published for that
+  key, labelled as such, filtered to models that can answer a text prompt and
+  led by the vetted default. `GET /api/ai-analyst?models=<provider>` is the
+  endpoint behind it.
+
+- **File mode reads every format properly, instead of naming it and stopping.**
+  A file was identified by its bytes and then, for most kinds, described by its
+  size and little else: a PDF gave its version and whatever the Info dictionary
+  held, an executable gave nothing, and a font, a database, a packet capture, an
+  SVG or a saved email gave nothing at all. Each family now has a real reader.
+  A **PDF** states its page count and paper size, how many times it has been
+  saved (every incremental update leaves its own `%%EOF`, so a document on its
+  fourth revision says so and still carries the earlier three), the typefaces it
+  embeds, the active content it declares, its encryption algorithm, and the XMP
+  identifiers that make two files provably revisions of one original. **Legacy
+  Office** files (`.doc`, `.xls`, `.ppt`, `.msg`) are opened as the compound
+  files they are, down to the FAT, the mini stream and the property sets, which
+  is where Word records the author, the account that last saved it, the company,
+  the manager, the revision number and the minutes the document was open. A
+  **photo** gives its IPTC block (the photographer's byline, the agency credit,
+  the caption, the city and country) and its XMP identifiers and camera serial,
+  neither of which EXIF holds. A **PNG** gives its text chunks, which is where
+  editors write their name and where image generators write the prompt, model
+  and seed. **Archives** give their member list, every distinct owner, the
+  compression they achieved, the members that would execute, and the members
+  whose paths escape the extraction directory; a `.tar.gz` is decompressed so
+  the tar inside it is read too. **Audio** gives the frame header, the real
+  duration, the full ID3 or Vorbis tag set, and the Broadcast Wave block a field
+  recorder writes. **Video** gives its track list with codec, resolution and
+  language. **Executables** give their build timestamp, architecture, mitigations,
+  signature, imports and the symbol-file path that names the machine they were
+  built on. And **fonts, SQLite databases, packet captures, SVG, HTML, XML,
+  JSON, CSV, RTF and saved email** are read for the first time.
+- **File mode exports a report, like every other mode.** A file analysis could
+  only be read on screen. It now exports the same five formats through the same
+  model: the paged PDF, the interactive HTML dossier, text, Markdown and a STIX
+  2.1 bundle carrying the file's SHA-256. It is the one report whose evidence
+  came from no source at all, so it prints no risk score and no source table,
+  and its evidence-basis line, cover paragraph and methodology say what actually
+  happened: the bytes were read in the browser, nothing was uploaded, and
+  metadata states what the producing software recorded rather than what is true.
+- **The filesystem's own timestamp.** The panel now shows when a file was last
+  modified on disk, which is the one fact about a file that its bytes never
+  state.
+
 - **Identity fusion now needs proof, and says what the proof is.** A shared
   handle was being treated as evidence that one person owned every account
   carrying it. Looking up `torvalds` presented "Portland, OR" (GitHub), "GT"
@@ -221,6 +283,15 @@ watched for change, bulk-run, or driven from a shell.
 
 ### Changed
 
+- **The 100% coverage gate now covers the whole component tree, by glob rather
+  than by list.** Components were enrolled one file at a time, and a list of
+  filenames silently omits whatever nobody remembered to add: a panel could ship
+  with a full test suite, never be measured, and carry an uncovered branch that
+  nothing reported. The last six components were brought to 100% and the list
+  became `src/components/**/*.tsx`, which cannot forget one. A new component now
+  ships with tests or fails the build, the same bargain the library layer has
+  always had.
+
 - **One threat score became two figures, because it was answering two
   questions.** A number appearing in four breaches and a number used by a scam
   call centre both scored high, and the label said the same thing about both, so
@@ -262,6 +333,53 @@ watched for change, bulk-run, or driven from a shell.
   a race the fast path happened to win.
 
 ### Fixed
+
+- **The lookup mode buttons read their decoration aloud.** Each mode carries a
+  small glyph beside its name and nothing marked the glyph as decorative, so a
+  screen reader announced the phone tab as "satellite antenna PHONE" and the
+  wallet tab as "coin WALLET". The glyph is now hidden from assistive
+  technology; the button announces the mode and nothing else.
+
+- **A dev server no longer warns about storage it never needed.** The update
+  banner read its "already dismissed" flag in a `useState` initializer, and an
+  initializer runs during server rendering too, where there is no such flag to
+  find. On Node 26 that prints an experimental-feature warning every time the
+  page renders. The read now happens only in the browser, which is the same
+  answer it gave on the server anyway.
+
+- **The AI Analyst could not run on Google Gemini at all.** Every Gemini model
+  the panel offered had been withdrawn: 1.5 was removed outright and 2.5 is
+  refused to new keys, so the shipped default answered each run with a 404, and
+  the relay reported that as "The AI provider was unreachable or returned an
+  error". Three changes make it work and keep it working. The model list is now
+  asked of the provider once a key exists, so it is what that key may actually
+  call rather than a snapshot of what existed when the code was written. The
+  fallback catalog was rebuilt from models run against the relay first, ordered
+  by what answered rather than by what is newest, because the free tier returns
+  503 for the newest flash model and 429 for pro. And a failure now carries the
+  provider's own sentence about it, which for a retired model names the model
+  that replaced it.
+
+- **A refused request is no longer reported as an unreachable gateway.** A 404
+  from a cloud provider (a model the key cannot call) is a 400 the operator can
+  fix in the dropdown, not a 502; an overloaded provider passes its 503 through,
+  so waiting a minute is visibly the fix rather than checking a key that was
+  never wrong.
+
+- **A Gemini answer no longer arrives truncated or empty.** The request asked for
+  800 output tokens, which a thinking model spends on its reasoning before
+  writing a word: measured against a real evidence bundle it used about 1,100
+  and the brief came back cut off mid-sentence. The budget now has room for
+  both. An answer that still stops at the ceiling, or one a safety filter
+  blocked, says which it was instead of reporting an empty response, and a
+  multi-part answer is read whole rather than from its first fragment.
+
+- **The brand mark is in colour on paper.** The printed report and the printed
+  case dossier drew the logo in one flat ink, because the screen palette is
+  tuned for a near-black background: `#00ff85` measures about 1.4:1 against
+  white, and a hexagon stroked in it all but vanishes. Both documents now use
+  the same two hues re-mixed for paper, at 4.2:1 and 5.4:1 against white, so the
+  masthead carries the brand rather than a silhouette of it.
 
 - **A username lookup no longer invents a person.** The identity card merged
   every profile the sweep found under one heading, so three unrelated people

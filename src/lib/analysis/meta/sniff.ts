@@ -63,8 +63,6 @@ const SIGNATURES: Signature[] = [
   S("pdf", "PDF document", "document", "application/pdf", "pdf", asciiBytes("%PDF-")),
   S("rtf", "Rich Text document", "document", "application/rtf", "rtf", asciiBytes("{\\rtf")),
   S("ps", "PostScript document", "document", "application/postscript", "ps", asciiBytes("%!PS")),
-  S("ole", "Legacy Office document (OLE2)", "document", "application/x-ole-storage", "doc",
-    [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
   S("chm", "Compiled HTML Help", "document", "application/vnd.ms-htmlhelp", "chm", asciiBytes("ITSF")),
 
   // Archives / compression
@@ -187,6 +185,33 @@ function sniffIso9660(r: Reader): FileIdentity | null {
   return null;
 }
 
+// OLE2 compound files all share one signature, and what they actually are is
+// decided by which stream the application wrote inside. The directory stores
+// those names as UTF-16LE, so the scan looks for the wide form; it runs over
+// the whole buffer because the directory sector can sit anywhere in the file.
+const OLE_PAYLOADS: { stream: string; id: FileIdentity }[] = [
+  { stream: "WordDocument", id: id("doc", "Word 97-2003 document", "document", "application/msword", "doc") },
+  { stream: "Workbook", id: id("xls", "Excel 97-2003 workbook", "document", "application/vnd.ms-excel", "xls") },
+  { stream: "Book", id: id("xls", "Excel 5.0 workbook", "document", "application/vnd.ms-excel", "xls") },
+  { stream: "PowerPoint Document", id: id("ppt", "PowerPoint 97-2003 presentation", "document", "application/vnd.ms-powerpoint", "ppt") },
+  { stream: "VisioDocument", id: id("vsd", "Visio drawing", "document", "application/vnd.visio", "vsd") },
+  { stream: "__substg1.0_", id: id("msg", "Outlook message", "document", "application/vnd.ms-outlook", "msg") },
+];
+
+/** The UTF-16LE bytes of an ASCII stream name, as the directory stores it. */
+function wide(s: string): number[] {
+  return [...s].flatMap((c) => [c.charCodeAt(0), 0]);
+}
+
+/** OLE2 compound file: the payload stream inside names the real application. */
+function sniffOle(r: Reader): FileIdentity | null {
+  if (!r.eq(0, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) return null;
+  for (const p of OLE_PAYLOADS) {
+    if (r.indexOf(wide(p.stream)) !== -1) return p.id;
+  }
+  return id("ole", "Legacy Office document (OLE2)", "document", "application/x-ole-storage", "");
+}
+
 /**
  * ZIP-based formats. The bytes start with the local-file-header magic, but the
  * real identity is decided by which member names appear inside. A bounded scan
@@ -266,6 +291,13 @@ function sniffText(bytes: Uint8Array, ext: string): FileIdentity | null {
   }
   if (head.startsWith("{") || head.startsWith("[")) return id("json", "JSON data", "text", "application/json", "json");
   if (head.startsWith("#!")) return id("script", "Shell / interpreter script", "text", "text/x-shellscript", "sh");
+  // A saved email starts with its own headers. Requiring one of the three that
+  // every transported message carries keeps a document that merely begins with
+  // a colon-separated line from being called mail.
+  if (/^(Received|Return-Path|Message-ID|From|Delivered-To|MIME-Version):/im.test(head)
+    && /^(Received|Return-Path|Message-ID|Delivered-To):/im.test(head)) {
+    return id("eml", "Email message", "document", "message/rfc822", "eml");
+  }
   const known = TEXT_EXT[ext];
   if (known) return id(ext, known.label, "text", known.mime, ext);
   return id("text", "Plain text", "text", "text/plain", "txt");
@@ -283,7 +315,7 @@ export function sniff(bytes: Uint8Array, filename = ""): FileIdentity {
 
   const container =
     sniffIsoBmff(r) ?? sniffRiff(r) ?? sniffIff(r) ?? sniffOgg(r) ??
-    sniffEbml(r) ?? sniffZip(r) ?? sniffIso9660(r);
+    sniffEbml(r) ?? sniffZip(r) ?? sniffOle(r) ?? sniffIso9660(r);
   if (container) return container;
 
   for (const s of SIGNATURES) {
@@ -321,6 +353,9 @@ const EXT_ALIASES: Record<string, string[]> = {
   mid: ["mid", "midi"],
   sqlite: ["sqlite", "sqlite3", "db"],
   exe: ["exe", "dll", "sys", "ocx"],
+  doc: ["doc", "dot"],
+  xls: ["xls", "xlt", "xlsm"],
+  ppt: ["ppt", "pps", "pot"],
   gz: ["gz", "tgz"],
   jxl: ["jxl"],
   txt: ["txt", "text"],

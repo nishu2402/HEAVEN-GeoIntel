@@ -55,6 +55,7 @@ describe("the two case documents are genuinely different documents", () => {
     expect(screen).not.toContain("Prepared by");
     expect(screen).toContain("--p0:#05060d");        // the app's palette
     expect(print).toContain("#0b1020");              // ink for paper
+    expect(print).toContain('<linearGradient id="cp-frame"'); // coloured mark on paper
     // Same case, same document id, on both.
     const d = await buildCaseDoc(full);
     expect(screen).toContain(d.documentId);

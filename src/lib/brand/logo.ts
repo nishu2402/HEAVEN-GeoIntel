@@ -25,6 +25,18 @@ export const BRAND = {
   cyan: "#22d3ee",
   /** Single-colour ink for print/light surfaces. */
   ink: "#0b1020",
+  /**
+   * The mark's own colours, re-mixed for white paper.
+   *
+   * The neon pair is tuned for a near-black screen: on a sheet of paper #00ff85
+   * measures barely 1.4:1 against white and a 3.5pt hexagon drawn in it all but
+   * disappears, which is why the printed documents used to fall back to one flat
+   * ink. These keep the same two hues and the same green-to-cyan direction, at
+   * 4.2:1 and 5.4:1 against white, so the printed mark is the brand's mark in
+   * colour rather than a silhouette of it.
+   */
+  greenInk: "#008f4c",
+  cyanInk: "#0e7490",
 } as const;
 
 /**
@@ -55,8 +67,14 @@ export const LOGO = {
 export interface LogoSvgOptions {
   /** Rendered square size in px. Default 64. */
   size?: number;
-  /** Render every stroke in this one colour (print, favicons, light paper). */
+  /** Render every stroke in this one colour (favicons, stamps, watermarks). */
   mono?: string;
+  /**
+   * Draw the mark in the paper palette: the same two hues, darkened to hold
+   * their contrast on white. For the printed documents, which want a colour
+   * mark that still survives a monochrome laser printer.
+   */
+  paper?: boolean;
   /** Prefix for the gradient id, so several inlined marks never collide. */
   idPrefix?: string;
   /** Accessible label. Omitted → the mark is exposed as decorative. */
@@ -71,19 +89,22 @@ const escAttr = (s: string) =>
  * `icon.svg` asset, exported HTML reports, and printable case reports.
  */
 export function logoSvg(options: LogoSvgOptions = {}): string {
-  const { size = 64, mono, idPrefix = "hv", title } = options;
+  const { size = 64, mono, paper, idPrefix = "hv", title } = options;
   const gradId = `${idPrefix}-frame`;
 
   // Mono collapses the palette to one ink; otherwise the frame carries the
   // green→cyan gradient and the globe stays cyan against the green monogram.
+  // `paper` swaps in the darker renderings of those same two hues.
+  const green = paper ? BRAND.greenInk : BRAND.green;
+  const cyan = paper ? BRAND.cyanInk : BRAND.cyan;
   const frameStroke = mono ?? `url(#${gradId})`;
-  const globeStroke = mono ?? BRAND.cyan;
-  const markStroke = mono ?? BRAND.green;
+  const globeStroke = mono ?? cyan;
+  const markStroke = mono ?? green;
 
   const defs = mono
     ? ""
     : `<defs><linearGradient id="${gradId}" x1="32" y1="2" x2="32" y2="62" gradientUnits="userSpaceOnUse">` +
-      `<stop offset="0" stop-color="${BRAND.green}"/><stop offset="1" stop-color="${BRAND.cyan}"/>` +
+      `<stop offset="0" stop-color="${green}"/><stop offset="1" stop-color="${cyan}"/>` +
       `</linearGradient></defs>`;
 
   const a11y = title ? `role="img" aria-label="${escAttr(title)}"` : `aria-hidden="true" focusable="false"`;

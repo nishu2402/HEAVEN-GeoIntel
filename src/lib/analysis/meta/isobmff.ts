@@ -150,6 +150,15 @@ const APPLE_KEYS: Record<string, { label: string; group: string; kind: "make" | 
   "com.apple.quicktime.software": { label: "Software", group: "Device", kind: "software" },
   "com.apple.quicktime.creationdate": { label: "Capture date", group: "Media", kind: "date" },
   "com.apple.quicktime.location.ISO6709": { label: "Location", group: "Location", kind: "gps" },
+  "com.apple.quicktime.title": { label: "Title", group: "Media", kind: "software" },
+  "com.apple.quicktime.description": { label: "Description", group: "Media", kind: "software" },
+  "com.apple.quicktime.author": { label: "Author", group: "Device", kind: "make" },
+  "com.apple.quicktime.camera.identifier": { label: "Camera identifier", group: "Device", kind: "model" },
+  "com.apple.quicktime.full-frame-rate-playback-intent": { label: "Frame-rate intent", group: "Media", kind: "software" },
+  "com.android.version": { label: "Android version", group: "Device", kind: "software" },
+  "com.android.capture.fps": { label: "Capture frame rate", group: "Media", kind: "software" },
+  "com.android.manufacturer": { label: "Make", group: "Device", kind: "make" },
+  "com.android.model": { label: "Model", group: "Device", kind: "model" },
 };
 
 /** iTunes-style four-character-code atoms found directly in an M4A `ilst`. */
@@ -234,10 +243,71 @@ function metaBody(r: Reader, meta: Box): number {
   return meta.dataStart + 4;
 }
 
+// The sample-description box inside a track names the codec with a four-
+// character code. These are the ones a phone, a camera or an editor writes.
+const CODECS: Record<string, string> = {
+  avc1: "H.264 / AVC", hvc1: "HEVC / H.265", hev1: "HEVC / H.265", av01: "AV1",
+  mp4v: "MPEG-4 Visual", vp09: "VP9", jpeg: "Motion JPEG", "ap4h": "Apple ProRes 4444",
+  apcn: "Apple ProRes 422", mp4a: "AAC", ".mp3": "MP3", alac: "Apple Lossless",
+  "ac-3": "Dolby Digital", "ec-3": "Dolby Digital Plus", Opus: "Opus", twos: "uncompressed PCM",
+  tx3g: "timed text", c608: "closed captions", mebx: "timed metadata",
+};
+
+/** A three-letter ISO 639-2 language code packed into 15 bits, or null. */
+function packedLanguage(code: number): string | null {
+  const letters = [(code >> 10) & 0x1f, (code >> 5) & 0x1f, code & 0x1f];
+  if (letters.some((n) => n < 1 || n > 26)) return null;
+  return letters.map((n) => String.fromCharCode(n + 0x60)).join("");
+}
+
+/**
+ * Describe one track: what it carries, in which codec, at what size. A video's
+ * track list is the closest thing it has to an inventory, and a track a viewer
+ * never shows (a timed-metadata track, a second audio language) is exactly the
+ * sort of thing that goes unnoticed in a file that has been shared onward.
+ */
+function describeTrack(r: Reader, trak: Box): string | null {
+  const mdia = firstChild(r, trak.dataStart, trak.end, "mdia");
+  if (!mdia) return null;
+  const hdlr = firstChild(r, mdia.dataStart, mdia.end, "hdlr");
+  const handler = hdlr ? r.ascii(hdlr.dataStart + 8, 4) : null;
+  if (!handler) return null;
+
+  const parts: string[] = [{ vide: "video", soun: "audio", sbtl: "subtitles", text: "text", meta: "metadata" }[handler] ?? handler];
+
+  const stsd = findAll(r, mdia.dataStart, mdia.end, "stsd")[0];
+  const entry = stsd ? children(r, stsd.dataStart + 8, stsd.end)[0] : undefined;
+  if (entry) parts.push(CODECS[entry.type] ?? entry.type);
+
+  // A video sample entry states the coded width and height at a fixed offset.
+  if (handler === "vide" && entry) {
+    const w = r.u16(entry.dataStart + 24);
+    const h = r.u16(entry.dataStart + 26);
+    if (w && h) parts.push(`${w} × ${h}`);
+  }
+
+  const mdhd = firstChild(r, mdia.dataStart, mdia.end, "mdhd");
+  if (mdhd) {
+    const version = r.u8(mdhd.dataStart);
+    const lang = packedLanguage(r.u16(mdhd.dataStart + (version === 1 ? 32 : 20)) ?? 0);
+    if (lang && lang !== "und") parts.push(lang);
+  }
+  return parts.join(", ");
+}
+
 /** Walk moov (and its udta) for times, location and Apple device metadata. */
 function readMoov(r: Reader, moov: Box, acc: MetaAccum): void {
   const mvhd = firstChild(r, moov.dataStart, moov.end, "mvhd");
   if (mvhd) acc.fields.push(...readMvhd(r, mvhd.dataStart));
+
+  const tracks = children(r, moov.dataStart, moov.end)
+    .filter((box) => box.type === "trak")
+    .map((trak) => describeTrack(r, trak))
+    .filter((t): t is string => t !== null);
+  if (tracks.length) {
+    acc.fields.push({ label: "Tracks", value: String(tracks.length), group: "Media" });
+    tracks.forEach((t, i) => acc.fields.push({ label: `Track ${i + 1}`, value: t, group: "Media" }));
+  }
 
   for (const xyz of findAll(r, moov.dataStart, moov.end, XYZ)) {
     // ©xyz payload: u16 length + u16 language + the ISO 6709 string.
@@ -292,6 +362,14 @@ export function extractIsoBmff(kind: string, bytes: Uint8Array): Extraction {
   if (ftyp) {
     const brand = r.ascii(ftyp.dataStart, 4);
     if (brand) acc.fields.push({ label: "Brand", value: brand, group: "Container" });
+    // The compatible-brands list says which other specifications the file also
+    // satisfies, and names the writer's intent more precisely than one brand.
+    const compatible: string[] = [];
+    for (let at = ftyp.dataStart + 8; at + 4 <= ftyp.end && compatible.length < 8; at += 4) {
+      const b4 = r.ascii(at, 4);
+      if (b4 && b4 !== brand && !compatible.includes(b4)) compatible.push(b4);
+    }
+    if (compatible.length) acc.fields.push({ label: "Compatible with", value: compatible.join(", "), group: "Container" });
   }
 
   const moov = firstChild(r, 0, r.length, "moov");

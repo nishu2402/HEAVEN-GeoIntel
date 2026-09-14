@@ -66,6 +66,10 @@ interface AnalystStatus {
 
 export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) {
   const [probe, setProbe] = useState<AnalystStatus | null>(null);
+  // Model lists the providers themselves published, keyed by provider. Fetched
+  // once per provider per session; a provider that will not answer simply keeps
+  // its shipped catalog.
+  const [live, setLive] = useState<Record<string, string[]>>({});
   const [probing, setProbing] = useState(true);
   const [provider, setProvider] = useState<AnalystProvider>(SETUP_DEFAULT);
   // Null means "whatever this provider offers first", so the selection follows a
@@ -130,6 +134,30 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
   const hint = info?.hint ?? "Could not ask the server which providers are available.";
   const typedKey = apiKey.trim();
 
+  // Ask the selected cloud provider what its key may call. The shipped catalog
+  // is a snapshot of what existed when the code was written, and Gemini retired
+  // every model in that snapshot: the panel offered names Google answers with a
+  // 404, so the analyst could not be run at all without knowing the right name
+  // and typing it in. The provider is the only authority on this, so ask it.
+  //
+  // Only for a provider the server says is ready: listing uses the saved key, so
+  // there is nothing to ask with until one exists.
+  useEffect(() => {
+    if (cloud === null || !ready || live[cloud]) return;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/ai-analyst?models=${cloud}`, { headers: { accept: "application/json" } });
+        if (!res.ok) return;
+        const body = (await res.json()) as { models?: string[] };
+        const models = body.models ?? [];
+        if (models.length > 0) setLive((prev) => ({ ...prev, [cloud]: models }));
+      } catch {
+        // Keep the shipped catalog: a list we could not fetch is not a reason to
+        // offer nothing.
+      }
+    })();
+  }, [cloud, ready, live]);
+
   // A provider's own block appears while it cannot run, and again after a failed
   // run: a saved key that the provider rejects has to be replaceable right here,
   // or the error is another dead end. The two states are complements, so a run
@@ -137,10 +165,11 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
   const showSetup = !probing && (!ready || status === "error");
   const showReady = !probing && !showSetup;
 
-  // Installed models when the local server named them; the suggestion catalog
-  // otherwise. The catalog stays available for cloud providers, where there is
-  // nothing to enumerate.
-  const catalog = info && info.models.length > 0 ? info.models : MODEL_CATALOG[provider];
+  // What the machine or the provider actually offers, in order of authority:
+  // the local server's installed models, then the cloud provider's own list,
+  // then the shipped catalog as the fallback.
+  const listed = cloud !== null ? live[cloud] : undefined;
+  const catalog = info && info.models.length > 0 ? info.models : (listed ?? MODEL_CATALOG[provider]);
   /* v8 ignore next 3 -- the last arm is unreachable: MODEL_CATALOG names models
      for every provider, and the installed list only replaces it when it has
      entries, so catalog[0] always exists. Kept so the type is a plain string. */
@@ -373,6 +402,12 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
             <RefreshCw className="w-3 h-3" /> Check again
           </button>
         </div>
+      )}
+
+      {listed !== undefined && (
+        <p className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
+          These are the models {PROVIDER_LABEL[provider]} lists for your key.
+        </p>
       )}
 
       <div className="flex items-center gap-2">

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, vi } 
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { GET, POST } from "@/app/api/ai-analyst/route";
 import { readAudit, clearAudit } from "@/lib/server/auditLog";
 import { restoreRateLimit, resetServerState, useRateLimit, clientCookie } from "./testUtils";
@@ -26,6 +26,10 @@ const post = (payload: unknown, cookie = `client${++n}`) => {
 };
 
 const validBody = { provider: "ollama", model: "llama3.2", system: "S", user: "U" };
+
+// The readiness report and the model list share one GET, so the query string is
+// what picks between them.
+const get = (query = "") => GET(new NextRequest(`http://localhost/api/ai-analyst${query}`));
 
 describe("POST /api/ai-analyst", () => {
   it("400 on a malformed body", async () => {
@@ -160,7 +164,7 @@ describe("audit trail", () => {
 describe("GET /api/ai-analyst", () => {
   it("reports every provider, local first, with what it would need", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResp(200, { models: [{ name: "llama3:latest" }] })));
-    const res = await GET();
+    const res = await get();
     expect(res.status).toBe(200);
     // A readiness report is about the machine right now; a cached copy would
     // say a provider is missing after it has been set up.
@@ -171,9 +175,31 @@ describe("GET /api/ai-analyst", () => {
     expect(json.ollamaRunning).toBe(true);
   });
 
+  it("lists the models a provider's key may call", async () => {
+    process.env.GEMINI_API_KEY = "g-test";
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResp(200, {
+      models: [{ name: "models/gemini-3.6-flash", supportedGenerationMethods: ["generateContent"] }],
+    })));
+    const res = await get("?models=gemini");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toMatch(/no-store/);
+    expect((await res.json()).models).toEqual(["gemini-3.6-flash"]);
+    delete process.env.GEMINI_API_KEY;
+  });
+
+  it("rejects a provider it does not relay to, Ollama included", async () => {
+    // Ollama's models come from the readiness probe, off the machine rather
+    // than off a key, so there is nothing to list here.
+    for (const q of ["?models=ollama", "?models=notaprovider", "?models="]) {
+      const res = await get(q);
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/Unknown provider/);
+    }
+  });
+
   it("recommends nothing when the machine has nothing set up", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNREFUSED"); }));
-    const json = await (await GET()).json();
+    const json = await (await get()).json();
     expect(json.recommended).toBeNull();
     expect(json.providers.every((p: { ready: boolean }) => !p.ready)).toBe(true);
   });
