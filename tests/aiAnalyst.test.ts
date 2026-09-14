@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   buildAnalystPrompt, parseAnalystResponse, analystDisclosure,
-  providerRequest, providerExtractText, DEFAULT_ENDPOINT,
+  providerRequest, providerExtractText, providerErrorMessage, providerEmptyReason,
+  modelsRequest, parseModelList, orderModels, redact,
+  DEFAULT_ENDPOINT, DEFAULT_MODEL, MODEL_CATALOG, GEMINI_OUTPUT_TOKENS, MAX_LISTED_MODELS,
   API_KEY_URL, ALL_PROVIDERS,
 } from "@/lib/ai/analyst";
 import type { AiAnalysis } from "@/lib/ai";
@@ -173,5 +175,146 @@ describe("providerExtractText", () => {
     expect(providerExtractText("openai", {})).toBe("");
     expect(providerExtractText("anthropic", {})).toBe("");
     expect(providerExtractText("gemini", {})).toBe("");
+  });
+});
+
+// ── The Gemini failure that started this ─────────────────────────────────────
+// The shipped default was a model Google had retired, so every run 404'd and the
+// panel reported it as an unreachable gateway. These pin the three things that
+// together make that impossible to repeat: a default that was actually run, an
+// output budget that covers a thinking model, and a list asked of the provider.
+
+describe("the Gemini request", () => {
+  const prompt = { system: "S", user: "U" };
+
+  it("names no model Google has withdrawn, and defaults to the head of its own catalog", () => {
+    expect(MODEL_CATALOG.gemini[0]).toBe(DEFAULT_MODEL.gemini);
+    // 1.5 was removed outright and 2.5 is refused to new keys. Neither may be
+    // offered: an operator who picks one gets a 404 and no way to tell why.
+    for (const m of MODEL_CATALOG.gemini) expect(m).not.toMatch(/^gemini-[12]\./);
+  });
+
+  it("asks for an output budget its reasoning can fit inside", () => {
+    const { init } = providerRequest("gemini", "gemini-3.6-flash", DEFAULT_ENDPOINT.gemini, prompt, "K");
+    const body = JSON.parse(String(init.body)) as { generationConfig: { maxOutputTokens: number } };
+    expect(body.generationConfig.maxOutputTokens).toBe(GEMINI_OUTPUT_TOKENS);
+    // Measured: a real bundle spends about 1,100 tokens thinking before the
+    // first word of the answer, and the old 800 came back truncated.
+    expect(GEMINI_OUTPUT_TOKENS).toBeGreaterThan(1500);
+  });
+
+  it("reads every answer part and never reads the reasoning out as the answer", () => {
+    const json = {
+      candidates: [{ content: { parts: [
+        { text: "reasoning nobody asked for", thought: true },
+        // A part can carry a signature and no text at all.
+        { thoughtSignature: "EuwR" },
+        { text: "The subject " },
+        { text: "scores 62." },
+      ] } }],
+    };
+    expect(providerExtractText("gemini", json)).toBe("The subject scores 62.");
+  });
+});
+
+describe("providerErrorMessage", () => {
+  it("reads each provider's own explanation out of its refusal", () => {
+    // Gemini, OpenAI and Anthropic nest it; Ollama states it flat; Mistral puts
+    // a malformed body at the top level.
+    expect(providerErrorMessage({ error: { message: "models/x is not found" } })).toBe("models/x is not found");
+    expect(providerErrorMessage({ error: "model 'y' not found" })).toBe("model 'y' not found");
+    expect(providerErrorMessage({ message: "Invalid model" })).toBe("Invalid model");
+  });
+
+  it("says nothing when the provider did not", () => {
+    expect(providerErrorMessage({})).toBe("");
+    expect(providerErrorMessage(undefined)).toBe("");
+    expect(providerErrorMessage({ error: { code: 404 } })).toBe("");
+  });
+
+  it("flattens a message onto one line and caps its length", () => {
+    expect(providerErrorMessage({ error: { message: " two\n  lines " } })).toBe("two lines");
+    const long = providerErrorMessage({ error: { message: "x".repeat(400) } });
+    expect(long).toHaveLength(200);
+    expect(long.endsWith("…")).toBe(true);
+  });
+});
+
+describe("providerEmptyReason", () => {
+  const ceiling = /spent its whole output budget/;
+
+  it("names the token ceiling rather than calling the answer empty", () => {
+    expect(providerEmptyReason("gemini", { candidates: [{ finishReason: "MAX_TOKENS" }] })).toMatch(ceiling);
+    expect(providerEmptyReason("anthropic", { stop_reason: "max_tokens" })).toMatch(ceiling);
+    expect(providerEmptyReason("openai", { choices: [{ finish_reason: "length" }] })).toMatch(ceiling);
+  });
+
+  it("names a blocked prompt as the filter it was", () => {
+    expect(providerEmptyReason("gemini", { promptFeedback: { blockReason: "SAFETY" } })).toMatch(/safety filter blocked the prompt \(SAFETY\)/);
+  });
+
+  it("offers no reason when the provider gave none", () => {
+    expect(providerEmptyReason("gemini", { candidates: [{ finishReason: "STOP" }] })).toBe("");
+    expect(providerEmptyReason("anthropic", { stop_reason: "end_turn" })).toBe("");
+    expect(providerEmptyReason("openai", {})).toBe("");
+    // Ollama reports no finish reason at all, so there is nothing to read.
+    expect(providerEmptyReason("ollama", { done_reason: "stop" })).toBe("");
+  });
+});
+
+describe("model discovery", () => {
+  it("asks each provider for its list with the same auth a completion uses", () => {
+    const gem = modelsRequest("gemini", DEFAULT_ENDPOINT.gemini, "K");
+    expect(gem.url).toBe(`${DEFAULT_ENDPOINT.gemini}/models?pageSize=200`);
+    expect((gem.init.headers as Record<string, string>)["x-goog-api-key"]).toBe("K");
+
+    const ant = modelsRequest("anthropic", `${DEFAULT_ENDPOINT.anthropic}/`, "K");
+    expect(ant.url).toBe(`${DEFAULT_ENDPOINT.anthropic}/models?limit=100`);
+    expect((ant.init.headers as Record<string, string>)["x-api-key"]).toBe("K");
+
+    const oai = modelsRequest("openai", DEFAULT_ENDPOINT.openai, "K");
+    expect(oai.url).toBe(`${DEFAULT_ENDPOINT.openai}/models`);
+    expect((oai.init.headers as Record<string, string>).authorization).toBe("Bearer K");
+  });
+
+  it("keeps the Gemini models that can answer a prompt and drops the rest", () => {
+    const models = parseModelList("gemini", {
+      models: [
+        { name: "models/gemini-3.6-flash", supportedGenerationMethods: ["generateContent"] },
+        // Listed, but it answers embeddings, not prompts.
+        { name: "models/text-embedding-004", supportedGenerationMethods: ["embedContent"] },
+        // Answers generateContent, but only ever with an image or speech.
+        { name: "models/gemini-3-pro-image", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/gemini-2.5-flash-preview-tts", supportedGenerationMethods: ["generateContent"] },
+        // Malformed entries must not become empty options in the dropdown.
+        { supportedGenerationMethods: ["generateContent"] },
+        { name: "models/no-methods-listed" },
+      ],
+    });
+    expect(models).toEqual(["gemini-3.6-flash"]);
+  });
+
+  it("reads the OpenAI-compatible list shape, and an absent one as empty", () => {
+    expect(parseModelList("openai", { data: [{ id: "gpt-5" }, { id: "whisper-1" }, {}] })).toEqual(["gpt-5"]);
+    expect(parseModelList("openai", {})).toEqual([]);
+    expect(parseModelList("gemini", undefined)).toEqual([]);
+  });
+
+  it("leads with the vetted catalog, keeps the rest, and caps the list", () => {
+    const live = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.6-flash", "some-new-model"];
+    // The catalog's order wins for the models it names, because the first entry
+    // is what the panel runs; anything else follows in the provider's order.
+    expect(orderModels("gemini", live)).toEqual([
+      "gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash", "some-new-model",
+    ]);
+    const many = Array.from({ length: MAX_LISTED_MODELS + 20 }, (_, i) => `m${i}`);
+    expect(orderModels("openrouter", many)).toHaveLength(MAX_LISTED_MODELS);
+  });
+});
+
+describe("redact", () => {
+  it("removes the key from anything the provider echoed back", () => {
+    expect(redact("key sk-secret is invalid", "sk-secret")).toBe("key [key] is invalid");
+    expect(redact("nothing to hide", "")).toBe("nothing to hide");
   });
 });

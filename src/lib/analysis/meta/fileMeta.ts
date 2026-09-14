@@ -15,11 +15,16 @@
 import { parseExif, type ImageMeta } from "../exif";
 import { sniff, extensionMismatch } from "./sniff";
 import { extractImage } from "./image";
+import { extractRaster } from "./raster";
 import { extractIsoBmff } from "./isobmff";
 import { extractPdf } from "./pdf";
 import { extractZip } from "./zip";
 import { extractAudio } from "./audio";
 import { extractArchive } from "./archive";
+import { extractOle } from "./ole";
+import { extractBinary } from "./binary";
+import { extractText } from "./text";
+import { extractContainer, CONTAINER_KINDS } from "./container";
 import type { Extraction, FileHashes, MetaField, UniversalMeta } from "./types";
 
 const RASTER = new Set(["gif", "bmp", "tiff", "webp"]);
@@ -27,6 +32,8 @@ const ISOBMFF = new Set(["heic", "avif", "mp4", "mov", "m4a", "3gp"]);
 const ZIP = new Set(["zip", "jar", "apk", "docx", "xlsx", "pptx", "odt", "ods", "odp", "epub"]);
 const AUDIO = new Set(["mp3", "flac", "wav"]);
 const ARCHIVE = new Set(["gzip", "tar"]);
+const OLE = new Set(["ole", "doc", "xls", "ppt", "vsd", "msg"]);
+const BINARY = new Set(["pe", "elf", "macho", "class", "wasm"]);
 
 /** Shannon entropy of the bytes in bits/byte (0–8); null for an empty file. */
 export function shannonEntropy(bytes: Uint8Array): number | null {
@@ -60,13 +67,18 @@ export async function hashFile(bytes: Uint8Array): Promise<FileHashes> {
 
 /** Run the deep parser for `kind`, returning the fields, gps, image and notes. */
 async function deepExtract(kind: string, bytes: Uint8Array): Promise<Extraction & { image: ImageMeta | null }> {
+  // A still image has two metadata layers: the camera block the EXIF reader
+  // returns as a struct, and the container's own chunks and segments, which is
+  // where anything that did not come off a camera keeps its attribution.
   if (kind === "jpeg" || kind === "png") {
     const image = parseExif(bytes);
-    return { fields: [], gps: image.gps, image };
+    const ex = await extractRaster(kind, bytes);
+    return { ...ex, gps: image.gps, image };
   }
   if (RASTER.has(kind)) {
     const image = extractImage(kind, bytes);
-    return { fields: [], gps: image?.gps ?? null, image };
+    const ex = await extractRaster(kind, bytes);
+    return { ...ex, gps: image?.gps ?? null, image };
   }
   if (ISOBMFF.has(kind)) {
     const ex = extractIsoBmff(kind, bytes);
@@ -75,8 +87,13 @@ async function deepExtract(kind: string, bytes: Uint8Array): Promise<Extraction 
   if (kind === "pdf") return { ...extractPdf(bytes), image: null };
   if (ZIP.has(kind)) return { ...(await extractZip(kind, bytes)), image: null };
   if (AUDIO.has(kind)) return { ...extractAudio(kind, bytes), image: null };
-  if (ARCHIVE.has(kind)) return { ...extractArchive(kind, bytes), image: null };
-  return { fields: [], gps: null, image: null };
+  if (ARCHIVE.has(kind)) return { ...(await extractArchive(kind, bytes)), image: null };
+  if (OLE.has(kind)) return { ...extractOle(bytes), image: null };
+  if (BINARY.has(kind)) return { ...extractBinary(kind, bytes), image: null };
+  if (CONTAINER_KINDS.has(kind)) return { ...extractContainer(kind, bytes), image: null };
+  // Text-shaped formats fall through to the text reader, which returns nothing
+  // for a kind it does not cover.
+  return { ...extractText(kind, bytes), image: null };
 }
 
 /**

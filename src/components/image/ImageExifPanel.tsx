@@ -9,6 +9,8 @@ import { copyText } from "@/lib/utils";
 import { formatDms, decimalPair, mapLinks, reverseImageLinks } from "@/lib/analysis/exif";
 import { extractFileMeta, hashFile } from "@/lib/analysis/meta/fileMeta";
 import type { UniversalMeta, FileHashes } from "@/lib/analysis/meta/types";
+import { buildFileReport } from "@/lib/analysis/report";
+import UniversalReportExport from "@/components/shared/UniversalReportExport";
 
 /** Human-readable byte size for the file summary. */
 function humanSize(bytes: number): string {
@@ -24,8 +26,8 @@ const PREVIEWABLE = new Set(["jpeg", "png", "gif", "webp", "bmp", "svg", "avif",
 
 /** One-line reading of the entropy figure (packing / encryption signal). */
 function entropyNote(bits: number): string {
-  if (bits >= 7.5) return "high — likely compressed or encrypted";
-  if (bits < 1) return "very low — highly repetitive data";
+  if (bits >= 7.5) return "high, so the contents are likely compressed or encrypted";
+  if (bits < 1) return "very low, so the contents are highly repetitive";
   return "typical for structured data";
 }
 
@@ -43,6 +45,7 @@ export default function ImageExifPanel() {
   const [meta, setMeta] = useState<UniversalMeta | null>(null);
   const [name, setName] = useState<string>("");
   const [size, setSize] = useState<number>(0);
+  const [modified, setModified] = useState<string | null>(null);
   const [hashes, setHashes] = useState<FileHashes | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +77,9 @@ export default function ImageExifPanel() {
     setMeta(parsed);
     setName(file.name);
     setSize(file.size);
+    // The filesystem's own timestamp is the one fact the bytes never state, and
+    // a browser reports 0 for a file it has no date for, which is not a date.
+    setModified(file.lastModified > 0 ? new Date(file.lastModified).toISOString().replace("T", " ").slice(0, 19) : null);
     // Hashing a large file can take a moment; let the metadata render first.
     void hashFile(buf).then(setHashes).catch(() => setHashes(null));
   }, []);
@@ -138,6 +144,11 @@ export default function ImageExifPanel() {
                   {meta.identity.label} · {meta.identity.mime} · {humanSize(size)}
                   {image?.width && image?.height ? ` · ${image.width}×${image.height}px` : ""}
                 </div>
+                {modified && (
+                  <div className="text-[12px] font-mono text-[var(--hv-ink-dim)] mt-0.5">
+                    Modified on disk: {modified}
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {meta.identity.kind === "unknown" ? (
                     <span className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold px-2 py-0.5 rounded border tracking-widest text-[var(--hv-amber)]" style={{ borderColor: "#fbbf2470", backgroundColor: "#fbbf2416" }}>
@@ -291,6 +302,10 @@ export default function ImageExifPanel() {
               </p>
             </div>
           )}
+
+          <div className="flex justify-end">
+            <UniversalReportExport model={buildFileReport({ meta, fileName: name, lastModified: modified, hashes })} />
+          </div>
 
           <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] px-1 flex items-center gap-1.5">
             <AlertTriangle className="w-3 h-3" /> Everything above is read from the file&rsquo;s own bytes in your browser. Nothing is uploaded.

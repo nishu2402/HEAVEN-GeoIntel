@@ -259,3 +259,104 @@ describe("meta/isobmff top-level assembly and guards", () => {
     expect(r.gps).toBeNull();
   });
 });
+
+describe("meta/isobmff track inventory and brands", () => {
+  const hdlr = (handler: string) => box("hdlr", [...u32be(0), ...u32be(0), ...fourcc(handler), ...new Array(12).fill(0)]);
+  const videoEntry = (codec: string) =>
+    box(codec, [...new Array(24).fill(0), ...u16be(1920), ...u16be(1080), ...new Array(50).fill(0)]);
+  const stsd = (entry: number[]) => box("stsd", [...u32be(0), ...u32be(1), ...entry]);
+  /** mdhd version 0: the packed language sits 20 bytes in. */
+  const mdhd = (lang: string) => {
+    const packed = lang.length === 3
+      ? ((lang.charCodeAt(0) - 0x60) << 10) | ((lang.charCodeAt(1) - 0x60) << 5) | (lang.charCodeAt(2) - 0x60)
+      : 0;
+    return box("mdhd", [0, 0, 0, 0, ...new Array(16).fill(0), ...u16be(packed), ...u16be(0)]);
+  };
+  const trak = (parts: number[][]) => box("trak", box("mdia", parts.flat()));
+
+  it("lists every track with its kind, codec, size and language", () => {
+    const file = [
+      ...ftyp("mp42"),
+      ...box("moov", [
+        ...trak([hdlr("vide"), box("minf", box("stbl", stsd(videoEntry("avc1")))), mdhd("und")]),
+        ...trak([hdlr("soun"), box("minf", box("stbl", stsd(box("mp4a", new Array(28).fill(0))))), mdhd("eng")]),
+        ...trak([hdlr("sbtl"), box("minf", box("stbl", stsd(box("tx3g", [])))), mdhd("fra")]),
+      ]),
+    ];
+    const f = run("mp4", file).fields;
+    expect(val(f, "Tracks")).toBe("3");
+    expect(val(f, "Track 1")).toBe("video, H.264 / AVC, 1920 × 1080");
+    expect(val(f, "Track 2")).toBe("audio, AAC, eng");
+    expect(val(f, "Track 3")).toBe("subtitles, timed text, fra");
+  });
+
+  it("names an unmapped codec and handler by their own four-character codes", () => {
+    const file = [...ftyp("mp42"), ...box("moov", trak([hdlr("hint"), box("minf", box("stbl", stsd(box("zzzz", []))))]))];
+    expect(val(run("mp4", file).fields, "Track 1")).toBe("hint, zzzz");
+  });
+
+  it("skips a track with no media box, handler or sample description", () => {
+    const noMdia = [...ftyp("mp42"), ...box("moov", box("trak", box("edts", [])))];
+    expect(val(run("mp4", noMdia).fields, "Tracks")).toBeUndefined();
+    const noHdlr = [...ftyp("mp42"), ...box("moov", trak([box("minf", [])]))];
+    expect(val(run("mp4", noHdlr).fields, "Tracks")).toBeUndefined();
+    const noStsd = [...ftyp("mp42"), ...box("moov", trak([hdlr("vide")]))];
+    expect(val(run("mp4", noStsd).fields, "Track 1")).toBe("video");
+  });
+
+  it("omits a video size and a language the file does not really state", () => {
+    const zeroSize = [...ftyp("mp42"), ...box("moov", trak([
+      // A packed language of zero is not three letters, so it is not reported.
+      hdlr("vide"), box("minf", box("stbl", stsd(box("avc1", new Array(80).fill(0))))), mdhd(""),
+    ]))];
+    expect(val(run("mp4", zeroSize).fields, "Track 1")).toBe("video, H.264 / AVC");
+  });
+
+  it("reads no language from a media header the file ends inside", () => {
+    const stub = [...ftyp("mp42"), ...box("moov", trak([
+      hdlr("soun"), box("minf", box("stbl", stsd(box("mp4a", [])))), box("mdhd", [0, 0, 0, 0]),
+    ]))];
+    expect(val(run("mp4", stub).fields, "Track 1")).toBe("audio, AAC");
+  });
+
+  it("reads a 64-bit media header's language from its later offset", () => {
+    const wide = box("mdhd", [1, 0, 0, 0, ...new Array(28).fill(0), ...u16be(((5) << 10) | (14 << 5) | 7), ...u16be(0)]);
+    const file = [...ftyp("mp42"), ...box("moov", trak([hdlr("soun"), box("minf", box("stbl", stsd(box("mp4a", [])))), wide]))];
+    expect(val(run("mp4", file).fields, "Track 1")).toBe("audio, AAC, eng");
+  });
+
+  it("lists the compatible brands a file also satisfies", () => {
+    const ftypLong = box("ftyp", [...fourcc("mp42"), ...u32be(512), ...fourcc("isom"), ...fourcc("mp41"), ...fourcc("mp42")]);
+    const f = run("mp4", [...ftypLong, ...box("moov", [])]).fields;
+    expect(val(f, "Brand")).toBe("mp42");
+    expect(val(f, "Compatible with")).toBe("isom, mp41"); // the major brand is not repeated
+  });
+
+  it("caps a long compatible-brands list", () => {
+    const many = Array.from({ length: 12 }, (_, i) => fourcc(`br${String(i).padStart(2, "0")}`)).flat();
+    const ftypLong = box("ftyp", [...fourcc("mp42"), ...u32be(512), ...many]);
+    expect(val(run("mp4", [...ftypLong]).fields, "Compatible with")?.split(", ")).toHaveLength(8);
+  });
+
+  it("says nothing about compatible brands when the box lists none", () => {
+    expect(val(run("mp4", [...ftyp("isom")]).fields, "Compatible with")).toBeUndefined();
+  });
+
+  it("reads the Android and the remaining Apple metadata keys", () => {
+    const keys = ["com.android.version", "com.android.manufacturer", "com.apple.quicktime.title", "com.apple.quicktime.camera.identifier"];
+    const keysBox = box("keys", [...u32be(0), ...u32be(keys.length),
+      ...keys.flatMap((k) => [...u32be(8 + k.length), ...fourcc("mdta"), ...bytesOf(k)])]);
+    const ilst = box("ilst", [
+      ...boxN(1, dataAtom("13")),
+      ...boxN(2, dataAtom("Google")),
+      ...boxN(3, dataAtom("Roof shot")),
+      ...boxN(4, dataAtom("back-wide")),
+    ]);
+    const file = [...ftyp("mp42"), ...box("moov", box("udta", box("meta", [...box("hdlr", new Array(20).fill(0)), ...keysBox, ...ilst])))];
+    const f = run("mp4", file).fields;
+    expect(val(f, "Android version")).toBe("13");
+    expect(val(f, "Make")).toBe("Google");
+    expect(val(f, "Title")).toBe("Roof shot");
+    expect(val(f, "Camera identifier")).toBe("back-wide");
+  });
+});

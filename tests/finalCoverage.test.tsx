@@ -11,6 +11,12 @@ import EmailResultsDashboard from "@/components/email/EmailResultsDashboard";
 import { installResizeObserver } from "./testUtils";
 import type { DomainLookupResponse, EmailLookupResponse, LookupResponse, WalletLookupResponse } from "@/lib/types";
 
+// The phone dashboard carries a QR panel, and `qrcode` draws to a real canvas
+// that jsdom has no backend for. Nothing here is about the QR code, so stand in
+// a resolved promise: without it every render of this panel prints jsdom's
+// "getContext() is not implemented" into an otherwise clean test run.
+vi.mock("qrcode", () => ({ default: { toCanvas: () => Promise.resolve() } }));
+
 installResizeObserver();
 beforeEach(() => { cleanup(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });

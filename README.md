@@ -252,7 +252,7 @@ One unified console with an **11-mode switcher**. Seven are live lookups (phone,
 | 🌐 **Domain** | DNS · WHOIS · SPF/DMARC posture · subdomains from three sources · passive DNS history · reverse IP · port and CVE exposure on its own addresses · legal entity (LEI) · HTTP header grade · TLS certificate · internationalised names · email permutations |
 | 🪙 **Wallet** | Crypto address OSINT: OFAC sanctions screening against the bundled SDN list, BTC / ETH balance, transaction span and counterparties, ERC-20 holdings, forward-verified ENS name, explorer pivots |
 | # **Hash** | File-hash reputation: CIRCL hashlookup known-software (NSRL) clearance + verdict-engine pivots, plus a local **Crypto Workbench** to hash, encode and encrypt/decrypt any text (MD5/SHA family, HMAC, Base64/hex/URL/binary/Morse/ROT13/Atbash, Caesar/Vigenère/XOR, and AES-256-GCM with a passphrase) offline in the browser, and a keyless **Pwned Passwords** check that tells you whether a password has ever leaked using k-anonymity, so only the first five characters of its SHA-1 hash ever leave the tab |
-| 📄 **File** | Deep metadata from any file, parsed in your browser (the file is never uploaded): identifies ~70 formats by content, extracts EXIF/GPS from photos, GPS and device tags from iPhone HEIC/MOV/MP4, author/company/timestamps from PDF and Office/OpenDocument/EPUB, ID3/FLAC/WAV tags, GZIP/TAR owner and original names, plus SHA-256/SHA-1, entropy, and an extension-vs-content check, with reverse-image pivots for images |
+| 📄 **File** | Deep metadata from any file, parsed in your browser (the file is never uploaded): identifies ~70 formats by content, then reads each one properly. Photos give EXIF/GPS, IPTC byline and caption, XMP identifiers and camera serials; PNGs give their text chunks, including the prompt and seed an image generator wrote. PDFs give the author block, page count and size, save history, embedded fonts and active content; Office gives author, company, manager, revision and editing time from both the XML and the legacy OLE2 formats; archives give their member list, owners and risky paths; audio gives tags, bitrate and the Broadcast Wave originator; video gives its track list and device tags; executables give their build timestamp, toolchain and symbol paths; fonts, SQLite databases, packet captures, SVG, HTML, RTF and saved email each give their own. Every file also gets SHA-256/SHA-1, entropy and an extension-vs-content check, reverse-image pivots for images, and a full report export in five formats |
 | ≡ **Bulk** | Triage up to 500 mixed identifiers of any type as a cancellable background job → CSV export |
 | 🕸 **Graph** | Link-analysis graph of this session, or of any saved case, across all seven identifier kinds |
 | 🗂 **Cases** | Persistent investigation cases: group identifiers, notes, per-case graph, a hashed evidence locker and a change inbox |
@@ -843,7 +843,7 @@ CASE_PASSWORD=your-passphrase
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:44FF88,50:00D9D9,100:BF5FFF"/>
 </p>
 
-Every finished lookup, in every mode, exports the same report. One model feeds all of it (`src/lib/analysis/report.ts`), so a phone report and a domain report share a structure, a section numbering and a table of contents, and a figure cannot differ between two formats of the same result.
+Every finished lookup, in every mode, exports the same report, and so does a file read in File mode. One model feeds all of it (`src/lib/analysis/report.ts`), so a phone report and a domain report share a structure, a section numbering and a table of contents, and a figure cannot differ between two formats of the same result.
 
 ### Reports: two documents, not one file offered twice
 
@@ -864,15 +864,27 @@ Both carry the same **Document ID** (`HGI-…`, derived from the subject and the
 ### What is in every report
 
 1. **Executive summary** with the verdict and the curated facts.
-2. **Risk assessment**: score, band, confidence, the rationale, each contributing factor with its share and the evidence it came from, and any flagged patterns. Computed locally by the explainable model in `src/lib/ai`; no language model writes any part of a report.
+2. **Risk assessment**: score, band, confidence, the rationale, each contributing factor with its share and the evidence it came from, and any flagged patterns. Computed locally by the explainable model in `src/lib/ai`; no language model writes any part of a report. (Omitted from a file report, which has no lookup to score.)
 3. **Evidence sections**, one per collected area. Fields no source returned are omitted rather than printed as `N/A`.
-4. **Data sources**, with four distinct outcomes: `answered`, `failed`, `not configured`, or `not applicable`. A source with no API key was never called, and a keyless source that this lookup gave nothing to ask about was never called either. Neither is shown as a failure, and neither is read as a negative finding.
+4. **Data sources**, with four distinct outcomes: `answered`, `failed`, `not configured`, or `not applicable`. (Omitted from a file report, which queries none.) A source with no API key was never called, and a keyless source that this lookup gave nothing to ask about was never called either. Neither is shown as a failure, and neither is read as a negative finding.
 5. **Investigative pivots**, with the URL printed in full on paper.
 6. **Analyst narrative**, grounded in the evidence above.
 7. **Methodology and limitations**, plus a legend explaining the score, the bands, the confidence and the omission rule to someone reading the file outside this tool.
 8. **Appendix A: observables (STIX)** with the same identifiers the STIX 2.1 bundle carries, so a document and its machine handoff can be cited against each other, and **Appendix B: collection statistics** (sources queried and answered, median source latency, recorded fields, factors, pivots).
 
 `.txt` and Markdown follow the identical outline: the text brief is a padded-column document with its own contents index, and the Markdown carries a document-control table, source and factor tables, and anchored section links.
+
+### The file report is the one that queried nothing
+
+A file read in **File** mode exports the same five formats through the same model, and it is the only report whose evidence came from no source at all: the file was read in the browser, and nothing was uploaded or asked of anyone. So it deliberately prints **no risk score and no source table**, because there is no lookup to score and no source to report on, and three pieces of its boilerplate change to match:
+
+| | Every lookup report | A file report |
+|---|---|---|
+| Evidence basis | `n sources queried, m answered, k recorded fields` | `read from the file's own bytes, k recorded fields` |
+| Cover paragraph | what the sources returned | what was read out of the file, and that it was not uploaded |
+| Methodology | sources, API keys, and re-running a stale lookup | what metadata is and is not evidence of: that it states what the producing software recorded, that a timestamp or a name can be wrong or deliberately set, and that stripping it from a copy does not strip it from the original |
+
+Its sections are the file's identity and size, its digests, its coordinate and camera block when it has them, then **one section per metadata group** the format actually carried, then the reading notes. A photo therefore exports its IPTC byline and XMP identifiers under their own headings; a PDF exports its document block and its structure; an executable exports its build block.
 
 ### Case dossiers
 
@@ -925,7 +937,7 @@ The original phone-only body (`{"numbers": [...]}`) is still accepted.
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:44FF88,50:FFAA00,100:BF5FFF"/>
 </p>
 
-The app works fully without API keys (offline analysis + free no-key sources). Add keys for deeper intelligence, either **right in the app** (the **Sources & keys** panel, 🗄 icon in the header) or in `.env.local`. Keys added in the app are stored server-side (`.data/keys.json`, owner-only, git-ignored) and never sent back to the browser; a key set in the app takes precedence over the matching env var.
+The app works fully without API keys (offline analysis + free no-key sources). Add keys for deeper intelligence, either **right in the app** or in `.env.local`. In the app there are two doors onto the same store: **Settings** (⚙ icon in the header) lists every key the server accepts, source keys and AI-provider keys together; the **Sources & keys** panel (🗄 icon) is the one that also explains what each source unlocks. Keys added in the app are stored server-side (`.data/keys.json`, owner-only, git-ignored) and never sent back to the browser, so a field stays blank even once a key is saved; a key set in the app takes precedence over the matching env var. Each row in Settings is named after its provider (Have I Been Pwned, not `HIBP_API_KEY`) and links to the page that issues that provider's key.
 
 <div align="center">
 
@@ -969,12 +981,24 @@ Sign up: [IPQualityScore](https://www.ipqualityscore.com) · [NumVerify](https:/
 
 ### The AI Analyst's model
 
-The optional analyst that narrates a finished assessment is set up in its own
-panel, not in this file. Open any result, scroll to **AI Analysis**, and the
-panel reports what this machine can actually run: it probes for a local
+The optional analyst that narrates a finished assessment is set up in the UI,
+not in this file. Its key can go in two places: **Settings** in the header,
+which lists every key the server accepts and is reachable without running a
+lookup first, or the **AI Analysis** panel under any result. Both write to the
+same store.
+
+The panel reports what this machine can actually run: it probes for a local
 **Ollama** server and lists the models it holds, and checks which cloud
 providers already have a key. It then selects one that works, preferring Ollama
 because it is keyless and the evidence never leaves the box.
+
+**The model list is asked for, not compiled in.** Once a provider has a key, the
+panel asks that provider which models the key may call and offers those,
+labelled as the provider's own list. This is not a nicety: every Gemini model
+this app once suggested has since been withdrawn, so the shipped default
+answered each run with a 404 that the relay reported as an unreachable gateway.
+A list that comes from the provider cannot go stale, and the names that remain
+in the fallback catalog were each run against the relay before being listed.
 
 If nothing is set up it says so and offers both routes without sending you to a
 terminal. For a cloud model: a **Create a key** link into the provider's own
@@ -992,11 +1016,16 @@ Anthropic, Google Gemini, Groq, DeepSeek, Mistral and OpenRouter. Their
 environment variables are listed in `.env.example` if you would rather set them
 there than in the panel.
 
-When a run fails, the panel names the cause and reopens the field that fixes it,
-and the relay answers with a status that matches: a key or model name you can
-correct is a `400`, a provider that is throttling you passes its own `429`
-through, and a `502` is reserved for a provider that was unreachable or sent
-back nothing usable. The audit log records the run afterwards with the status it
+When a run fails, the panel names the cause, quotes the provider's own sentence
+about it, and reopens the field that fixes it. The relay answers with a status
+that matches: a key or model name you can correct is a `400`, a provider that is
+throttling or overloaded passes its own `429` or `503` through, and a `502` is
+reserved for a provider that was unreachable or sent back nothing usable. That
+quote is the most useful part of most failures, because the provider is often
+the only party that knows the fix: a retired model comes back naming the model
+that replaced it. An answer that stopped at the model's token ceiling, or one
+its safety filter blocked, says which of the two it was rather than reporting an
+empty response. The audit log records the run afterwards with the status it
 really returned, so a failed analysis is not filed as a completed one.
 
 ---
@@ -1379,7 +1408,7 @@ four ways, so the identity can never drift:
 | favicon · app icons · OG image · hero | `npm run brand` → static assets |
 | **README poster** (light + dark + still) | `posterSvg()`: animated SVG, [see below](#the-poster) |
 | **Launcher · installer · uninstaller** | `bannerTrueColor()` / `bannerAnsi()` → `scripts/banner.sh` |
-| Screen dossier + paged PDF (lookup and case) | `logoSvg()`: the gradient mark on screen, the single-ink one on paper |
+| Screen dossier + paged PDF (lookup and case) | `logoSvg()`: the neon gradient on screen, and on paper the same two hues darkened to hold 4.2:1 and 5.4:1 against white, so the printed mark is the mark in colour rather than a silhouette of it |
 | Plain-text `.txt` reports | `asciiLetterhead()`: the same hexagon in monospace |
 
 <a id="the-poster"></a>

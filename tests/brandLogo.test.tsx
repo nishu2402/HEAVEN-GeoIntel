@@ -39,6 +39,31 @@ describe("logoSvg", () => {
     expect(svg).toContain('aria-label="Mark &amp; &lt;co&gt;"'); // label is escaped
   });
 
+  it("keeps the gradient in the paper palette, with the darker renderings", () => {
+    const svg = logoSvg({ paper: true, idPrefix: "pr" });
+    expect(svg).toContain('<linearGradient id="pr-frame"');
+    expect(svg).toContain(BRAND.greenInk);
+    expect(svg).toContain(BRAND.cyanInk);
+    // The screen neons never reach paper: they measure ~1.4:1 on white.
+    expect(svg).not.toContain(BRAND.green);
+    expect(svg).not.toContain(BRAND.cyan);
+  });
+
+  it("prints the paper inks dark enough to read on white", () => {
+    // WCAG relative luminance, so the claim in the module is a measurement and
+    // not a hope: both inks must clear 3:1 against white at the mark's weight.
+    const channel = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const contrast = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => channel(parseInt(hex.slice(i, i + 2), 16) / 255));
+      return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05);
+    };
+    expect(contrast(BRAND.greenInk)).toBeGreaterThan(3);
+    expect(contrast(BRAND.cyanInk)).toBeGreaterThan(3);
+    // And they are genuinely darker than the neons they stand in for.
+    expect(contrast(BRAND.greenInk)).toBeGreaterThan(contrast(BRAND.green));
+    expect(contrast(BRAND.cyanInk)).toBeGreaterThan(contrast(BRAND.cyan));
+  });
+
   it("drops the gradient entirely in mono and defaults to 64px, decorative", () => {
     const svg = logoSvg({ mono: BRAND.ink });
     expect(svg).toContain('width="64"');

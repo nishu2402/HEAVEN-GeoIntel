@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { reportOutline, slug, type ReportModel } from "@/lib/analysis/report";
 import { reportToHtml } from "@/lib/analysis/reportHtml";
 import { reportToPrintHtml } from "@/lib/analysis/reportPrint";
+import { BRAND } from "@/lib/brand/logo";
 
 // The PDF and the HTML export used to be the same file offered twice. These
 // tests hold them apart: same model, same outline, same numbers, two documents
@@ -76,6 +77,10 @@ describe("the two documents are genuinely different documents", () => {
     // Neon on paper is unreadable, and ink on the app's page is not the app.
     expect(print).toContain("#0b1020");     // BRAND.ink
     expect(print).toContain("#b26a00");     // elevated, print-legible amber
+    // The masthead mark is in colour on paper too, in the darkened hues.
+    expect(print).toContain('<linearGradient id="pr-frame"');
+    expect(print).toContain(BRAND.greenInk);
+    expect(print).toContain(BRAND.cyanInk);
     expect(print).not.toContain("--p0:#05060d");
     expect(screen).toContain("--p0:#05060d");
     expect(screen).toContain("#fbbf24");    // elevated, the app's amber

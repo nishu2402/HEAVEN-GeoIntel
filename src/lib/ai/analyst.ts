@@ -67,7 +67,7 @@ export const DEFAULT_MODEL: Record<AnalystProvider, string> = {
   ollama: "llama3.2",
   openai: "gpt-4o-mini",
   anthropic: "claude-3-5-haiku-latest",
-  gemini: "gemini-1.5-flash",
+  gemini: "gemini-3.6-flash",
   groq: "llama-3.3-70b-versatile",
   deepseek: "deepseek-chat",
   mistral: "mistral-small-latest",
@@ -129,21 +129,48 @@ export const DEFAULT_ENDPOINT: Record<AnalystProvider, string> = {
 };
 
 /**
- * Suggested models per provider for the picker's dropdown. Advisory only: the
- * "Custom model" field always accepts anything, so a new release the operator
- * has access to is never blocked by this list. The first entry of each is the
- * DEFAULT_MODEL above. Ollama lists common local pulls, not an installed set.
+ * Suggested models per provider, and the fallback the picker shows when the
+ * provider has not been asked what it offers. Advisory only: the "Custom model"
+ * field always accepts anything, so a release the operator has access to is
+ * never blocked by this list. The first entry of each is the DEFAULT_MODEL
+ * above. Ollama lists common local pulls, not an installed set.
+ *
+ * A hand-written list goes stale, and a stale list reads to the operator as a
+ * broken tool: Gemini retired the 1.5 models outright and now refuses 2.5 to new
+ * keys, so the default here answered every run with a 404. That is why the panel
+ * prefers the live list from listModels() and keeps this only as the fallback.
+ *
+ * Each Gemini entry was run against the relay before being listed, and they are
+ * ordered by what answered rather than by what is newest: the free tier returns
+ * 503 for the newest flash and 429 for pro, and even the rolling flash alias
+ * refused one call in two. The first entry is the default, so it is the one
+ * measured to answer every time.
  */
 export const MODEL_CATALOG: Record<AnalystProvider, string[]> = {
   ollama: ["llama3.2", "llama3.1", "llama3.3", "qwen2.5", "gemma2", "gemma3", "phi3.5", "mistral", "deepseek-r1"],
   openai: ["gpt-4o-mini", "gpt-4o", "gpt-4.1", "gpt-4.1-mini", "o4-mini", "o3-mini"],
   anthropic: ["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest", "claude-3-7-sonnet-latest", "claude-sonnet-4-latest"],
-  gemini: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
+  gemini: ["gemini-3.6-flash", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-3.5-flash", "gemini-3.8-flash", "gemini-pro-latest"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it", "deepseek-r1-distill-llama-70b"],
   deepseek: ["deepseek-chat", "deepseek-reasoner"],
   mistral: ["mistral-small-latest", "mistral-large-latest", "open-mistral-nemo", "codestral-latest"],
   openrouter: ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash-001", "meta-llama/llama-3.3-70b-instruct", "deepseek/deepseek-chat"],
 };
+
+/**
+ * Gemini's output budget, which its reasoning is drawn from before any of the
+ * answer is written. Measured against a real evidence bundle: about 1,100
+ * tokens of thinking plus 130 of answer, so this leaves better than double the
+ * headroom. See providerRequest.
+ */
+export const GEMINI_OUTPUT_TOKENS = 3000;
+
+/**
+ * The longest model list the picker will show. OpenRouter alone publishes
+ * several hundred, which is a dropdown nobody can use; the catalog-first
+ * ordering in orderModels() means the cut only ever falls on the tail.
+ */
+export const MAX_LISTED_MODELS = 50;
 
 // ── Prompt construction ──────────────────────────────────────────────────────
 
@@ -187,6 +214,142 @@ export function buildAnalystPrompt(a: AiAnalysis): AnalystPrompt {
 
   lines.push("", "Write the assessment now, grounded strictly in the above.");
   return { system: SYSTEM_PROMPT, user: lines.join("\n") };
+}
+
+// ── Model discovery ──────────────────────────────────────────────────────────
+//
+// Every cloud provider publishes what its keys may call, and asking beats
+// guessing: the shipped catalog above is a snapshot that goes stale the moment a
+// provider retires a name, and the operator is the one who then sees a 404.
+
+/** A model id that names a family which cannot answer a text prompt. */
+const NON_CHAT = /embed|tts|whisper|speech|transcribe|audio|dall-e|imagen|image|veo|lyria|banana|moderation|rerank|guard|robotics|computer-use|aqa/i;
+
+interface GeminiModel {
+  name?: string;
+  supportedGenerationMethods?: string[];
+}
+interface OpenAiModel {
+  id?: string;
+}
+
+/**
+ * Ask a provider which models this key may call. Same auth as a completion, so
+ * a key that lists is a key that runs; a key that cannot list is reported and
+ * the picker falls back to the catalog.
+ */
+export function modelsRequest(provider: CloudProvider, endpoint: string, apiKey: string): ProviderRequest {
+  const base = endpoint.replace(/\/$/, "");
+  if (provider === "gemini") {
+    // pageSize because the default page is 50 and the tail is paginated behind a
+    // token; one page of 200 covers every published model with room to spare.
+    return {
+      url: `${base}/models?pageSize=200`,
+      init: { method: "GET", headers: { "x-goog-api-key": apiKey } },
+    };
+  }
+  if (provider === "anthropic") {
+    return {
+      url: `${base}/models?limit=100`,
+      init: { method: "GET", headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" } },
+    };
+  }
+  return { url: `${base}/models`, init: { method: "GET", headers: { authorization: `Bearer ${apiKey}` } } };
+}
+
+/**
+ * Pull the usable text models out of a provider's model list. Anything that
+ * names a non-text family (embeddings, speech, image generation) is dropped: it
+ * would only ever answer this prompt with an error. The filter is advisory in
+ * the same way the catalog is, because the custom-model field bypasses both.
+ */
+export function parseModelList(provider: CloudProvider, json: unknown): string[] {
+  const j = json as { models?: GeminiModel[]; data?: OpenAiModel[] } | undefined;
+  const ids = provider === "gemini"
+    ? (j?.models ?? [])
+        // A Gemini model that cannot generateContent is an embedding or a tuner
+        // endpoint; it is listed all the same.
+        .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
+        .map((m) => (m.name ?? "").replace(/^models\//, ""))
+    : (j?.data ?? []).map((m) => m.id ?? "");
+  return ids.filter((id) => id !== "" && !NON_CHAT.test(id));
+}
+
+/**
+ * Order a live list so the picker's first entry is the one to run: the shipped
+ * catalog's order first (those are the vetted defaults), then whatever else the
+ * key can call, in the provider's own order. Trimmed to MAX_LISTED_MODELS.
+ */
+export function orderModels(provider: CloudProvider, live: readonly string[]): string[] {
+  const preferred = MODEL_CATALOG[provider];
+  const known = preferred.filter((m) => live.includes(m));
+  const rest = live.filter((m) => !preferred.includes(m));
+  return [...known, ...rest].slice(0, MAX_LISTED_MODELS);
+}
+
+// ── Failure reporting ────────────────────────────────────────────────────────
+
+/** Collapse a provider's message to one short line fit for a panel. */
+function oneLine(text: string): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > 200 ? `${t.slice(0, 199)}…` : t;
+}
+
+/**
+ * The provider's own explanation for a rejected request, or "" when it did not
+ * give one. Worth surfacing verbatim: Google answers a retired model with the
+ * name of the model that replaced it, which is the whole fix in one sentence,
+ * and the relay used to throw it away and report "unreachable or returned an
+ * error" instead.
+ */
+export function providerErrorMessage(json: unknown): string {
+  const j = json as { error?: unknown; message?: unknown } | undefined;
+  // Ollama states it flat: { error: "model 'x' not found" }.
+  if (typeof j?.error === "string") return oneLine(j.error);
+  // Gemini, OpenAI, Anthropic and the OpenAI-compatible providers nest it.
+  const nested = (j?.error as { message?: unknown } | undefined)?.message;
+  if (typeof nested === "string") return oneLine(nested);
+  // Mistral reports a malformed body at the top level.
+  if (typeof j?.message === "string") return oneLine(j.message);
+  return "";
+}
+
+interface GeminiCandidate {
+  content?: { parts?: { text?: string; thought?: boolean }[] };
+  finishReason?: string;
+}
+
+const TOKEN_CEILING =
+  "The model spent its whole output budget before writing an answer. Pick a smaller reasoning model, or run this on a subject with a shorter evidence bundle.";
+
+/**
+ * Why a 200 carried no answer. A provider that stops at its token ceiling has
+ * not failed in any way the operator can see, so "the model returned an empty
+ * response" sends them to look for a fault that is not there; the cause is the
+ * budget, and it has a different fix from a blocked prompt.
+ */
+export function providerEmptyReason(provider: AnalystProvider, json: unknown): string {
+  const j = json as {
+    candidates?: GeminiCandidate[];
+    promptFeedback?: { blockReason?: string };
+    stop_reason?: string;
+    choices?: { finish_reason?: string }[];
+  } | undefined;
+
+  if (provider === "gemini") {
+    const blocked = j?.promptFeedback?.blockReason;
+    if (blocked) return `Google's safety filter blocked the prompt (${blocked}).`;
+    if (j?.candidates?.[0]?.finishReason === "MAX_TOKENS") return TOKEN_CEILING;
+    return "";
+  }
+  if (provider === "anthropic") return j?.stop_reason === "max_tokens" ? TOKEN_CEILING : "";
+  if (provider === "ollama") return "";
+  return j?.choices?.[0]?.finish_reason === "length" ? TOKEN_CEILING : "";
+}
+
+/** Replace a secret with a placeholder wherever it appears in text. */
+export function redact(text: string, secret: string): string {
+  return secret === "" ? text : text.split(secret).join("[key]");
 }
 
 // ── Response validation ──────────────────────────────────────────────────────
@@ -306,6 +469,14 @@ export function providerRequest(
     // Google's Generative Language API: model in the path, key in a header (never
     // the URL), system prompt in its own field. Response shape differs too — see
     // providerExtractText.
+    //
+    // maxOutputTokens has to cover the model's own reasoning, not just the
+    // answer. On Gemini 3.x a six-sentence brief over a real evidence bundle
+    // spends around 1,100 tokens thinking before it writes a word, so the 800
+    // this used to send came back truncated mid-sentence (finishReason
+    // MAX_TOKENS) or, on a longer bundle, with no text at all. thinkingLevel
+    // would cap the reasoning directly but is rejected outright by models that
+    // do not think, which the custom-model field lets an operator pick.
     return {
       url: `${base}/models/${model}:generateContent`,
       init: {
@@ -314,7 +485,7 @@ export function providerRequest(
         body: JSON.stringify({
           system_instruction: { parts: [{ text: prompt.system }] },
           contents: [{ role: "user", parts: [{ text: prompt.user }] }],
-          generationConfig: { maxOutputTokens: 800 },
+          generationConfig: { maxOutputTokens: GEMINI_OUTPUT_TOKENS },
         }),
       },
     };
@@ -350,8 +521,13 @@ export function providerExtractText(provider: AnalystProvider, json: unknown): s
     return content?.[0]?.text ?? "";
   }
   if (provider === "gemini") {
-    const candidates = j?.candidates as { content?: { parts?: { text?: string }[] } }[] | undefined;
-    return candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const candidates = j?.candidates as GeminiCandidate[] | undefined;
+    const parts = candidates?.[0]?.content?.parts ?? [];
+    // Every text part, joined: a thinking model splits its answer across parts
+    // and puts its reasoning in parts of its own, which carry thought: true and
+    // are not the answer. Reading parts[0] alone returned a fragment when the
+    // answer was split, and the raw reasoning when a thought came first.
+    return parts.filter((p) => p.thought !== true).map((p) => p.text ?? "").join("");
   }
   // openai / groq / deepseek / mistral / openrouter — identical Chat Completions shape.
   const choices = j?.choices as { message?: { content?: string } }[] | undefined;

@@ -23,6 +23,9 @@ import type {
 import type { AggregatedBreach, BreachAggregate } from "./breachAggregate";
 import type { CredentialExposure } from "./credentialExposure";
 import { analyzeLookup, type AnalyzeInput } from "../ai";
+import { formatDms, decimalPair, mapLinks, reverseImageLinks } from "./exif";
+import type { UniversalMeta } from "./meta/types";
+import type { FileHashes } from "./meta/types";
 import { BRAND, asciiLetterhead } from "../brand/logo";
 import { APP_VERSION } from "../version";
 
@@ -67,7 +70,7 @@ export interface ReportAssessment {
 }
 
 export type ReportKind =
-  | "phone" | "email" | "username" | "ip" | "domain" | "wallet" | "hash";
+  | "phone" | "email" | "username" | "ip" | "domain" | "wallet" | "hash" | "file";
 
 export interface ReportModel {
   kind: ReportKind;
@@ -872,6 +875,155 @@ export function buildHashReport(data: HashLookupResponse): ReportModel {
   };
 }
 
+/** Everything the file panel knows about the file it just read. */
+export interface FileReportInput {
+  meta: UniversalMeta;
+  /** The name the file was dropped under, which the bytes never state. */
+  fileName: string;
+  /** The filesystem's own modification time, in ISO form, when the browser
+   *  reported one. It is the one fact here that comes from outside the bytes. */
+  lastModified?: string | null;
+  hashes?: FileHashes | null;
+}
+
+// The order metadata groups are printed in. A group the engine produces that is
+// not listed here still prints, after these, in the order it was extracted; the
+// list only fixes the sequence of the ones an analyst reads first.
+const GROUP_ORDER = [
+  "Document", "Mail", "Media", "Image", "Device", "Location", "IPTC", "XMP", "Data",
+  "Statistics", "Structure", "Build", "Font", "Database", "Capture", "Archive", "Container",
+  // Last, because it is the same handful of generic facts for every text file.
+  "Text",
+];
+
+/** Human-readable byte size, matching what the panel shows. */
+function humanSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** One-line reading of the entropy figure, as the panel words it. */
+function entropyNote(bits: number): string {
+  if (bits >= 7.5) return "high, so the contents are likely compressed or encrypted";
+  if (bits < 1) return "very low, so the contents are highly repetitive";
+  return "typical for structured data";
+}
+
+/**
+ * A report for one locally inspected file.
+ *
+ * It is the only mode whose evidence came from no source at all: every field
+ * was read out of the bytes in the browser, nothing was uploaded, and nothing
+ * was asked of a third party. So it carries no source table and no risk score,
+ * because there is no lookup to score. What it does carry is everything the
+ * file discloses about itself, grouped the way the panel groups it.
+ */
+export function buildFileReport(input: FileReportInput): ReportModel {
+  const { meta, fileName, lastModified, hashes } = input;
+  const sections: ReportSection[] = [];
+
+  pushRows(sections, "File", compact([
+    ["Name", fileName],
+    ["Detected type", meta.identity.label],
+    ["MIME type", meta.identity.mime],
+    ["Category", meta.identity.category],
+    ["Size", `${humanSize(meta.size)} (${meta.size.toLocaleString("en-US")} bytes)`],
+    ["Modified on disk", lastModified ?? null],
+    ["Extension check", meta.extMismatch
+      ? `MISMATCH: named .${meta.extMismatch.claimed}, contents are ${meta.extMismatch.actual}`
+      : "the name matches the contents"],
+    ["Entropy", meta.entropy === null ? null : `${meta.entropy.toFixed(2)} bits/byte (${entropyNote(meta.entropy)})`],
+  ]));
+
+  if (hashes) {
+    pushRows(sections, "Integrity", compact([
+      ["SHA-256", hashes.sha256],
+      ["SHA-1", hashes.sha1],
+    ]));
+  }
+
+  const gps = meta.gps;
+  if (gps) {
+    pushRows(sections, "Location", compact([
+      ["Coordinate", decimalPair(gps)],
+      ["Latitude", formatDms(gps.latitude, "lat")],
+      ["Longitude", formatDms(gps.longitude, "lon")],
+      ["Altitude", gps.altitude === null ? null : `${gps.altitude.toFixed(1)} m`],
+      ["Heading", gps.direction === null ? null : `${gps.direction.toFixed(0)}°`],
+    ]));
+  }
+
+  const image = meta.image;
+  if (image) {
+    pushRows(sections, "Image", compact([
+      ["Format", image.format],
+      ["Dimensions", image.width !== null && image.height !== null ? `${image.width} × ${image.height} px` : null],
+      ["EXIF block", image.hasExif ? "present" : "absent"],
+    ]));
+  }
+  if (image?.hasExif) {
+    pushRows(sections, "Camera and capture", compact([
+      ["Make", image.tags.make],
+      ["Model", image.tags.model],
+      ["Lens", image.tags.lens],
+      ["Software", image.tags.software],
+      ["Taken", image.tags.dateTimeOriginal],
+      ["Aperture", image.tags.fNumber === null ? null : `f/${image.tags.fNumber}`],
+      ["Shutter", image.tags.exposureTime],
+      ["ISO", image.tags.iso === null ? null : String(image.tags.iso)],
+      ["Focal length", image.tags.focalLength === null ? null : `${image.tags.focalLength} mm`],
+      ["Orientation", image.tags.orientation === null ? null : String(image.tags.orientation)],
+    ]));
+  }
+
+  // The format-specific fields, one section per group, in a fixed order so two
+  // reports of the same kind of file read the same way.
+  const groups = [...new Set(meta.fields.map((f) => f.group))];
+  const ordered = [
+    ...GROUP_ORDER.filter((g) => groups.includes(g)),
+    ...groups.filter((g) => !GROUP_ORDER.includes(g)),
+  ];
+  for (const group of ordered) {
+    pushRows(sections, `${group} metadata`, meta.fields
+      .filter((f) => f.group === group)
+      .map((f) => ({ label: f.label, value: f.value })));
+  }
+
+  if (meta.notes.length) pushList(sections, "Reading notes", meta.notes);
+
+  const sensitive = meta.fields.filter((f) => f.sensitive);
+  const headline = meta.hasDeepMeta
+    ? `${meta.identity.label} carrying ${meta.fields.length} embedded ${meta.fields.length === 1 ? "field" : "fields"}`
+    : `${meta.identity.label} with no embedded metadata`;
+
+  const pivots = [
+    ...(gps ? mapLinks(gps).map((p) => ({ label: p.label, url: p.url })) : []),
+    ...(image ? reverseImageLinks().map((p) => ({ label: p.label, url: p.url })) : []),
+  ];
+
+  return {
+    kind: "file",
+    subject: fileName || meta.identity.label,
+    generatedAt: nowIso(),
+    headline: { label: "Contents", value: headline },
+    summary: compact([
+      ["Detected type", meta.identity.label],
+      ["Size", humanSize(meta.size)],
+      ["Embedded fields", String(meta.fields.length)],
+      ["Attribution fields", sensitive.length > 0 ? String(sensitive.length) : null],
+      ["Coordinate", gps ? decimalPair(gps) : null],
+      ["SHA-256", hashes?.sha256 ?? null],
+    ]),
+    sections,
+    // A local file inspection queries nothing, so there is no source table to
+    // print and no latency to report.
+    sources: [],
+    pivots,
+    observables: hashes ? [{ type: "file", value: hashes.sha256, hashAlg: "SHA-256" }] : [],
+  };
+}
+
 // ── Shared document kit ────────────────────────────────────────────────────────
 // Everything below is consumed by all four renderers. The on-screen dossier and
 // the paged print document look nothing alike on purpose, but they are the same
@@ -890,6 +1042,40 @@ export const METHODOLOGY: string[] = [
   "For authorized investigative use only. Verify every finding against the primary source before acting on it.",
 ];
 
+/**
+ * A file report is the one kind whose evidence came from nowhere but the file,
+ * so the lines about sources, keys and re-running a lookup would all be false
+ * in it. It gets its own set, which says what actually happened instead.
+ */
+export const FILE_METHODOLOGY: string[] = [
+  "Produced by HEAVEN-GeoIntel by reading the file's own bytes in the browser. The file was not uploaded, and no data source was queried, so every field below was read out of the file itself.",
+  "A field appears only when the format genuinely carried it. Nothing is inferred from the contents, and a value that was malformed is skipped rather than guessed at.",
+  "Fields the file did not carry are omitted rather than printed as N/A, so a gap here means the format did not record it, not that it is unknown.",
+  "Metadata is written by whatever produced the file, so it states what that software recorded. A timestamp, a name or a coordinate can be wrong, absent, or deliberately set, and none of it is independently verified here.",
+  "Removing metadata from a copy does not remove it from the original, and an earlier copy of the same file may carry fields this one no longer has.",
+  "For authorized investigative use only. Verify every finding against the primary source before acting on it.",
+];
+
+/** The methodology block appropriate to a report's kind. */
+export function methodologyFor(m: ReportModel): string[] {
+  return m.kind === "file" ? FILE_METHODOLOGY : METHODOLOGY;
+}
+
+/**
+ * The cover's one-paragraph statement of where the evidence came from. A file
+ * report queried nothing, so saying it was assembled from zero sources of which
+ * zero answered would be both true and useless; it says what it did instead.
+ */
+export function provenanceNotice(m: ReportModel): string {
+  const st = reportStats(m);
+  if (m.kind === "file") {
+    // The File section alone contributes five rows to every file report, so the
+    // field count is never one and needs no singular form.
+    return `Every field in this document was read from the file's own bytes, in the browser, without uploading it or querying any source. ${st.fields} fields were recorded across ${st.sections} ${st.sections === 1 ? "section" : "sections"}. Fields the file did not carry are omitted rather than padded, so a gap means the format did not record it.`;
+  }
+  return `This document was assembled from ${st.sources} open-source ${st.sources === 1 ? "source" : "sources"}, of which ${st.sourcesAnswered} answered. Every field it contains was returned by one of them. Fields no source returned are omitted rather than padded, so a gap means the data was not collected, not that it does not exist.`;
+}
+
 /** Plain-language legend, so the numbers survive being read outside the tool. */
 export const LEGEND: ReportRow[] = [
   { label: "Risk score", value: "0 to 100, weighed over the signals that were actually collected. It is a triage aid, not a probability, and not a judgement about a person." },
@@ -903,6 +1089,7 @@ export const LEGEND: ReportRow[] = [
 export const TITLES: Record<ReportKind, string> = {
   phone: "Phone", email: "Email", username: "Username",
   ip: "IP Address", domain: "Domain", wallet: "Crypto Wallet", hash: "File Hash",
+  file: "File Metadata",
 };
 
 export function reportTitle(m: ReportModel): string {
@@ -1053,7 +1240,14 @@ export function controlRows(m: ReportModel): ReportRow[] {
     { label: "Subject type", value: meta.subjectType },
     { label: "Generated (UTC)", value: meta.generatedAt },
     { label: "Produced by", value: `${meta.tool} v${meta.version}` },
-    { label: "Evidence basis", value: `${st.sources} sources queried, ${st.sourcesAnswered} answered, ${st.fields} recorded fields` },
+    {
+      label: "Evidence basis",
+      // A file report queried nothing, and "0 sources queried, 0 answered"
+      // reads as a failed collection rather than as the local read it was.
+      value: m.kind === "file"
+        ? `read from the file's own bytes, ${st.fields} recorded fields`
+        : `${st.sources} sources queried, ${st.sourcesAnswered} answered, ${st.fields} recorded fields`,
+    },
     { label: "Handling", value: meta.classification },
   ];
 }
@@ -1148,7 +1342,7 @@ export function reportToText(m: ReportModel): string {
   }
 
   block(HEAD.method);
-  for (const line of METHODOLOGY) body.push(`  ${line}`);
+  for (const line of methodologyFor(m)) body.push(`  ${line}`);
   body.push("", "  How to read the numbers:");
   for (const l of LEGEND) body.push(`    ${l.label}: ${l.value}`);
 
@@ -1241,7 +1435,7 @@ export function reportToMarkdown(m: ReportModel): string {
 
   h2(HEAD.method);
   body.push("");
-  for (const line of METHODOLOGY) body.push(`- ${mdCell(line)}`);
+  for (const line of methodologyFor(m)) body.push(`- ${mdCell(line)}`);
   body.push("", "**How to read the numbers**", "", "| Term | Meaning |", "| --- | --- |");
   for (const l of LEGEND) body.push(`| ${mdCell(l.label)} | ${mdCell(l.value)} |`);
 

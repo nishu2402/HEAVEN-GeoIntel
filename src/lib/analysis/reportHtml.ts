@@ -11,7 +11,7 @@
 // value is ever interpolated into the script block.
 
 import {
-  CLASSIFICATION, HEAD, LEGEND, METHODOLOGY, bandNeon, controlRows, esc,
+  CLASSIFICATION, HEAD, LEGEND, bandNeon, controlRows, esc, methodologyFor,
   observableStixId, reportOutline, reportStats, reportMeta, reportTitle, slug,
   sourceState, statsRows,
   type ReportModel, type ReportRow, type ReportSection,
@@ -127,7 +127,7 @@ export function reportToHtml(m: ReportModel): string {
   }
 
   body.push(card(next(), HEAD.method, [
-    `<ol class="method">${METHODOLOGY.map((l) => `<li>${esc(l)}</li>`).join("")}</ol>`,
+    `<ol class="method">${methodologyFor(m).map((l) => `<li>${esc(l)}</li>`).join("")}</ol>`,
     `<h3>How to read the numbers</h3>`,
     `<table class="kv legend"><tbody>${LEGEND.map((l) => `<tr><th>${esc(l.label)}</th><td>${esc(l.value)}</td></tr>`).join("")}</tbody></table>`,
   ].join("\n")));

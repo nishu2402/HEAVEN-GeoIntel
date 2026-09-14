@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import AiAnalystButton from "@/components/shared/AiAnalystButton";
 import type { AiAnalysis } from "@/lib/ai";
+import { DEFAULT_MODEL, MODEL_CATALOG } from "@/lib/ai/analyst";
 
 // The panel does its own setup: on mount it asks /api/ai-analyst what this
 // machine can actually run, adopts a provider that works, and shows what is
@@ -60,6 +61,8 @@ interface Opts {
   run?: { status: number; body: unknown };
   /** Result of a /api/keys write. */
   keys?: { status: number } | "throw";
+  /** Body for the model-list GET; "throw" makes it reject, as an offline server would. */
+  models?: { status: number; body: unknown } | "throw";
 }
 
 function installFetch(opts: Opts = {}) {
@@ -70,6 +73,11 @@ function installFetch(opts: Opts = {}) {
     if (u.startsWith("/api/keys")) {
       if (opts.keys === "throw") throw new Error("offline");
       return res(opts.keys?.status ?? 200, { ok: true });
+    }
+    if (u.includes("?models=")) {
+      if (opts.models === "throw") throw new Error("offline");
+      const m = opts.models ?? { status: 200, body: {} };
+      return res(m.status, m.body);
     }
     if ((init?.method ?? "GET") === "GET") {
       if (opts.status === null) throw new Error("offline");
@@ -214,6 +222,71 @@ describe("<AiAnalystButton> setup", () => {
   });
 });
 
+// ── The model list ───────────────────────────────────────────────────────────
+// The dropdown used to offer names compiled into the build. Google withdrew
+// every Gemini model in that list, so the panel's own suggestion answered with
+// a 404 and there was no way to run the analyst without knowing a name to type.
+
+describe("<AiAnalystButton> models", () => {
+  const geminiReady = statusBody({ gemini: { ready: true, keySource: "ui", hint: "" } });
+  const options = () => Array.from(modelSelect().options).map((o) => o.value);
+
+  it("offers what the provider lists, and says whose list it is", async () => {
+    installFetch({ status: geminiReady, models: { status: 200, body: { models: ["gemini-3.6-flash", "gemini-9-flash"] } } });
+    await mount();
+    await waitFor(() => expect(options()).toEqual(["gemini-3.6-flash", "gemini-9-flash", "__custom__"]));
+    // Said plainly, because a list from the provider and a list from this build
+    // are not the same claim.
+    expect(screen.getByText(/models Google Gemini lists for your key/i)).toBeTruthy();
+    expect(modelSelect().value).toBe("gemini-3.6-flash");
+  });
+
+  it("keeps the shipped catalog when the provider will not list", async () => {
+    installFetch({ status: geminiReady, models: { status: 500, body: {} } });
+    await mount();
+    expect(options()).toEqual([...MODEL_CATALOG.gemini, "__custom__"]);
+    expect(screen.queryByText(/lists for your key/i)).toBeNull();
+  });
+
+  it("keeps the catalog when the list request never lands, or comes back empty", async () => {
+    installFetch({ status: geminiReady, models: "throw" });
+    await mount();
+    expect(options()).toEqual([...MODEL_CATALOG.gemini, "__custom__"]);
+    cleanup();
+
+    installFetch({ status: geminiReady, models: { status: 200, body: { models: [] } } });
+    await mount();
+    expect(options()).toEqual([...MODEL_CATALOG.gemini, "__custom__"]);
+  });
+
+  it("asks nothing of a provider that is not set up, or of the local server", async () => {
+    const calls = installFetch({ status: statusBody({ ollama: { ready: true, models: ["llama3:latest"], hint: "" } }) });
+    await mount();
+    // Ollama's models come off the machine with the readiness probe, and an
+    // unkeyed cloud provider has nothing to ask with.
+    fireEvent.change(providerSelect(), { target: { value: "mistral" } });
+    await waitFor(() => expect(providerSelect().value).toBe("mistral"));
+    expect(calls.some((c) => c.url.includes("?models="))).toBe(false);
+  });
+
+  it("asks each provider once, not once per visit", async () => {
+    const calls = installFetch({
+      status: statusBody({
+        gemini: { ready: true, keySource: "ui", hint: "" },
+        groq: { ready: true, keySource: "ui", hint: "" },
+      }),
+      models: { status: 200, body: { models: ["listed-model"] } },
+    });
+    await mount();
+    await waitFor(() => expect(options()).toContain("listed-model"));
+    fireEvent.change(providerSelect(), { target: { value: "groq" } });
+    await waitFor(() => expect(calls.filter((c) => c.url.includes("?models=groq"))).toHaveLength(1));
+    fireEvent.change(providerSelect(), { target: { value: "gemini" } });
+    await waitFor(() => expect(providerSelect().value).toBe("gemini"));
+    expect(calls.filter((c) => c.url.includes("?models=gemini"))).toHaveLength(1);
+  });
+});
+
 describe("<AiAnalystButton> keys", () => {
   it("saves a pasted key to the server under the provider's own key name", async () => {
     const calls = installFetch();
@@ -324,7 +397,7 @@ describe("<AiAnalystButton> running", () => {
     await waitFor(() => expect(screen.getByText(/a grounded brief/i)).toBeTruthy());
     const run = calls.find((c) => c.url === "/api/ai-analyst" && c.init?.method === "POST")!;
     const sent = JSON.parse(String(run.init!.body));
-    expect(sent).toMatchObject({ provider: "gemini", model: "gemini-1.5-flash", apiKey: "AIza-once" });
+    expect(sent).toMatchObject({ provider: "gemini", model: DEFAULT_MODEL.gemini, apiKey: "AIza-once" });
     // No key was written to the server: this one was used and forgotten.
     expect(calls.some((c) => c.url.startsWith("/api/keys"))).toBe(false);
   });

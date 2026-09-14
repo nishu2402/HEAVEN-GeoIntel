@@ -33,8 +33,8 @@ const MP4 = cat(ftyp("isom"), box("moov", [
 const HIGH_ENTROPY = new Uint8Array(Array.from({ length: 256 }, (_, i) => i));
 const LOW_ENTROPY = new Uint8Array(500); // all zeros
 
-function fakeFile(bytes: Uint8Array, name: string, type = "", size?: number): File {
-  const file = new File([bytes as unknown as BlobPart], name, { type });
+function fakeFile(bytes: Uint8Array, name: string, type = "", size?: number, lastModified?: number): File {
+  const file = new File([bytes as unknown as BlobPart], name, { type, ...(lastModified === undefined ? {} : { lastModified }) });
   Object.defineProperty(file, "size", { value: size ?? bytes.length });
   Object.defineProperty(file, "arrayBuffer", { value: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) });
   return file;
@@ -69,6 +69,27 @@ describe("File metadata panel — images", () => {
 
     await screen.findByText("SHA-256"); // digests resolve asynchronously
     expect(screen.getByText(/bits\/byte/)).toBeTruthy();
+  });
+
+  it("shows the filesystem timestamp, and nothing when the browser has none", async () => {
+    render(<ImageExifPanel />);
+    // 2024-03-02 10:15:00 UTC, as the browser would report it in milliseconds.
+    drop(fakeFile(jpegWithGps(), "photo.jpg", "image/jpeg", undefined, 1709374500000));
+    expect(await screen.findByText(/Modified on disk: 2024-03-02 10:15:00/)).toBeTruthy();
+
+    cleanup();
+    render(<ImageExifPanel />);
+    drop(fakeFile(jpegWithGps(), "photo.jpg", "image/jpeg", undefined, 0));
+    await screen.findByText("40.446111, -79.982222");
+    expect(screen.queryByText(/Modified on disk/)).toBeNull();
+  });
+
+  it("offers the report exports once a file has been read", async () => {
+    render(<ImageExifPanel />);
+    drop(fakeFile(jpegWithGps(), "photo.jpg", "image/jpeg"));
+    await screen.findByText("40.446111, -79.982222");
+    expect(screen.getByText("PDF")).toBeTruthy();
+    expect(screen.getByText("STIX 2.1")).toBeTruthy();
   });
 
   it("loads the opt-in map and confirms coordinate and hash copies", async () => {
@@ -149,11 +170,11 @@ describe("File metadata panel — documents, media and other files", () => {
     drop(fakeFile(HIGH_ENTROPY, "blob.bin"));
     await screen.findByText(/UNIDENTIFIED/);
     expect(screen.getByText(/could not be identified/)).toBeTruthy();
-    expect(screen.getByText(/high — likely compressed or encrypted/)).toBeTruthy();
+    expect(screen.getByText(/high, so the contents are likely compressed or encrypted/)).toBeTruthy();
     expect(document.querySelector("img")).toBeNull();
 
     drop(fakeFile(LOW_ENTROPY, "zeros.bin"));
-    await screen.findByText(/very low — highly repetitive/);
+    await screen.findByText(/very low, so the contents are highly repetitive/);
   });
 
   it("shows the computing state while digests are still pending", async () => {

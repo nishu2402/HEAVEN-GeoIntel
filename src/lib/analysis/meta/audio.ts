@@ -6,13 +6,23 @@
 // comments and stream info from FLAC, and the RIFF INFO list from WAV, all by
 // walking the byte structure directly. Text is decoded only in its declared
 // encoding, never guessed, and a malformed tag block simply yields nothing.
+//
+// Beyond the tags, the stream itself is described: an MP3's first frame header
+// states the MPEG version, layer, bitrate, sample rate and channel mode, and a
+// Xing header turns that into a real duration rather than a guess from the file
+// size. A WAV may carry a Broadcast Wave block, which is what professional
+// recorders write, and it names the machine that made the recording, its own
+// reference string and the exact date and time the take started.
 
 import { Reader, asciiBytes } from "./bytes";
 import type { Extraction, MetaField } from "./types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
+
+/** Minutes and seconds for a sample count. The caller has already established
+ *  that `rate` is a real, positive sample rate. */
 function duration(totalSamples: number, rate: number): string | null {
-  if (rate <= 0 || totalSamples <= 0) return null;
+  if (totalSamples <= 0) return null;
   const s = Math.round(totalSamples / rate);
   const m = Math.floor(s / 60);
   return `${m}m ${pad(s % 60)}s`;
@@ -22,12 +32,30 @@ function duration(totalSamples: number, rate: number): string | null {
 const ID3V2_FRAMES: Record<string, { label: string; sensitive?: boolean }> = {
   TIT2: { label: "Title" },
   TPE1: { label: "Artist", sensitive: true },
+  TPE2: { label: "Album artist", sensitive: true },
+  TCOM: { label: "Composer", sensitive: true },
+  TOPE: { label: "Original artist", sensitive: true },
+  TOWN: { label: "File owner", sensitive: true },
   TALB: { label: "Album" },
+  TRCK: { label: "Track" },
+  TPOS: { label: "Disc" },
   TYER: { label: "Year" },
   TDRC: { label: "Year" },
+  TDRL: { label: "Released" },
+  TDTG: { label: "Tagged", sensitive: true },
   TCON: { label: "Genre" },
+  TPUB: { label: "Publisher" },
+  TCOP: { label: "Copyright" },
+  TLAN: { label: "Language" },
+  TSRC: { label: "ISRC" },
+  TMED: { label: "Media type" },
+  TBPM: { label: "Tempo (BPM)" },
+  TKEY: { label: "Musical key" },
   TSSE: { label: "Encoder" },
   TENC: { label: "Encoded by", sensitive: true },
+  WOAR: { label: "Artist page" },
+  WCOP: { label: "Licence page" },
+  WOAF: { label: "File page" },
 };
 
 /** Decode an ID3v2 text-frame body by its leading encoding byte. The caller only
@@ -69,12 +97,47 @@ function readId3v2(r: Reader, fields: MetaField[]): void {
       : b[p + 4] * 0x1000000 + b[p + 5] * 0x10000 + b[p + 6] * 0x100 + b[p + 7];
     if (frameSize <= 0) break;
     const spec = ID3V2_FRAMES[id];
-    if (spec) {
-      const body = r.slice(p + 10, frameSize);
-      if (body) { const v = decodeId3Text(body); if (v) push(fields, spec.label, v, spec.sensitive); }
+    const body = r.slice(p + 10, frameSize);
+    if (body && spec) {
+      const v = decodeId3Text(body);
+      if (v) push(fields, spec.label, v, spec.sensitive);
+    } else if (body && (id === "COMM" || id === "TXXX" || id === "WXXX")) {
+      // These three are a description and a value, separated by a NUL inside
+      // one frame, so the pair is split rather than printed as one run-on line.
+      const pair = describedFrame(id, body);
+      if (pair) push(fields, pair.label, pair.value, true);
+    } else if (body && id === "PRIV") {
+      // The owner identifier names the application that wrote the frame. Only a
+      // printable identifier is reported: the rest of a PRIV frame is binary,
+      // and a frame with no readable owner has nothing to say.
+      const owner = new TextDecoder("latin1").decode(body).split("\u0000")[0].trim();
+      if (/^[\x20-\x7e]+$/.test(owner)) push(fields, "Private frame owner", owner, true);
+    } else if (body && (id === "APIC" || id === "GEOB")) {
+      push(fields, id === "APIC" ? "Embedded artwork" : "Embedded object", `${frameSize.toLocaleString("en-US")} bytes`);
     }
     p += 10 + frameSize;
   }
+}
+
+/**
+ * COMM, TXXX and WXXX hold a description and a value in one frame. COMM also
+ * carries a three-letter language code before the description. The description
+ * is what makes the value legible ("iTunNORM" is not a comment a person wrote),
+ * so it becomes the field's own label.
+ */
+function describedFrame(id: string, body: Uint8Array): { label: string; value: string } | null {
+  const enc = body[0];
+  const rest = body.subarray(id === "COMM" ? 4 : 1);
+  const wide = enc === 1 || enc === 2;
+  const encoding = wide ? "utf-16" : enc === 3 ? "utf-8" : "latin1";
+  const text = new TextDecoder(encoding).decode(rest);
+  const nul = text.indexOf("\u0000");
+  if (nul < 0) return null;
+  const description = text.slice(0, nul).trim();
+  const value = text.slice(nul + 1).replace(/\u0000+$/, "").trim();
+  if (!value) return null;
+  const base = id === "WXXX" ? "URL" : id === "TXXX" ? "Custom" : "Comment";
+  return { label: description ? `${base}: ${description}` : base, value };
 }
 
 function readId3v1(r: Reader, fields: MetaField[]): void {
@@ -93,10 +156,83 @@ function push(fields: MetaField[], label: string, value: string | null, sensitiv
   if (value) fields.push({ label, value, group: "Media", sensitive });
 }
 
+// ── MP3 stream header ────────────────────────────────────────────────────────
+//
+// Bitrate tables are indexed by the header's 4-bit bitrate field. Index 0 is
+// "free" and 15 is invalid, so both are left absent rather than reported.
+const BITRATES_V1_L3 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+const BITRATES_V2_L3 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0];
+const SAMPLE_RATES: Record<number, number[]> = {
+  3: [44100, 48000, 32000], // MPEG 1
+  2: [22050, 24000, 16000], // MPEG 2
+  0: [11025, 12000, 8000],  // MPEG 2.5
+};
+const VERSION_NAME: Record<number, string> = { 3: "MPEG 1", 2: "MPEG 2", 0: "MPEG 2.5" };
+const CHANNEL_MODE = ["stereo", "joint stereo", "dual channel", "mono"];
+
+/** Seconds of audio, as "4m 07s" or "1h 02m 07s". */
+function span(seconds: number): string {
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${pad(m)}m ${pad(s % 60)}s` : `${m}m ${pad(s % 60)}s`;
+}
+
+/**
+ * Describe the MPEG audio stream from its first frame header, and give the
+ * playing time. A variable-bitrate file states its own frame count in a Xing or
+ * Info header inside that first frame, which is exact; a constant-bitrate file
+ * has none, and the length divided by the bitrate is exact for it instead.
+ */
+function readMpegFrame(r: Reader, start: number, fields: MetaField[]): void {
+  const b = r.bytes;
+  // Find the frame sync within a bounded window past the tag, so a file with a
+  // little padding is still read and a file with none is not scanned whole.
+  let at = -1;
+  for (let i = start; i < Math.min(r.length - 4, start + 8192); i++) {
+    if (b[i] === 0xff && (b[i + 1] & 0xe0) === 0xe0) { at = i; break; }
+  }
+  if (at < 0) return;
+
+  const version = (b[at + 1] >> 3) & 0x03;
+  const layer = (b[at + 1] >> 1) & 0x03;
+  const rates = SAMPLE_RATES[version];
+  if (layer !== 1 || !rates) return; // only Layer III is described here
+
+  const sampleRate = rates[(b[at + 2] >> 2) & 0x03];
+  const table = version === 3 ? BITRATES_V1_L3 : BITRATES_V2_L3;
+  const bitrate = table[(b[at + 2] >> 4) & 0x0f];
+  const mode = CHANNEL_MODE[(b[at + 3] >> 6) & 0x03];
+
+  push(fields, "Format", `${VERSION_NAME[version]} Layer III`);
+  push(fields, "Sample rate", sampleRate ? `${sampleRate} Hz` : null);
+  push(fields, "Channels", mode);
+
+  // The Xing/Info header sits at a fixed offset after the frame header that
+  // depends on the version and channel mode.
+  const xingAt = at + 4 + (version === 3 ? (mode === "mono" ? 17 : 32) : (mode === "mono" ? 9 : 17));
+  const tag = r.ascii(xingAt, 4);
+  const vbr = tag === "Xing" || tag === "Info";
+  const frameCount = vbr && ((r.u32(xingAt + 4) ?? 0) & 1) === 1 ? r.u32(xingAt + 8) : null;
+
+  push(fields, "Bitrate", bitrate > 0 ? `${bitrate} kbps${vbr ? " (variable)" : ""}` : null);
+  if (frameCount !== null && sampleRate) {
+    // Layer III packs 1152 samples per frame at every bitrate.
+    push(fields, "Duration", span((frameCount * 1152) / sampleRate));
+  } else if (bitrate > 0) {
+    push(fields, "Duration", span(((r.length - at) * 8) / (bitrate * 1000)));
+  }
+}
+
 function extractMp3(r: Reader): Extraction {
   const fields: MetaField[] = [];
-  if (r.eq(0, asciiBytes("ID3"))) readId3v2(r, fields);
+  let audioStart = 0;
+  if (r.eq(0, asciiBytes("ID3"))) {
+    readId3v2(r, fields);
+    audioStart = 10 + (synchsafe(r, 6) ?? 0);
+  }
   if (fields.filter((f) => f.label !== "Tag version").length === 0) readId3v1(r, fields);
+  readMpegFrame(r, audioStart, fields);
   return { fields };
 }
 
@@ -104,10 +240,25 @@ function extractMp3(r: Reader): Extraction {
 const VORBIS_TAGS: Record<string, { label: string; sensitive?: boolean }> = {
   TITLE: { label: "Title" },
   ARTIST: { label: "Artist", sensitive: true },
+  ALBUMARTIST: { label: "Album artist", sensitive: true },
+  COMPOSER: { label: "Composer", sensitive: true },
+  PERFORMER: { label: "Performer", sensitive: true },
   ALBUM: { label: "Album" },
+  TRACKNUMBER: { label: "Track" },
+  DISCNUMBER: { label: "Disc" },
   DATE: { label: "Date" },
   GENRE: { label: "Genre" },
+  ORGANIZATION: { label: "Organisation", sensitive: true },
+  LABEL: { label: "Label" },
+  COPYRIGHT: { label: "Copyright" },
+  LICENSE: { label: "Licence" },
+  ISRC: { label: "ISRC" },
+  COMMENT: { label: "Comment", sensitive: true },
+  DESCRIPTION: { label: "Description", sensitive: true },
+  CONTACT: { label: "Contact", sensitive: true },
+  LOCATION: { label: "Location", sensitive: true },
   ENCODER: { label: "Encoder" },
+  ENCODED_BY: { label: "Encoded by", sensitive: true },
 };
 
 /** Parse a Vorbis comment block (vendor string + KEY=value list) at `off`. */
@@ -128,8 +279,12 @@ function readVorbisComments(r: Reader, off: number, fields: MetaField[]): void {
     if (!text) continue;
     const eq = text.indexOf("=");
     if (eq < 0) continue;
-    const spec = VORBIS_TAGS[text.slice(0, eq).toUpperCase()];
+    const key = text.slice(0, eq).toUpperCase();
+    const spec = VORBIS_TAGS[key];
+    // A key the standard does not define is still a real field a tool wrote, so
+    // it is kept under its own name rather than dropped.
     if (spec) push(fields, spec.label, text.slice(eq + 1), spec.sensitive);
+    else if (!/^REPLAYGAIN_/.test(key)) push(fields, key, text.slice(eq + 1));
   }
 }
 
@@ -144,17 +299,27 @@ function extractFlac(r: Reader): Extraction {
     const blockSize = size & 0xffffff;
     const body = p + 4;
     if (type === 0) {
-      // STREAMINFO: sample rate is 20 bits at byte offset 10; total samples 36 bits.
-      const rate = r.u32(body + 10, false);
+      // STREAMINFO packs the sample rate (20 bits), channel count (3) and bits
+      // per sample (5) into one 32-bit word at byte offset 10, whose last four
+      // bits begin the 36-bit sample total.
+      const packed = r.u32(body + 10, false);
       const lowSamples = r.u32(body + 14, false);
-      if (rate !== null && lowSamples !== null) {
-        const sampleRate = (rate >>> 12) & 0xfffff;
-        const totalSamples = lowSamples; // low 32 of the 36-bit count; exact for < ~27h
-        push(fields, "Sample rate", sampleRate > 0 ? `${sampleRate} Hz` : null);
-        push(fields, "Duration", duration(totalSamples, sampleRate));
+      if (packed !== null && lowSamples !== null) {
+        // Channels and bit depth are stored one less than their real value, so
+        // they only mean anything once the block is known to be a real one, and
+        // a zeroed STREAMINFO would otherwise read as "1 channel, 1-bit".
+        const sampleRate = (packed >>> 12) & 0xfffff;
+        if (sampleRate > 0) {
+          push(fields, "Sample rate", `${sampleRate} Hz`);
+          push(fields, "Channels", String(((packed >>> 9) & 0x07) + 1));
+          push(fields, "Bit depth", `${((packed >>> 4) & 0x1f) + 1}-bit`);
+          push(fields, "Duration", duration(lowSamples, sampleRate));
+        }
       }
     } else if (type === 4) {
       readVorbisComments(r, body, fields);
+    } else if (type === 6) {
+      push(fields, "Embedded artwork", `${blockSize.toLocaleString("en-US")} bytes`);
     }
     if ((header & 0x80) !== 0) break; // last-block flag
     p = body + blockSize;
@@ -168,10 +333,18 @@ const INFO_TAGS: Record<string, { label: string; sensitive?: boolean }> = {
   IART: { label: "Artist", sensitive: true },
   IPRD: { label: "Album" },
   ICRD: { label: "Date" },
-  ISFT: { label: "Software" },
-  ICMT: { label: "Comment" },
+  ISFT: { label: "Software", sensitive: true },
+  ICMT: { label: "Comment", sensitive: true },
   IGNR: { label: "Genre" },
   ICOP: { label: "Copyright" },
+  IENG: { label: "Engineer", sensitive: true },
+  ITCH: { label: "Technician", sensitive: true },
+  ISRC: { label: "Source", sensitive: true },
+  ICMS: { label: "Commissioned by", sensitive: true },
+  IARL: { label: "Archival location", sensitive: true },
+  ISBJ: { label: "Subject" },
+  IKEY: { label: "Keywords" },
+  IMED: { label: "Medium" },
 };
 
 function readInfoList(r: Reader, start: number, end: number, fields: MetaField[]): void {
@@ -186,10 +359,41 @@ function readInfoList(r: Reader, start: number, end: number, fields: MetaField[]
   }
 }
 
+// The WAVE format codes worth naming. Anything else is reported by number so
+// the file still states what it is rather than silently omitting it.
+const WAV_FORMAT: Record<number, string> = {
+  1: "PCM", 2: "Microsoft ADPCM", 3: "IEEE float", 6: "A-law", 7: "µ-law",
+  0x11: "IMA ADPCM", 0x31: "GSM 6.10", 0x50: "MPEG", 0x55: "MP3", 0xfffe: "extensible",
+};
+
+/**
+ * The Broadcast Wave extension, which every professional field recorder and
+ * every broadcast editor writes. It is the richest metadata a WAV carries: the
+ * description of the take, the machine or person that originated it, that
+ * originator's own reference string, and the exact date and time recording
+ * started, which places the recording in time far more precisely than a file
+ * timestamp does.
+ */
+function readBext(r: Reader, body: number, size: number, fields: MetaField[]): void {
+  push(fields, "Description", r.utf8(body, 256), true);
+  push(fields, "Originator", r.ascii(body + 256, 32), true);
+  push(fields, "Originator reference", r.ascii(body + 288, 32), true);
+  const date = r.ascii(body + 320, 10);
+  const time = r.ascii(body + 330, 8);
+  if (date) push(fields, "Recorded", time ? `${date} ${time}` : date, true);
+  // Coding history runs from offset 602 to the end of the chunk: a free-text
+  // log of every conversion the audio has been through, each line naming the
+  // tool that did it. Its length comes from the chunk, never from a guess.
+  const history = r.utf8(body + 602, Math.min(1024, Math.max(0, size - 602)));
+  if (history) push(fields, "Coding history", history.replace(/\s+/g, " ").trim().slice(0, 500));
+}
+
 function extractWav(r: Reader): Extraction {
   const fields: MetaField[] = [];
   const b = r.bytes;
   let p = 12; // after "RIFF"<size>"WAVE"
+  let byteRate = 0;
+  let dataBytes = 0;
   // The loop bound guarantees the 8-byte chunk header is in range, so the 4CC
   // and size read directly. The fmt chunk id keeps its conventional trailing space.
   while (p + 8 <= r.length) {
@@ -197,17 +401,32 @@ function extractWav(r: Reader): Extraction {
     const size = b[p + 4] + b[p + 5] * 0x100 + b[p + 6] * 0x10000 + b[p + 7] * 0x1000000;
     const body = p + 8;
     if (id === "fmt ") {
+      const format = r.u16(body, true);
       const channels = r.u16(body + 2, true);
       const rate = r.u32(body + 4, true);
       const bits = r.u16(body + 14, true);
+      byteRate = r.u32(body + 8, true) ?? 0;
+      if (format) push(fields, "Format", WAV_FORMAT[format] ?? `format code ${format}`);
       if (rate) push(fields, "Sample rate", `${rate} Hz`);
       if (channels) push(fields, "Channels", String(channels));
       if (bits) push(fields, "Bit depth", `${bits}-bit`);
+    } else if (id === "data") {
+      dataBytes = size;
+    } else if (id === "bext") {
+      readBext(r, body, size, fields);
+    } else if (id === "iXML") {
+      // Film and television sound keeps the scene and take here, as XML.
+      const xml = r.utf8(body, Math.min(size, 8192)) ?? "";
+      for (const [tag, label] of [["PROJECT", "Project"], ["SCENE", "Scene"], ["TAKE", "Take"], ["NOTE", "Note"]] as const) {
+        const m = new RegExp(`<${tag}>([^<]+)</${tag}>`, "i").exec(xml);
+        if (m) push(fields, label, m[1].trim(), true);
+      }
     } else if (id === "LIST" && r.ascii(body, 4) === "INFO") {
       readInfoList(r, body, body + size, fields);
     }
     p = body + size + (size & 1);
   }
+  if (byteRate > 0 && dataBytes > 0) push(fields, "Duration", span(dataBytes / byteRate));
   return { fields };
 }
 

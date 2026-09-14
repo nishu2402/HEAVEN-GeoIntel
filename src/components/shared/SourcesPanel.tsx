@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Database, X, CheckCircle2, ExternalLink, Save, Trash2, Loader2, ShieldAlert } from "lucide-react";
+import { keyLabel } from "@/lib/client/keyNames";
 
 interface SourceInfo {
   id: string;
@@ -15,19 +16,6 @@ interface SourceInfo {
   signup?: string;
 }
 interface SourcesResponse { sources: SourceInfo[]; keyActive: number; keyTotal: number }
-
-// Pretty label for an env-var name, e.g. TWILIO_ACCOUNT_SID → "Account Sid".
-// The acronym fix-up has to come last: title-casing runs over the whole string,
-// so any earlier "RapidAPI" would be flattened back to "Rapidapi".
-function keyLabel(name: string): string {
-  return name
-    .replace(/_API_KEY$/, "")
-    .replace(/^TWILIO_/, "")
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .replace(/\bRapidapi\b/g, "RapidAPI");
-}
 
 function FreeRow({ s }: { s: SourceInfo }) {
   return (

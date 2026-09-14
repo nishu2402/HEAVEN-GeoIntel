@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { analystStatus, runAnalyst } from "@/lib/server/aiAnalyst";
+import { analystStatus, runAnalyst, listModels } from "@/lib/server/aiAnalyst";
 import { setKey, clearAllKeys } from "@/lib/server/keyStore";
 
 // The server relay resolves the provider key from the store then the environment,
@@ -212,6 +212,61 @@ describe("runAnalyst", () => {
     expect(r.status).toBe(502);
   });
 
+  it("names a retired model as the fixable thing it is, quoting the provider", async () => {
+    // The bug this whole path exists for: Google withdrew the model the panel
+    // shipped with, answered 404 with the replacement's name in the message,
+    // and the relay reported "unreachable or returned an error".
+    process.env.GEMINI_API_KEY = "g-test";
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResp(404, {
+      error: { message: "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.6-flash." },
+    })));
+    const r = await runAnalyst("gemini", "gemini-2.5-flash", prompt);
+    expect(r.error).toMatch(/Google Gemini does not offer the model "gemini-2\.5-flash" to this key/);
+    expect(r.error).toMatch(/The provider said: This model models\/gemini-2\.5-flash is no longer available/);
+    // The fix is a dropdown, so it is the caller's 400.
+    expect(r.status).toBe(400);
+  });
+
+  it("passes an overloaded provider through as a wait, not a fault to debug", async () => {
+    process.env.GEMINI_API_KEY = "g-test";
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResp(503, {
+      error: { message: "This model is currently experiencing high demand." },
+    })));
+    const r = await runAnalyst("gemini", "gemini-3.8-flash", prompt);
+    expect(r.error).toMatch(/Google Gemini is overloaded right now/);
+    expect(r.status).toBe(503);
+  });
+
+  it("quotes the provider on a rejected key, a rejected request and a rate limit", async () => {
+    process.env.GEMINI_API_KEY = "g-test";
+    for (const [status, code] of [[401, 400], [400, 400], [429, 429], [500, 502]] as const) {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResp(status, { error: { message: `upstream ${status}` } })));
+      const r = await runAnalyst("gemini", "m", prompt);
+      expect(r.error).toMatch(new RegExp(`The provider said: upstream ${status}$`));
+      expect(r.status).toBe(code);
+    }
+  });
+
+  it("never repeats the key back, even if the provider quotes it", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResp(400, {
+      error: { message: "API key sk-secret-value is not valid" },
+    })));
+    const r = await runAnalyst("openai", "gpt-4o-mini", prompt, "sk-secret-value");
+    expect(r.error).not.toContain("sk-secret-value");
+    expect(r.error).toMatch(/API key \[key\] is not valid/);
+  });
+
+  it("says a ceiling was hit rather than calling a truncated answer empty", async () => {
+    process.env.GEMINI_API_KEY = "g-test";
+    // A thinking model can spend the whole budget before it writes a word.
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResp(200, {
+      candidates: [{ content: { parts: [] }, finishReason: "MAX_TOKENS" }],
+    })));
+    const r = await runAnalyst("gemini", "gemini-3.8-flash", prompt);
+    expect(r.error).toMatch(/spent its whole output budget/);
+    expect(r.status).toBe(502);
+  });
+
   it("rejects an empty completion", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResp(200, { message: { content: "   " } })));
     const r = await runAnalyst("ollama", "llama3.2", prompt);
@@ -306,5 +361,48 @@ describe("analystStatus", () => {
     }));
     await analystStatus();
     expect(calls[0]).toBe("http://ollama.local:11434/api/tags");
+  });
+});
+
+// ── Model discovery ──────────────────────────────────────────────────────────
+// The panel offered a list compiled at build time; the provider is the only
+// authority on what a key may actually call.
+
+describe("listModels", () => {
+  it("asks the provider and returns its list, vetted models first", async () => {
+    await setKey("GEMINI_API_KEY", "g-stored");
+    const seen: { url: string; key: string | null }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (u: string | URL, init: RequestInit) => {
+      seen.push({ url: String(u), key: new Headers(init.headers).get("x-goog-api-key") });
+      return jsonResp(200, {
+        models: [
+          { name: "models/gemini-2.5-flash", supportedGenerationMethods: ["generateContent"] },
+          { name: "models/gemini-3.6-flash", supportedGenerationMethods: ["generateContent"] },
+          { name: "models/imagen-4.0", supportedGenerationMethods: ["generateContent"] },
+        ],
+      });
+    }));
+    const r = await listModels("gemini");
+    expect(r.models).toEqual(["gemini-3.6-flash", "gemini-2.5-flash"]);
+    expect(r.error).toBeUndefined();
+    expect(seen[0].url).toContain("/models?pageSize=200");
+    // The same key a completion would use, so a key that lists is one that runs.
+    expect(seen[0].key).toBe("g-stored");
+  });
+
+  it("asks for nothing when there is no key to ask with", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const r = await listModels("openai");
+    expect(r).toEqual({ models: [], error: "No API key saved for OpenAI." });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("reports a provider that refuses to list, with its reason", async () => {
+    process.env.OPENAI_API_KEY = "sk-bad";
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResp(401, { error: { message: "Incorrect API key" } })));
+    const r = await listModels("openai");
+    expect(r.models).toEqual([]);
+    expect(r.error).toMatch(/rejected that API key.*The provider said: Incorrect API key/);
   });
 });
