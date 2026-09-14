@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.2.0] — 2026-09-14
+
 Application fixes found by an end-to-end run against live targets (the
 username sweep, phone validation, Docker persistence, DNS failures in the domain
 lookup, bulk validity, and rate-limit headers on errors), an AI Analyst that
@@ -274,7 +276,7 @@ watched for change, bulk-run, or driven from a shell.
   storage.
 
 - `tests/releaseNotes.test.ts`: eight assertions pinning the release page's
-  shape — no repeated heading in any version, Keep-a-Changelog ordering for the
+  shape: no repeated heading in any version, Keep-a-Changelog ordering for the
   version being released, the title template, the awk that strips the version
   heading, the Install/verification/scope footer, and the `dist/*` assets whose
   absence was the most visible difference between the hand-written v3.1.0 page
@@ -321,8 +323,8 @@ watched for change, bulk-run, or driven from a shell.
   busy one: the v3.1.0 release gate failed on `does not select a case when the
   import request fails` for the exact commit whose `main` CI had gone green
   minutes earlier. Each of the seven affected tests now waits for the thing it
-  is actually asserting — the flash message, the confirm prompt, the fifth
-  download — so it takes as long as the machine needs and no longer. Charging
+  is actually asserting (the flash message, the confirm prompt, the fifth
+  download) so it takes as long as the machine needs and no longer. Charging
   the digest extra turns to simulate a loaded runner failed all seven before and
   none after, up to 120 turns.
 - **The export test no longer depends on which hash finished first.** JSON and
@@ -663,13 +665,13 @@ watched for change, bulk-run, or driven from a shell.
 
 - **Raised the `next` floor to `^16.3.4`, above two unauthenticated-RCE
   advisories.** The declared range was `^16.2.12`, which admits 16.2.12 through
-  16.3.2 — every one of them inside the affected range of GHSA-2xp9-vwfh-vxw4
+  16.3.2, every one of them inside the affected range of GHSA-2xp9-vwfh-vxw4
   (RCE in the Image Optimization API via AVIF) and GHSA-p293-qw3h-jr36 /
   CVE-2026-75604 (RCE on Windows-hosted servers), both critical and both fixed
   in 16.3.3. Nothing shipped vulnerable and nothing was running vulnerable: the
   lockfile has held 16.3.4 throughout, so `npm ci`, the Docker image and the
   standalone tarball all resolved a patched version, and `npm audit` reported
-  zero because it resolves the lock. The manifest was the exposure — a fresh
+  zero because it resolves the lock. The manifest was the exposure: a fresh
   install without this lock could have taken a version with a published exploit.
   The floor now sits above the fixed-in version, matching what was done for
   `postcss` in 3.0.0. No dependency resolution changed: `next` and
@@ -678,7 +680,7 @@ watched for change, bulk-run, or driven from a shell.
 - **A check for the class of defect that hid it.** `npm audit` resolves the
   lockfile, which is the right question for "what does the artifact contain" and
   cannot answer "what could a fresh install of this manifest produce". Those
-  answers had now come apart twice — `postcss`'s `^8` and `next`'s `^16.2.12` —
+  answers had now come apart twice (`postcss`'s `^8` and `next`'s `^16.2.12`)
   and nothing in the repo asked the second question. `npm run audit:floors`
   resolves the lowest version every declared range admits and checks it against
   the OSV advisory database, blocking only on a floor that ships. It is
