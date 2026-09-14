@@ -1,12 +1,12 @@
 # OSINT depth: gap analysis and roadmap
 
-Last reviewed 2026-09-13.
+Last reviewed 2026-09-14.
 
 This document answers three questions the project keeps coming back to: what can
 the tool already do, where is it genuinely limited, and what is worth building
 next without breaking the two rules that define it (keyless first, and never a
-false positive). It is deliberately honest about the limits, because the most
-expensive mistake an OSINT tool can make is to look confident while being wrong.
+false positive). The limits are stated plainly, since a confident wrong answer is
+the one failure this tool is built to avoid.
 
 ## 1. Where the tool stands today
 
@@ -20,16 +20,16 @@ expensive mistake an OSINT tool can make is to look confident while being wrong.
   source returned by name only: a rich credential tier (HIBP plus XposedOrNot,
   their overlapping rows unioned) and a scoped Wikipedia notable-breaches tier
   for large institutional incidents the credential indexes never carry.
-- 100 percent test coverage on the whole `src` tree, enforced in CI.
+- 100 percent test coverage on everything that ships (the `src/lib` tree, every
+  API route, the proxy and every component), enforced in CI.
 
-The tool is not a thin wrapper over one API. It is already close to a one stop
-console for a single analyst working keyless.
+For a single analyst working keyless, it is already close to a one stop
+console.
 
 ## 2. The breach question, answered honestly
 
 The recurring report is "this tool shows a few breaches for my address, other
-sites show many". Here is exactly what is happening, measured on a real address
-on 2026-09-05:
+sites show many". Measured on a real address on 2026-09-05:
 
 - XposedOrNot returned 3 breaches. LeakCheck returned the same 3. Their union is
   3, and each one already carries what leaked and when.

@@ -39,9 +39,13 @@ In scope:
 
 - The Next.js application itself (`src/app/`, `src/components/`, `src/lib/`).
 - The Docker image (`Dockerfile`, `docker-compose.yml`).
-- The API routes: `/api/lookup`, `/api/email-lookup`, `/api/username-lookup`,
-  `/api/ip-lookup`, `/api/domain-lookup`, `/api/bulk-lookup`, `/api/cases`,
-  `/api/keys`, `/api/sources`, `/api/docs`.
+- Every route under `src/app/api/`: 21 of them, 30 operations. The authoritative
+  list is the registry in `src/lib/api/endpoints.ts`, which also generates the
+  OpenAPI spec served at `/api/docs`, so this section cannot fall behind the code.
+  The routes that keep state or reach a third party on your behalf are
+  `/api/cases`, `/api/evidence`, `/api/keys`, `/api/datasets` and
+  `/api/ai-analyst`.
+- The headless CLI (`scripts/cli.mjs`) and the launcher (`scripts/start.sh`).
 
 Out of scope (please report these to the upstream maintainers):
 
@@ -109,8 +113,8 @@ We track `npm audit` and keep the framework on the latest stable (Next.js 16).
 
 `npm audit` resolves the **lockfile**, so it answers "what is in the artifact we
 ship" and cannot answer "what could a fresh install of this manifest produce".
-Those are different questions, and they have come apart twice here (`postcss`,
-`next` — both below). `npm run audit:floors` asks the second one: it resolves the
+Those are different questions, and they have come apart twice here, for
+`postcss` and for `next` (both below). `npm run audit:floors` asks the second one: it resolves the
 lowest version every declared range admits and checks that against the OSV
 advisory database.
 
@@ -124,11 +128,11 @@ Four advisories were resolved and are documented here for the record:
 - **`next` unauthenticated RCE, two advisories** ([GHSA-2xp9-vwfh-vxw4](https://github.com/advisories/GHSA-2xp9-vwfh-vxw4),
   RCE in the Image Optimization API when AVIF files are used; and
   [GHSA-p293-qw3h-jr36](https://github.com/advisories/GHSA-p293-qw3h-jr36) /
-  CVE-2026-75604, RCE on Windows-hosted servers — both critical, both affecting
+  CVE-2026-75604, RCE on Windows-hosted servers; both critical, both affecting
   `>=16.0.0 <16.3.3`). Nothing shipped or ran vulnerable: the lockfile has held
   16.3.4 throughout, so `npm ci`, the Docker image and the standalone tarball all
   resolved a patched version and `npm audit` reported zero. The exposure was in
-  the manifest — the declared range was `^16.2.12`, which admits 16.2.12 through
+  the manifest: the declared range was `^16.2.12`, which admits 16.2.12 through
   16.3.2, so an install that did not use this lockfile could have taken a version
   with a published exploit. The floor is now `^16.3.4`.
 - **`esbuild` / `vitest` dev-server advisory**: cleared by upgrading the test

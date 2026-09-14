@@ -167,7 +167,7 @@
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:FFAA00,50:BF5FFF,100:00D9D9"/>
 </p>
 
-**HEAVEN-GeoIntel** is a production-ready, unified OSINT intelligence platform for **phone numbers, email addresses, usernames, IP addresses, and domains** (with a link-analysis graph and persistent investigation cases), built for penetration testers, security researchers, and OSINT analysts. It returns real, actionable intelligence: no placeholders, no simulations, no fake data.
+**HEAVEN-GeoIntel** is a production-ready, unified OSINT intelligence platform for **phone numbers, email addresses, usernames, IP addresses, domains, crypto wallets and file hashes** (with file-metadata reading, a link-analysis graph and persistent investigation cases), built for penetration testers, security researchers and OSINT analysts. It returns real, actionable intelligence: no placeholders, no simulations, no fake data.
 
 <div align="center">
 
@@ -177,7 +177,7 @@
 | 🧭 **Workspace** | 11-mode unified console · ⌘K command palette · light/dark themes · 3D glass UI |
 | 🔑 **Core Requirement** | Zero API keys; offline + free-source enrichment works out of the box |
 | 📞 **Phone OSINT** | Carrier · type · NPA geo · separate abuse-risk and exposure scores · pivots · QR · report export |
-| 📧 **Email OSINT** | Breach (unified across XposedOrNot + LeakCheck, enriched offline from the HIBP catalog) · password exposure (ProxyNova COMB, masked) · reputation · identity · validation · credential hashes |
+| 📧 **Email OSINT** | Breach (unified across XposedOrNot + LeakCheck, enriched offline from three vendored catalogs: HIBP, XposedOrNot and a Wikipedia notable-breaches tier) · password exposure (ProxyNova COMB, masked) · reputation · identity · validation · credential hashes |
 | 🧑‍💻 **Username OSINT** | 38 sites checked in parallel, plus an on-request deep sweep of 242 more; identities fused only on proof (a self-link or a server-side perceptual avatar match), everything else labelled a candidate |
 | 🌐 **IP / Domain OSINT** | IP geo + ASN + VPN/proxy flags · domain DNS + WHOIS + SPF/DMARC + subdomains from certificate transparency, reverse IP and passive DNS + port/CVE exposure on its own addresses + LEI + live security headers, TLS cert and tech fingerprint · internationalised names accepted in both spellings |
 | 🦠 **Infostealer Exposure** | **Hudson Rock Cavalier**: free, no key, always-on, on **phone, email and username** |
@@ -190,13 +190,13 @@
 | 🪙 **Wallet OSINT** | OFAC SDN screening against a bundled 1,056-address snapshot · BTC activity and counterparties · ERC-20 holdings · forward-verified ENS |
 | ≡ **Bulk** | Up to 500 mixed identifiers, run as a real cancellable job with per-row provenance and CSV out |
 | 🖥️ **Headless CLI** | `geointel domain example.com --json`, against the same API the console uses |
-| 🗺️ **NPA Database** | 400+ US/CA area codes → state · metro · timezone (offline) |
-| 🌍 **Country Dataset** | 100 countries: capital · currency · languages · GDP · emergency numbers |
+| 🗺️ **NPA Database** | 397 US/CA area codes → state · metro · timezone (offline) |
+| 🌍 **Country Dataset** | 99 countries: capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict, auto-invalidated when an API key changes) · file-backed cases |
 | 🚦 **Rate Limiting** | 60 requests/minute **per client** + a server-wide ceiling; fixed-window, all limits env-tunable |
 | 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 30 operations across 21 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
-| 🧪 **CI / Tests** | Vitest · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
+| 🧪 **CI / Tests** | Vitest with a 100% coverage gate on everything that ships · Playwright smoke suite · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
 | 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
 | 🎨 **UI Theme** | Hybrid cyberpunk glass: 3D tilt cards · neon glow · holographic borders · animated grid · Canvas katakana rain · **light + dark** · fully responsive |
 
@@ -211,7 +211,7 @@
 <img src="https://capsule-render.vercel.app/api?type=rect&height=4&color=0:FF3333,50:FFAA00,100:BF5FFF"/>
 </p>
 
-During a penetration test or OSINT investigation, analysts spend significant time manually pivoting across 20-30 separate tools and browser tabs to build intelligence around a single identifier. HEAVEN-GeoIntel centralises that workflow into one console, and lets you **link the identifiers together**:
+During a penetration test or OSINT investigation, analysts pivot by hand across 20-30 separate tools and browser tabs to build intelligence around a single identifier. HEAVEN-GeoIntel centralises that workflow into one console, and lets you **link the identifiers together**:
 
 ```
 Target  ─►  phone │ email │ username │ IP │ domain │ wallet │ hash
@@ -994,9 +994,9 @@ because it is keyless and the evidence never leaves the box.
 
 **The model list is asked for, not compiled in.** Once a provider has a key, the
 panel asks that provider which models the key may call and offers those,
-labelled as the provider's own list. This is not a nicety: every Gemini model
-this app once suggested has since been withdrawn, so the shipped default
-answered each run with a 404 that the relay reported as an unreachable gateway.
+labelled as the provider's own list. Every Gemini model this app once suggested
+has since been withdrawn, so the shipped default answered each run with a 404
+that the relay reported as an unreachable gateway.
 A list that comes from the provider cannot go stale, and the names that remain
 in the fallback catalog were each run against the relay before being listed.
 
@@ -1208,7 +1208,7 @@ Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope
 - Country · calling code · flag emoji · validity (libphonenumber strict)
 - Number type: mobile / fixed / VoIP / toll-free / premium / pager / personal
 - Ambiguous `FIXED_LINE_OR_MOBILE` shown as "TYPE AMBIGUOUS", never falsely claimed
-- IANA timezone + UTC offset (110+ countries) · all 4 formats · expected digit length
+- IANA timezone + UTC offset (144 countries) · all 4 formats · expected digit length
 - Area code extracted for US/CA only (real NPA database; other countries use variable-length codes, so guessing would fabricate data)
 - State / metro / local timezone for US/CA (NPA database)
 
@@ -1219,7 +1219,7 @@ Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope
 
 ### Username · IP · Domain (free live sources)
 
-- **Username**: **FOUND** only on a confirmed 200 / known profile marker. The 19 sites that return HTTP 200 for *every* handle (Instagram, TikTok, X, Reddit, …) are **never auto-claimed**; they're flagged **VERIFY →** so you open them yourself. A nonexistent handle yields **zero** false positives (regression-tested). Sites that block bots land in UNVERIFIED, never silently dropped.
+- **Username**: **FOUND** only on a confirmed 200 / known profile marker. The 15 sites that answer for *every* handle, or that block a keyless server probe (Instagram, TikTok, Telegram, npm, …), are **never auto-claimed**; they're flagged **VERIFY →** so you open them yourself. A nonexistent handle yields **zero** false positives (regression-tested). Sites that block bots land in UNVERIFIED, never silently dropped.
 - **IP**: geolocation is **ISP-level, not a precise address** (stated in the UI). Hosting / VPN / proxy IPs mask the real user; we surface those flags instead of pretending the location is the person.
 - **Domain**: DNS / WHOIS / subdomain data is reported exactly as upstream resolvers return it. Empty sections mean "not resolved," never fabricated. WHOIS depends on the TLD's RDAP support. The HTTP/TLS block is a live probe of the target itself and is absent (not empty) when nothing answers on 443, which is ordinary for a parked or mail-only domain. Email permutations are unverified candidates, never claimed to exist.
 - **Offline carrier (MCC/MNC)**: resolved from a bundled operator table only when network codes are known; otherwise left blank.
@@ -1285,41 +1285,54 @@ All source lives under `src/`, grouped by feature. Tests under `tests/`, shell +
 
 ```text
 HEAVEN-GeoIntel/
-├── .github/                          CI workflows · issue/PR templates
-├── docs/screenshots/                 README screenshots
+├── .github/                          CI workflows · issue/PR templates · release checklist
+├── docs/                             OSINT-ROADMAP.md · screenshots/
 ├── public/brand/                     generated artwork (mark · hero · poster light/dark/still)
-├── scripts/                          launcher · global install · brand/poster + screenshot generators
+├── scripts/                          launcher · global install · brand/poster + screenshot
+│                                     generators · audit gates · catalog refreshers · CLI
 ├── src/
 │   ├── app/
-│   │   ├── api/
-│   │   │   ├── lookup/route.ts          phone
-│   │   │   ├── email-lookup/route.ts    email
-│   │   │   ├── username-lookup/route.ts username enumeration (38 sites)
-│   │   │   ├── ip-lookup/route.ts       IP geo/ASN/risk
-│   │   │   ├── domain-lookup/route.ts   DNS · WHOIS · subdomains
-│   │   │   ├── bulk-lookup/route.ts     bulk phone (max 25)
-│   │   │   ├── cases/route.ts           persistent investigation cases (CRUD)
-│   │   │   ├── docs/route.ts            OpenAPI 3.1 spec
-│   │   │   └── health · version · keys · sources  liveness · update check · API-key store · source registry
+│   │   ├── api/                      21 routes, 30 operations, all in the endpoint registry
+│   │   │   ├── lookup · email-lookup · username-lookup · ip-lookup · domain-lookup ·
+│   │   │   │   wallet-lookup · hash-lookup                the seven identifier lookups
+│   │   │   ├── username-sweep · typosquat-scan · pwned-password · notable-breaches
+│   │   │   │                                             on-request deep probes
+│   │   │   ├── bulk-lookup/route.ts  every mode, up to 500 rows, as a cancellable job
+│   │   │   ├── cases · evidence      persistent cases (CRUD) · hashed evidence locker
+│   │   │   ├── ai-analyst/route.ts   relay to Ollama or a cloud provider (opt-in)
+│   │   │   ├── docs/route.ts         OpenAPI 3.1 spec, generated from the registry
+│   │   │   └── health · version · keys · sources · datasets
+│   │   │                             liveness · update check · key store · source
+│   │   │                             registry · runtime dataset overlays
 │   │   ├── layout.tsx · page.tsx · globals.css · not-found.tsx · robots.ts
 │   │   └── icon.svg · apple-icon.png · opengraph-image.png · favicon.ico · manifest.ts
 │   │
-│   ├── components/
+│   ├── components/                   83 components, every one under the coverage gate
 │   │   ├── phone/        PhoneInput · PentesterPanel · NumberAnatomyPanel ·
 │   │   │                 NumberPermutations · PhoneIdentityPanel · SimIntelPanel
-│   │   ├── email/        EmailInput · EmailResultsDashboard · EmailOsintPivots
-│   │   ├── username/     UsernameResultsDashboard
-│   │   ├── network/      IpResultsDashboard · DomainResultsDashboard
-│   │   ├── breach/       BreachPanel · InfostealerPanel
-│   │   ├── graph/        LinkGraph (SVG node graph + PNG export)
-│   │   ├── cases/        CasesPanel (CRUD · entities · notes · per-case graph)
+│   │   ├── email/        EmailInput · EmailResultsDashboard · EmailOsintPivots ·
+│   │   │                 EmailHeaderTracePanel
+│   │   ├── username/     UsernameResultsDashboard · DeepSweepPanel · ExtendedSitesPanel ·
+│   │   │                 ResolvedIdentityCard · AvatarCorrelationPanel
+│   │   ├── network/      IpResultsDashboard · DomainResultsDashboard · DomainIntelPanels ·
+│   │   │                 HttpPosturePanel · TyposquatPanel · SubdomainTakeoverPanel ·
+│   │   │                 EmailPermutations · DomainKnownBreachesPanel
+│   │   ├── wallet/       WalletResultsDashboard (OFAC screen · balance · activity · ENS)
+│   │   ├── hash/         HashResultsDashboard · CryptoWorkbench · PwnedPasswordCheck
+│   │   ├── image/        ImageExifPanel (the File mode reader)
+│   │   ├── breach/       BreachPanel · BreachAggregatePanel · LeakCheckPanel ·
+│   │   │                 CredentialExposurePanel · InfostealerPanel
+│   │   ├── graph/        LinkGraph (session) · InvestigationGraph (any case)
+│   │   ├── cases/        CasesPanel · CaseChanges · CaseBriefing · EvidencePanel ·
+│   │   │                 ChangeInboxPanel
 │   │   ├── dashboard/    ResultsDashboard · BulkLookup · HistorySidebar ·
 │   │   │                 LoadingSkeletons · ScanProgress · SourceTabs
-│   │   ├── osint/        OsintPivots · LocationPanel ·
-│   │   │                 CountryPanel · QrCodePanel
+│   │   ├── osint/        OsintPivots · LocationPanel · CountryPanel · QrCodePanel
 │   │   ├── shared/       ThemeProvider · ThemeToggle · CommandPalette · ConsentGate ·
 │   │   │                 SimpleLookupInput · Tilt3D · MatrixRain · BootSequence ·
-│   │   │                 PanelErrorBoundary · AiAnalysisPanel · UniversalReportExport · Logo · … (30 total)
+│   │   │                 PanelErrorBoundary · AiAnalysisPanel · AiAnalystButton ·
+│   │   │                 SettingsPanel · SourcesPanel · NotableBreachesPanel ·
+│   │   │                 UpdateBanner · UniversalReportExport · Logo · … (32 total)
 │   │   └── ui/           shadcn/ui primitives (Radix)
 │   │
 │   └── lib/
@@ -1329,18 +1342,32 @@ HEAVEN-GeoIntel/
 │       │              the animated README poster · banner.ts, the terminal one
 │       ├── analysis/  phoneAnalysis · emailAnalysis · freePhoneIntel · ipClassify ·
 │       │              hashDetect · entityExtract · crossPivots · usernameProfiles ·
-│       │              caseCorrelation · caseMerge · caseTimeline ·
+│       │              identityResolve · identityLinks · phash · wmnDetect · idn ·
+│       │              typosquat · subdomainTakeover · httpPosture · wallet ·
+│       │              walletActivity · cryptoLab · pwnedPasswords · changeInbox ·
+│       │              caseCorrelation · caseMerge · caseTimeline · caseSnapshot ·
 │       │              report (model + text/markdown/STIX) · reportHtml (screen
 │       │              dossier) · reportPrint (paged A4) · caseReport (+ caseDoc)
+│       │              └── meta/   ~70-format file reader: sniff · image · raster ·
+│       │                          pdf · ole · zip · archive · audio · isobmff ·
+│       │                          binary · container · text · xmp · inflate
+│       ├── ai/        the explainable spine: risk · signals · mlSignals · anomaly ·
+│       │              inference · textAnalysis · summary · caseBriefing · analyst
 │       ├── data/      countryIntel · mccMnc · usNpaDatabase · usernameSites ·
-│       │              disposableEmailDomains          (offline datasets)
-│       ├── server/    caseStore (.data/cases.json) · keyStore · auditLog ·
-│       │              cache · rateLimit · validation · fetchSafe
+│       │              extendedUsernameSites · disposableEmailDomains ·
+│       │              breachCatalog · sanctionedAddresses · overlay  (offline)
+│       ├── server/    caseStore (.data/cases.json) · evidenceStore · keyStore ·
+│       │              auditLog · cache · rateLimit · validation · fetchSafe ·
+│       │              doh · passiveDns · hostExposure · gleif · hibp · mxLookup ·
+│       │              bulkJobs · aiAnalyst · avatarHash · updateCheck
+│       ├── api/       endpoints (the route registry) · openapi (the spec built from it)
+│       ├── sources/   manifest (the 34-source registry the poster counts)
 │       ├── client/    modes (11-mode registry + auto-detect) · lookupHistory ·
-│       │              sessionGraph · effects
+│       │              sessionGraph · effects · keyNames · postLookup
+│       ├── osint/     accessTier    ├── update/  semver · updateStore
 │       └── types.ts · utils.ts
 │
-├── tests/                            Vitest suites
+├── tests/                            217 Vitest suites   ·   e2e/  Playwright smoke
 ├── .env.example · eslint.config.mjs · .nvmrc (22) · .dockerignore
 ├── CHANGELOG.md · CODE_OF_CONDUCT.md · CONTRIBUTING.md · SECURITY.md · LICENSE
 ├── Dockerfile · docker-compose.yml · next.config.mjs (hardened CSP/headers)
@@ -1374,7 +1401,7 @@ HEAVEN-GeoIntel/
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
 | **Persistence** | In-memory cache (24 h · 1000 phone / 500 email entries, FIFO) · file-backed cases and hashed evidence locker (`.data/`) |
 | **Rate Limiting** | Fixed-window counter per client · 60 req/min + 600/min ceiling |
-| **Quality** | ESLint 9 (flat config) · Vitest · GitHub Actions CI |
+| **Quality** | ESLint 9 (flat config) · Vitest with a 100% coverage gate on everything that ships · Playwright smoke suite · GitHub Actions CI |
 | **Font** | JetBrains Mono · 15 px base |
 
 </div>
@@ -1503,7 +1530,11 @@ fail over decoration.
 | `npm run start` | Start production server (after `npm run build`) |
 | `npm run lint` | ESLint 9 (flat config) |
 | `npm run typecheck` | `tsc --noEmit` type-check |
-| `npm test` · `npm run test:watch` · `npm run test:coverage` | Vitest |
+| `npm test` · `npm run test:watch` · `npm run test:coverage` | Vitest, with the 100% coverage gate on `test:coverage` |
+| `npm run test:e2e` | Playwright smoke suite against a built app |
+| `npm run audit` · `npm run audit:floors` | Two different questions: what the **lockfile** resolves (`audit`), and what a fresh install of the **declared ranges** could resolve (`audit:floors`). See [SECURITY.md](./SECURITY.md#known-dependency-advisories) |
+| `npm run links:check` | Probe every outbound link in the pivot matrices and the docs, and report what did not answer |
+| `npm run breaches:refresh` · `npm run sanctions:refresh` · `npm run sites:refresh` | Re-vendor the offline snapshots: breach catalogs, the OFAC SDN list, and the WhatsMyName site catalog |
 | `npm run screenshots` | Regenerate README screenshots (needs the dev server running) |
 | `npm run brand:poster` | Regenerate the README poster + the terminal banner from the live registries (no browser needed) |
 | `npm run brand` | The above, plus every raster asset (favicon · app icons · OG image · hero); needs Chrome |
@@ -1556,10 +1587,12 @@ Adding a new **OSINT source** or **pivot link**? The guide has a dedicated check
 
 | Document | Purpose |
 |---|---|
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Workflow, ground rules, and the checklists for a new source or pivot |
 | [`LICENSE`](./LICENSE) | MIT + OSINT acceptable-use policy |
 | [`SECURITY.md`](./SECURITY.md) | Vulnerability disclosure + dependency advisories |
 | [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Contributor Covenant v2.1 |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Release notes (Keep-a-Changelog) |
+| [`docs/OSINT-ROADMAP.md`](./docs/OSINT-ROADMAP.md) | Where the keyless approach reaches its ceiling, measured, and what is worth building next |
 
 </div>
 

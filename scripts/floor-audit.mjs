@@ -138,7 +138,7 @@ async function main() {
     // An advisory source that could not be reached has told us nothing. Saying
     // "0 findings" here would be inventing a clean result.
     console.error(`Could not reach the advisory database: ${err.message}`);
-    console.error("No conclusion drawn — re-run when it is reachable.");
+    console.error("No conclusion drawn. Re-run when it is reachable.");
     process.exit(2);
   }
   resolved.forEach((r, i) => { r.vulns = (results[i]?.vulns ?? []).map((v) => v.id); });
@@ -155,7 +155,7 @@ async function main() {
       console.log(`      ${r.vulns.join(", ")}`);
     }
     for (const r of verdict.unresolved) {
-      console.log(`  ? ${r.name} ${r.range} — no published version resolved`);
+      console.log(`  ? ${r.name} ${r.range}: no published version resolved`);
     }
     if (!verdict.blocking.length && !verdict.reported.length) {
       console.log(`  ✔ ${verdict.checked} declared ranges; none admits a known-vulnerable version`);

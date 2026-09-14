@@ -278,7 +278,7 @@ async function main() {
   const dead = report.filter((r) => r.state === "DEAD").length;
   const down = report.filter((r) => r.state === "DOWN" || r.state === "UNREACHABLE").length;
   if (down > 0) {
-    console.log(`\n${down} link(s) returned 5xx / did not connect from this vantage — review, do not assume dead.`);
+    console.log(`\n${down} link(s) returned 5xx / did not connect from this vantage. Review them, do not assume dead.`);
   }
   if (dead > 0) {
     console.log(`\n${dead} link(s) no longer resolve (DNS) and need fixing.`);
