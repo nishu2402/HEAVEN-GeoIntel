@@ -33,7 +33,7 @@ export default function PwnedPasswordCheck() {
   return (
     <div className="terminal-card p-4 space-y-3">
       <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-        <KeyRound className="w-3.5 h-3.5" /> PASSWORD EXPOSURE: has this password ever leaked? — keyless, k-anonymity
+        <KeyRound className="w-3.5 h-3.5" /> PASSWORD EXPOSURE: has this password ever leaked? Keyless, k-anonymity
       </div>
 
       <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] leading-snug">

@@ -18,8 +18,10 @@
 - [ ] `npm test` passes (or no tests changed)
 - [ ] `npm run test:coverage` passes (the gated files are held at 100%)
 - [ ] `node node_modules/next/dist/bin/next build` passes
-- [ ] `npm run brand` re-run and the regenerated assets committed, if this
-      changes the version, a data source, a mode or the brand module
+- [ ] `npm run brand:poster` re-run and the regenerated poster and `banner.sh`
+      committed, if this changes the version, a data source, a mode or an
+      endpoint. Only a change to the brand module itself needs the full
+      `npm run brand`, which additionally needs Chrome
 - [ ] Screenshots attached for UI changes
 - [ ] No real personal data in commits (use Twilio test numbers `+14155552671` / `+14155552672`)
 - [ ] README / CHANGELOG updated if user-facing

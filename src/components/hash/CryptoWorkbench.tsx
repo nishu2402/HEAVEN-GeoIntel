@@ -73,7 +73,7 @@ export default function CryptoWorkbench() {
   return (
     <div className="terminal-card p-4 space-y-3">
       <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
-        <Wand2 className="w-3.5 h-3.5" /> CRYPTO WORKBENCH: hash, encode &amp; encrypt any text — offline, in your browser
+        <Wand2 className="w-3.5 h-3.5" /> CRYPTO WORKBENCH: hash, encode &amp; encrypt any text, offline in your browser
       </div>
 
       {/* Category */}
@@ -145,7 +145,7 @@ export default function CryptoWorkbench() {
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={decrypt ? "Paste the encoded / encrypted text to reverse…" : "Type or paste any text — a word or a whole paragraph…"}
+        placeholder={decrypt ? "Paste the encoded / encrypted text to reverse…" : "Type or paste any text: a word or a whole paragraph…"}
         rows={4}
         aria-label="Input text"
         className="w-full text-[12px] font-mono bg-[var(--hv-glass)] border border-[var(--hv-glass-border)] rounded p-2 text-[var(--hv-ink)] focus:outline-none focus:border-[var(--hv-cyan)]"
