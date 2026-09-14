@@ -21,7 +21,7 @@
 <div align="center">
 
   <p>
-    <img src="https://img.shields.io/badge/Version-3.1.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
+    <img src="https://img.shields.io/badge/Version-3.2.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
     <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
     <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
@@ -40,7 +40,7 @@
     <img src="https://img.shields.io/badge/Phone_Pivots-37_across_6_access_tiers-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
     <img src="https://img.shields.io/badge/Username-38_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/>
     <img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/>
-    <img src="https://img.shields.io/badge/NPA_Database-400%2B_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
+    <img src="https://img.shields.io/badge/NPA_Database-397_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
     <img src="https://img.shields.io/badge/Rate_Limit-60_req%2Fmin%2Fclient_(tunable)-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
   </p>
 
@@ -176,6 +176,7 @@
 | 🎯 **Scope** | Phone · Email · Username · IP · Domain · Wallet · Hash · File metadata · Bulk · Link-graph · Persistent cases · Evidence locker |
 | 🧭 **Workspace** | 11-mode unified console · ⌘K command palette · light/dark themes · 3D glass UI |
 | 🔑 **Core Requirement** | Zero API keys; offline + free-source enrichment works out of the box |
+| 📦 **Install** | One command: `bash scripts/start.sh` installs dependencies, seeds `.env.local`, builds and serves (or `npm install && npm run setup`). No database, no Python, no `requirements.txt`, no cloud account |
 | 📞 **Phone OSINT** | Carrier · type · NPA geo · separate abuse-risk and exposure scores · pivots · QR · report export |
 | 📧 **Email OSINT** | Breach (unified across XposedOrNot + LeakCheck, enriched offline from three vendored catalogs: HIBP, XposedOrNot and a Wikipedia notable-breaches tier) · password exposure (ProxyNova COMB, masked) · reputation · identity · validation · credential hashes |
 | 🧑‍💻 **Username OSINT** | 38 sites checked in parallel, plus an on-request deep sweep of 242 more; identities fused only on proof (a self-link or a server-side perceptual avatar match), everything else labelled a candidate |
@@ -424,12 +425,12 @@ docker compose up -d
 open http://localhost:3000          # macOS (Linux: xdg-open, Windows: start)
 
 # Plain Docker (no compose)
-docker build -t heaven-geointel:3.1.0 .
-docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:3.1.0
+docker build -t heaven-geointel:3.2.0 .
+docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:3.2.0
 
 # …with API keys (omit --env-file entirely if you have no .env.local;
 # docker run fails on a missing env file, it does not skip it)
-docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.1.0
+docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.2.0
 ```
 
 <div align="center">
@@ -1487,7 +1488,7 @@ the same numbers as this page:
 │            Search It.  Enrich It.  Pivot It.  Report It.             │
 │                                                                      │
 │         7 identifiers · 11 modes · 25/34 sources need no key         │
-│            v3.1.0  ·  Lookup -> Enrich -> Pivot -> Report            │
+│            v3.2.0  ·  Lookup -> Enrich -> Pivot -> Report            │
 │                                                                      │
 │           Owned & Developed by  Nisarg Chasmawala (Shroff)           │
 ╰──────────────────────────────────────────────────────────────────────╯
