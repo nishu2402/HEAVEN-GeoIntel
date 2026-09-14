@@ -89,8 +89,8 @@
 <table>
   <tr>
     <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/phone-results.png" alt="Phone OSINT result dashboard with the mode bar, threat score and exports" width="100%"/>
-      <br/><sub><b>Phone dashboard.</b> All eleven modes across the top, and any number scored offline the moment you run it.</sub>
+      <img src="./docs/screenshots/phone-results.png" alt="Phone result card showing the number, its validity, abuse and exposure scores, the export row and the data sources that answered" width="100%"/>
+      <br/><sub><b>Phone result.</b> Abuse and exposure scored the moment a number lands, each export format one click away, and every source that answered named underneath.</sub>
     </td>
     <td width="50%" align="center" valign="top">
       <img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix of reverse-lookup, messaging and search links with access-tier filters" width="100%"/>
@@ -113,8 +113,8 @@
       <br/><sub><b>Command palette.</b> Press ⌘K to reach any of the eleven modes, from phone and email to wallet, hash and file metadata.</sub>
     </td>
     <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/bulk-mode.png" alt="Bulk mode scoring a batch of phone numbers offline" width="100%"/>
-      <br/><sub><b>Bulk mode.</b> Paste up to twenty-five numbers, score them offline in one pass, then export the table.</sub>
+      <img src="./docs/screenshots/bulk-mode.png" alt="Bulk mode: five phone numbers triaged in one pass with the result table below" width="100%"/>
+      <br/><sub><b>Bulk mode.</b> Paste up to five hundred rows of any identifier, let <code>auto</code> classify each one, then export the table as CSV.</sub>
     </td>
   </tr>
   <tr>
@@ -1287,7 +1287,7 @@ All source lives under `src/`, grouped by feature. Tests under `tests/`, shell +
 ```text
 HEAVEN-GeoIntel/
 ├── .github/                          CI workflows · issue/PR templates · release checklist
-├── docs/                             OSINT-ROADMAP.md · screenshots/
+├── docs/                             OSINT-ROADMAP.md · screenshots/ · assets/ (release banner)
 ├── public/brand/                     generated artwork (mark · hero · poster light/dark/still)
 ├── scripts/                          launcher · global install · brand/poster + screenshot
 │                                     generators · audit gates · catalog refreshers · CLI
