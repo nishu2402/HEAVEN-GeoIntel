@@ -58,11 +58,17 @@ export default function LeakCheckPanel({ source, subject }: Props) {
         {found ? (
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-2xl font-bold font-mono" style={{ color: borderColor }}>
-              {d.found.toLocaleString()} RECORD{d.found === 1 ? "" : "S"}
+              {d.found.toLocaleString()}{d.atLeast ? "+" : ""} RECORD{d.found === 1 ? "" : "S"}
             </span>
             <span className="text-[12px] font-mono text-[#ffaa00]/80">
               this {subject} appears in indexed breach data
             </span>
+            {d.atLeast && (
+              <span className="basis-full text-[11px] font-mono text-[#ffaa00]/65">
+                The free index stops counting at {d.found.toLocaleString()}, so treat this as a floor
+                rather than a total. The named breaches below are the part it does enumerate.
+              </span>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2 flex-wrap">

@@ -210,7 +210,7 @@ describe("<EmailResultsDashboard> abuse and exposure", () => {
         { breach: "LinkedIn", xposedData: ["Passwords"], xposedDate: "2012-05-05",
           xposedRecords: 1, domain: "linkedin.com", passwordRisk: "ClearText", verified: true },
       ] })),
-      leakCheck: okS({ found: 9, fields: ["email"], sources: [
+      leakCheck: okS({ found: 9, fields: ["email"], atLeast: false, sources: [
         { name: "Canva.com", date: "2019-05" }, { name: "Dropbox.com", date: "2012-07" },
         { name: "MySpace.com", date: "2008-01" },
       ] }),
@@ -323,7 +323,7 @@ describe("<EmailResultsDashboard> reputation / validation panels", () => {
 describe("<EmailResultsDashboard> unified breach + export", () => {
   it("uses the server's enriched union and credential exposure in the panels", () => {
     render(<EmailResultsDashboard data={data({
-      leakCheck: okS({ found: 2, fields: ["password"], sources: [
+      leakCheck: okS({ found: 2, fields: ["password"], atLeast: false, sources: [
         { name: "Adobe", date: "2013-10-04" }, { name: "Canva", date: "2019-05-24" },
       ] }),
       breachAggregate: {

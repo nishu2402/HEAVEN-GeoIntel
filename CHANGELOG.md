@@ -334,6 +334,33 @@ watched for change, bulk-run, or driven from a shell.
 
 ### Fixed
 
+- **Four platforms' profile photos were blocked before they could be shown.**
+  A username lookup pulls rich profiles from six platforms, fetches each avatar,
+  and perceptually hashes them to spot the same face across accounts. The
+  browser's image allow-list named only two of the six hosts, so Bluesky,
+  Mastodon, Codeberg and Chess.com photos were fetched and correlated on the
+  server and then refused in the page. The card hides an image that will not
+  load, so there was no broken icon to notice: just a console error and four
+  platforms that never showed a face. All six hosts are allowed now, each read
+  off a live profile, and a test holds the list to the platforms that have one.
+
+- **A platform's "no photo" placeholder was drawn as the subject's face.**
+  Mastodon serves one file to every account without a picture, and a profile
+  card rendered it like any other avatar. The tool already knew that file by
+  name and refused to use it as identity evidence; the card simply never asked.
+  It now applies the same check, so an account with no photo shows no photo.
+
+- **A breach count the source stopped counting was printed as a total.** The
+  public breach index answers a phone or username search with at most 1,000
+  records, and a saturated count came back looking like any other figure: a
+  heavily indexed number reported "1,000 RECORDS" and "1000 indexed breach
+  records" as though both were exact. Six unrelated numbers and three common
+  handles all answer with precisely 1,000 while naming entirely different
+  breaches, which is a ceiling, not a coincidence. A saturated count now reads
+  "1,000+" in both places and the panel says why, so the figure is a floor the
+  analyst can quote. Email searches answer well past that ceiling and are left
+  exact.
+
 - **The lookup mode buttons read their decoration aloud.** Each mode carries a
   small glyph beside its name and nothing marked the glyph as decorative, so a
   screen reader announced the phone tab as "satellite antenna PHONE" and the

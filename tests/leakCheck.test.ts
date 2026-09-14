@@ -50,13 +50,14 @@ describe("fetchLeakCheck", () => {
         { name: "Trello.com", date: "2024-01" },
         { name: "Spaced", date: null },   // blank date → null, not ""
       ],
+      atLeast: false,
     });
   });
 
   it("treats a not-found response as a clean answer, not a failure", async () => {
     stub(() => resp(200, { success: false, error: "Not found" }));
     const r = await fetchLeakCheck("nobody@example.com", "email");
-    expect(r).toEqual({ ok: true, data: { found: 0, fields: [], sources: [] } });
+    expect(r).toEqual({ ok: true, data: { found: 0, fields: [], sources: [], atLeast: false } });
   });
 
   it("treats a rejected query as a FAILURE, never as 'no exposure'", async () => {
@@ -89,7 +90,7 @@ describe("fetchLeakCheck", () => {
 
   it("tolerates a non-array fields/sources payload", async () => {
     stub(() => resp(200, { success: true, found: 1, fields: "password", sources: { name: "x" } }));
-    expect((await fetchLeakCheck("a@b.com", "email")).data).toEqual({ found: 1, fields: [], sources: [] });
+    expect((await fetchLeakCheck("a@b.com", "email")).data).toEqual({ found: 1, fields: [], sources: [], atLeast: false });
   });
 
   it("never throws when the network fails", async () => {
@@ -107,5 +108,48 @@ describe("fetchLeakCheck", () => {
     await fetchLeakCheck("a@b.com", "email");
     expect(seen[0].signal).toBeInstanceOf(AbortSignal);
     delete process.env.SOURCE_TIMEOUT_MS;
+  });
+});
+
+describe("fetchLeakCheck and the endpoint's result ceiling", () => {
+  // Phone and username searches stop counting at 1,000: six unrelated
+  // heavily-indexed numbers and three common usernames all answer with exactly
+  // that, while reporting entirely different named-breach counts. Reporting a
+  // saturated count as an exact total is the false precision this flag exists
+  // to prevent.
+  it("flags a saturated phone count as a floor", async () => {
+    stub(() => resp(200, { success: true, found: 1000, fields: [], sources: [] }));
+    const r = await fetchLeakCheck("+16502530000", "phone");
+    expect(r.data?.found).toBe(1000);
+    expect(r.data?.atLeast).toBe(true);
+  });
+
+  it("flags a saturated username count as a floor", async () => {
+    stub(() => resp(200, { success: true, found: 1000, fields: [], sources: [] }));
+    expect((await fetchLeakCheck("admin", "username")).data?.atLeast).toBe(true);
+  });
+
+  it("leaves a phone count below the ceiling exact", async () => {
+    // 938 is a real measured answer, one short of saturation.
+    stub(() => resp(200, { success: true, found: 938, fields: [], sources: [] }));
+    const r = await fetchLeakCheck("+12345678901", "phone");
+    expect(r.data?.found).toBe(938);
+    expect(r.data?.atLeast).toBe(false);
+  });
+
+  it("does not apply the ceiling to email, which answers well past it", async () => {
+    // Measured: 20191 for a common address. Marking an email count as a floor
+    // would understate a figure the source gave in full.
+    stub(() => resp(200, { success: true, found: 20191, fields: [], sources: [] }));
+    const r = await fetchLeakCheck("test@gmail.com", "email");
+    expect(r.data?.found).toBe(20191);
+    expect(r.data?.atLeast).toBe(false);
+  });
+
+  it("reports a not-found as a clean, unsaturated result", async () => {
+    stub(() => resp(200, { success: false, error: "Not found" }));
+    expect((await fetchLeakCheck("+13105551000", "phone")).data).toEqual({
+      found: 0, fields: [], sources: [], atLeast: false,
+    });
   });
 });

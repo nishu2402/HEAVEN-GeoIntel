@@ -84,6 +84,7 @@ function figuresFor(data: EmailLookupResponse): { abuse: RiskFigure; exposure: R
     }),
     exposure: assessExposure({
       breachRecords: data.leakCheck?.ok ? data.leakCheck.data?.found : null,
+      breachRecordsAtLeast: data.leakCheck?.ok ? data.leakCheck.data?.atLeast : null,
       namedBreaches: xon?.breachCount ?? null,
       credentialRecords: data.comb?.ok ? data.comb.data?.pairs : null,
       stealerInfections: data.hudsonRock?.ok ? data.hudsonRock.data?.total : null,

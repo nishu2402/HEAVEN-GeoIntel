@@ -41,6 +41,11 @@ const clamp = (n: number): number => Math.max(0, Math.min(100, Math.round(n)));
 export interface ExposureInput {
   /** Indexed breach records mentioning the identifier (LeakCheck `found`). */
   breachRecords?: number | null;
+  /**
+   * True when `breachRecords` is the source's ceiling rather than a total. Only
+   * changes how the reason reads: the score already saturates far below it.
+   */
+  breachRecordsAtLeast?: boolean | null;
   /** Distinct named breaches it appears in. */
   namedBreaches?: number | null;
   /** Credential pairs recovered for it (BreachDirectory / COMB). */
@@ -98,7 +103,10 @@ export function assessExposure(i: ExposureInput): RiskFigure {
   const records = i.breachRecords ?? 0;
   if (records > 0) {
     score += Math.min(records * 2, 25);
-    reasons.push(`${records} indexed breach record${records === 1 ? "" : "s"}`);
+    // A count the source stopped at is reported as a floor. "1000 records" and
+    // "1000+ records" score identically; only one of them is true.
+    const atLeast = i.breachRecordsAtLeast === true ? "+" : "";
+    reasons.push(`${records}${atLeast} indexed breach record${records === 1 ? "" : "s"}`);
   }
 
   const final = clamp(score);

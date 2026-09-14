@@ -12,7 +12,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 // ── LeakCheckPanel ───────────────────────────────────────────────────────────
 
 const lc = (data: Partial<LeakCheckData>): SourceResult<LeakCheckData> =>
-  ({ ok: true, data: { found: 0, fields: [], sources: [], ...data } });
+  ({ ok: true, data: { found: 0, fields: [], sources: [], atLeast: false, ...data } });
 
 describe("<LeakCheckPanel>", () => {
   it("renders a hit with the record count, named breaches and field types", () => {
@@ -33,6 +33,22 @@ describe("<LeakCheckPanel>", () => {
     render(<LeakCheckPanel subject="username" source={lc({ found: 1, fields: ["password"], sources: [{ name: "X", date: null }] })} />);
     expect(screen.getByText("1 RECORD")).toBeTruthy();
     expect(screen.getByText(/1 high-sensitivity field type was exposed/)).toBeTruthy();
+  });
+
+  it("prints a saturated count as a floor, with the reason it is one", () => {
+    // The endpoint stops counting phone and username matches at 1,000, so a
+    // bare "1,000 RECORDS" would be a total it never reported.
+    render(<LeakCheckPanel subject="phone number" source={lc({
+      found: 1000, atLeast: true, sources: [{ name: "Collection1", date: null }],
+    })} />);
+    expect(screen.getByText("1,000+ RECORDS")).toBeTruthy();
+    expect(screen.getByText(/stops counting at 1,000, so treat this as a floor/)).toBeTruthy();
+  });
+
+  it("adds no floor note to a count the source gave in full", () => {
+    render(<LeakCheckPanel subject="email address" source={lc({ found: 1000, atLeast: false })} />);
+    expect(screen.getByText("1,000 RECORDS")).toBeTruthy();
+    expect(screen.queryByText(/treat this as a floor/)).toBeNull();
   });
 
   it("renders NOT INDEXED for a clean answer: never as an error", () => {

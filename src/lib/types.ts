@@ -180,6 +180,13 @@ export interface LeakCheckSource {
 export interface LeakCheckData {
   /** Number of indexed records mentioning the identifier. */
   found: number;
+  /**
+   * True when `found` is the endpoint's result ceiling rather than a total, so
+   * the real figure is that many OR MORE. Printing a saturated count as an exact
+   * number is false precision, which is the one thing this project will not do
+   * with a breach figure.
+   */
+  atLeast: boolean;
   /** Field types exposed across those records ("password", "address", …). */
   fields: string[];
   /** Named breaches the identifier appears in. */
