@@ -7,102 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Changed
-
-- **Every GitHub action is on its current major.** The runner had been forcing
-  `actions/checkout`, `setup-node`, `upload-artifact`, `download-artifact`,
-  `github-script` and the four `docker/*` actions onto Node 24 and printing a
-  deprecation warning on every run, because all of them still declared Node 20.
-  Each one is now on the major that declares Node 24, after reading what each
-  release changed: nothing this repository passes to any of them moved. That
-  clears the warning from every workflow run and takes the eventual removal of
-  the Node 20 runtime off the list of things that can break a release.
-
-### Fixed
-
-- **The weekly link probe now reports rot instead of failing over it.** The
-  Monday run went red and filed issue #3: `myspreadshop.de`, the host
-  WhatsMyName's Myspreadshop entry probes, had stopped resolving. Two separate
-  things were wrong. The link really was dead, confirmed by the probe's own
-  retry and again by hand, and the platform has moved: `honey.myspreadshop.com`
-  still serves a shop and an unclaimed name serves "404, Shop not found", but
-  every scripted request to that host is answered 403 by its CDN while a browser
-  loads the page, so no detection contract can be honoured from a probe that is
-  refused. The entry therefore keeps a link that works and joins the manual
-  "open to verify" list rather than being auto-classified, which takes the
-  auto-classifiable catalog from 672 sites to 671. Because the catalog file is
-  generated, the correction lives in `scripts/refresh-username-sites.mjs` as an
-  override keyed by site name, with what was measured and when: the upstream
-  entry is still unchanged, so a refresh would otherwise restore the dead URL.
-  The other half was the workflow. Finding rot is `link-health` succeeding at
-  the one thing it exists for, and marking the run failed for it trains everyone
-  to ignore a red weekly job that nobody can fix from inside this repository. A
-  run that finds rot now files or updates the issue, writes the dead list to the
-  run summary, and passes; the first clean run afterwards comments on that issue
-  and closes it; and the job still fails when the probe itself broke, which was
-  always the only outcome worth a red X.
-
-- **A transient CDN failure can no longer end a publish or a release.** The
-  Docker workflow failed on 2026-09-14 after it had already built, pushed,
-  signed and verified the image: `anchore/sbom-action` downloads syft from
-  GitHub's release CDN, that download answered HTTP 504, and the checksum check
-  then failed on the truncated tarball. Nothing was wrong with the build, and
-  the SBOM in question is the third copy of one the image already carries as an
-  attestation. Both SBOM steps, here and in the release workflow, now take a
-  second attempt before giving up, so a hiccup costs fifteen seconds instead of
-  a re-run. A persistent failure still fails the job. The release workflow is
-  the one that matters: its tag is already pushed by the time it runs, so a
-  failure there has to be re-dispatched by hand.
-
-- **A bulk-job test waited a fixed fifteen milliseconds.** It cancelled a
-  six-row job after that sleep and then asserted that not every row had started,
-  but the whole job is sixty milliseconds of work, so a loaded runner that
-  stalled the test between two turns would have cancelled a job that had already
-  finished starting everything. It now waits for the first row to start, and
-  then for the row in flight to settle, which is the shape the rest of this
-  suite already uses after a fixed-turn wait failed the v3.1.0 release gate.
-
-### Security
-
-- **Host names are matched by label rather than by suffix.** The SVG metadata
-  reader leaves out the hosts an editor writes into every file it saves, and it
-  did that with `endsWith("w3.org")`, which also matches `evilw3.org`: a drawing
-  that phoned home to a look-alike host had that host quietly dropped from the
-  "External hosts" field, which is the one field a reader consults to find out
-  exactly that (CodeQL js/incomplete-url-substring-sanitization, alerts 58, 59
-  and 60). Matching is now exact or on a full parent label, against a set. A
-  fetch mock in the typosquat tests routed on the same kind of substring (alerts
-  56 and 57) and now reads the question out of the DoH query string, so it
-  answers the request the code actually made.
-
-- **The XML root element is found by scanning the prologue, not by deleting
-  it.** Stripping every declaration, comment and doctype in one `replace()` pass
-  cannot promise its own output is free of them (alert 61): on
-  `<!<!-- -->-- x --><real/>` the inner comment goes and the halves either side
-  close up into a new `<!-- x -->`, behind the point the pass has already read.
-  Measured rather than assumed, the name it returned was still correct, because
-  the regex that reads it skips whatever it does not recognise, so no file was
-  ever described wrongly. The strip simply was not doing the job it looked like
-  it was doing. A forward scan reads each token where it starts, so there is
-  nothing to reassemble.
-
-- **The evidence locker proves its own containment.** Every file operation on a
-  case folder already went through an id check that refuses anything but
-  `[A-Za-z0-9_-]`, which is why the recursive delete behind "delete this case"
-  was never reachable with a traversal (alert 55). The check was in another
-  function, though, so neither a reader nor a scanner could see it from the call
-  site. The folder path is now resolved and asserted to be inside the locker
-  where it is built, so containment is a property of the path itself.
-
-- **The optional auth gate stopped returning early on a length mismatch.** The
-  comparison behind `AUTH_PASSWORD` began by comparing lengths, which is the one
-  difference in that function large enough to be worth measuring: it separates
-  "wrong length" from "right length, wrong characters" in a single request. The
-  lengths are now folded into the same accumulator as the characters. This is
-  hardening, not a fix for a reachable attack: the gate is off by default and
-  single-user, and a password's length is not the password.
-
-## [3.2.0] — 2026-09-14
+## [3.2.0] — 2026-09-15
 
 Application fixes found by an end-to-end run against live targets (the
 username sweep, phone validation, Docker persistence, DNS failures in the domain
@@ -116,6 +21,11 @@ and what an analyst can do with a result once it exists. Identity fusion now
 requires proof, breadth went up by an order of magnitude on several modes
 without adding a single key, and a finished lookup can be preserved, verified,
 watched for change, bulk-run, or driven from a shell.
+
+And then the release pipeline itself, which is what held this version up: 3.2.0
+was finished, gated and tagged a day before it appeared here, and did not
+publish, because a tag is not carried by `git push`. A push to main now tags
+itself.
 
 ### Added
 
@@ -439,6 +349,15 @@ watched for change, bulk-run, or driven from a shell.
   and overwrote its message. The async pair is now allowed to finish before the
   synchronous three are clicked, making the last flash deterministic rather than
   a race the fast path happened to win.
+
+- **Every GitHub action is on its current major.** The runner had been forcing
+  `actions/checkout`, `setup-node`, `upload-artifact`, `download-artifact`,
+  `github-script` and the four `docker/*` actions onto Node 24 and printing a
+  deprecation warning on every run, because all of them still declared Node 20.
+  Each one is now on the major that declares Node 24, after reading what each
+  release changed: nothing this repository passes to any of them moved. That
+  clears the warning from every workflow run and takes the eventual removal of
+  the Node 20 runtime off the list of things that can break a release.
 
 ### Fixed
 
@@ -792,6 +711,67 @@ watched for change, bulk-run, or driven from a shell.
   scratch directory, so the AI Analyst is captured in the first-run state a new
   reader will actually meet and the capture never touches the real key store.
 
+- **The weekly link probe now reports rot instead of failing over it.** The
+  Monday run went red and filed issue #3: `myspreadshop.de`, the host
+  WhatsMyName's Myspreadshop entry probes, had stopped resolving. Two separate
+  things were wrong. The link really was dead, confirmed by the probe's own
+  retry and again by hand, and the platform has moved: `honey.myspreadshop.com`
+  still serves a shop and an unclaimed name serves "404, Shop not found", but
+  every scripted request to that host is answered 403 by its CDN while a browser
+  loads the page, so no detection contract can be honoured from a probe that is
+  refused. The entry therefore keeps a link that works and joins the manual
+  "open to verify" list rather than being auto-classified, which takes the
+  auto-classifiable catalog from 672 sites to 671. Because the catalog file is
+  generated, the correction lives in `scripts/refresh-username-sites.mjs` as an
+  override keyed by site name, with what was measured and when: the upstream
+  entry is still unchanged, so a refresh would otherwise restore the dead URL.
+  The other half was the workflow. Finding rot is `link-health` succeeding at
+  the one thing it exists for, and marking the run failed for it trains everyone
+  to ignore a red weekly job that nobody can fix from inside this repository. A
+  run that finds rot now files or updates the issue, writes the dead list to the
+  run summary, and passes; the first clean run afterwards comments on that issue
+  and closes it; and the job still fails when the probe itself broke, which was
+  always the only outcome worth a red X.
+
+- **A transient CDN failure can no longer end a publish or a release.** The
+  Docker workflow failed on 2026-09-14 after it had already built, pushed,
+  signed and verified the image: `anchore/sbom-action` downloads syft from
+  GitHub's release CDN, that download answered HTTP 504, and the checksum check
+  then failed on the truncated tarball. Nothing was wrong with the build, and
+  the SBOM in question is the third copy of one the image already carries as an
+  attestation. Both SBOM steps, here and in the release workflow, now take a
+  second attempt before giving up, so a hiccup costs fifteen seconds instead of
+  a re-run. A persistent failure still fails the job. The release workflow is
+  the one that matters: its tag is already pushed by the time it runs, so a
+  failure there has to be re-dispatched by hand.
+
+- **A bulk-job test waited a fixed fifteen milliseconds.** It cancelled a
+  six-row job after that sleep and then asserted that not every row had started,
+  but the whole job is sixty milliseconds of work, so a loaded runner that
+  stalled the test between two turns would have cancelled a job that had already
+  finished starting everything. It now waits for the first row to start, and
+  then for the row in flight to settle, which is the shape the rest of this
+  suite already uses after a fixed-turn wait failed the v3.1.0 release gate.
+
+- **A push to main now carries its own release tag.** This version was bumped,
+  gated, committed, tagged and pushed a day before it appeared, and none of that
+  published it: `git push` does not carry tags, the release workflow triggers on
+  the tag push, so no run was ever started. Nothing went red. There was no
+  failure to read and no run to open, only a Releases page still naming v3.1.0
+  as latest and no signal anywhere that it was wrong. Two habits hid it.
+  `git push --follow-tags`, the usual guard, carries annotated tags only, and
+  `git tag -f` creates a lightweight one, so the safety net skipped the exact
+  tag it exists for. And `npm run release:verify` answered "Ready to publish
+  v3.2.0" with every check green, having read nothing but the local repository.
+  A new `release-tag` workflow closes it: a push to main declaring a version
+  that has a dated CHANGELOG section and no tag on the remote gets an annotated
+  tag and hands it to the release workflow, which still re-verifies the tag and
+  runs the full gate before anything is published. It stands down silently when
+  the commit is not a release, and when the tag is already on the remote,
+  so tagging by hand still works exactly as before. `release:verify` now asks
+  origin whether the release actually exists, and its closing line names what is
+  still undone instead of declaring victory over a laptop.
+
 ### Security
 
 - **Raised the `next` floor to `^16.3.4`, above two unauthenticated-RCE
@@ -828,6 +808,44 @@ watched for change, bulk-run, or driven from a shell.
   drives them now, and `tests/apiHeaders.test.ts` fails the build if a
   rate-limited or case route in the endpoint registry is missing from it.
 
+
+- **Host names are matched by label rather than by suffix.** The SVG metadata
+  reader leaves out the hosts an editor writes into every file it saves, and it
+  did that with `endsWith("w3.org")`, which also matches `evilw3.org`: a drawing
+  that phoned home to a look-alike host had that host quietly dropped from the
+  "External hosts" field, which is the one field a reader consults to find out
+  exactly that (CodeQL js/incomplete-url-substring-sanitization, alerts 58, 59
+  and 60). Matching is now exact or on a full parent label, against a set. A
+  fetch mock in the typosquat tests routed on the same kind of substring (alerts
+  56 and 57) and now reads the question out of the DoH query string, so it
+  answers the request the code actually made.
+
+- **The XML root element is found by scanning the prologue, not by deleting
+  it.** Stripping every declaration, comment and doctype in one `replace()` pass
+  cannot promise its own output is free of them (alert 61): on
+  `<!<!-- -->-- x --><real/>` the inner comment goes and the halves either side
+  close up into a new `<!-- x -->`, behind the point the pass has already read.
+  Measured rather than assumed, the name it returned was still correct, because
+  the regex that reads it skips whatever it does not recognise, so no file was
+  ever described wrongly. The strip simply was not doing the job it looked like
+  it was doing. A forward scan reads each token where it starts, so there is
+  nothing to reassemble.
+
+- **The evidence locker proves its own containment.** Every file operation on a
+  case folder already went through an id check that refuses anything but
+  `[A-Za-z0-9_-]`, which is why the recursive delete behind "delete this case"
+  was never reachable with a traversal (alert 55). The check was in another
+  function, though, so neither a reader nor a scanner could see it from the call
+  site. The folder path is now resolved and asserted to be inside the locker
+  where it is built, so containment is a property of the path itself.
+
+- **The optional auth gate stopped returning early on a length mismatch.** The
+  comparison behind `AUTH_PASSWORD` began by comparing lengths, which is the one
+  difference in that function large enough to be worth measuring: it separates
+  "wrong length" from "right length, wrong characters" in a single request. The
+  lengths are now folded into the same accumulator as the characters. This is
+  hardening, not a fix for a reachable attack: the gate is off by default and
+  single-user, and a password's length is not the password.
 
 ## [3.1.0] — 2026-09-08
 
