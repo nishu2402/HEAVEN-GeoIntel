@@ -35,10 +35,24 @@ function isCrossSiteWrite(req: NextRequest): boolean {
   catch { return true; }
 }
 
+/**
+ * Compare two secrets without short-circuiting.
+ *
+ * The length check this used to open with returned before the loop ran at all,
+ * which is the one difference in this function big enough to be worth measuring:
+ * it separates "wrong length" from "right length, wrong characters" in a single
+ * request. Folding the lengths into the accumulator instead keeps both cases on
+ * the same path, and reading past the end of a string yields NaN, which `| 0`
+ * turns into a 0 that still costs an iteration.
+ *
+ * It is not constant-time in the secret's length — nothing written in JavaScript
+ * strings can be — and it does not need to be: the gate below is an optional,
+ * single-user, self-hosted lock, and a length is not the secret.
+ */
 function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let r = 0;
-  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  const width = Math.max(a.length, b.length);
+  let r = a.length ^ b.length;
+  for (let i = 0; i < width; i++) r |= (a.charCodeAt(i) | 0) ^ (b.charCodeAt(i) | 0);
   return r === 0;
 }
 

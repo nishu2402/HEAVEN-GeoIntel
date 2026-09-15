@@ -5,7 +5,7 @@
 // Source: WhatsMyName by Micah Hoffman — https://github.com/WebBreacher/WhatsMyName
 // Licensed CC BY-SA 4.0 (http://creativecommons.org/licenses/by-sa/4.0/).
 //
-// 687 sites across 20 categories; 672 carry a complete
+// 687 sites across 20 categories; 671 carry a complete
 // detection contract (e_code + e_string / m_code + m_string) and can therefore be
 // auto-classified by the deep sweep. The rest are offered as manual
 // "open to verify" links, exactly as the whole catalog used to be.
@@ -95,7 +95,7 @@ export const EXTENDED_USERNAME_SITES: ExtendedSite[] = [
   { n: "hoo.be", c: "business", u: "https://hoo.be/{account}", ec: 200, es: "--profile-name-color", mc: 404, ms: "Page Not Found</h3>", k: ["chrishemsworth", "alextackie"], v: false },
   { n: "kipin", c: "business", u: "https://kipin.app/{account}", ec: 200, es: "kipin.app/data/photos/resized2/", mc: 302, ms: "Page not found. Link expired, broken or wrong.", k: ["monethica", "asd_fca"], v: false },
   { n: "Martech", c: "business", u: "https://martech.org/author/{account}/", ec: 200, es: "twitter:site", mc: 404, ms: "Page not found", k: ["mani-karthik", "james-green"], v: true },
-  { n: "Myspreadshop", c: "business", u: "https://myspreadshop.de/{account}/shopData/list", p: "https://{account}.myspreadshop.com", ec: 200, es: "siteName", mc: 404, ms: "not found", k: ["arukori", "honey"], v: false },
+  { n: "Myspreadshop", c: "business", u: "https://{account}.myspreadshop.com", k: ["arukori", "honey"], skip: true },
   { n: "popl", c: "business", u: "https://poplme.co/{account}", ec: 200, es: "MuiTypography-root MuiTypography-body1 css-kj7pvm", mc: 200, ms: "Profile not found", k: ["rpelite", "Ee0af3d822"], v: false },
   { n: "Producthunt", c: "business", u: "https://www.producthunt.com/@{account}", ec: 200, es: "s profile on Product Hunt", mc: 404, ms: "Product Hunt - All newest Products", k: ["alex", "jack"], v: false },
   { n: "Suzuri", c: "business", u: "https://suzuri.jp/{account}", ec: 200, es: "Items", mc: 404, ms: "Push Space-key", k: ["itochanxxx", "alex"], v: false },

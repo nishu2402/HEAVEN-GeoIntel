@@ -32,6 +32,19 @@ const dohAnswer = (type: number, data: string) => ({
   json: async () => ({ Status: 0, Answer: [{ name: "x", type, TTL: 60, data }] }),
 }) as unknown as Response;
 
+/**
+ * The DoH question a mocked fetch was handed, read out of the query string.
+ *
+ * Not `url.includes("wordpres.com")`: a look-alike domain can sit anywhere in a
+ * URL — in a path, in another parameter, as a prefix of a longer host — and a
+ * mock that answers on a substring is answering a different question from the
+ * one the code asked (CodeQL js/incomplete-url-substring-sanitization).
+ */
+const dohQuestion = (u: string | URL) => {
+  const q = new URL(String(u)).searchParams;
+  return { name: q.get("name") ?? "", type: q.get("type") ?? "" };
+};
+
 const empty = () => ({
   ok: true, status: 200, headers: new Headers(), json: async () => ({ Status: 0 }),
 }) as unknown as Response;
@@ -41,8 +54,9 @@ describe("POST /api/typosquat-scan", () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => {
       const s = String(u);
       // One look-alike resolves and takes mail; everything else does not exist.
-      if (s.includes("type=A") && s.includes("wordpres.com")) return dohAnswer(1, "5.6.7.8");
-      if (s.includes("type=MX") && s.includes("wordpres.com")) return dohAnswer(15, "10 mail.evil.test");
+      const asked = dohQuestion(u);
+      if (asked.name === "wordpres.com" && asked.type === "A") return dohAnswer(1, "5.6.7.8");
+      if (asked.name === "wordpres.com" && asked.type === "MX") return dohAnswer(15, "10 mail.evil.test");
       if (s.includes("rdap")) {
         return {
           ok: true, status: 200, headers: new Headers(),
