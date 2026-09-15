@@ -6,7 +6,7 @@
 // send. We never fetch these and never claim a handle exists on one.
 //
 // Everything else moved: the fast sweep owns its 38 sites, the keyless profile
-// APIs own theirs, and the deep sweep auto-classifies the 672 entries that carry
+// APIs own theirs, and the deep sweep auto-classifies the 671 entries that carry
 // a full detection contract. Offering those as manual links too would ask the
 // analyst to repeat work already done.
 
@@ -35,7 +35,7 @@ export interface ExtendedGroup {
 /**
  * A site belongs in the manual panel only when nothing else checks it.
  *
- * The whole catalog used to land here as launch links. Now that 672 of its
+ * The whole catalog used to land here as launch links. Now that 671 of its
  * entries carry a detection contract the deep sweep can classify (see
  * analysis/wmnDetect.ts), listing those as "open to verify" would be asking the
  * analyst to redo work the tool already did. What remains is the genuinely

@@ -40,7 +40,7 @@ jobs:
       prerelease: ${{ steps.v.outputs.prerelease }}
     steps:
       - name: Checkout the tagged commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
@@ -89,11 +89,11 @@ jobs:
       badge_message: ${{ steps.audit.outputs.badge_message }}
       badge_color: ${{ steps.audit.outputs.badge_color }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -136,11 +136,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -193,7 +193,23 @@ jobs:
           EOF
           tar -czf "dist/${STAGE}.tar.gz" "$STAGE"
 
+      # Attempted twice. This action installs syft by downloading it from
+      # GitHub's release CDN, and on 2026-09-14 that download answered HTTP 504
+      # in the Docker workflow, failing a job for a transient nothing. A release
+      # is the worst place to learn that: the tag is already pushed, so the run
+      # has to be re-dispatched by hand. The first attempt may fail; the retry
+      # may not.
       - name: SBOM (SPDX)
+        id: sbom
+        continue-on-error: true
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: dist/heaven-geointel-${{ needs.verify.outputs.version }}.spdx.json
+
+      - name: SBOM (SPDX) retry
+        if: steps.sbom.outcome == 'failure'
         uses: anchore/sbom-action@v0
         with:
           path: .
@@ -207,7 +223,7 @@ jobs:
           set -euo pipefail
           cd dist && sha256sum ./* > SHA256SUMS.txt && cat SHA256SUMS.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-artifacts
           path: dist/
@@ -222,11 +238,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify.outputs.tag }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-artifacts
           path: dist
@@ -282,7 +298,7 @@ jobs:
           echo "--- notes preview ---"; head -40 RELEASE_NOTES.md
 
       - name: Publish
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.verify.outputs.tag }}
           # Matches every release before it — the list page shows the title and
