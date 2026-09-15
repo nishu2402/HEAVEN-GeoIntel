@@ -23,39 +23,76 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
 
+      # The probe's exit code is captured, not inherited. Finding rot is this
+      # job succeeding at what it exists to do, and a red weekly run for a
+      # third-party domain nobody here can fix is noise that trains you to
+      # ignore the workflow. The issue below is the signal; the job stays green
+      # unless the probe ITSELF broke.
       - name: Probe every outbound link
         id: probe
         run: |
           set -o pipefail
-          npm run links:check 2>&1 | tee link-report.txt
+          status=0
+          npm run links:check 2>&1 | tee link-report.txt || status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "probe exited $status"
 
-      # `if: failure()` on the step above would also catch an npm or network
-      # fault and file an issue blaming the sites. The probe now exits non-zero
-      # ONLY on a retry-confirmed DNS death (DEAD); a scripted 5xx (DOWN) is
-      # reported but does not fail, because measured against a browser it is
-      # usually a live site refusing a datacenter probe or answering "no such
-      # handle" with a 500. So match the DEAD verdict rows (which start with
-      # "DEAD "), not the "DEAD: n" summary line, to keep the issue about rot.
-      - name: Open an issue when links are dead
-        if: failure()
-        uses: actions/github-script@v7
+      # One open issue tracks the current state of the catalogs: it is filed
+      # when rot appears, commented on while it persists, and closed by the
+      # first run that finds none. `links:check` exits non-zero ONLY on a
+      # retry-confirmed DNS death (DEAD); a scripted 5xx (DOWN) is reported but
+      # does not gate, because measured against a browser it is usually a live
+      # site refusing a datacenter probe or answering "no such handle" with a
+      # 500. So match the DEAD verdict rows (which start with "DEAD "), not the
+      # "DEAD: n" summary line, to keep the issue about rot.
+      - name: File, update or close the link-rot issue
+        if: always() && steps.probe.conclusion != 'cancelled'
+        uses: actions/github-script@v9
+        env:
+          PROBE_STATUS: ${{ steps.probe.outputs.status }}
         with:
           script: |
             const fs = require('fs');
             let report = '';
             try { report = fs.readFileSync('link-report.txt', 'utf8'); } catch { report = '(no report produced)'; }
             const dead = report.split('\n').filter((l) => /^DEAD\s/.test(l));
-            if (dead.length === 0) {
+            const failed = (process.env.PROBE_STATUS ?? '1') !== '0';
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...repo, state: 'open', labels: 'link-rot',
+            });
+
+            // The probe exited non-zero without naming a dead link: that is the
+            // script or the runner failing, not the catalogs, and it is the one
+            // outcome that should still turn this job red.
+            if (failed && dead.length === 0) {
               core.setFailed('links:check failed without reporting a dead link. See the run log.');
               return;
             }
+
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            if (dead.length === 0) {
+              core.notice('Every outbound target resolves.');
+              await core.summary.addHeading('Link health: clean', 3)
+                .addRaw('Every outbound target resolved on this run.').write();
+              for (const issue of open) {
+                await github.rest.issues.createComment({
+                  ...repo, issue_number: issue.number,
+                  body: `Every outbound target resolves again as of [this run](${runUrl}). Closing.`,
+                });
+                await github.rest.issues.update({ ...repo, issue_number: issue.number, state: 'closed' });
+              }
+              return;
+            }
+
             const title = `Link rot: ${dead.length} outbound target(s) no longer resolve`;
             const body = [
               'The weekly link probe found outbound OSINT targets that no longer resolve (DNS).',
@@ -64,27 +101,22 @@ jobs:
               ...dead.slice(0, 50),
               '```',
               '',
-              `Full report: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `Full report: ${runUrl}`,
             ].join('\n');
 
+            // Surfaced on the run page too, so a green run still shows the rot.
+            core.warning(`${dead.length} outbound target(s) no longer resolve. See the link-rot issue.`);
+            await core.summary.addHeading(`Link health: ${dead.length} dead target(s)`, 3)
+              .addCodeBlock(dead.slice(0, 50).join('\n')).write();
+
             // Reuse the open issue rather than filing a new one every Monday.
-            const { data: open } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner, repo: context.repo.repo,
-              state: 'open', labels: 'link-rot',
-            });
             if (open.length > 0) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: open[0].number, body,
-              });
+              await github.rest.issues.createComment({ ...repo, issue_number: open[0].number, body });
             } else {
-              await github.rest.issues.create({
-                owner: context.repo.owner, repo: context.repo.repo,
-                title, body, labels: ['link-rot'],
-              });
+              await github.rest.issues.create({ ...repo, title, body, labels: ['link-rot'] });
             }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: link-report

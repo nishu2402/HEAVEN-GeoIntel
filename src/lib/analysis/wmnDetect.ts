@@ -3,7 +3,7 @@
 // The main sweep's own rule is "HTTP 200 means the account exists", which is
 // why two thirds of its catalog had to be marked `manual`: a site that serves a
 // soft-404 landing page with status 200 would be claimed as a hit for every
-// handle on earth. WhatsMyName ships something stricter for 672 sites:
+// handle on earth. WhatsMyName ships something stricter for 671 sites:
 //
 //   present  =  status == e_code  AND  body contains e_string
 //   absent   =  status == m_code  AND  body contains m_string
@@ -12,7 +12,7 @@
 // honest answer for a Cloudflare interstitial, a redirect to a login wall, or a
 // site whose markup has moved on since the catalog entry was written.
 //
-// This is what makes 672 sites safe to auto-check when the tool previously
+// This is what makes 671 sites safe to auto-check when the tool previously
 // auto-checked 23: not a loosening of the standard, a tightening of it.
 
 export type WmnStatus = "found" | "notfound" | "unknown";

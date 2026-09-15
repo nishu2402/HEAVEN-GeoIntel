@@ -67,7 +67,25 @@ export const MAX_EVIDENCE_BYTES = 4_000_000;
 export const MAX_EVIDENCE_ENTRIES = 500;
 
 const root = () => path.join(dataDir(), "evidence");
-const caseDir = (caseId: string) => path.join(root(), safeId(caseId));
+
+/**
+ * One case's directory, resolved and proven to be inside the locker.
+ *
+ * `safeId` has already refused every character a traversal needs, so the guard
+ * below cannot fire from a crafted id. It stays because it makes containment a
+ * property of the path this function hands out — checkable on the spot, by a
+ * reader or by a scanner — instead of an inference about a regex living in
+ * another function. Every fs call in this module goes through here, including
+ * the recursive delete, which is the one worth being sure about.
+ */
+function caseDir(caseId: string): string {
+  const base = path.resolve(root());
+  const dir = path.resolve(base, safeId(caseId));
+  /* v8 ignore next -- unreachable: safeId rejects slashes, backslashes and dots first. */
+  if (!dir.startsWith(base + path.sep)) throw new Error("invalid id");
+  return dir;
+}
+
 const manifestFile = (caseId: string) => path.join(caseDir(caseId), "manifest.json");
 
 /**

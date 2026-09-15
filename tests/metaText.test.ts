@@ -170,6 +170,20 @@ describe("meta/text SVG", () => {
     expect(val(r, "Embedded images")).toBeUndefined();
     expect(val(r, "Generator")).toBeUndefined();
   });
+
+  // The toolchain hosts used to be excluded with endsWith(), so any host ENDING
+  // in one of those names was dropped from the report. A file that phones home
+  // to evilw3.org is exactly the file this field exists for.
+  it("does not mistake a look-alike host for the toolchain's own", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg">
+      <image href="https://evilw3.org/a.png"/>
+      <image href="https://notsourceforge.net/b.png"/>
+      <image href="https://w3.org.tracker.test/c.png"/>
+      <image href="https://dl.sourceforge.net/dtd.dtd"/>
+    </svg>`;
+    const hosts = val(run("svg", svg), "External hosts")?.split(", ");
+    expect(hosts).toEqual(["evilw3.org", "notsourceforge.net", "w3.org.tracker.test"]);
+  });
 });
 
 describe("meta/text XML and JSON", () => {
@@ -192,6 +206,18 @@ describe("meta/text XML and JSON", () => {
     expect(val(r, "Document type")).toBeUndefined();
     expect(val(r, "Namespaces")).toBeUndefined();
     expect(val(r, "Root element")).toBe("catalog");
+  });
+
+  // The prologue is walked token by token rather than deleted in one pass: a
+  // single replace() can close two halves of the source up into a token that was
+  // not in the file, and then claim to have removed every one of them.
+  it("names the root element whatever the prologue does", () => {
+    expect(val(run("xml", "<!<!-- -->-- x --><real/>"), "Root element")).toBe("real");
+    expect(val(run("xml", "</stray><after/>"), "Root element")).toBe("after");
+    expect(val(run("xml", "<?xml version=\"1.0\""), "Root element")).toBeUndefined();
+    expect(val(run("xml", "<!-- never closed"), "Root element")).toBeUndefined();
+    expect(val(run("xml", "<!-- nothing follows -->"), "Root element")).toBeUndefined();
+    expect(val(run("xml", "no markup here"), "Root element")).toBeUndefined();
   });
 
   it("caps a long namespace list", () => {

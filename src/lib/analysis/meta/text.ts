@@ -136,6 +136,23 @@ const SVG_ATTRS: { attr: string; label: string; sensitive?: boolean }[] = [
   { attr: "viewBox", label: "View box" },
 ];
 
+// Hosts an SVG carries because of the tool that drew it, not because the
+// document points at anything: the SVG namespace, Inkscape's own namespaces and
+// the SourceForge URL its DTD still uses.
+//
+// Matched label by label rather than by suffix. "evilw3.org" ends with "w3.org"
+// and is somebody else's host, and an editor that quietly dropped it would hide
+// the one host in the file worth reporting.
+const TOOLCHAIN_HOSTS = new Set(["w3.org", "sourceforge.net", "inkscape.org"]);
+
+function isToolchainHost(host: string): boolean {
+  const labels = host.replace(/\.+$/, "").split(".");
+  for (let i = 0; i < labels.length; i++) {
+    if (TOOLCHAIN_HOSTS.has(labels.slice(i).join("."))) return true;
+  }
+  return false;
+}
+
 function extractSvg(text: string): Extraction {
   const fields: MetaField[] = [];
   push(fields, "Title", element(text, "title"), "Image");
@@ -156,12 +173,53 @@ function extractSvg(text: string): Extraction {
   if (elements > 0) push(fields, "Elements", String(elements), "Image");
   const embedded = (text.match(/data:image\//g) ?? []).length;
   if (embedded > 0) push(fields, "Embedded images", String(embedded), "Image");
-  const hosts = externalHosts(text).filter((h) => !h.endsWith("w3.org") && !h.endsWith("sourceforge.net") && !h.endsWith("inkscape.org"));
+  const hosts = externalHosts(text).filter((h) => !isToolchainHost(h));
   if (hosts.length) push(fields, "External hosts", hosts.join(", "), "Image", true);
   return { fields };
 }
 
 // ── XML ──────────────────────────────────────────────────────────────────────
+
+/** Index just past `close`, or -1 when the token is never closed. */
+function skipPast(text: string, open: number, openLength: number, close: string): number {
+  const end = text.indexOf(close, open + openLength);
+  return end === -1 ? -1 : end + close.length;
+}
+
+/**
+ * The name of the first real element, skipping whatever prologue precedes it.
+ *
+ * This was one `replace()` deleting every declaration, comment and doctype at
+ * once, and a single pass cannot promise its own output is free of them: on
+ * `<!<!-- -->-- x --><real/>` it removes the inner comment and the halves left
+ * either side close up into a new `<!-- x -->`, behind the point the pass has
+ * already read. The name it returned was still right, but only because the
+ * regex that read it skips whatever it does not recognise — the strip was not
+ * doing the job it looked like it was doing (CodeQL js/incomplete-multi-
+ * character-sanitization). A forward scan reads each token where it actually
+ * starts, so there is nothing to reassemble and nothing to leave behind.
+ */
+function rootElement(text: string): string | undefined {
+  const name = /<([A-Za-z_][\w.:-]*)/y;
+  let at = text.indexOf("<");
+  while (at !== -1) {
+    let next: number;
+    if (text.startsWith("<?", at)) next = skipPast(text, at, 2, "?>");
+    else if (text.startsWith("<!--", at)) next = skipPast(text, at, 4, "-->");
+    else if (text.startsWith("<!", at)) next = skipPast(text, at, 2, ">");
+    else {
+      name.lastIndex = at;
+      const m = name.exec(text);
+      if (m) return m[1];
+      next = at + 1;   // a "<" that starts nothing at all: step over it
+    }
+    // An unterminated declaration or comment swallows the rest of the file:
+    // there is no element after it to name.
+    if (next === -1) return undefined;
+    at = text.indexOf("<", next);
+  }
+  return undefined;
+}
 
 function extractXml(text: string): Extraction {
   const fields: MetaField[] = [];
@@ -170,7 +228,7 @@ function extractXml(text: string): Extraction {
   push(fields, "Declared encoding", attribute(decl, "encoding"), "Document");
   const doctype = /<!DOCTYPE\s+([^\s>[]+)/i.exec(text)?.[1];
   push(fields, "Document type", doctype, "Document");
-  const root = /<([A-Za-z_][\w.:-]*)/.exec(text.replace(/<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<!DOCTYPE[^>]*>/g, ""))?.[1];
+  const root = rootElement(text);
   push(fields, "Root element", root, "Document");
   const namespaces = [...new Set([...text.matchAll(/xmlns(?::[\w.-]+)?\s*=\s*"([^"]+)"/g)].map((m) => m[1]))];
   if (namespaces.length) push(fields, "Namespaces", namespaces.slice(0, 8).join(", "), "Document");

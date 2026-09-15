@@ -75,13 +75,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -92,13 +92,13 @@ jobs:
       # have each overwrite the other under the same name.
       - name: Extract image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ needs.prepare.outputs.image }}
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: ${{ matrix.platform }}
@@ -130,7 +130,7 @@ jobs:
           echo "PLATFORM_SLUG=${PLATFORM//\//-}" >> "$GITHUB_ENV"
 
       - name: Upload the digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: digest-${{ env.PLATFORM_SLUG }}
           path: /tmp/digests/*
@@ -150,17 +150,17 @@ jobs:
 
     steps:
       - name: Download the digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
           pattern: digest-*
           merge-multiple: true
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -168,7 +168,7 @@ jobs:
 
       - name: Extract image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ needs.prepare.outputs.image }}
           tags: |
@@ -233,7 +233,16 @@ jobs:
       - name: Sign the manifest (keyless, OIDC)
         run: cosign sign --yes "${{ steps.digest.outputs.ref }}"
 
+      # Attempted twice, because the failure this step has actually produced was
+      # not a bad SBOM. On 2026-09-14 the action's syft download answered HTTP
+      # 504 from GitHub's release CDN, the checksum check then failed on the
+      # half-written tarball, and a job that had already built, pushed, signed
+      # and VERIFIED the image was marked red for a third copy of an SBOM the
+      # image already carries as an attestation. The first attempt is allowed to
+      # fail; the retry below is not, so a real problem still stops the run.
       - name: Generate SBOM artifact (SPDX JSON)
+        id: sbom
+        continue-on-error: true
         uses: anchore/sbom-action@v0
         with:
           image: ${{ steps.digest.outputs.ref }}
@@ -257,8 +266,19 @@ jobs:
           # of also emitting one called `<owner>-<repo>_sha256_<digest>.spdx`.
           upload-artifact: false
 
+      - name: Generate SBOM artifact (retry)
+        if: steps.sbom.outcome == 'failure'
+        uses: anchore/sbom-action@v0
+        with:
+          # Identical inputs; the reasoning for each is on the step above.
+          image: ${{ steps.digest.outputs.ref }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-release-assets: false
+          upload-artifact: false
+
       - name: Upload SBOM as a build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-spdx
           path: sbom.spdx.json

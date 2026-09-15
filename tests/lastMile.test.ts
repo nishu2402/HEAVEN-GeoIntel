@@ -107,10 +107,17 @@ describe("the job runner's remaining paths", () => {
         return { status: 200, body: { domain: value } };
       },
     });
-    await new Promise((r) => setTimeout(r, 15));
+    // Waited on by condition, never by a fixed sleep. The whole job is 60ms of
+    // work, so a loaded runner that stalls this test between two turns would
+    // otherwise cancel a job that had already started every row — the same
+    // shape of flake that failed the v3.1.0 release gate.
+    for (let i = 0; i < 400 && started.length === 0; i++) await new Promise((r) => setTimeout(r, 5));
     cancelJob(job.id);
-    await new Promise((r) => setTimeout(r, 60));
-    // The rows already in flight finished; the rest were never started.
+    // Let the row already in flight finish, so nothing is still writing to the
+    // job after this test has ended.
+    const inFlight = started.length;
+    for (let i = 0; i < 400 && getJob(job.id)!.done < inFlight; i++) await new Promise((r) => setTimeout(r, 5));
+    // The rows already in flight finish; the rest are never started.
     expect(started.length).toBeLessThan(6);
     expect(getJob(job.id)!.state).toBe("cancelled");
   });

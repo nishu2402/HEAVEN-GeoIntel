@@ -57,6 +57,30 @@ const sites = Array.isArray(data.sites) ? data.sites : [];
 const str = (v) => (typeof v === "string" ? v : "");
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
+// ── Local corrections, applied on top of the upstream data ───────────────────
+//
+// WhatsMyName is the source, and it is a volunteer catalog: an entry can outlive
+// the host it points at. A dead entry is worse than a missing one — the deep
+// sweep spends a probe on it, the analyst is handed a link that goes nowhere,
+// and link-health.yml files a rot issue about it every Monday.
+//
+// So a correction made here is keyed by site name and re-applied on every
+// refresh, with what was measured and when, rather than being hand-edited into
+// the generated file where the next run would silently undo it. Each one is a
+// measurement, not an opinion: check it again before trusting it, and delete it
+// once the upstream entry is fixed.
+const OVERRIDES = {
+  // 2026-09-14: myspreadshop.de stopped resolving (NXDOMAIN, confirmed by the
+  // weekly probe's retry and again by hand). The platform itself is alive at the
+  // shop subdomain this entry already carried as its pretty URL — honey…
+  // serves a shop page, an unclaimed name serves "404 - Shop not found" — but
+  // every scripted request to it is answered 403 by the CDN while a browser
+  // loads the page. No detection contract can be honoured from a probe that is
+  // refused, so the entry keeps its (working) link and is offered for manual
+  // verification instead of being auto-classified.
+  Myspreadshop: { u: "https://{account}.myspreadshop.com", p: "", ec: null, es: "", mc: null, ms: "", skip: true },
+};
+
 const rows = sites
   .map((s) => ({
     n: str(s.name).trim(),
@@ -73,6 +97,9 @@ const rows = sites
     // shapes this tool does not send: a POST body or custom headers.
     skip: s.valid === false || Boolean(s.post_body) || Boolean(s.headers),
   }))
+  // Local corrections come before the filter: an override may be what makes an
+  // entry usable (or unusable) in the first place.
+  .map((r) => ({ ...r, ...(OVERRIDES[r.n] ?? {}) }))
   // An https check URL carrying {account} is the minimum for a safe probe.
   .filter((r) => r.n && r.u.startsWith("https://") && r.u.includes("{account}"))
   .sort((a, b) => a.c.localeCompare(b.c) || a.n.localeCompare(b.n));
