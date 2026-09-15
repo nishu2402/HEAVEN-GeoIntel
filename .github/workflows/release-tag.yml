@@ -1,0 +1,170 @@
+name: Tag the release
+
+# Why this exists: v3.2.0 was bumped, gated, committed, tagged and pushed — all
+# of it except the tag, which `git push` does not carry. release.yml triggers on
+# `push: tags: ["v*"]`, so it never ran: no run to read, no failure to fix, and
+# the Releases page still naming v3.1.0 as latest a day later. That is the worst
+# shape a release bug can take, because nothing anywhere is red.
+#
+# Two habits made it easy to miss.
+#
+#   * `git push --follow-tags`, the usual guard against exactly this, pushes
+#     ANNOTATED tags only. `git tag -f vx.y.z` creates a LIGHTWEIGHT one, so the
+#     safety net silently skips the tag it exists for. v3.1.0 and v3.2.0 are
+#     both lightweight; v3.0.0 and earlier were annotated.
+#   * `npm run release:verify` answered "Ready to publish v3.2.0", eight checks
+#     green, while reading nothing but the local repository. It could not see
+#     that the one step that actually publishes had not happened.
+#
+# So the branch push now carries the release. When main declares a version with
+# a dated CHANGELOG section and no tag on the remote, this creates the annotated
+# tag and starts release.yml against it.
+#
+# None of the guarantees move. This job decides only WHETHER to tag; release.yml
+# still re-verifies the tag against the tagged tree and still runs the full gate
+# (lint, type-check, 100% coverage, build, advisories) before anything is
+# published. Nor does it replace tagging by hand: a tag pushed the manual way
+# triggers release.yml directly, and this job finds the tag already on the
+# remote and stands down.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two pushes in quick succession must not both try to create the same tag. The
+# loser would fail on a ref that already exists, which is a red run for a
+# release that is going out perfectly well.
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag main when it declares an unreleased version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # create the tag object and its ref
+      actions: write    # start release.yml for it
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Every reason to stand down is a reason to stand down QUIETLY. Most
+      # pushes to main are not releases, and a workflow that goes yellow on
+      # every ordinary commit is one nobody reads by the third week.
+      - name: Decide whether this commit is a release
+        id: state
+        run: |
+          set -euo pipefail
+
+          # Parsed rather than imported: this runs before any dependency is
+          # installed and src/lib/version.ts is TypeScript. Deliberately the
+          # same expression release.yml uses.
+          VERSION=$(sed -n 's/.*APP_VERSION = "\([^"]*\)".*/\1/p' src/lib/version.ts | head -1)
+          PKG=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+
+          skip() { echo "::notice::$1"; echo "tag=" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          [ -n "$VERSION" ] || skip "src/lib/version.ts declares no APP_VERSION; not tagging."
+
+          # A disagreement here is already a CI failure (tests/versionSync.test.ts
+          # holds every file to APP_VERSION), so it is reported and left alone
+          # rather than failed a second time by a job that only tags.
+          [ "$VERSION" = "$PKG" ] ||
+            skip "src/lib/version.ts says ${VERSION}, package.json says ${PKG}; not tagging until they agree."
+
+          # The readiness signal. A version bump can land days before the
+          # release is written, and release.yml refuses a tag whose CHANGELOG
+          # section is undated, so tagging one early would only manufacture the
+          # red run this whole change exists to avoid.
+          grep -qE "^## \[${VERSION//./\\.}\] — [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md ||
+            skip "CHANGELOG.md has no dated '## [${VERSION}] — YYYY-MM-DD' section yet; not tagging."
+
+          # Already released, or being released by a tag someone pushed by hand.
+          # `^{}` is an annotated tag's target and a lightweight tag has only
+          # the bare ref, so both spellings have to be asked for.
+          EXISTING=$(git ls-remote origin "refs/tags/${TAG}" "refs/tags/${TAG}^{}" | head -1 | cut -f1)
+          if [ -n "$EXISTING" ]; then
+            skip "${TAG} is already on the remote (${EXISTING:0:7}); release.yml owns it from here."
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "::notice::${TAG} is not on the remote and this tree is ready to release it."
+
+      - name: Tag this commit and start the release
+        if: steps.state.outputs.tag != ''
+        uses: actions/github-script@v9
+        env:
+          TAG: ${{ steps.state.outputs.tag }}
+        with:
+          script: |
+            const tag = process.env.TAG;
+            const { owner, repo } = context.repo;
+
+            // Annotated, not lightweight: `git push --follow-tags` and
+            // `git describe` both ignore lightweight tags, and a release tag
+            // half the tooling cannot see is how this went wrong.
+            const { data: object } = await github.rest.git.createTag({
+              owner, repo, tag,
+              message: `HEAVEN-GeoIntel ${tag}`,
+              object: context.sha,
+              type: "commit",
+            });
+
+            try {
+              await github.rest.git.createRef({ owner, repo, ref: `refs/tags/${tag}`, sha: object.sha });
+            } catch (err) {
+              // 422 means the ref appeared between the check above and now:
+              // someone pushed the tag by hand while this ran. That push has
+              // already started release.yml, so this steps aside rather than
+              // opening a second run against the same tag.
+              if (err.status !== 422) throw err;
+              core.notice(`${tag} was created by another push while this ran; leaving the release to it.`);
+              return;
+            }
+
+            // A tag created with GITHUB_TOKEN raises no `push` event: GitHub
+            // suppresses that so a workflow cannot trigger itself in a loop.
+            // release.yml would therefore never see this tag, so it is asked
+            // directly. workflow_dispatch is the documented exception to the
+            // suppression, and release.yml already accepts the tag as an input
+            // for republishing by hand.
+            await github.rest.actions.createWorkflowDispatch({
+              owner, repo,
+              workflow_id: "release.yml",
+              ref: context.ref.replace(/^refs\/heads\//, ""),
+              inputs: { tag },
+            });
+
+            // Confirm the run exists rather than trusting the 204. "The API
+            // accepted it" is exactly the sort of assumption that left the last
+            // release unpublished with nothing to look at.
+            let run = null;
+            for (let i = 0; i < 6 && !run; i++) {
+              await new Promise((resolve) => setTimeout(resolve, 5000));
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                owner, repo, workflow_id: "release.yml", event: "workflow_dispatch", per_page: 5,
+              });
+              run = data.workflow_runs.find((r) => Date.parse(r.created_at) > Date.now() - 600_000);
+            }
+
+            const actions = `${context.serverUrl}/${owner}/${repo}/actions`;
+            core.summary
+              .addHeading(`${tag} tagged`, 2)
+              .addRaw(`Annotated tag <code>${tag}</code> created at <code>${context.sha.slice(0, 7)}</code> and handed to the release workflow.`)
+              .addList([
+                `Release run: ${run ? run.html_url : `${actions}/workflows/release.yml`}`,
+                "The release publishes only if the full gate passes against the tagged commit.",
+              ])
+              .write();
+
+            if (run) core.notice(`${tag} tagged; release run started: ${run.html_url}`);
+            // Not a failure. The dispatch was accepted, so the run is queued and
+            // this is latency; failing here would mark a release red for being slow.
+            else core.warning(`${tag} was tagged and release.yml was dispatched, but no run has appeared yet. Check ${actions}`);

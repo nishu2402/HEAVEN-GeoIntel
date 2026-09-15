@@ -96,6 +96,55 @@ if (tagged) {
   check(tagged === head, `${tag} is on HEAD`, `HEAD is ${head?.slice(0, 7)}, the tag is on ${tagged.slice(0, 7)}`);
 }
 
+// ── The remote ──────────────────────────────────────────────────────────────
+// Added after v3.2.0 was bumped, gated, committed, tagged and pushed, and did
+// not release. `git push` does not carry tags; release.yml triggers on the tag
+// push; so nothing ran, nothing was red, and the Releases page kept naming
+// v3.1.0 as latest. This script had answered "Ready to publish v3.2.0" with
+// eight checks green, because every one of them read the local repository.
+//
+// Not a check, deliberately: this is meant to be run BEFORE pushing, so an
+// unpushed tag is the expected state and must not fail. It decides the closing
+// message instead — what remains, in the exact commands that do it.
+const remote = (() => {
+  // One network call, capped: a pre-flight must not hang because a laptop is
+  // on a captive-portal wifi.
+  const out = (() => {
+    try {
+      return execFileSync("git", ["ls-remote", "origin", "refs/heads/main", `refs/tags/${tag}`, `refs/tags/${tag}^{}`], {
+        cwd: ROOT,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 15_000,
+      });
+    } catch {
+      return null;
+    }
+  })();
+  if (out === null) return null;
+  const refs = new Map(out.trim().split("\n").filter(Boolean).map((l) => l.split("\t").reverse()));
+  return {
+    main: refs.get("refs/heads/main") ?? null,
+    // An annotated tag's `^{}` line is the commit it points at; a lightweight
+    // tag has only the bare ref, so the fallback is not optional.
+    tag: refs.get(`refs/tags/${tag}^{}`) ?? refs.get(`refs/tags/${tag}`) ?? null,
+  };
+})();
+
+const headSha = git("rev-parse", "HEAD");
+const pushed = remote?.tag != null;
+
+if (remote === null) {
+  notes.push("could not reach origin, so whether this release is already published is unknown");
+} else if (pushed && remote.tag !== tagged) {
+  notes.push(`origin's ${tag} is on ${remote.tag.slice(0, 7)}, this one is on ${tagged?.slice(0, 7)}: git fetch --force --tags`);
+} else if (!pushed && git("cat-file", "-t", tag) === "commit") {
+  // Lightweight tags are what `git tag -f vx.y.z` produces, and they are the
+  // reason the usual guard did not help: `git push --follow-tags` carries
+  // annotated tags only, so it skips exactly the tag it was there for.
+  notes.push(`${tag} is lightweight, so \`git push --follow-tags\` will skip it: git tag -f -a ${tag} -m "HEAVEN-GeoIntel ${tag}"`);
+}
+
 // ── The dependencies ────────────────────────────────────────────────────────
 // Delegated to scripts/audit-gate.mjs rather than calling `npm audit` again,
 // so this and the release workflow cannot drift into two different policies.
@@ -144,5 +193,30 @@ for (const { ok, label, detail } of results) {
 for (const note of notes) console.log(`  · ${note}`);
 
 const failed = results.filter((r) => !r.ok).length;
-console.log(failed === 0 ? `\nReady to publish ${tag}.\n` : `\n${failed} check(s) failed. Do not publish ${tag} yet.\n`);
+
+// The last line is the one that gets read, so it says what is still undone
+// rather than congratulating a tree nobody has published. "Ready to publish"
+// was true and useless: it was printed, believed, and the release sat unpublished
+// for a day because publishing is a push, and this script never looked at one.
+if (failed > 0) {
+  console.log(`\n${failed} check(s) failed. Do not publish ${tag} yet.\n`);
+} else if (remote === null) {
+  // Every other branch below is a claim about origin. Without origin, the only
+  // honest thing to say is that the tree is ready and the release state is
+  // unknown — stating "not published" here would be the same unbacked verdict
+  // this section exists to stop printing.
+  console.log(`\nReady. Could not reach origin, so whether ${tag} is already released is unknown:\n`);
+  console.log(`    git ls-remote origin refs/tags/${tag}\n`);
+} else if (pushed) {
+  console.log(`\n${tag} is on origin. release.yml has it; the release page is whatever that run produced.\n`);
+} else if (remote !== null && remote.main !== headSha) {
+  console.log(`\nReady. Nothing is released until this is on origin:\n\n    git push origin main\n`);
+  console.log(`That push is enough: .github/workflows/release-tag.yml creates the annotated ${tag} and starts`);
+  console.log(`release.yml. To tag it by hand instead, follow the push with: git push origin ${tag}\n`);
+} else {
+  console.log(`\nReady, but ${tag} is not on origin, so nothing has been released.\n`);
+  console.log(`main is already pushed, so tag it directly:\n\n    git push origin ${tag}\n`);
+  console.log(`(An empty commit would also do it: release-tag.yml tags any push to main that declares an`);
+  console.log(`unreleased version.)\n`);
+}
 process.exit(failed === 0 ? 0 : 1);
