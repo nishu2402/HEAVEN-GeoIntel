@@ -65,8 +65,10 @@ jobs:
       matrix:
         include:
           - platform: linux/amd64
+            slug: linux-amd64
             runner: ubuntu-24.04
           - platform: linux/arm64
+            slug: linux-arm64
             runner: ubuntu-24.04-arm
     permissions:
       contents: read
@@ -120,19 +122,17 @@ jobs:
       - name: Export the digest
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-          PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/digests
           # The filename IS the payload — the publish job globs the directory
           # and needs nothing but the digests.
           touch "/tmp/digests/${DIGEST#sha256:}"
-          echo "PLATFORM_SLUG=${PLATFORM//\//-}" >> "$GITHUB_ENV"
 
       - name: Upload the digest
         uses: actions/upload-artifact@v7
         with:
-          name: digest-${{ env.PLATFORM_SLUG }}
+          name: digest-${{ matrix.slug }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
