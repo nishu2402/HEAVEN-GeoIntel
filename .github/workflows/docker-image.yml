@@ -231,7 +231,9 @@ jobs:
       # One signature over the manifest-list digest covers every architecture
       # under it.
       - name: Sign the manifest (keyless, OIDC)
-        run: cosign sign --yes "${{ steps.digest.outputs.ref }}"
+        env:
+          REF: ${{ steps.digest.outputs.ref }}
+        run: cosign sign --yes "$REF"
 
       # Attempted twice, because the failure this step has actually produced was
       # not a bad SBOM. On 2026-09-14 the action's syft download answered HTTP

@@ -4,8 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST, GET, DELETE, prepareRows } from "@/app/api/bulk-lookup/route";
-import { startJob, getJob, cancelJob, jobCsv, resetJobs, MAX_BULK_ROWS, type BulkMode } from "@/lib/server/bulkJobs";
-import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
+import {
+  startJob, getJob, cancelJob, jobCsv, resetJobs, MAX_BULK_ROWS,
+  activeJobCount, MAX_ACTIVE_JOBS, type BulkMode,
+} from "@/lib/server/bulkJobs";
+import { useRateLimit, restoreRateLimit, clientCookie, SUITE_DATA_DIR } from "./testUtils";
 
 // Bulk is a QUEUED JOB now: the route classifies rows, starts a job and returns
 // its id; progress is polled. Every row runs the real lookup handler, so the
@@ -20,7 +23,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   delete process.env.TRUST_PROXY;
 });
 afterEach(() => { resetJobs(); });
@@ -147,6 +150,35 @@ describe("the job runner", () => {
     expect(csv.split("\n\n")).toHaveLength(2); // one block per mode
   });
 
+  it("neutralises a formula the target's own server wrote", async () => {
+    // A cell starting with = + - @ or a tab/CR is EXECUTED by Excel,
+    // LibreOffice and Sheets. `summary` carries page titles and WHOIS org
+    // names, so this text comes from the subject of the investigation. The
+    // other two CSV builders already guarded it; this one — the copy a script
+    // gets from ?format=csv — did not.
+    const job = startJob({
+      rows: [{ mode: "domain", value: "evil.test" }],
+      runner: async () => ({
+        status: 200,
+        body: {
+          // Every one of these is a registrar/DNS string the subject controls.
+          domain: "evil.test",
+          whois: { registrar: "=cmd|'/c calc'!A1", createdDate: "-2026" },
+          emailSecurity: { dmarcPolicy: "@SUM(1+1)" },
+          http: { security: { grade: "+A" } },
+        },
+      }),
+    });
+    const csv = jobCsv(await settle(job.id));
+    for (const cell of ["'=cmd", "'-2026", "'@SUM(1+1)", "'+A"]) {
+      expect(csv).toContain(cell);
+    }
+    // The quote is the only thing added: the value itself is still all there.
+    expect(csv).toContain("calc");
+    // And an ordinary value is untouched.
+    expect(csv).toContain("evil.test");
+  });
+
   it("serves progress and CSV over GET, and 404s an unknown id", async () => {
     const job = startJob({ rows: [{ mode: "domain", value: "a.test" }], runner: fakeRunner });
     await settle(job.id);
@@ -212,5 +244,51 @@ describe("POST /api/bulk-lookup: rate limiting", () => {
     } finally {
       restoreRateLimit();
     }
+  });
+});
+
+// ── Admission control ───────────────────────────────────────────────────────
+// MAX_BULK_ROWS bounds one job and `width` bounds the rows in flight inside it,
+// but nothing bounded the NUMBER of jobs: the rate limiter allows 60 requests a
+// minute and each of those requests could commit the process to 500 rows of
+// twelve-upstream fan-out. Starting a job is cheap; running one is not.
+describe("POST /api/bulk-lookup: concurrent job ceiling", () => {
+  /** A job that stays running until the test cancels it. */
+  const parkedJob = () =>
+    startJob({
+      rows: Array.from({ length: 50 }, (_, i) => ({ mode: "domain" as const, value: `p${i}.test` })),
+      runner: async () => {
+        await new Promise((r) => setTimeout(r, 2000));
+        return { status: 200, body: {} };
+      },
+      concurrency: 1,
+    });
+
+  it("429s a new job once MAX_ACTIVE_JOBS are already running", async () => {
+    const parked = Array.from({ length: MAX_ACTIVE_JOBS }, parkedJob);
+    expect(activeJobCount()).toBe(MAX_ACTIVE_JOBS);
+
+    const res = await post({ items: ["example.com"], mode: "domain" });
+    expect(res.status).toBe(429);
+    const json = await res.json();
+    expect(json.error).toMatch(/Too many bulk jobs/);
+    expect(json.activeJobs).toBe(MAX_ACTIVE_JOBS);
+    expect(res.headers.get("Retry-After")).toBe("30");
+
+    // Freeing a slot admits the next job, so the ceiling throttles rather than
+    // permanently closing the endpoint.
+    cancelJob(parked[0].id);
+    expect(activeJobCount()).toBe(MAX_ACTIVE_JOBS - 1);
+    expect((await post({ items: ["example.com"], mode: "domain" })).status).toBe(200);
+
+    for (const j of parked) cancelJob(j.id);
+  });
+
+  it("does not count finished or cancelled jobs against the ceiling", async () => {
+    const job = startJob({ rows: [{ mode: "domain", value: "a.test" }], runner: async () => ({ status: 200, body: {} }) });
+    for (let i = 0; i < 200 && getJob(job.id)?.state === "running"; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(activeJobCount()).toBe(0);
   });
 });

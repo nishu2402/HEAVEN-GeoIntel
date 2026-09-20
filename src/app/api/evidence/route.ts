@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { guardRateLimit } from "@/lib/server/rateLimit";
 import { audit } from "@/lib/server/auditLog";
 import { parseBody, evidenceBody } from "@/lib/server/validation";
+import { LARGE_MAX_BODY_BYTES } from "@/lib/server/bodyLimits";
 import { CASE_TOKEN_COOKIE, casePassword, verifyToken } from "@/lib/server/caseLock";
 import { captureEvidence, listEvidence, readEvidence, verifyCase } from "@/lib/server/evidenceStore";
 
@@ -73,8 +74,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const denied = guardLock(req);
   if (denied) return denied;
 
-  const parsed = await parseBody(req, evidenceBody);
-  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rl.headers });
+  // The locker stores an artifact of up to MAX_EVIDENCE_BYTES, so this route
+  // reads past the default ceiling — see bodyLimits.ts.
+  const parsed = await parseBody(req, evidenceBody, LARGE_MAX_BODY_BYTES);
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: parsed.status ?? 400, headers: rl.headers });
   const body = parsed.data;
 
   if (body.action === "verify") {

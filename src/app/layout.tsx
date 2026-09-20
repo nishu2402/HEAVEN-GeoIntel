@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://heaven-geointel.example"),
   title: "HEAVEN-GeoIntel: Unified OSINT Platform",
   description:
-    "Defensive OSINT for phone, email, username, IP, and domain: carrier & breach data, infostealer infections (Hudson Rock), username enumeration across 45+ sites, IP geolocation/ASN, DNS/WHOIS/subdomains, link-analysis graph, persistent cases. Offline-first. No tracking.",
+    "Defensive OSINT for phone, email, username, IP, and domain: carrier & breach data, infostealer infections (Hudson Rock), username enumeration with a 600+ site deep sweep, IP geolocation/ASN, DNS/WHOIS/subdomains, link-analysis graph, persistent cases. Offline-first. No tracking.",
   applicationName: "HEAVEN-GeoIntel",
   keywords: [
     "phone OSINT",

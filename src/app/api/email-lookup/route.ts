@@ -553,7 +553,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   await ensureDatasets();
 
   const parsed = await parseBody(req, emailBody);
-  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: parsed.status ?? 400, headers: rlHeaders });
   const body = parsed.data;
 
   const raw = body.email.trim();

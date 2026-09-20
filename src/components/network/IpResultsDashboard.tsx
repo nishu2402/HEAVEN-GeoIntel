@@ -3,10 +3,11 @@
 import { motion } from "framer-motion";
 import {
   MapPin, Shield, AlertTriangle, ExternalLink, Activity, Network,
-  Server, Bug, CheckCircle2, XCircle, Globe,
+  Server, Bug, CheckCircle2, XCircle, CircleSlash, MinusCircle, Globe,
 } from "lucide-react";
 import type { IpLookupResponse } from "@/lib/types";
 import { ipToDomainPivot } from "@/lib/analysis/crossPivots";
+import { sourceState } from "@/lib/analysis/report";
 import Tilt3D from "@/components/shared/Tilt3D";
 import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
@@ -64,6 +65,15 @@ function Flag({ on, label }: { on: boolean | null; label: string }) {
     </span>
   );
 }
+
+// How each provenance state reads in the strip. Only a source that was asked
+// and failed is red.
+const SOURCE_LOOK: Record<ReturnType<typeof sourceState>, { color: string; Icon: typeof CheckCircle2 }> = {
+  answered:          { color: "#00ff85", Icon: CheckCircle2 },
+  failed:            { color: "#ff4d6d", Icon: XCircle },
+  "not configured":  { color: "#8892a6", Icon: CircleSlash },
+  "not applicable":  { color: "#8892a6", Icon: MinusCircle },
+};
 
 export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
   if (!data.ip) {
@@ -273,14 +283,24 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
       {data.sources && data.sources.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono text-[var(--hv-ink-dim)] px-1">
           <span className="uppercase tracking-widest">Sources:</span>
-          {data.sources.map((s) => (
-            <span key={s.source} title={s.error || "ok"}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border"
-              style={{ borderColor: (s.ok ? "#00ff85" : "#ff4d6d") + "40", color: s.ok ? "#00ff85" : "#ff4d6d" }}>
-              {s.ok ? <CheckCircle2 className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
-              {s.source} · {s.ms}ms{s.ok ? "" : ` · ${s.error}`}
-            </span>
-          ))}
+          {data.sources.map((s) => {
+            // A source that was never called is not an outage, and must not read
+            // as one: GreyNoise is IPv4-only, so an IPv6 lookup leaves it with
+            // nothing to answer. Same four states the written report uses.
+            const state = sourceState(s);
+            const look = SOURCE_LOOK[state];
+            const Icon = look.Icon;
+            // A failure that carries no reason still has to say something.
+            const detail = state === "failed" ? s.error ?? "unreachable" : state;
+            return (
+              <span key={s.source} title={detail}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border"
+                style={{ borderColor: look.color + "40", color: look.color }}>
+                <Icon className="w-2.5 h-2.5" />
+                {s.source} · {state === "answered" ? `${s.ms}ms` : detail}
+              </span>
+            );
+          })}
         </div>
       )}
     </motion.div>

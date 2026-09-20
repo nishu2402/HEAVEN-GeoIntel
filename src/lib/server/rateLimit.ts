@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { rateLimitConfig } from "./config";
 
 const CLEANUP_INTERVAL_MS = 5 * 60_000; // clean stale buckets every 5 min
@@ -213,9 +213,23 @@ export function internalHeaders(): Record<string, string> {
   return { [INTERNAL_HEADER]: internalToken };
 }
 
+const internalTokenBytes = Buffer.from(internalToken, "utf8");
+
 function isInternal(req: NextRequest): boolean {
   const sent = req.headers.get(INTERNAL_HEADER);
-  return typeof sent === "string" && sent === internalToken;
+  if (typeof sent !== "string") return false;
+  // Compared the way caseLock compares its token. `===` on strings exits at the
+  // first differing byte, which is a timing oracle on a secret that grants the
+  // rate-limit bypass. Guessing a v4 UUID over a throttled endpoint is not a
+  // practical attack; matching the rest of the codebase costs one line.
+  //
+  // The byte lengths are compared first because `timingSafeEqual` THROWS on a
+  // mismatch, and a multi-byte header would otherwise turn a wrong guess into a
+  // 500. Leaking "your header was the wrong length" is not a secret worth
+  // keeping — the token's length is a constant.
+  const sentBytes = Buffer.from(sent, "utf8");
+  return sentBytes.length === internalTokenBytes.length
+    && timingSafeEqual(sentBytes, internalTokenBytes);
 }
 
 export function guardRateLimit(

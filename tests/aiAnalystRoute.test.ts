@@ -5,11 +5,11 @@ import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { GET, POST } from "@/app/api/ai-analyst/route";
 import { readAudit, clearAudit } from "@/lib/server/auditLog";
-import { restoreRateLimit, resetServerState, useRateLimit, clientCookie } from "./testUtils";
+import { restoreRateLimit, resetServerState, useRateLimit, clientCookie, SUITE_DATA_DIR } from "./testUtils";
 
 let dir: string;
 beforeAll(() => { dir = mkdtempSync(join(tmpdir(), "hv-analyst-")); process.env.HV_DATA_DIR = dir; });
-afterAll(() => { rmSync(dir, { recursive: true, force: true }); delete process.env.HV_DATA_DIR; });
+afterAll(() => { rmSync(dir, { recursive: true, force: true }); process.env.HV_DATA_DIR = SUITE_DATA_DIR; });
 afterEach(() => { vi.unstubAllGlobals(); restoreRateLimit(); resetServerState(); delete process.env.OPENAI_API_KEY; });
 
 const jsonResp = (status: number, data: unknown) =>
@@ -115,10 +115,19 @@ describe("POST /api/ai-analyst", () => {
 describe("audit trail", () => {
   // The log is written fire-and-forget, so wait for the entry rather than
   // racing it.
-  const lastEntry = async () => {
+  //
+  // `since` is what keeps these tests independent of the block above, which
+  // posts a dozen times and never waits for any of those writes to land. One
+  // of them finishing after this block's `clearAudit` would otherwise be read
+  // here as this test's own entry, carrying that test's status instead. The
+  // timestamp is stamped when the entry is BUILT, so a write delayed past the
+  // clear still carries its original, older `ts` and is filtered out.
+  const lastEntry = async (since: number) => {
     for (let i = 0; i < 50; i++) {
       const entries = await readAudit();
-      const hit = entries.filter((e) => e.kind === "ai-analyst").pop();
+      const hit = entries
+        .filter((e) => e.kind === "ai-analyst" && Date.parse(e.ts) >= since)
+        .pop();
       if (hit) return hit;
       await new Promise((r) => setTimeout(r, 10));
     }
@@ -129,28 +138,32 @@ describe("audit trail", () => {
 
   it("records the provider and a 200 for a run that succeeded", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResp(200, { message: { content: "ok" } })));
+    const since = Date.now();
     await post(validBody);
-    expect(await lastEntry()).toMatchObject({ kind: "ai-analyst", status: 200 });
+    expect(await lastEntry(since)).toMatchObject({ kind: "ai-analyst", status: 200 });
   });
 
   // It used to log 200 before the run even started, so every failure was
   // recorded as a success. An audit log that lies is worse than none.
   it("records the status the run actually returned, not an optimistic 200", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("down"); }));
+    const since = Date.now();
     await post(validBody);
-    expect(await lastEntry()).toMatchObject({ status: 502 });
+    expect(await lastEntry(since)).toMatchObject({ status: 502 });
   });
 
   it("records a 400 for a key the provider rejected", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResp(401, {})));
+    const since = Date.now();
     await post({ provider: "openai", model: "m", system: "S", user: "U", apiKey: "bad" });
-    expect(await lastEntry()).toMatchObject({ status: 400 });
+    expect(await lastEntry(since)).toMatchObject({ status: 400 });
   });
 
   it("never writes the prompt or the key into the log", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResp(200, { choices: [{ message: { content: "ok" } }] })));
+    const since = Date.now();
     await post({ provider: "openai", model: "m", system: "SECRET-SYSTEM", user: "SECRET-USER", apiKey: "sk-secret" });
-    const entry = await lastEntry();
+    const entry = await lastEntry(since);
     const raw = JSON.stringify(entry);
     expect(raw).not.toMatch(/SECRET-SYSTEM|SECRET-USER|sk-secret/);
     // The prompt names the subject and the key is the operator's credential, so

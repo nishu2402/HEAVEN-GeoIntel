@@ -477,8 +477,13 @@ export function providerRequest(
     // MAX_TOKENS) or, on a longer bundle, with no text at all. thinkingLevel
     // would cap the reasoning directly but is rejected outright by models that
     // do not think, which the custom-model field lets an operator pick.
+    //
+    // The model is the one part of the path the caller chooses, so it is
+    // encoded: raw, "../../x?y=" walked the request (and the key header with it)
+    // to any other path on Google's API. A pasted "models/" prefix is dropped,
+    // since the path already has one.
     return {
-      url: `${base}/models/${model}:generateContent`,
+      url: `${base}/models/${encodeURIComponent(model.replace(/^models\//, ""))}:generateContent`,
       init: {
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": apiKey },

@@ -11,7 +11,7 @@ import { POST as usernamePOST } from "@/app/api/username-lookup/route";
 import { POST as casesPOST } from "@/app/api/cases/route";
 import { POST as bulkPOST } from "@/app/api/bulk-lookup/route";
 import { cancelJob } from "@/lib/server/bulkJobs";
-import { useRateLimit, restoreRateLimit, clientCookie, resetServerState } from "./testUtils";
+import { useRateLimit, restoreRateLimit, clientCookie, resetServerState, SUITE_DATA_DIR } from "./testUtils";
 
 // Sparse-payload pass: what happens when an upstream answers 200 but omits the
 // optional fields. Real APIs do this constantly (free tiers, partial records),
@@ -27,7 +27,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 afterEach(() => {
   resetServerState();

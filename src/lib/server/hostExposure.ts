@@ -65,23 +65,31 @@ export function hasExposure(e: HostExposure): boolean {
  *
  * GreyNoise answers 404 for an address it has never observed, which is a real
  * answer ("not seen scanning") rather than a failure — so 404 counts as ok.
+ *
+ * GreyNoise's community endpoint only knows IPv4. Asked about an IPv6 address
+ * it answers 400 "Request is not a valid routable IPv4 address", which every
+ * IPv6 lookup reported as a failed source. It is not asked at all now, and the
+ * row says it had nothing to answer, which is the truth.
  */
 export async function fetchHostExposure(
   ip: string,
   timeoutMs = 6000,
 ): Promise<{ exposure: HostExposure; provenance: SourceProvenance[] }> {
   const enc = encodeURIComponent(ip);
+  const v6 = ip.includes(":");
   const [shodan, gn] = await Promise.all([
     fetchBudgeted<ShodanIDB>(`https://internetdb.shodan.io/${enc}`, {
       source: SHODAN_SOURCE, timeoutMs, allowNon2xx: true,
     }),
-    fetchBudgeted<GreyNoiseCommunity>(`https://api.greynoise.io/v3/community/${enc}`, {
-      source: GREYNOISE_SOURCE, timeoutMs, allowNon2xx: true,
-    }),
+    v6
+      ? null
+      : fetchBudgeted<GreyNoiseCommunity>(`https://api.greynoise.io/v3/community/${enc}`, {
+          source: GREYNOISE_SOURCE, timeoutMs, allowNon2xx: true,
+        }),
   ]);
 
   const shodanOk = shodan.status === 200;
-  const gnOk = gn.status === 200 || gn.status === 404;
+  const gnOk = gn !== null && (gn.status === 200 || gn.status === 404);
   const exposure: HostExposure = { ...EMPTY_EXPOSURE };
 
   if (shodanOk && shodan.data) {
@@ -96,7 +104,7 @@ export async function fetchHostExposure(
     if (tags.includes("proxy")) exposure.isProxy = true;
   }
 
-  if (gnOk && gn.data && gn.data.classification) {
+  if (gn && gnOk && gn.data?.classification) {
     exposure.greyNoise = {
       classification: gn.data.classification,
       noise: Boolean(gn.data.noise),
@@ -110,7 +118,9 @@ export async function fetchHostExposure(
     exposure,
     provenance: [
       { source: shodan.source, ok: shodanOk, ms: shodan.ms, fetchedAt: shodan.fetchedAt, error: shodanOk ? undefined : shodan.error },
-      { source: gn.source, ok: gnOk, ms: gn.ms, fetchedAt: gn.fetchedAt, error: gnOk ? undefined : gn.error },
+      gn === null
+        ? { source: GREYNOISE_SOURCE, ok: false, ms: 0, fetchedAt: Date.now(), skipped: true, error: "NO_INPUT" }
+        : { source: gn.source, ok: gnOk, ms: gn.ms, fetchedAt: gn.fetchedAt, error: gnOk ? undefined : gn.error },
     ],
   };
 }

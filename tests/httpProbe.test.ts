@@ -42,7 +42,8 @@ vi.mock("node:tls", () => ({
   },
 }));
 
-const { probeHttp, probeTls, isProbeTarget } = await import("@/lib/server/httpProbe");
+const { probeHttp, probeTls, isProbeTarget, resolvesPublic, followRedirects, readPrefix } = await import("@/lib/server/httpProbe");
+const { lookup } = await import("node:dns/promises");
 
 const PUBLIC_IP = "93.184.216.34";
 
@@ -61,7 +62,40 @@ function res(init: {
 }
 
 beforeEach(() => { scenario = { mode: "ok", cert: {} }; });
-afterEach(() => { vi.restoreAllMocks(); });
+// mockReset puts back the setup file's default answer (one public address).
+afterEach(() => { vi.restoreAllMocks(); vi.mocked(lookup).mockReset(); });
+
+describe("resolvesPublic", () => {
+  const answer = (...ips: string[]) =>
+    vi.mocked(lookup).mockResolvedValueOnce(ips.map((address) => ({ address, family: address.includes(":") ? 6 : 4 })) as never);
+
+  it("accepts a name whose every address is public, v4 and v6", async () => {
+    answer(PUBLIC_IP, "2606:4700::1");
+    expect(await resolvesPublic("example.com")).toBe(true);
+  });
+
+  it("refuses a name that resolves inward, or partly inward", async () => {
+    answer("169.254.169.254");
+    expect(await resolvesPublic("instance-data")).toBe(false);
+    answer(PUBLIC_IP, "10.0.0.5");
+    expect(await resolvesPublic("split.example.com")).toBe(false);
+  });
+
+  it("refuses a name that does not resolve at all", async () => {
+    vi.mocked(lookup).mockRejectedValueOnce(Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" }));
+    expect(await resolvesPublic("nothing.invalid")).toBe(false);
+  });
+
+  it("decides a literal or a localhost alias without asking DNS", async () => {
+    vi.mocked(lookup).mockClear();
+    expect(await resolvesPublic("[2606:4700::1]")).toBe(true);
+    expect(await resolvesPublic(PUBLIC_IP)).toBe(true);
+    expect(await resolvesPublic("127.0.0.1")).toBe(false);
+    expect(await resolvesPublic("[::1]")).toBe(false);
+    expect(await resolvesPublic("db.localhost")).toBe(false);
+    expect(lookup).not.toHaveBeenCalled();
+  });
+});
 
 describe("isProbeTarget", () => {
   it("refuses an empty address list: nothing resolved is nothing to probe", () => {
@@ -251,6 +285,54 @@ describe("probeHttp", () => {
     expect(await probeHttp("example.com", [PUBLIC_IP])).toBeNull();
     // The internal target is never actually requested.
     expect(spy.mock.calls.every(([u]) => String(u) !== target)).toBe(true);
+  });
+
+  it("refuses a redirect to a NAME that resolves inward: the EC2 metadata alias", async () => {
+    // `instance-data` passes a spelling check (not a literal, not localhost)
+    // and resolves to 169.254.169.254 inside EC2.
+    vi.mocked(lookup).mockImplementation(async (host) =>
+      [{ address: host === "instance-data" ? "169.254.169.254" : PUBLIC_IP, family: 4 }] as never);
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const u = new URL(String(input));
+      if (u.protocol === "http:") return res({ status: 200 });
+      return res({ status: 302, headers: { location: "http://instance-data/latest/meta-data/iam/" } });
+    });
+    expect(await probeHttp("example.com", [PUBLIC_IP])).toBeNull();
+    expect(spy.mock.calls.every(([u]) => !String(u).includes("instance-data"))).toBe(true);
+  });
+
+  it("refuses a redirect to a non-http scheme instead of 'fetching' it", async () => {
+    // Node's fetch answers a data: URL itself, so the probe would have reported
+    // a page the target never served.
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) =>
+      String(input).startsWith("http://")
+        ? res({ status: 200 })
+        : res({ status: 302, headers: { location: "data:text/html,<title>forged</title>" } }));
+    expect(await probeHttp("example.com", [PUBLIC_IP])).toBeNull();
+    expect(spy.mock.calls.every(([u]) => !String(u).startsWith("data:"))).toBe(true);
+  });
+
+  it("refuses a domain this machine resolves inward, whatever DoH said", async () => {
+    // Public over DoH, 127.0.0.1 on the resolver fetch will actually use: a
+    // hosts-file entry, split-horizon DNS, or a rebinding name.
+    vi.mocked(lookup).mockResolvedValueOnce([{ address: "127.0.0.1", family: 4 }] as never);
+    const spy = vi.spyOn(globalThis, "fetch");
+    expect(await probeHttp("example.com", [PUBLIC_IP])).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("gives up on a Location that is not a URL, and on a start URL that is not one", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => res({ status: 302, headers: { location: "http://[::1" } }));
+    expect(await followRedirects("https://example.com/")).toBeNull();
+    expect(await followRedirects("not a url")).toBeNull();
+  });
+
+  it("reads a duck-typed response that has no headers and no stream", async () => {
+    const bare = { status: 200, text: async () => "<title>ok</title>" } as unknown as Response;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => bare);
+    const walked = (await followRedirects("https://example.com/"))!;
+    expect(walked.res).toBe(bare);
+    expect(await readPrefix(walked.res, 5)).toBe("<titl");
   });
 
   it("gives up after the redirect ceiling instead of looping", async () => {

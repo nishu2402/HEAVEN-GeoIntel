@@ -9,6 +9,7 @@ import { mapLimit, hostKey } from "@/lib/server/concurrency";
 import { fanoutConcurrency } from "@/lib/server/config";
 import { markAll } from "@/lib/server/sourceHealth";
 import { USER_AGENT } from "@/lib/version";
+import { followRedirects, readPrefix } from "@/lib/server/httpProbe";
 import type { SweepHit, UsernameSweepResponse } from "@/lib/types";
 
 // ── Deep username sweep ──────────────────────────────────────────────────────
@@ -88,20 +89,23 @@ async function probeSite(site: ExtendedSite, username: string): Promise<SweepHit
   };
 
   try {
-    const res = await fetch(probeUrl, {
-      method: "GET",
+    // Hand-followed and vetted per hop, not `redirect: "follow"`: a catalog of
+    // hundreds of third-party sites includes domains that lapse and are bought
+    // by someone else, and one pointed (or redirected) at 127.0.0.1 or the cloud
+    // metadata address would otherwise get this request.
+    const walked = await followRedirects(probeUrl, {
+      timeoutMs: PROBE_TIMEOUT_MS,
       headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml,application/json" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-      next: { revalidate: 0 },
     });
+    if (!walked) return base; // refused, unreachable or looping → unknown, never a claim
+    const { res } = walked;
     // Always read the body: `hasContract` only admits sites that carry an
     // `e_string` or `m_string`, so every site reaching here is classified on
-    // body text as well as status.
-    const body = (await res.text()).slice(0, BODY_LIMIT);
+    // body text as well as status. Read up to the limit, never all of it.
+    const body = await readPrefix(res, BODY_LIMIT);
     return { ...base, status: classifyWmn(site, res.status, body), httpStatus: res.status };
   } catch {
-    return base; // timeout / network → unknown, never a claim
+    return base; // the body died midway → unknown, never a claim
   }
 }
 
@@ -112,7 +116,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const parsed = await parseBody(req, sweepBody);
-  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: parsed.status ?? 400, headers: rlHeaders });
 
   const username = parsed.data.username.trim().replace(/^@/, "");
   if (!isPlausibleUsername(username)) {

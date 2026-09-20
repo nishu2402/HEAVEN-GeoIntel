@@ -98,7 +98,7 @@ export const ENDPOINTS: EndpointDef[] = [
     method: "post",
     summary: "Username sweep across social platforms",
     description:
-      "Probes the username catalog server-side and returns a per-site verdict. Sites that answer HTTP 200 for every handle are reported as `manual` and NEVER auto-claimed, so a nonexistent handle yields zero false positives. Four platforms with public JSON APIs additionally return a rich profile.",
+      "Probes the username catalog server-side and returns a per-site verdict. Sites that answer HTTP 200 for every handle are reported as `manual` and NEVER auto-claimed, so a nonexistent handle yields zero false positives. Nine platforms with keyless public JSON APIs additionally return a rich profile: GitHub, GitLab, Codeberg, Hacker News, Reddit, Bluesky, Mastodon, Chess.com and Lichess.",
     tag: "lookup",
     rateLimited: true,
     body: [

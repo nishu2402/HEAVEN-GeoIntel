@@ -10,7 +10,7 @@ import { parseBtcActivity } from "@/lib/analysis/walletActivity";
 import { generateTyposquats } from "@/lib/analysis/typosquat";
 import { fetchPassiveDns } from "@/lib/server/passiveDns";
 import { fetchLei } from "@/lib/server/gleif";
-import { restoreRateLimit, resetServerState, useRateLimit, clientCookie } from "./testUtils";
+import { restoreRateLimit, resetServerState, useRateLimit, clientCookie, SUITE_DATA_DIR } from "./testUtils";
 import type { DomainLookupResponse, EmailLookupResponse, LookupResponse, UsernameLookupResponse } from "@/lib/types";
 
 let dir: string;
@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   vi.unstubAllGlobals();
   restoreRateLimit();
   resetServerState();

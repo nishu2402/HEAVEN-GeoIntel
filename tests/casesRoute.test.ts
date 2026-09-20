@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { GET, POST, DELETE } from "@/app/api/cases/route";
 import { deleteAllCases } from "@/lib/server/caseStore";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Drives the cases HTTP layer (action dispatch + status codes) against a
 // hermetic HV_DATA_DIR. The underlying caseStore is unit-tested separately;
@@ -17,7 +18,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 beforeEach(async () => { await deleteAllCases(); });
 
@@ -107,6 +108,15 @@ describe("POST /api/cases: validation + error mapping", () => {
     const res = await POST(req("{ broken"));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Invalid JSON body");
+  });
+
+  it("413 on a body past the ceiling, counted on the bytes", async () => {
+    // A chunked request carries no Content-Length, so the proxy's check cannot
+    // see it and this is the gate that holds. The ceiling here is the larger
+    // one, because `import` carries a whole exported case. See bodyLimits.ts.
+    const res = await POST(req({ action: "import", case: { notes: "x".repeat(5 * 1024 * 1024) } }));
+    expect(res.status).toBe(413);
+    expect((await res.json()).error).toBe("Request body too large");
   });
 
   it("400 on an unknown action", async () => {

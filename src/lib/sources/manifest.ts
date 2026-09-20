@@ -192,10 +192,10 @@ export const SOURCES: SourceDef[] = [
   },
   {
     id: "usernameProfiles",
-    name: "GitHub · GitLab · Hacker News · Reddit · Bluesky APIs",
+    name: "Nine keyless profile APIs",
     tier: "free",
     modes: ["username"],
-    unlocks: "Rich verified profiles: real name · join date · karma · repos",
+    unlocks: "Rich verified profiles from GitHub · GitLab · Codeberg · Hacker News · Reddit · Bluesky · Mastodon · Chess.com · Lichess: real name · join date · karma · repos",
   },
   {
     id: "Mnemonic PDNS",

@@ -10,7 +10,7 @@ import { parseBody } from "@/lib/server/validation";
 import { fetchPassiveDns } from "@/lib/server/passiveDns";
 import { startJob, getJob, jobCsv, resetJobs } from "@/lib/server/bulkJobs";
 import { buildPhoneReport, buildDomainReport } from "@/lib/analysis/report";
-import { restoreRateLimit, resetServerState } from "./testUtils";
+import { restoreRateLimit, resetServerState, SUITE_DATA_DIR } from "./testUtils";
 import type { DomainLookupResponse, LookupResponse } from "@/lib/types";
 
 // The certificate half of the legal-entity lookup needs a TLS probe result, and
@@ -41,7 +41,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   vi.unstubAllGlobals();
   restoreRateLimit();
   resetServerState();

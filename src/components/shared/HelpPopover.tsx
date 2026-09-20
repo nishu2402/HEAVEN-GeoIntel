@@ -15,8 +15,11 @@ const MODE_HELP: [string, string][] = [
   ["🌐 Domain", "DNS · WHOIS · SPF/DMARC · subdomains · HTTP headers · TLS cert"],
   ["🪙 Wallet", "BTC/ETH balance · activity · forward-verified ENS · explorer pivots"],
   ["# Hash", "File-hash known-software reputation (NSRL) · verdict-engine pivots"],
-  ["📷 Image", "EXIF/GPS parsed in-browser (never uploaded) · reverse-image pivots"],
-  ["≡ Bulk", "Triage up to 25 phone numbers → CSV export"],
+  // Glyph and name track the `file` entry in MODES; this list is written out
+  // rather than derived from it because each row also carries its own summary.
+  // tests/sharedComponents.test.tsx holds every row's glyph and name to MODES.
+  ["📄 File", "Metadata for any file, parsed in-browser (never uploaded) · EXIF/GPS · reverse-image pivots"],
+  ["≡ Bulk", "Up to 500 mixed identifiers as a cancellable job → CSV export"],
   ["🕸 Graph", "Link-analysis graph of every identifier this session"],
   ["🗂 Cases", "Save identifiers + notes across sessions"],
 ];

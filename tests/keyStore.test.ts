@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setKey, clearKey, clearAllKeys, resolveKey, configuredMap, KEY_NAMES } from "@/lib/server/keyStore";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Write-path tests run against a hermetic temp dir (never the real .data) via the
 // HV_DATA_DIR override; the reject-path tests below return before any file I/O.
@@ -14,7 +15,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 
 describe("keyStore allow-list", () => {

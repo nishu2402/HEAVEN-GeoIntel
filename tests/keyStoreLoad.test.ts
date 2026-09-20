@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // keyStore caches on first load(), so the "read an existing keys.json" path can't
 // be exercised in the main keyStore test (its first call writes/clears the cache).
@@ -15,7 +16,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 
 describe("keyStore load (existing file)", () => {

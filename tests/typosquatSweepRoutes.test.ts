@@ -5,7 +5,8 @@ import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST as typosquatPOST, ageInDays } from "@/app/api/typosquat-scan/route";
 import { POST as sweepPOST, sweepSites } from "@/app/api/username-sweep/route";
-import { restoreRateLimit, resetServerState } from "./testUtils";
+import { restoreRateLimit, resetServerState, SUITE_DATA_DIR } from "./testUtils";
+import { lookup } from "node:dns/promises";
 
 // The two on-demand endpoints: resolving generated look-alikes, and the deep
 // username sweep. Both are explicitly started by the analyst because both are
@@ -18,9 +19,10 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
-afterEach(() => { vi.unstubAllGlobals(); restoreRateLimit(); resetServerState(); });
+// mockReset puts back the setup file's default DNS answer (one public address).
+afterEach(() => { vi.unstubAllGlobals(); restoreRateLimit(); resetServerState(); vi.mocked(lookup).mockReset(); });
 
 const post = (h: (r: NextRequest) => Promise<Response>, url: string, body: unknown) =>
   h(new Request(url, {
@@ -145,6 +147,37 @@ describe("POST /api/username-sweep", () => {
     expect(json.found).toBe(0);
     expect(json.sourceHealth[0].ok).toBe(false);
     expect(json.sourceHealth[0].error).toMatch(/no site returned a classifiable answer/);
+  });
+
+  it("never probes a catalog site whose name resolves inward", async () => {
+    // Hundreds of third-party domains: one that lapses and is re-registered
+    // pointing at 127.0.0.1 must not receive this request.
+    vi.mocked(lookup).mockImplementation(async () => [{ address: "127.0.0.1", family: 4 }] as never);
+    const spy = vi.fn(async () => ({ ok: true, status: 200, headers: new Headers(), text: async () => "x" }) as unknown as Response);
+    vi.stubGlobal("fetch", spy);
+    const json = await (await post(sweepPOST, "http://localhost/api/username-sweep", { username: "torvalds", limit: 3 })).json();
+    expect(json.hits.map((h: { status: string }) => h.status)).toEqual(["unknown", "unknown", "unknown"]);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("does not follow a site's redirect into the metadata service", async () => {
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (u: string | URL) => {
+      seen.push(String(u));
+      return { ok: false, status: 302, headers: new Headers({ location: "http://169.254.169.254/latest/meta-data/" }), text: async () => "" } as unknown as Response;
+    }));
+    const json = await (await post(sweepPOST, "http://localhost/api/username-sweep", { username: "torvalds", limit: 2 })).json();
+    expect(json.hits.every((h: { status: string }) => h.status === "unknown")).toBe(true);
+    expect(seen).toHaveLength(2);
+    expect(seen.some((u) => u.includes("169.254.169.254"))).toBe(false);
+  });
+
+  it("records a body that dies midway as unknown", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true, status: 200, headers: new Headers(), text: async () => { throw new TypeError("terminated"); },
+    }) as unknown as Response));
+    const json = await (await post(sweepPOST, "http://localhost/api/username-sweep", { username: "torvalds", limit: 2 })).json();
+    expect(json.hits.every((h: { status: string; httpStatus?: number }) => h.status === "unknown" && h.httpStatus === undefined)).toBe(true);
   });
 
   it("records an unreachable site as unknown, never as a claim", async () => {

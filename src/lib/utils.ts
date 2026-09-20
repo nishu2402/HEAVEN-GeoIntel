@@ -38,10 +38,11 @@ export async function copyText(text: string): Promise<boolean> {
  * Return `url` only if it is an absolute http(s) URL, otherwise `undefined`.
  *
  * Some links we render come from THIRD-PARTY OSINT sources (a Gravatar profile a
- * target controls, a FullContact "social profile" URL, …). React does NOT block
- * `javascript:` / `data:` URLs in an href, and our production CSP keeps
- * `script-src 'unsafe-inline'` (for the anti-flash theme script), so a
- * `javascript:` href would execute on our origin when the analyst clicks it —
+ * target controls, a FullContact "social profile" URL, …). React 19 rewrites a
+ * `javascript:` href into one that throws, but passes `data:` and every other
+ * scheme through, and the HTML report exports are strings React never sees. Our
+ * production CSP keeps `script-src 'unsafe-inline'` (for the anti-flash theme
+ * script), so such a URL could run on our origin when the analyst clicks it —
  * a click-to-XSS that could then hit same-origin /api/keys and /api/cases.
  * Passing every remote-supplied href/src through this closes that hole; feed the
  * result straight to `href={safeExternalUrl(x)}` (an undefined href is inert).

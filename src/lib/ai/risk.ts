@@ -151,7 +151,11 @@ export function scoreRisk(signals: Signal[]): RiskAssessment {
 
   const top = factors[0];
   const rationale = top
-    ? `${band === "critical" || band === "high" ? "Elevated" : "Some"} risk driven chiefly by ${top.label.toLowerCase()} (${top.evidence}).`
+    // The label goes in verbatim, after a colon. Half the signal labels are
+    // predicates ("Appears in breach corpora", "TLS certificate expired") and
+    // half are noun phrases ("VoIP line"), so any sentence that tried to absorb
+    // a lowercased label read as "driven chiefly by appears in breach corpora".
+    ? `${band === "critical" || band === "high" ? "Elevated" : "Some"} risk. Largest factor: ${top.label} (${top.evidence}).`
     : "No positive-risk signals were found across the sources that answered.";
 
   return { score, band, confidence, factors, rationale };

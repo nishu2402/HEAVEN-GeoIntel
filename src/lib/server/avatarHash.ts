@@ -15,12 +15,13 @@
 //     matched recorded so the panel can say why.
 //   • AN SSRF GUARD. An avatar URL is attacker-controlled input: anyone can set
 //     their profile photo to http://169.254.169.254/latest/meta-data/. Only
-//     https is fetched, only globally-routable hosts, redirects are followed by
-//     hand with every hop re-checked, and the body is size-capped.
+//     https is fetched, only hosts that resolve to globally-routable addresses,
+//     redirects are followed by hand with every hop re-checked, and the body is
+//     size-capped.
 
 import { withUserAgent } from "./fetchSafe";
 import { mapLimit } from "./concurrency";
-import { hostAllowed } from "./httpProbe";
+import { resolvesPublic } from "./httpProbe";
 import { decodeGrayscale, resampleGray } from "../analysis/imageGray";
 import { placeholderReason } from "../analysis/avatarPlaceholders";
 import { dHashFromGray, type HashedAvatar } from "../analysis/phash";
@@ -56,9 +57,12 @@ async function fetchImage(url: string): Promise<Uint8Array | null> {
   }
   // http:// avatars are not fetched at all: the URL comes from a third party,
   // and a cleartext hop is both downgradeable and unnecessary in 2026.
-  if (current.protocol !== "https:" || !hostAllowed(current.hostname)) return null;
+  if (current.protocol !== "https:") return null;
 
   for (let hop = 0; hop <= MAX_HOPS; hop++) {
+    // Vetted by what the name resolves to, not just how it is spelled: a
+    // profile photo on a host that resolves inward is not fetched.
+    if (!(await resolvesPublic(current.hostname))) return null;
     let res: Response;
     try {
       res = await fetch(current.toString(), withUserAgent({
@@ -86,7 +90,7 @@ async function fetchImage(url: string): Promise<Uint8Array | null> {
            base, which cannot happen here. */
         return null;
       }
-      if (next.protocol !== "https:" || !hostAllowed(next.hostname)) return null;
+      if (next.protocol !== "https:") return null;
       current = next;
       continue;
     }
@@ -100,10 +104,50 @@ async function fetchImage(url: string): Promise<Uint8Array | null> {
       void res.body?.cancel().catch(() => {});
       return null;
     }
-    const buf = new Uint8Array(await res.arrayBuffer());
-    return buf.byteLength > MAX_BYTES ? null : buf;
+    return readCapped(res, MAX_BYTES);
   }
   return null; // redirect loop
+}
+
+/**
+ * The body, or null once it passes `limit`.
+ *
+ * Content-Length is the host's own claim and a chunked response makes none, so
+ * the cap is enforced on what actually arrives: read in chunks and abandoned
+ * the moment it is too big, instead of buffering an endless body until the
+ * timeout and checking its size afterwards.
+ */
+async function readCapped(res: Response, limit: number): Promise<Uint8Array | null> {
+  if (!res.body) {
+    // A duck-typed response with no stream (see `res.headers?` above).
+    const buf = new Uint8Array(await res.arrayBuffer());
+    return buf.byteLength > limit ? null : buf;
+  }
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        /* v8 ignore next -- cancel() rejecting is not reachable from a test */
+        void reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null; // the connection died mid-body: nothing trustworthy to hash
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return out;
 }
 
 /**

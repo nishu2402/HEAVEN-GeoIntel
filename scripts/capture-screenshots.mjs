@@ -128,25 +128,27 @@ async function mustFrame(page, ...needles) {
     if (await frameCard(page, needle)) return needle;
   }
   throw new Error(
-    `no terminal-card matched ${needles.map((n) => JSON.stringify(n)).join(" or ")} — ` +
-      `the panel was probably renamed; update the needle in this script`,
+    `no terminal-card matched ${needles.map((n) => JSON.stringify(n)).join(" or ")}. ` +
+      `The panel was probably renamed; update the needle in this script.`,
   );
 }
 
 // Same reasoning as mustFrame, for buttons: a renamed control used to leave the
 // page untouched and the shot silently wrong (the bulk table never ran because
 // "RUN BULK" had become "Run").
+//
+// `match` runs here in Node against each label the page reports. It is never
+// shipped into the page: a function can't cross page.evaluate, and rebuilding
+// one from its source text there meant new Function() on a string.
 async function clickButton(page, match, what) {
-  const hit = await page.evaluate((src) => {
-    const test = new Function("return " + src)();
-    const btn = Array.from(document.querySelectorAll("button")).find((b) =>
-      test((b.textContent || "").trim().replace(/\s+/g, " ")),
-    );
-    if (!btn) return false;
-    btn.click();
-    return true;
-  }, match.toString());
-  if (!hit) throw new Error(`could not find ${what} — it was probably renamed`);
+  for (const button of await page.$$("button")) {
+    const label = await button.evaluate((b) => (b.textContent || "").trim().replace(/\s+/g, " "));
+    if (match(label)) {
+      await button.evaluate((b) => b.click());
+      return;
+    }
+  }
+  throw new Error(`could not find ${what}: it was probably renamed`);
 }
 
 async function shot(file, { url, setup }) {

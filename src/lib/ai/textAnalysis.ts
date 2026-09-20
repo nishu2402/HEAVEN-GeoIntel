@@ -82,6 +82,40 @@ interface Pattern {
   group?: number;
   /** Optional extra guard beyond the regex; return false to reject a match. */
   accept?: (value: string) => boolean;
+  /** Scan whitespace-free runs separately, skipping the over-long ones (see MAX_RUN). */
+  runBounded?: true;
+}
+
+/**
+ * Longest whitespace-free run the run-bounded patterns will scan.
+ *
+ * EMAIL_RE and DOMAIN_RE both open with an unanchored, greedy character class,
+ * so a backtracking engine restarts them at every position inside a run and the
+ * cost grows with the SQUARE of that run's length. Measured on this machine:
+ * 100 KB of "a." repeated took 14.6 s, 200 KB took 58.8 s — and extraction runs
+ * synchronously on every keystroke of the text panel, so one pasted base64 blob
+ * froze the tab. Text with whitespace in it was never affected (200 KB of a
+ * realistic dump: 104 ms), which is what makes bounding the RUN rather than the
+ * document the right cut.
+ *
+ * Nothing real is lost. The longest value either pattern can legitimately
+ * produce is an address (254 bytes, RFC 5321) or a hostname (253, RFC 1035), so
+ * a run this long holds no email or domain worth reporting — and any it did
+ * contain would come back with the surrounding blob glued onto its front, since
+ * the local-part class would happily eat it.
+ */
+const MAX_RUN = 1024;
+
+/**
+ * The whitespace-free runs of `text` short enough to scan, with their offsets,
+ * so a caller can map a match back to a position in the whole document.
+ */
+function scannableRuns(text: string): { at: number; run: string }[] {
+  const out: { at: number; run: string }[] = [];
+  for (const m of text.matchAll(/\S+/g)) {
+    if (m[0].length <= MAX_RUN) out.push({ at: m.index, run: m[0] });
+  }
+  return out;
 }
 
 // Order matters: a URL and an email each contain a host, and an ETH address is
@@ -90,7 +124,7 @@ interface Pattern {
 // the broad domain / hash patterns only ever see text nothing else took.
 const PATTERNS: Pattern[] = [
   { kind: "url", re: URL_RE, confidence: 0.97 },
-  { kind: "email", re: EMAIL_RE, confidence: 0.97 },
+  { kind: "email", re: EMAIL_RE, confidence: 0.97, runBounded: true },
   { kind: "wallet", re: ETH_RE, confidence: 0.95 },
   { kind: "wallet", re: BTC_RE, confidence: 0.9 },
   { kind: "hash", re: HASH_RE, confidence: 0.85 },
@@ -98,7 +132,7 @@ const PATTERNS: Pattern[] = [
   { kind: "ip", re: IPV6_RE, confidence: 0.85 },
   { kind: "phone", re: PHONE_RE, confidence: 0.9 },
   { kind: "username", re: HANDLE_RE, confidence: 0.55, group: 1 },
-  { kind: "domain", re: DOMAIN_RE, confidence: 0.7, accept: (v) => COMMON_TLDS.has(tld(v)) },
+  { kind: "domain", re: DOMAIN_RE, confidence: 0.7, accept: (v) => COMMON_TLDS.has(tld(v)), runBounded: true },
 ];
 
 /** Lower-case the value for kinds where case is not significant. */
@@ -121,14 +155,18 @@ export function extractEntities(text: string): MlEntity[] {
     // Collect this pattern's matches before mutating `working`, so overlapping
     // matches of the SAME pattern are all captured; then blank every span.
     const spans: { start: number; len: number }[] = [];
-    for (const m of working.matchAll(p.re)) {
+    // A run-bounded pattern scans each whitespace-free run on its own so the
+    // over-long ones can be skipped (see MAX_RUN); every other pattern is linear
+    // in the document and scans it in a single pass.
+    const chunks = p.runBounded ? scannableRuns(working) : [{ at: 0, run: working }];
+    for (const chunk of chunks) for (const m of chunk.run.matchAll(p.re)) {
       const whole = m[0];
       let value = (p.group ? m[p.group] : whole) as string;
       // A URL match greedily absorbs the sentence punctuation that follows it
       // ("…example.net." / "…example.net,"); trim it so the stored value is the
       // URL alone. Everything else is already delimited by its own shape.
       if (p.kind === "url") value = value.replace(/[.,;:!?]+$/, "");
-      const at = m.index + whole.indexOf(value);
+      const at = chunk.at + m.index + whole.indexOf(value);
       if (p.accept && !p.accept(value)) continue;
       const norm = normaliseValue(p.kind, value);
       const key = `${p.kind}:${norm.toLowerCase()}`;

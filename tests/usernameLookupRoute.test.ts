@@ -5,6 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/username-lookup/route";
+import { activeUsernameSites } from "@/lib/data/usernameSites";
+import { lookup } from "node:dns/promises";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // End-to-end handler test for the username sweep. The core data-quality rule is
 // "no false positives": a nonexistent handle must yield 0 found, and the manual
@@ -19,7 +22,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   delete process.env.TRUST_PROXY;
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -61,6 +64,31 @@ describe("POST /api/username-lookup: validation", () => {
   it("400 on an implausible username", async () => {
     const res = await post({ username: "a b!" });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/username-lookup: probes stay on the public internet", () => {
+  afterEach(() => vi.mocked(lookup).mockReset());
+
+  it("never probes a site whose name resolves inward, and claims nothing", async () => {
+    vi.mocked(lookup).mockImplementation(async () => [{ address: "10.0.0.8", family: 4 }] as never);
+    stubAllSites(200, false);
+    const json = await (await post({ username: "torvalds" })).json();
+    expect(json.found).toBe(0);
+    const probed = vi.mocked(fetch).mock.calls.map(([u]) => String(u));
+    for (const site of activeUsernameSites().filter((s) => s.check !== "manual")) {
+      expect(probed, site.name).not.toContain(site.url.replace("{u}", "torvalds"));
+    }
+  });
+
+  it("reads a body that dies midway as unknown, not found", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) =>
+      isHost(String(url), "api.github.com")
+        ? mk(404, {}, "")
+        : ({ ok: true, status: 200, json: async () => ({}), text: async () => { throw new TypeError("terminated"); } }) as unknown as Response));
+    const json = await (await post({ username: "torvalds" })).json();
+    const bodySite = activeUsernameSites().find((s) => s.check === "body")!;
+    expect(json.hits.find((h: { site: string }) => h.site === bodySite.name).status).toBe("unknown");
   });
 });
 

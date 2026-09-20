@@ -18,6 +18,7 @@ import { lookupMccMnc } from "@/lib/data/mccMnc";
 import { isDisposableDomain } from "@/lib/data/disposableEmailDomains";
 import { activeUsernameSites, USERNAME_SITES } from "@/lib/data/usernameSites";
 import { analyzeEmail } from "@/lib/analysis/emailAnalysis";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Overlays let an operator correct or extend a bundled dataset at runtime,
 // which is the difference between "an area code changed" being a rebuild and
@@ -33,7 +34,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   clearOverlays();
   await reloadDatasets(); // leave the module with no overlay for other suites
 });

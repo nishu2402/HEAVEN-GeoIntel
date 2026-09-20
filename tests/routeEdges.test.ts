@@ -13,7 +13,7 @@ import { POST as usernamePOST } from "@/app/api/username-lookup/route";
 import { GET as sourcesGET } from "@/app/api/sources/route";
 import { setKey } from "@/lib/server/keyStore";
 import { mark, resetHealth } from "@/lib/server/sourceHealth";
-import { restoreRateLimit, resetServerState } from "./testUtils";
+import { restoreRateLimit, resetServerState, SUITE_DATA_DIR } from "./testUtils";
 
 // Error and edge paths across the remaining routes — the branches that only run
 // when an upstream misbehaves, which is exactly what the old gate never checked.
@@ -25,7 +25,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 afterEach(() => {
   resetServerState();

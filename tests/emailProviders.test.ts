@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/email-lookup/route";
-import { restoreRateLimit } from "./testUtils";
+import { restoreRateLimit, SUITE_DATA_DIR } from "./testUtils";
 
 // Every email provider on its success path and each failure mode. Same
 // invariant as the phone route: a provider that fails never fails the lookup
@@ -20,7 +20,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 afterEach(() => {
   vi.unstubAllGlobals();

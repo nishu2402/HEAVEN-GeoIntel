@@ -63,9 +63,13 @@ describe("scoreRisk", () => {
 
   it("phrases the rationale by severity and cites the top factor", () => {
     const high = scoreRisk([sig("malware.stealer", 1, "malware"), sig("exposure.vulns", 1)]);
-    expect(high.rationale).toMatch(/^Elevated risk driven chiefly by/);
+    expect(high.rationale).toMatch(/^Elevated risk\. Largest factor: /);
     expect(high.rationale.toLowerCase()).toContain("malware.stealer evidence");
-    const some = scoreRisk([sig("reputation.malicious", 0.8, "reputation")]);
-    expect(some.rationale).toMatch(/^Some risk driven chiefly by/);
+    const some = scoreRisk([sig("reputation.malicious", 0.8, "reputation", "Appears in breach corpora")]);
+    expect(some.rationale).toMatch(/^Some risk\. Largest factor: /);
+    // The label goes in verbatim, never lowercased into the sentence. Half the
+    // real labels are predicates, and absorbing one produced the shipped
+    // "Some risk driven chiefly by appears in breach corpora".
+    expect(some.rationale).toBe("Some risk. Largest factor: Appears in breach corpora (reputation.malicious evidence).");
   });
 });

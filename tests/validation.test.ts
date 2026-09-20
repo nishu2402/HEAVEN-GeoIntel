@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   parseBody,
+  readJsonCapped,
   phoneBody,
   emailBody,
   usernameBody,
@@ -87,6 +88,62 @@ describe("parseBody", () => {
     expect(out.ok === false && out.problem.error).toBe(
       "Invalid request body: `action` must be one of: capture, verify",
     );
+  });
+});
+
+// ── The body-size cap ────────────────────────────────────────────────────────
+// `src/proxy.ts` can only read Content-Length, and a chunked request does not
+// send one. Measured against the built server before this: a
+// `Transfer-Encoding: chunked` POST walked past the 512 KB gate and was
+// buffered whole, up to somewhere between 8 and 16 MB. So the count that
+// actually holds happens on the bytes, here.
+
+/** A real Request, so there is a body stream to meter. */
+const streamed = (text: string) =>
+  new Request("http://localhost/api/x", { method: "POST", body: text });
+
+describe("readJsonCapped", () => {
+  it("parses a body that fits", async () => {
+    expect(await readJsonCapped(streamed('{"a":1}'), 1024)).toEqual({ ok: true, json: { a: 1 } });
+  });
+
+  it("refuses a body past the limit, and says that is why", async () => {
+    const big = JSON.stringify({ a: "x".repeat(4000) });
+    expect(await readJsonCapped(streamed(big), 1024)).toEqual({ ok: false, tooLarge: true });
+  });
+
+  it("counts BYTES, not characters", async () => {
+    // Four bytes per astral character: 300 of them are 1200 bytes, so a
+    // character-counting cap of 1024 would have let this through.
+    const body = JSON.stringify({ a: "𝄞".repeat(300) });
+    expect(body.length).toBeLessThan(1024);
+    expect(await readJsonCapped(streamed(body), 1024)).toEqual({ ok: false, tooLarge: true });
+  });
+
+  it("reports malformed JSON as a parse failure, not as an oversized body", async () => {
+    expect(await readJsonCapped(streamed("{not json"), 1024)).toEqual({ ok: false, tooLarge: false });
+  });
+
+  it("reports a body that dies mid-flight rather than throwing", async () => {
+    const torn = new Request("http://localhost/api/x", {
+      method: "POST",
+      body: new ReadableStream({ start(c) { c.error(new Error("connection reset")); } }),
+      // @ts-expect-error -- undici requires this for a streaming request body.
+      duplex: "half",
+    });
+    expect(await readJsonCapped(torn, 1024)).toEqual({ ok: false, tooLarge: false });
+  });
+
+  it("falls back to json() when the request carries no stream", async () => {
+    expect(await readJsonCapped(reqOf({ a: 1 }), 1024)).toEqual({ ok: true, json: { a: 1 } });
+    expect(await readJsonCapped(reqOf(null, true), 1024)).toEqual({ ok: false, tooLarge: false });
+  });
+
+  it("makes parseBody answer 413 rather than 400 for an oversized body", async () => {
+    const out = await parseBody(streamed(JSON.stringify({ number: "9".repeat(4000) })), phoneBody, 1024);
+    expect(out.ok).toBe(false);
+    expect(out.ok === false && out.status).toBe(413);
+    expect(out.ok === false && out.problem.error).toBe("Request body too large");
   });
 });
 

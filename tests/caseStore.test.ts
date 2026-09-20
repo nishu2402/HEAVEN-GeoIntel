@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as store from "@/lib/server/caseStore";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Run the file-backed store against a hermetic temp dir (never the real .data)
 // via the HV_DATA_DIR override. The store resolves its path lazily per call, so
@@ -15,7 +16,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 
 beforeEach(async () => {
@@ -229,7 +230,7 @@ describe("caseStore mutator edge cases", () => {
 
   it("falls back to ./.data when HV_DATA_DIR is unset (read-only)", async () => {
     const saved = process.env.HV_DATA_DIR;
-    delete process.env.HV_DATA_DIR; // exercise the dataDir() `|| ./.data` branch
+    process.env.HV_DATA_DIR = SUITE_DATA_DIR; // exercise the dataDir() `|| ./.data` branch
     try {
       expect(Array.isArray(await store.listCases())).toBe(true);
     } finally {

@@ -64,17 +64,34 @@ const V4_RANGES: Range[] = [
 ];
 
 // IPv6 special-purpose blocks. Exact /128 addresses are listed before the wider
-// prefixes so they match first.
+// prefixes so they match first. Blocks inside 2000::/3 have to be listed; the
+// rest of the address space is handled by OUTSIDE_GLOBAL_UNICAST below.
 const V6_RANGES: Range[] = [
   { cidr: "::1/128",       scope: "loopback",      label: "Loopback",              description: "IPv6 loopback: always the local machine.", rfc: "RFC 4291" },
   { cidr: "::/128",        scope: "unspecified",   label: "Unspecified",           description: "The unspecified address (::): not a routable destination.", rfc: "RFC 4291" },
   { cidr: "::ffff:0:0/96", scope: "translation",   label: "IPv4-mapped",           description: "IPv4-mapped IPv6 address: represents an IPv4 host.", rfc: "RFC 4291" },
   { cidr: "64:ff9b::/96",  scope: "translation",   label: "IPv4/IPv6 translation", description: "NAT64 translation prefix (well-known).", rfc: "RFC 6052" },
+  { cidr: "64:ff9b:1::/48", scope: "translation",  label: "IPv4/IPv6 translation (local)", description: "Local-use NAT64 translation prefix: not a public host.", rfc: "RFC 8215" },
+  { cidr: "2001:2::/48",   scope: "benchmarking",  label: "Benchmarking",          description: "Reserved for network benchmarking: not a real host.", rfc: "RFC 5180" },
   { cidr: "2001:db8::/32", scope: "documentation", label: "Documentation",         description: DOC_DESC, rfc: "RFC 3849" },
+  { cidr: "2001::/23",     scope: "protocol",      label: "IETF protocol assignments", description: "Reserved for IETF protocol assignments (Teredo, ORCHID, AS112 and others): not a normal host.", rfc: "RFC 2928" },
+  { cidr: "2002::/16",     scope: "translation",   label: "6to4",                  description: "6to4 transition address: wraps an IPv4 host rather than naming an IPv6 one.", rfc: "RFC 3056" },
+  { cidr: "3fff::/20",     scope: "documentation", label: "Documentation",         description: DOC_DESC, rfc: "RFC 9637" },
   { cidr: "fc00::/7",      scope: "unique-local",  label: "Unique local (ULA)",    description: "Private IPv6 range: not routable on the public internet.", rfc: "RFC 4193" },
   { cidr: "fe80::/10",     scope: "link-local",    label: "Link-local",            description: "Link-local address: only valid on the local segment.", rfc: "RFC 4291" },
   { cidr: "ff00::/8",      scope: "multicast",     label: "Multicast",             description: "Multicast group address: not a single unicast host.", rfc: "RFC 4291" },
 ];
+
+// IANA allocates public IPv6 hosts from 2000::/3 and nowhere else. Everything
+// outside it that the list above does not name is reserved space: `::1.2.3.4`
+// (the deprecated IPv4-compatible form) was coming back "Public".
+const OUTSIDE_GLOBAL_UNICAST: IpClassification = {
+  scope: "reserved",
+  label: "Reserved",
+  description: "Outside 2000::/3, the only IPv6 space allocated to public hosts: not a routable destination.",
+  isGloballyRoutable: false,
+  rfc: "RFC 4291",
+};
 
 // Addresses are represented as unit arrays (4 octets for IPv4, 8 hextets for
 // IPv6) so prefix matching stays within 32-bit-safe integer math — no BigInt,
@@ -162,5 +179,6 @@ export function classifyIp(ip: string): IpClassification | null {
       return { scope: r.scope, label: r.label, description: r.description, isGloballyRoutable: false, rfc: r.rfc };
     }
   }
+  if (isV6 && addr[0] >> 13 !== 0b001) return OUTSIDE_GLOBAL_UNICAST;
   return GLOBAL;
 }

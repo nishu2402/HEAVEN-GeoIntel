@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { mapLimit, hostKey } from "@/lib/server/concurrency";
 import { hashAvatar, hashAvatars, decodableVariant } from "@/lib/server/avatarHash";
 import { placeholderReason, isPlaceholderAvatar } from "@/lib/analysis/avatarPlaceholders";
+import { lookup } from "node:dns/promises";
 import { pngFixture, jpegFixture } from "./imageFixtures";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -142,6 +143,58 @@ describe("hashAvatar", () => {
     vi.stubGlobal("fetch", vi.fn(async () =>
       ({ ok: false, status: 302, headers: new Headers({ location: "http://127.0.0.1/meta" }), body: null }) as unknown as Response));
     expect(await hashAvatar({ url: "https://cdn.test/a.png", source: "X" })).toMatchObject({
+      reason: "image could not be fetched",
+    });
+  });
+
+  it("refuses a host whose NAME resolves inward, before fetching anything", async () => {
+    // A profile photo on a public-looking name that points at the metadata
+    // service passed the old spelling-only check.
+    const fetchSpy = vi.fn(async () => okResponse(pngFixture({ width: 8, height: 8 })));
+    vi.stubGlobal("fetch", fetchSpy);
+    vi.mocked(lookup).mockResolvedValueOnce([{ address: "169.254.169.254", family: 4 }] as never);
+    expect(await hashAvatar({ url: "https://avatars.rebind.test/a.png", source: "X" })).toMatchObject({
+      reason: "image could not be fetched",
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    // The same for a redirect: the hop's name is resolved before it is fetched.
+    const hops: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      hops.push(url);
+      return { ok: false, status: 302, headers: new Headers({ location: "https://instance-data/latest/meta-data/" }), body: null } as unknown as Response;
+    }));
+    vi.mocked(lookup)
+      .mockResolvedValueOnce([{ address: "104.20.0.1", family: 4 }] as never)
+      .mockResolvedValueOnce([{ address: "169.254.169.254", family: 4 }] as never);
+    expect(await hashAvatar({ url: "https://cdn.test/a.png", source: "X" })).toMatchObject({
+      reason: "image could not be fetched",
+    });
+    expect(hops).toEqual(["https://cdn.test/a.png"]);
+  });
+
+  it("reads a streamed body, and abandons one that grows past the cap", async () => {
+    const png = pngFixture({ width: 16, height: 16, value: (x, y) => x * 16 + y });
+    // In two chunks, with no Content-Length: the cap is on what arrives.
+    const streamed = (chunks: Uint8Array[], fail = false) => new Response(new ReadableStream({
+      start(c) {
+        for (const chunk of chunks) c.enqueue(chunk);
+        if (fail) c.error(new Error("connection reset"));
+        else c.close();
+      },
+    }), { headers: { "content-type": "image/png" } });
+
+    vi.stubGlobal("fetch", vi.fn(async () => streamed([png.slice(0, 40), png.slice(40)])));
+    expect("hash" in (await hashAvatar({ url: "https://cdn.test/a.png", source: "X" }))).toBe(true);
+
+    const mb = new Uint8Array(1_000_000);
+    vi.stubGlobal("fetch", vi.fn(async () => streamed([mb, mb, mb, mb])));
+    expect(await hashAvatar({ url: "https://cdn.test/big.png", source: "X" })).toMatchObject({
+      reason: "image could not be fetched",
+    });
+
+    vi.stubGlobal("fetch", vi.fn(async () => streamed([png.slice(0, 40)], true)));
+    expect(await hashAvatar({ url: "https://cdn.test/cut.png", source: "X" })).toMatchObject({
       reason: "image could not be fetched",
     });
   });

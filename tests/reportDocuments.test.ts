@@ -202,6 +202,19 @@ describe("reportToHtml", () => {
     expect(html).toContain("<dd>30 ms</dd>");
   });
 
+  it("links only an http(s) pivot, and shows any other URL as text", () => {
+    const html = reportToHtml({
+      ...bare,
+      pivots: [
+        { label: "crt.sh", url: "https://crt.sh?q=acme" },
+        { label: "Trap", url: "javascript:alert(document.domain)" },
+      ],
+    });
+    expect(html).toContain(`<a href="https://crt.sh?q=acme"`);
+    expect(html).not.toContain(`href="javascript:`);
+    expect(html).toContain(`<li>Trap<span class="v">javascript:alert(document.domain)</span></li>`);
+  });
+
   it("escapes values before they reach an attribute or the page", () => {
     const html = reportToHtml({
       ...bare,

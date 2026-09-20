@@ -20,7 +20,11 @@ export function narrate(a: AiAnalysis): string[] {
     lines.push(`${a.subject} scores ${r.score} out of 100 (${r.band} risk).`);
     if (r.factors.length > 0) {
       const n = r.factors.length;
-      lines.push(`The score rests on ${n} risk ${n === 1 ? "signal" : "signals"}, chief among them:`);
+      // "chief among them" needs something to be chief of, so the single-signal
+      // case gets its own sentence rather than a pluralised template.
+      lines.push(n === 1
+        ? "The score rests on a single risk signal:"
+        : `The score rests on ${n} risk signals, chief among them:`);
       for (const f of r.factors.slice(0, 3)) {
         lines.push(`${f.label}: ${f.evidence}.`);
       }

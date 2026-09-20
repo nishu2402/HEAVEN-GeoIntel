@@ -9,7 +9,7 @@ import { GET as casesGET, POST as casesPOST, DELETE as casesDELETE } from "@/app
 import { POST as domainPOST } from "@/app/api/domain-lookup/route";
 import { POST as ipPOST } from "@/app/api/ip-lookup/route";
 import { POST as usernamePOST } from "@/app/api/username-lookup/route";
-import { restoreRateLimit, resetServerState } from "./testUtils";
+import { restoreRateLimit, resetServerState, SUITE_DATA_DIR } from "./testUtils";
 
 // Second pass over the route error/merge paths: the enrichment branches that
 // only run when an upstream returns a particular shape.
@@ -21,7 +21,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 afterEach(() => {
   resetServerState();

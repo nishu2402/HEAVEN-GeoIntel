@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CLIENT_ID_COOKIE } from "@/lib/server/rateLimit";
+import { maxBodyBytes } from "@/lib/server/bodyLimits";
+import { authFailureDelayMs, clearAuthFailures, delay } from "@/lib/server/authThrottle";
 
 // ── CSRF guard + optional auth gate (Next 16 `proxy` convention) ─────────────
 // This is the file formerly known as `middleware.ts`; Next 16 renamed the
@@ -10,29 +12,79 @@ import { CLIENT_ID_COOKIE } from "@/lib/server/rateLimit";
 // AUTH_PASSWORD (and optionally AUTH_USER, default "analyst") to require HTTP
 // Basic auth on the whole app + API. /api/health is left open for probes.
 //
-// The CSRF guard is ALWAYS on: it rejects cross-site state-changing requests so
-// a malicious page in the user's browser can't POST to localhost (e.g. set an
-// API key or modify cases). Same-origin app calls and non-browser clients
-// (curl, server-to-server) are unaffected.
+// The CSRF guard is ALWAYS on: it rejects state-changing requests from any other
+// origin so a malicious page in the user's browser can't POST to localhost
+// (e.g. set an API key or modify cases). Same-origin app calls and non-browser
+// clients (curl, server-to-server) are unaffected.
+//
+// The host check closes what the CSRF guard cannot see. With DNS rebinding a
+// page on attacker.example re-points its own name at 127.0.0.1, and from then on
+// its requests to this app are SAME-origin: they pass the CSRF guard and the
+// browser lets the page read the answers, so GET /api/cases hands over every
+// case file. The one thing such a request cannot fake is the Host header, which
+// still names the attacker's domain. So when no password stands in front of the
+// app, a Host this deployment was never reached by is refused.
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|api/health).*)"],
 };
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const MAX_BODY_BYTES = 512 * 1024; // 512 KB: far above any legitimate request
 
-// A state-changing request is "cross-site" when the browser says so via
-// Sec-Fetch-Site, or (older browsers) when the Origin host ≠ the request host.
-// No Origin header at all ⇒ a non-browser client (curl) ⇒ not a CSRF vector.
-function isCrossSiteWrite(req: NextRequest): boolean {
+// A state-changing request is refused unless it comes from this origin. The
+// browser says so via Sec-Fetch-Site, or (older browsers) the Origin host is
+// compared with the request host. No Origin header at all ⇒ a non-browser client
+// (curl) ⇒ not a CSRF vector.
+//
+// "same-site" is refused too. The app only ever calls its own origin, and
+// same-site is wider than it sounds: every other port on localhost, and every
+// sibling subdomain of a hosted deployment, counts as the same site.
+function isForeignWrite(req: NextRequest): boolean {
   if (!UNSAFE_METHODS.has(req.method)) return false;
   const site = req.headers.get("sec-fetch-site");
-  if (site) return site === "cross-site";
+  if (site) return site !== "same-origin" && site !== "none";
   const origin = req.headers.get("origin");
   if (!origin) return false;
   try { return new URL(origin).host !== req.headers.get("host"); }
   catch { return true; }
+}
+
+// Names nobody can register in public DNS, so no attacker can rebind them.
+const PRIVATE_SUFFIXES = [".localhost", ".local", ".internal", ".home.arpa"];
+
+/** The hostname part of a Host header, lower-cased, without port or brackets. */
+function hostnameOf(host: string): string {
+  const h = host.trim().toLowerCase();
+  if (h.startsWith("[")) return h.slice(1).split("]")[0]; // [::1]:3000 → ::1
+  return h.split(":")[0].replace(/\.$/, "");
+}
+
+/** Hostnames the operator has named in ALLOWED_HOSTS, e.g. "osint.example.com,*.ts.net". */
+function operatorHosts(): string[] {
+  return (process.env.ALLOWED_HOSTS ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase().replace(/\.$/, ""))
+    .filter(Boolean);
+}
+
+/**
+ * Whether a Host header names this deployment rather than someone else's domain.
+ *
+ * An IP address is always allowed: it is how the LAN reaches the app, and a
+ * rebinding attack needs a domain name by definition. So are localhost, a bare
+ * machine name (resolved by the local network, not by public DNS), and the
+ * reserved private suffixes. Anything else has to be listed in ALLOWED_HOSTS,
+ * where a leading "*." matches any subdomain.
+ */
+export function isOwnHost(host: string | null): boolean {
+  if (!host) return true; // every browser sends Host; its absence is not a browser
+  const name = hostnameOf(host);
+  if (/^[\d.]+$/.test(name) || name.includes(":")) return true; // IPv4 or IPv6 literal
+  if (name === "localhost" || !name.includes(".")) return true;
+  if (PRIVATE_SUFFIXES.some((s) => name.endsWith(s))) return true;
+  return operatorHosts().some((allowed) =>
+    allowed.startsWith("*.") ? name.endsWith(allowed.slice(1)) : name === allowed,
+  );
 }
 
 /**
@@ -82,22 +134,37 @@ function passThrough(req: NextRequest): NextResponse {
   return res;
 }
 
-export function proxy(req: NextRequest): NextResponse {
-  if (isCrossSiteWrite(req)) {
+export async function proxy(req: NextRequest): Promise<NextResponse> {
+  if (isForeignWrite(req)) {
     return NextResponse.json({ error: "Cross-site request blocked" }, { status: 403 });
   }
 
-  // Best-effort body-size cap (defense-in-depth against memory-exhaustion DoS).
-  // Field-level limits still apply after parsing; this just rejects obviously
-  // oversized payloads before the body is buffered.
+  const pass = process.env.AUTH_PASSWORD;
+  // Behind a password a rebound page gets the credential prompt for its own
+  // domain and nothing else, so the host check is only needed without one.
+  if (!pass && !isOwnHost(req.headers.get("host"))) {
+    const name = hostnameOf(req.headers.get("host")!);
+    return NextResponse.json(
+      {
+        error: `Host "${name}" is not allowed. If this is your own address for the app, add it to ALLOWED_HOSTS (or set AUTH_PASSWORD).`,
+      },
+      { status: 421 },
+    );
+  }
+
+  // Early-out on an oversized body, so the runtime never buffers one it is only
+  // going to throw away. This can only read Content-Length, which a client
+  // chooses whether to send, so it is the courtesy check — `parseBody` counts
+  // the bytes themselves and is the gate that actually holds. The ceiling is
+  // per-route: a flat one rejected every evidence capture over 512 KB, which is
+  // an eighth of the artifact the locker says it stores. See bodyLimits.ts.
   if (UNSAFE_METHODS.has(req.method)) {
     const len = Number(req.headers.get("content-length") || 0);
-    if (len > MAX_BODY_BYTES) {
+    if (len > maxBodyBytes(req.nextUrl.pathname)) {
       return NextResponse.json({ error: "Request body too large" }, { status: 413 });
     }
   }
 
-  const pass = process.env.AUTH_PASSWORD;
   if (!pass) return passThrough(req); // auth disabled → no behaviour change
 
   const user = process.env.AUTH_USER || "analyst";
@@ -114,10 +181,18 @@ export function proxy(req: NextRequest): NextResponse {
         // could reveal that the username alone was correct.
         const okUser = safeEqual(u, user);
         const okPass = safeEqual(p, pass);
-        if (okUser && okPass) return passThrough(req);
+        if (okUser && okPass) {
+          clearAuthFailures();
+          return passThrough(req);
+        }
       }
     } catch { /* malformed header → fall through to 401 */ }
   }
+  // Hold the refusal back for a moment once the guesses start stacking up. The
+  // first few cost nothing, so mistyping a password is not punished, and a
+  // correct password is never delayed at all. See authThrottle.ts for why this
+  // is a delay and not a lockout.
+  await delay(authFailureDelayMs());
   return new NextResponse("Authentication required.", {
     status: 401,
     headers: { "WWW-Authenticate": 'Basic realm="HEAVEN-GeoIntel", charset="UTF-8"' },

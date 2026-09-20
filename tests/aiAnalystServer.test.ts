@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { analystStatus, runAnalyst, listModels } from "@/lib/server/aiAnalyst";
 import { setKey, clearAllKeys } from "@/lib/server/keyStore";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // The server relay resolves the provider key from the store then the environment,
 // calls the provider through the shared fetch, and returns just the completion
@@ -20,7 +21,7 @@ const jsonResp = (status: number, data: unknown) =>
 
 let dir: string;
 beforeAll(() => { dir = mkdtempSync(join(tmpdir(), "hv-analyst-srv-")); process.env.HV_DATA_DIR = dir; });
-afterAll(() => { rmSync(dir, { recursive: true, force: true }); delete process.env.HV_DATA_DIR; });
+afterAll(() => { rmSync(dir, { recursive: true, force: true }); process.env.HV_DATA_DIR = SUITE_DATA_DIR; });
 
 afterEach(async () => {
   vi.unstubAllGlobals();

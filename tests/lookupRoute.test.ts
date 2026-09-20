@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/lookup/route";
-import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
+import { useRateLimit, restoreRateLimit, clientCookie, SUITE_DATA_DIR } from "./testUtils";
 
 // End-to-end handler test for the phone lookup: drives the real POST through the
 // shared middleware (rate-limit → parseBody → libphonenumber parse → offline
@@ -23,7 +23,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   delete process.env.TRUST_PROXY;
 });
 afterEach(() => {

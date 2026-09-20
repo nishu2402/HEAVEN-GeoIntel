@@ -66,6 +66,50 @@ export const MAX_EVIDENCE_BYTES = 4_000_000;
 /** Cap on artifacts per case, so a scripted loop cannot fill the disk. */
 export const MAX_EVIDENCE_ENTRIES = 500;
 
+/**
+ * Shape limits on the payload, checked BEFORE it is serialised.
+ *
+ * `JSON.stringify(v, null, 2)` costs indentation per line, so its output grows
+ * with NESTING DEPTH — a body that fits the route's 4 MB ceiling can expand to
+ * hundreds of megabytes on the way to the size check that was supposed to
+ * refuse it. Measured: 4.26 MB of nested arrays serialised to 436 MB at depth
+ * 100, and past depth ~500 it exceeded V8's maximum string length and threw a
+ * RangeError, turning a 413 into a 500.
+ *
+ * So the shape is bounded first, with a cheap walk that allocates nothing. The
+ * numbers are set against what real responses measure — the richest (an email
+ * lookup carrying a full breach set) is depth 6 with 21,592 nodes and expands
+ * 1.77x — so these are roughly 10x and 20x headroom, and no genuine artifact
+ * comes near them. Together they bound the serialised size well under V8's
+ * limit, which is what keeps the byte check below reachable.
+ */
+const MAX_PAYLOAD_DEPTH = 64;
+const MAX_PAYLOAD_NODES = 500_000;
+
+/**
+ * Walk the payload once, counting nodes and depth, stopping at the first breach
+ * of either cap. Iterative so a deeply nested body cannot overflow the stack on
+ * the way to being refused for being deeply nested.
+ */
+function shapeRefusal(payload: unknown): string | null {
+  const stack: { value: unknown; depth: number }[] = [{ value: payload, depth: 0 }];
+  let nodes = 0;
+  while (stack.length > 0) {
+    const { value, depth } = stack.pop()!;
+    if (++nodes > MAX_PAYLOAD_NODES) {
+      return `artifact holds more than ${MAX_PAYLOAD_NODES} values`;
+    }
+    if (value === null || typeof value !== "object") continue;
+    if (depth >= MAX_PAYLOAD_DEPTH) {
+      return `artifact is nested deeper than ${MAX_PAYLOAD_DEPTH} levels`;
+    }
+    for (const key of Object.keys(value)) {
+      stack.push({ value: (value as Record<string, unknown>)[key], depth: depth + 1 });
+    }
+  }
+  return null;
+}
+
 const root = () => path.join(dataDir(), "evidence");
 
 /**
@@ -170,8 +214,14 @@ export type CaptureResult =
  */
 export function captureEvidence(input: CaptureInput): Promise<CaptureResult> {
   return serialize(async () => {
+    const refusal = shapeRefusal(input.payload);
+    if (refusal) return { ok: false as const, error: refusal };
+
     const text = JSON.stringify(input.payload, null, 2);
-    if (text.length > MAX_EVIDENCE_BYTES) {
+    // Counted in BYTES, not UTF-16 units: the cap is named in bytes, `bytes`
+    // below records byteLength, and the two disagreed by up to 3x on non-ASCII
+    // content — a 4 M character artifact of multi-byte text is a 12 MB file.
+    if (Buffer.byteLength(text, "utf8") > MAX_EVIDENCE_BYTES) {
       return { ok: false as const, error: "artifact is larger than the evidence-store limit" };
     }
     const digest = sha256(text);

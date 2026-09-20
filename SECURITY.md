@@ -58,31 +58,79 @@ Out of scope (please report these to the upstream maintainers):
 
 - **Input validation**: every lookup route validates its input before any
   outbound request: phone via libphonenumber, IP via IPv4/IPv6 regex, domain
-  via a strict label regex, username via `[A-Za-z0-9._-]{2,40}`. User input is
-  only ever interpolated (URL-encoded) into **fixed** third-party hosts, so the
-  routes are not an SSRF vector. A caller cannot choose which host the server
+  via a strict label regex, username via `[A-Za-z0-9._-]{2,40}`. On the
+  enrichment routes, user input is only ever interpolated (URL-encoded) into
+  **fixed** third-party hosts, so a caller cannot choose which host the server
   connects to.
-- **CSRF protection**: the proxy middleware (`src/proxy.ts`) rejects cross-site
-  state-changing requests
-  (POST/PUT/PATCH/DELETE) using `Sec-Fetch-Site` with an `Origin`-vs-`Host`
-  fallback, so a malicious page in the user's browser can't drive `/api/keys` or
-  `/api/cases`. Same-origin app calls and non-browser clients (curl) are
-  unaffected; reads (GET) are not blocked (and have no `Access-Control-Allow-Origin`).
+- **Probes that do connect to a target-controlled host** are the exception, and
+  each is guarded: the domain HTTP/TLS probe, the subdomain-takeover check,
+  avatar downloads, and the username lookup and deep sweep (hundreds of
+  third-party sites, any of which can lapse and be re-registered by someone
+  else). Every host they connect to, every redirect hop included, must resolve
+  (with the system resolver fetch itself uses) to globally routable addresses
+  only, so an address literal, `localhost`, a name such as `instance-data` or
+  `metadata.google.internal`, or a public name aimed at 127.0.0.1 is refused
+  before anything is fetched. Redirects are followed by hand (at most five hops,
+  `http(s)` only), and bodies are read up to a fixed cap. This is a check rather
+  than a pinned connection, so a name whose answer changes between the check and
+  the connection (an active DNS-rebinding race) can still get through: if the
+  tool is exposed to untrusted users, egress-filter the container too.
+- **CSRF protection**: the proxy middleware (`src/proxy.ts`) rejects every
+  state-changing request (POST/PUT/PATCH/DELETE) that does not come from the
+  app's own origin, using `Sec-Fetch-Site` with an `Origin`-vs-`Host` fallback,
+  so a malicious page in the user's browser can't drive `/api/keys` or
+  `/api/cases`. `same-site` is refused as well: another port on localhost and a
+  sibling subdomain both count as the same site. Same-origin app calls and
+  non-browser clients (curl) are unaffected; reads (GET) are not blocked (and
+  have no `Access-Control-Allow-Origin`).
+- **DNS-rebinding protection**: a page that re-points its own domain at your
+  machine is same-origin with itself, so it passes any CSRF check and can read
+  the answers, including every case in `/api/cases`, and can spend your saved
+  keys. What it cannot change is the `Host` header. With no `AUTH_PASSWORD` set,
+  the proxy answers **421** to a Host that is not an IP address, `localhost`, a
+  bare machine name, a `.local`/`.internal`/`.home.arpa` name, or a name listed
+  in `ALLOWED_HOSTS`. Set `ALLOWED_HOSTS` (comma-separated, `*.` for
+  subdomains) when you reach the app through a real domain name.
 - **Request-body cap**: state-changing API requests over 512 KB are rejected
-  (HTTP 413) before the body is buffered, defense-in-depth against memory DoS.
+  (HTTP 413). The two document routes get a 4 MB ceiling instead, because
+  `/api/evidence` stores an artifact and `/api/cases` imports a whole case. The
+  count is taken on the bytes as they arrive rather than on `Content-Length`,
+  which a client can decline to send: a `Transfer-Encoding: chunked` request
+  carries no such header, so a cap read off it is no cap at all.
+- **Work-admission limits**: some requests are cheap to make and expensive to
+  serve, so they are bounded by the work they commit the server to rather than
+  by the request count alone. An evidence capture is bounded in shape as well as
+  size, at most 64 levels of nesting and 500,000 values. Shape matters because
+  the artifact is pretty-printed before it is measured and indentation cost
+  grows with nesting depth, so a body inside the 4 MB ceiling can serialise to
+  hundreds of megabytes on its way to being refused. Bulk lookups are capped at
+  **4 concurrent jobs**, and a fifth gets 429 with `Retry-After`: one job is 500
+  rows of twelve-upstream fan-out, while the rate limiter sees only the single
+  cheap request that starts it.
+- **Audit-log rotation**: the log rolls over at 8 MB and keeps one previous
+  generation, both mode `0600`. Rotation is what bounds it: every guarded route
+  appends a row and a 500-row bulk job appends 500, so an append-only file with
+  no ceiling grows for as long as the server runs.
+- **Password-guessing delay**: when `AUTH_PASSWORD` is set, a wrong password is
+  held back briefly, doubling to a one-second ceiling. The first few failures
+  are free, so mistyping is not punished, and a correct password is never
+  delayed. It is a delay rather than a lockout, so nobody can shut you out of
+  your own tool by guessing at it. For an internet-exposed deployment, pair it
+  with a reverse proxy that also limits connections.
 - **Content-Security-Policy**: production `script-src` is `'self' 'unsafe-inline'`;
   `'unsafe-eval'` is dev-only (HMR); the production bundle uses no `eval()` /
   `new Function()`. Plus `object-src 'none'`, `frame-ancestors 'none'`,
   `base-uri 'self'`, `form-action 'self'`.
 - **Rendered-link safety (no `javascript:` hrefs)**: results include URLs that a
   *target* can control (a Gravatar profile/linked-account URL, a FullContact
-  "social profile" URL). React does not block `javascript:`/`data:` URLs in an
-  `href`, and CSP keeps `script-src 'unsafe-inline'` for the anti-flash theme
-  script, so such a URL would be click-to-XSS on our own origin. Every
-  remote-supplied `href` is therefore passed through `safeExternalUrl()`
-  (`src/lib/utils.ts`), which admits only absolute `http(s)` URLs and renders
-  anything else inert. Text is React-escaped; HTML/CSV exports are entity-escaped
-  and CSV-formula-guarded.
+  "social profile" URL). React 19 neutralises a `javascript:` href but passes
+  `data:` and every other scheme through, the HTML report exports are not
+  rendered by React at all, and CSP keeps `script-src 'unsafe-inline'` for the
+  anti-flash theme script, so such a URL could be click-to-XSS on our own
+  origin. Every remote-supplied `href` is therefore passed through
+  `safeExternalUrl()` (`src/lib/utils.ts`), which admits only absolute `http(s)`
+  URLs and renders anything else inert. Text is React-escaped; HTML/CSV exports
+  are entity-escaped and CSV-formula-guarded.
 - **Minimal probe disclosure**: `/api/health` stays reachable even with the auth
   gate on (for liveness probes) and deliberately reports no runtime/interpreter
   version, only status, app version, uptime, and whether the auth gate is set.
