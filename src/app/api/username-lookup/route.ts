@@ -17,6 +17,7 @@ import {
   normalizeLichess, deriveIdentity,
 } from "@/lib/analysis/usernameProfiles";
 import { hashAvatars } from "@/lib/server/avatarHash";
+import { followRedirects, readPrefix } from "@/lib/server/httpProbe";
 import { correlateAvatars } from "@/lib/analysis/phash";
 import { selfLinkProofs, avatarProofs } from "@/lib/analysis/identityLinks";
 import { resolveIdentity } from "@/lib/analysis/identityResolve";
@@ -142,13 +143,14 @@ async function checkSite(
   }
 
   try {
-    const res = await fetch(url, {
-      method: "GET",
+    // Redirects are followed by hand with every hop vetted, as in the deep
+    // sweep: the probe must never be steered at an internal address.
+    const walked = await followRedirects(url, {
+      timeoutMs: 6500,
       headers: { "User-Agent": UA, "Accept": "text/html,application/xhtml+xml" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(6500),
-      next: { revalidate: 0 },
     });
+    if (!walked) return base; // refused, unreachable or looping → unknown
+    const { res } = walked;
 
     const httpStatus = res.status;
 
@@ -163,7 +165,7 @@ async function checkSite(
     if (httpStatus !== 200) {
       return { ...base, status: httpStatus === 404 ? "notfound" : "unknown", httpStatus };
     }
-    const text = (await res.text()).slice(0, 60000);
+    const text = await readPrefix(res, 60000);
     /* v8 ignore next -- a "body" site without an absence marker is rejected by
        the overlay loader and none is bundled, so the false arm is unreachable. */
     const absent = site.absence ? text.includes(site.absence) : false;
@@ -192,7 +194,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const parsed = await parseBody(req, usernameBody);
-  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: parsed.status ?? 400, headers: rlHeaders });
   const body = parsed.data;
 
   const username = body.username.trim().replace(/^@/, "");

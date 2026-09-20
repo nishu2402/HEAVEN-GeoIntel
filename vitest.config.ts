@@ -12,6 +12,8 @@ export default defineConfig({
     // into jsdom per-file via a `// @vitest-environment jsdom` comment.
     environment: "node",
     include: ["tests/**/*.test.{ts,tsx}"],
+    // Keeps DNS out of every test: see the file for why.
+    setupFiles: ["tests/setup/dns.ts"],
     exclude: ["node_modules", ".next", ".claude"],
     // Hard guard: route handlers write through HV_DATA_DIR (audit log, cases,
     // API keys). Without a default here, any test that exercises a route

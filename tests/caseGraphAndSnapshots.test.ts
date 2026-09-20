@@ -7,6 +7,7 @@ import { GET, POST, DELETE } from "@/app/api/cases/route";
 import { createCase, deleteAllCases, addEntity, addEdges, recordSnapshot, getCase, mergeCases, importCase } from "@/lib/server/caseStore";
 import { CASE_TOKEN_COOKIE, issueToken } from "@/lib/server/caseLock";
 import type { CaseEdge, InvestigationCase } from "@/lib/types";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Phase 3.4/3.5/4.8: the persisted graph, the snapshot/diff loop, and the
 // optional case lock — driven through both the store and the HTTP layer.
@@ -18,7 +19,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 beforeEach(async () => { await deleteAllCases(); });
 afterEach(() => {

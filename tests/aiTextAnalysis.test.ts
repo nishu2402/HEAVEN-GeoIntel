@@ -61,6 +61,40 @@ describe("extractEntities", () => {
     expect(handle?.confidence).toBeGreaterThan(0);
     expect(handle?.confidence).toBeLessThan(1);
   });
+
+  // ── Run bounding (see MAX_RUN in textAnalysis.ts) ──────────────────────────
+  // The email and domain patterns open with an unanchored greedy class, so a
+  // backtracking engine restarts them at every position of a whitespace-free
+  // run and the cost is quadratic in that run's length. Extraction runs on every
+  // keystroke of the text panel, so a pasted blob used to freeze the tab:
+  // 100 KB of "a." measured 14.6 s before this bound, 2.6 ms after.
+
+  it("still finds identifiers that sit inside a long line", () => {
+    // Long DOCUMENT, short runs — the common case, which must be unaffected.
+    const line = `${"filler ".repeat(5000)}alice@example.com ${"tail ".repeat(5000)}`;
+    expect(byKind(line, "email")).toEqual(["alice@example.com"]);
+  });
+
+  it("skips a whitespace-free run too long to hold any address or hostname", () => {
+    // 1025 characters with no whitespace: past MAX_RUN, so it is not scanned.
+    // A real address is at most 254 bytes and a hostname 253, so nothing that
+    // could legitimately be reported lives in a run this long.
+    const blob = `${"a.".repeat(520)}b@example.com`;
+    expect(blob.length).toBeGreaterThan(1024);
+    expect(extractEntities(blob)).toEqual([]);
+
+    // The same value, delimited, is still found — it is the RUN that is bounded,
+    // never the document.
+    expect(byKind(`${"a.".repeat(520)} b@example.com`, "email")).toEqual(["b@example.com"]);
+  });
+
+  it("scans a pathological blob in bounded time", () => {
+    const started = Date.now();
+    expect(extractEntities("a.".repeat(100_000))).toEqual([]);
+    // Without the bound this is minutes; the generous ceiling keeps the test
+    // honest on a loaded CI box while still failing loudly on a regression.
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
 });
 
 describe("classifyText", () => {

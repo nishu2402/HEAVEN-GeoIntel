@@ -11,7 +11,10 @@ import type { Mode } from "@/lib/client/modes";
 const LABEL: Partial<Record<Mode, string>> = {
   phone: "Analysing the number and querying breach + infostealer sources…",
   email: "Checking breach databases, reputation and deliverability…",
-  username: "Scanning 29 sites in parallel for this handle…",
+  // No count here on purpose. This line said "29 sites" while the catalog held
+  // 38, and even a corrected number would be a guess: an operator overlay adds
+  // and removes entries at runtime, so the client cannot know the real size.
+  username: "Scanning the site catalog in parallel for this handle…",
   ip: "Resolving geolocation, ASN, open ports and threat intel…",
   domain: "Resolving DNS, WHOIS, subdomains and email-security posture…",
 };

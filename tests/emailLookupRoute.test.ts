@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/email-lookup/route";
-import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
+import { useRateLimit, restoreRateLimit, clientCookie, SUITE_DATA_DIR } from "./testUtils";
 
 // End-to-end handler test for the email lookup. Gravatar and XposedOrNot are
 // keyless and hit on every request, so both are stubbed in every case. EmailRep
@@ -21,7 +21,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   delete process.env.TRUST_PROXY;
 });
 afterEach(() => {

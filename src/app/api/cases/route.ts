@@ -9,6 +9,8 @@ import { clearAudit } from "@/lib/server/auditLog";
 import {
   CASE_TOKEN_COOKIE, casePassword, issueToken, passwordMatches, verifyToken,
 } from "@/lib/server/caseLock";
+import { readJsonCapped } from "@/lib/server/validation";
+import { LARGE_MAX_BODY_BYTES } from "@/lib/server/bodyLimits";
 import type { EntityKind, InvestigationCase } from "@/lib/types";
 
 // ── Investigation cases API (persistent, file-backed) ───────────────────────
@@ -84,9 +86,16 @@ interface CaseAction {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  let body: CaseAction;
-  try { body = (await req.json()) as CaseAction; }
-  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  // `import` carries a whole exported case, so this route reads past the default
+  // ceiling — and the count happens on the bytes, because a chunked request
+  // brings no Content-Length for the proxy to have checked. See bodyLimits.ts.
+  const read = await readJsonCapped(req, LARGE_MAX_BODY_BYTES);
+  if (!read.ok) {
+    return read.tooLarge
+      ? NextResponse.json({ error: "Request body too large" }, { status: 413 })
+      : NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const body = read.json as CaseAction;
 
   // `unlock` is the one action that must work while locked — it is how you stop
   // being locked. Everything else goes through the guard.

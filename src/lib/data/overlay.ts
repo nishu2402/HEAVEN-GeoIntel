@@ -75,7 +75,13 @@ export function overlayLookup<T>(name: DatasetName, key: string): T | null | und
   const slot = slots.get(name);
   if (!slot) return undefined;
   if (slot.remove?.includes(key)) return null;
-  return slot.records?.[key] as T | undefined;
+  // `records` comes from JSON.parse, so it inherits Object.prototype: a plain
+  // `records[key]` answers "constructor" or "toString" with an inherited
+  // function and the caller would report that as overlay data. Today's three
+  // callers pass digits or an upper-cased country code so none of them can
+  // reach it, but this is the shared door every future dataset walks through.
+  if (!slot.records || !Object.hasOwn(slot.records, key)) return undefined;
+  return slot.records[key] as T | undefined;
 }
 
 /** Extra list entries contributed by an overlay, for list-shaped datasets. */

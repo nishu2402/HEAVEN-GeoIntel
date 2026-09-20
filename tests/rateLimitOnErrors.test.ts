@@ -17,6 +17,7 @@ import { POST as aiAnalyst } from "@/app/api/ai-analyst/route";
 import { POST as sweep } from "@/app/api/username-sweep/route";
 import { POST as typosquat } from "@/app/api/typosquat-scan/route";
 import { POST as evidence } from "@/app/api/evidence/route";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Every rate-limited route charges the quota BEFORE it validates the body, so a
 // 400 has already spent a request. Eight of them answered that 400 without
@@ -54,7 +55,7 @@ beforeAll(() => {
 afterAll(() => {
   vi.unstubAllGlobals();
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   delete process.env.TRUST_PROXY;
 });
 afterEach(() => expect(fetch).not.toHaveBeenCalled());

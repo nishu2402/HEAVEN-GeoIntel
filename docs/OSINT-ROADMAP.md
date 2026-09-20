@@ -119,7 +119,7 @@ none.
   candidate and capped. This is the false-positive rule applied to the one place
   in the tool that was still guessing.
 - **The WhatsMyName catalog is read for its detection contract**, not just its
-  URLs: 242 validated sites swept per request, 393 more on request, each
+  URLs: 242 validated sites swept per request, 392 more on request, each
   classified only when the response matches the contract's found or free pair.
 - **Passive DNS and reverse IP are keyless** (see 4.3), and both feed subdomain
   coverage alongside two certificate-transparency sources that now always run.

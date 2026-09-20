@@ -143,7 +143,24 @@ describe("<IpResultsDashboard> full result", () => {
 
   it("shows a failed source provenance chip with its error", () => {
     render(<IpResultsDashboard data={resp({ sources: [{ source: "shodan", ok: false, ms: 12, fetchedAt: Date.now(), error: "429" }] })} />);
-    expect(screen.getByText(/shodan · 12ms · 429/)).toBeTruthy();
+    expect(screen.getByText(/shodan · 429/)).toBeTruthy();
+  });
+
+  it("still says something for a failure that carries no reason", () => {
+    render(<IpResultsDashboard data={resp({ sources: [{ source: "ripestat", ok: false, ms: 9, fetchedAt: Date.now() }] })} />);
+    expect(screen.getByText(/ripestat · unreachable/)).toBeTruthy();
+  });
+
+  it("does not paint a source that was never called as a failure", () => {
+    // GreyNoise is IPv4-only, so an IPv6 lookup leaves it nothing to answer;
+    // it used to show red with a raw NO_INPUT code next to it.
+    render(<IpResultsDashboard data={resp({ sources: [
+      { source: "GreyNoise Community", ok: false, ms: 0, fetchedAt: Date.now(), skipped: true, error: "NO_INPUT" },
+      { source: "Paid thing", ok: false, ms: 0, fetchedAt: Date.now(), skipped: true, error: "NOT_CONFIGURED" },
+    ] })} />);
+    expect(screen.getByText(/GreyNoise Community · not applicable/)).toBeTruthy();
+    expect(screen.getByText(/Paid thing · not configured/)).toBeTruthy();
+    expect(screen.queryByText(/NO_INPUT|NOT_CONFIGURED/)).toBeNull();
   });
 
   it("handles an unknown GreyNoise classification and a missing ASN", () => {

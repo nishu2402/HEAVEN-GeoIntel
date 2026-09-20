@@ -6,6 +6,7 @@ import { GET, POST } from "@/app/api/datasets/route";
 import { reloadDatasets } from "@/lib/server/datasets";
 import { clearOverlays } from "@/lib/data/overlay";
 import { USERNAME_SITES } from "@/lib/data/usernameSites";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 let dir: string;
 beforeEach(() => {
@@ -14,7 +15,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   clearOverlays();
   await reloadDatasets();
 });

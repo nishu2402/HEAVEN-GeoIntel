@@ -51,10 +51,13 @@ const PIPELINE = [
   { title: "REPORT", color: GREEN, sub: "pdf · html · case file" },
 ];
 
-// Six trust metrics. Every value is derived from source (see scripts/poster-stats.mjs);
-// TESTS/COVERAGE are the build-gate figures.
+// Six trust metrics. Unlike the poster, these are TYPED IN, not read from the
+// registries, and no test compares them with anything: this banner is a release
+// asset, so nothing in the build fails when they drift. The last four must match
+// `scripts/poster-stats.mjs` (identifiers, sources, modes, apiOperations) and the
+// first two the build gate. Re-check all six when cutting a release.
 const CARDS = [
-  { n: "3397", label: "TESTS", color: GREEN },
+  { n: "3488", label: "TESTS", color: GREEN },
   { n: "100%", label: "COVERAGE", color: CYAN },
   { n: "7", label: "IDENTIFIERS", color: VIOLET },
   { n: "34", label: "SOURCES", color: GREEN },

@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/pwned-password/route";
-import { restoreRateLimit, resetServerState, useRateLimit, clientCookie } from "./testUtils";
+import { restoreRateLimit, resetServerState, useRateLimit, clientCookie, SUITE_DATA_DIR } from "./testUtils";
 
 let dir: string;
 beforeAll(() => { dir = mkdtempSync(join(tmpdir(), "hv-pwned-")); process.env.HV_DATA_DIR = dir; process.env.TRUST_PROXY = "1"; });
-afterAll(() => { rmSync(dir, { recursive: true, force: true }); delete process.env.HV_DATA_DIR; delete process.env.TRUST_PROXY; });
+afterAll(() => { rmSync(dir, { recursive: true, force: true }); process.env.HV_DATA_DIR = SUITE_DATA_DIR; delete process.env.TRUST_PROXY; });
 afterEach(() => { vi.unstubAllGlobals(); restoreRateLimit(); resetServerState(); });
 
 const textResp = (status: number, text: string) =>

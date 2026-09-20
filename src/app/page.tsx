@@ -543,12 +543,19 @@ function PageContent() {
               {mode === "email" && (
                 <>
                   <EmailInput onLookup={runEmail} onClear={emailStatus !== "idle" || emailResult ? () => { setEmailStatus("idle"); setEmailResult(null); setEmailErr(""); router.replace("/", { scroll: false }); } : undefined} loading={emailStatus === "loading"} />
-                  {emailStatus === "idle" && !emailResult && <ExampleChips items={["test@example.com", "john.doe@gmail.com"]} onPick={runEmail} />}
+                  {/* Every other mode's chips are reserved fiction (555 numbers) or a
+                      deliberately public subject (8.8.8.8, github.com, octocat).
+                      "john.doe@gmail.com" was the one chip that pointed a one-click
+                      breach lookup at a plausibly real private person, which the
+                      consent gate tells the user not to do. mailinator.com is a
+                      public throwaway service nobody owns, and it demonstrates the
+                      disposable-provider classification besides. */}
+                  {emailStatus === "idle" && !emailResult && <ExampleChips items={["test@example.com", "test@mailinator.com"]} onPick={runEmail} />}
                 </>
               )}
               {mode === "username" && (
                 <>
-                  <SimpleLookupInput placeholder="username / handle (no @)" hint="Pulls rich profiles from GitHub, GitLab, Hacker News, Reddit & Bluesky + sweeps dozens more sites: never a false positive."
+                  <SimpleLookupInput placeholder="username / handle (no @)" hint="Pulls rich profiles from nine keyless APIs (GitHub, GitLab, Codeberg, Hacker News, Reddit, Bluesky, Mastodon, Chess.com, Lichess) and sweeps the site catalog on top, with no false positives."
                     icon={<AtSign className="w-4 h-4" />} loading={userStatus === "loading"} onLookup={runUsername}
                     onClear={userStatus !== "idle" ? () => { setUserStatus("idle"); setUserResult(null); setUserErr(""); router.replace("/", { scroll: false }); } : undefined}
                     validate={(v) => /^[a-zA-Z0-9._-]{2,40}$/.test(v.replace(/^@/, "")) ? null : "2-40 chars: letters, digits, . _ -"} />

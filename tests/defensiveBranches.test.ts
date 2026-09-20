@@ -17,6 +17,7 @@ import { defaultRunner } from "@/lib/server/bulkJobs";
 import { generateTyposquats } from "@/lib/analysis/typosquat";
 import { pngFixture } from "./imageFixtures";
 import type { DomainLookupResponse, HashLookupResponse, SocialProfile, WalletLookupResponse, InvestigationCase } from "@/lib/types";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // The branches a feature test does not naturally reach: malformed upstream
 // payloads, absent optional fields, and the guards that keep a bad answer from
@@ -29,7 +30,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });

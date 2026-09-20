@@ -8,6 +8,8 @@ import {
   rateLimitHeaders,
   rateLimitedResponse,
   resetRateLimit,
+  internalHeaders,
+  INTERNAL_HEADER,
 } from "@/lib/server/rateLimit";
 
 // Fixed-window limiter with a per-client bucket AND a server-wide ceiling, plus
@@ -202,5 +204,41 @@ describe("guardRateLimit", () => {
     const out = guardRateLimit(req);
     expect(out.limited?.status).toBe(429);
     expect(out.client).toBe("shared");
+  });
+});
+
+// The self-call token grants the rate-limit bypass, so it is compared the way
+// caseLock compares its own: in constant time, and without letting a header of
+// the wrong byte length reach `timingSafeEqual`, which throws on a mismatch.
+describe("internal self-call token", () => {
+  it("bypasses the per-client bucket when the header matches", () => {
+    const req = reqWith(internalHeaders() as Record<string, string>);
+    for (let i = 0; i < 20; i++) {
+      // Well past the 10/window limit these cases run under.
+      expect(guardRateLimit(req).limited).toBeNull();
+    }
+  });
+
+  it("refuses a forged token, whatever its length, without throwing", () => {
+    const real = internalHeaders()[INTERNAL_HEADER];
+    // Flip the last character to one it definitely is not. A fixed "0" was wrong
+    // ~1 run in 16: when the random UUID happened to end in "0", the "wrong last
+    // byte" case reconstructed the REAL token, sailed through the bypass, and the
+    // 11th call came back unlimited.
+    const last = real[real.length - 1];
+    const wrongLast = real.slice(0, -1) + (last === "0" ? "1" : "0");
+    for (const forged of [
+      "",                               // empty
+      "x",                              // shorter
+      wrongLast,                        // same length, last byte wrong
+      "é".repeat(real.length),          // same UTF-16 length, twice the bytes
+      real + "0",                       // longer
+    ]) {
+      resetRateLimit();
+      const req = reqWith({ [INTERNAL_HEADER]: forged });
+      for (let i = 0; i < 10; i++) guardRateLimit(req);
+      // Not internal, so the ordinary bucket applied and is now exhausted.
+      expect(guardRateLimit(req).limited?.status).toBe(429);
+    }
   });
 });

@@ -10,6 +10,7 @@ import { buildCaseJson } from "@/lib/analysis/caseReport";
 import { createCase, deleteAllCases, addEdges, recordSnapshot, getCase, importCase } from "@/lib/server/caseStore";
 import { POST as lookupPOST } from "@/app/api/lookup/route";
 import type { EmailLookupResponse, UsernameLookupResponse, InvestigationCase } from "@/lib/types";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Remaining branch coverage for the Phase 3/4 work: the paths a happy-path test
 // doesn't reach, each one a real behaviour rather than a coverage filler.
@@ -21,7 +22,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 beforeEach(async () => { await deleteAllCases(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });

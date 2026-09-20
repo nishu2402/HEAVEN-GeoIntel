@@ -54,7 +54,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (rl.limited) return rl.limited;
 
   const parsed = await parseBody(req, aiAnalystBody);
-  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rl.headers });
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: parsed.status ?? 400, headers: rl.headers });
   const body = parsed.data;
 
   const r = await runAnalyst(body.provider, body.model, { system: body.system, user: body.user }, body.apiKey);

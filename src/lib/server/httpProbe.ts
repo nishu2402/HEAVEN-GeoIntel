@@ -9,6 +9,7 @@
 // The judgement lives in analysis/httpPosture.ts. This file does the network.
 
 import tls from "node:tls";
+import { lookup } from "node:dns/promises";
 import { classifyIp } from "../analysis/ipClassify";
 import { withUserAgent } from "./fetchSafe";
 import {
@@ -65,6 +66,31 @@ export function hostAllowed(hostname: string): boolean {
   return lower !== "localhost" && !lower.endsWith(".localhost");
 }
 
+/**
+ * `hostAllowed`, plus what the name actually resolves to.
+ *
+ * The syntactic check stops an address literal, but a hostname passes it
+ * whatever it points at: `instance-data` (the EC2 metadata alias),
+ * `metadata.google.internal`, a router's `.lan` name, or any public name aimed
+ * at 127.0.0.1. So a name is resolved here with the system resolver, the same
+ * one fetch will use, and every address has to be globally routable. A name
+ * that does not resolve is refused: there is nothing to probe.
+ *
+ * This is a check, not a pin, so a name whose answer changes between here and
+ * the connection still gets through; the guard note above covers that race.
+ */
+export async function resolvesPublic(hostname: string): Promise<boolean> {
+  const host = hostname.replace(/^\[|\]$/g, "");
+  if (!hostAllowed(host)) return false;
+  if (classifyIp(host)) return true; // a literal, and hostAllowed found it routable
+  try {
+    const found = await lookup(host, { all: true, verbatim: true });
+    return isProbeTarget(found.map((a) => a.address));
+  } catch {
+    return false;
+  }
+}
+
 function headerMap(res: Response): HeaderMap {
   const out: HeaderMap = {};
   res.headers.forEach((v, k) => { out[k.toLowerCase()] = v; });
@@ -76,9 +102,12 @@ function headerMap(res: Response): HeaderMap {
   return out;
 }
 
-/** Read at most `limit` bytes of the body, then abandon the rest. */
-async function readPrefix(res: Response, limit: number): Promise<string> {
-  if (!res.body) return "";
+/**
+ * Read at most `limit` characters of the body, then abandon the rest. A response
+ * with no stream (an empty body, or a duck-typed one) is read through `text()`.
+ */
+export async function readPrefix(res: Response, limit: number): Promise<string> {
+  if (!res.body) return (await res.text()).slice(0, limit);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let out = "";
@@ -101,18 +130,35 @@ async function readPrefix(res: Response, limit: number): Promise<string> {
  *
  * `redirect: "follow"` would be less code, but it discards exactly the part a
  * pentester wants: whether the apex bounces through a third-party domain, how
- * many hops it takes, and whether any hop drops back to http://.
+ * many hops it takes, and whether any hop drops back to http://. It would also
+ * follow a hop into the internal network, which is why every other outbound
+ * probe of a target-controlled host goes through here too.
  */
-async function walk(startUrl: string): Promise<{ res: Response; url: string; chain: string[] } | null> {
+export async function followRedirects(
+  startUrl: string,
+  { timeoutMs = HTTP_TIMEOUT_MS, headers = { Accept: "text/html,application/xhtml+xml,*/*;q=0.8" } }:
+    { timeoutMs?: number; headers?: Record<string, string> } = {},
+): Promise<{ res: Response; url: string; chain: string[] } | null> {
   let url = startUrl;
   const chain: string[] = [];
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    // Every hop, the first included: a caller's own vetting may have used a
+    // different resolver, and a redirect can name any host, or any scheme (a
+    // data: URL would be "fetched" without touching the network at all).
+    let target: URL;
+    try {
+      target = new URL(url);
+    } catch {
+      return null; // only a caller's start URL can fail here; every hop is re-serialised
+    }
+    if (target.protocol !== "https:" && target.protocol !== "http:") return null;
+    if (!(await resolvesPublic(target.hostname))) return null;
     let res: Response;
     try {
       res = await fetch(url, withUserAgent({
         redirect: "manual",
-        signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
-        headers: { Accept: "text/html,application/xhtml+xml,*/*;q=0.8" },
+        signal: AbortSignal.timeout(timeoutMs),
+        headers,
         cache: "no-store",
       }));
     } catch {
@@ -123,13 +169,19 @@ async function walk(startUrl: string): Promise<{ res: Response; url: string; cha
       // The chain was discarded by the caller regardless.
       return null;
     }
-    const location = res.headers.get("location");
+    // `res.headers?` for the same reason fetchSafe gives: a duck-typed response
+    // that carries only a status and a body must still be read, not thrown on.
+    const location = res.headers?.get("location") ?? null;
     if (res.status >= 300 && res.status < 400 && location) {
-      const nextUrl = new URL(location, url);
       /* v8 ignore next -- cancel() rejecting is not reachable from a test */
       void res.body?.cancel().catch(() => {});
-      // Refuse a redirect that points inward before it is ever fetched.
-      if (!hostAllowed(nextUrl.hostname)) return null;
+      let nextUrl: URL;
+      try {
+        nextUrl = new URL(location, url);
+      } catch {
+        return null; // a Location that is not a URL at all leads nowhere
+      }
+      // The next pass vets the new host before anything is fetched from it.
       const next = nextUrl.toString();
       chain.push(`${res.status} ${url} → ${next}`);
       url = next;
@@ -233,10 +285,13 @@ export function probeTls(domain: string): Promise<TlsInfo | null> {
  * parked or mail-only domain, so neither is reported as a source failure.
  */
 export async function probeHttp(domain: string, addresses: string[]): Promise<HttpProbe | null> {
-  if (!isProbeTarget(addresses)) return null;
+  // Two resolvers, both required: the DoH answers the lookup already has, and
+  // the system resolver the connections below will actually use. A name that
+  // resolves publicly over DoH and inward on this machine is refused.
+  if (!isProbeTarget(addresses) || !(await resolvesPublic(domain))) return null;
 
   const [walked, tlsInfo, httpsRedirect] = await Promise.all([
-    walk(`https://${domain}/`),
+    followRedirects(`https://${domain}/`),
     probeTls(domain),
     checkHttpsUpgrade(domain),
   ]);

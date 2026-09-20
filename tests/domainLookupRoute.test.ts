@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST, joinTxtChunks } from "@/app/api/domain-lookup/route";
-import { useRateLimit, restoreRateLimit, clientCookie } from "./testUtils";
+import { useRateLimit, restoreRateLimit, clientCookie, SUITE_DATA_DIR } from "./testUtils";
 
 // Drives the domain OSINT handler with every free upstream mocked: Cloudflare
 // DoH (8 record types incl. SPF/_dmarc TXT + DNSKEY), RDAP whois, Certspotter
@@ -18,7 +18,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   delete process.env.TRUST_PROXY;
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -242,10 +242,10 @@ describe("POST /api/domain-lookup: full recon merge", () => {
       if (u.hostname === "web.archive.org") return json({}, 404);
       // The verification probes themselves.
       if (u.hostname === "gone.acme.test") {
-        return { ok: true, status: 404, text: async () => "<h1>There isn't a GitHub Pages site here.</h1>" } as unknown as Response;
+        return new Response("<h1>There isn't a GitHub Pages site here.</h1>", { status: 404 });
       }
       if (u.hostname === "live.acme.test") {
-        return { ok: true, status: 200, text: async () => "<html><body>Real docs site</body></html>" } as unknown as Response;
+        return new Response("<html><body>Real docs site</body></html>", { status: 200 });
       }
       throw new TypeError("unexpected fetch: " + u.href);
     }));
@@ -254,6 +254,37 @@ describe("POST /api/domain-lookup: full recon merge", () => {
     expect(j.takeoverCandidates).toHaveLength(1);
     expect(j.takeoverCandidates[0].name).toBe("gone.acme.test");
     expect(j.takeoverCandidates[0].verification).toBe("unclaimed");
+  });
+
+  it("never follows a candidate's redirect into the metadata service", async () => {
+    // The check used redirect: "follow", so a hostile subdomain could bounce it
+    // anywhere, IP literals included, and the body decided the verdict.
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      const u = new URL(String(url));
+      seen.push(u.href);
+      if (u.hostname === "cloudflare-dns.com") {
+        const name = u.searchParams.get("name") ?? "";
+        const type = u.searchParams.get("type") ?? "";
+        if (type === "A") return json({ Answer: [{ name, type: 1, TTL: 300, data: "104.20.0.1" }] });
+        if (type === "CNAME" && name === "gone.acme.test") {
+          return json({ Answer: [{ name, type: 5, TTL: 300, data: "gone.github.io" }] });
+        }
+        return json({ Answer: [] });
+      }
+      if (u.hostname === "api.certspotter.com") return json([{ dns_names: ["gone.acme.test"] }]);
+      if (u.hostname === "rdap.org") return json({}, 404);
+      if (u.hostname === "web.archive.org") return json({}, 404);
+      if (u.hostname === "gone.acme.test") {
+        return new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" } });
+      }
+      return new Response("<h1>There isn't a GitHub Pages site here.</h1>", { status: 404 });
+    }));
+
+    const j = await (await post({ domain: "acme.test" })).json();
+    expect(j.takeoverCandidates).toHaveLength(1);
+    expect(j.takeoverCandidates[0].verification).toBe("unverified");
+    expect(seen.some((href) => href.includes("169.254.169.254"))).toBe(false);
   });
 
   it("leaves a candidate unverified when its host resolves nowhere probeable", async () => {

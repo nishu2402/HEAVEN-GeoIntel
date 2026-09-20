@@ -24,7 +24,7 @@ describe("<ScanProgress>", () => {
 
   it("shows the per-mode label and ticks the elapsed timer, revealing the slow-source note at 8s", () => {
     render(<ScanProgress mode="username" />);
-    expect(screen.getByText(/scanning 29 sites/i)).toBeTruthy();
+    expect(screen.getByText(/scanning the site catalog/i)).toBeTruthy();
     expect(screen.getByText("0s")).toBeTruthy();
     act(() => { vi.advanceTimersByTime(8000); });
     expect(screen.getByText("8s")).toBeTruthy();

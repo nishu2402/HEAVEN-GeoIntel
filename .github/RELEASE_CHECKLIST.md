@@ -25,9 +25,16 @@ Then, in order:
 3. If the `major.minor` changed, add it to the supported table in
    [`SECURITY.md`](../SECURITY.md). A table that omits the release you just
    shipped tells a reporter their finding is out of scope.
-4. `npm run brand`; the poster and the terminal banner print the version.
-   (`npm run brand:poster` alone is enough if the mark itself did not change;
-   the full script also rasterises PNGs and needs Chrome.)
+4. Refresh the six numbers in `scripts/generate-release-banner.mjs`: tests and
+   coverage from the gate you are about to run, and identifiers, sources, modes
+   and API operations from `scripts/poster-stats.mjs`. They are typed in, and
+   nothing in the build compares them with anything, so this is the one step no
+   test will fail for you. It had drifted by 91 tests before anyone noticed.
+5. `npm run brand`; the poster, the terminal banner and the release banner all
+   print the version. Run the full script, not `brand:poster` alone: the release
+   banner under `docs/assets/` carries the version too, and skipping it ships a
+   release page still advertising the previous one. The full script rasterises
+   PNGs and needs Chrome.
 
 ## 2. Run the gate
 

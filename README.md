@@ -334,7 +334,7 @@ devices.
 
 ### Open it on your phone (same Wi-Fi)
 
-`bash scripts/start.sh` prints a **Network** URL like `http://192.168.0.231:3000`
+`bash scripts/start.sh` prints a **Network** URL like `http://192.168.1.42:3000`
 and verifies it is reachable. Open **that exact URL** on your phone, **never
 `0.0.0.0`** (that is what Next's own banner prints; it means "all interfaces",
 not an address a phone can open).
@@ -399,6 +399,7 @@ Every flag `geointel` already understood (starting the app, `--help`, the instal
 | Want to… | Do this |
 |---|---|
 | **Require a login** before the app/API (e.g. when exposing it on a LAN) | set `AUTH_PASSWORD` (and optionally `AUTH_USER`, default `analyst`); enables HTTP Basic auth on everything except `/api/health`. Off by default. |
+| **Reach it through a domain name** without a login (e.g. `osint.example.com`, a Tailscale `*.ts.net` name) | set `ALLOWED_HOSTS=osint.example.com` (comma-separated, `*.` matches subdomains). Without a password the app answers **421** to any other domain in the `Host` header, which is what stops a DNS-rebinding page from reading your cases. IP addresses, `localhost`, bare machine names and `.local` names always work. |
 | **Keep an audit trail** of lookups | automatic; `.data/audit.log` records type · **hashed** target · time · status. Set `AUDIT_PLAINTEXT=1` to store raw targets. |
 | **Health-check** the service | `GET /api/health` → `{ status: "ok", … }` (also the Docker healthcheck). |
 | **Wipe everything** (cases + audit log) | the **WIPE ALL** button in the Cases tab, or `curl -X DELETE '<host>/api/cases?all=1'`. |
@@ -590,7 +591,7 @@ The 38-site sweep is the fast answer. Behind a button sits the wide one: the bun
 A contract is four fields the catalog records for each site: the status and body string that mean *account exists*, and the status and body string that mean *account free*. A probe is only classified when the response matches one of those two pairs; anything else is reported `unknown` rather than folded into either answer. The catalog previously contributed nothing but links, because the contract was never read.
 
 - **242 sites** are swept by default: the ones that behaved exactly as their contract documents when the catalog was last validated against a known-real and a known-absent handle.
-- **393 more** are one checkbox away. They are offered rather than dropped, because a marker can rot and a site that failed from this machine may answer from yours.
+- **392 more** are one checkbox away. They are offered rather than dropped, because a marker can rot and a site that failed from this machine may answer from yours.
 - Measured on `bagder`, one 60-site page classified **56 of 60** either way: 7 confirmed accounts, 49 confirmed free, 4 unknown.
 
 It is paged, explicitly started and stoppable, for one reason: hundreds of probes is tens of seconds and hundreds of sockets, so folding it into every username lookup would make the fast answer slow. The fan-out is bounded and requests to one host are serialised, so three WordPress.com rows are three sequential probes rather than three simultaneous ones.
@@ -721,10 +722,15 @@ a value browsers stopped honouring.
 
 Every other domain source asks a third party. This one connects to the host you
 typed, so it is gated by an SSRF guard: the addresses already resolved by the DNS
-fanout must **all** be globally routable, or the probe does not run. `localtest.me`
-and `1.0.0.127.nip.io` resolve to 127.0.0.1 while passing every syntactic domain
-check, and cloud metadata lives at 169.254.169.254. Requiring every address,
-not merely one, means a split-horizon name is refused rather than raced.
+fanout must **all** be globally routable, and so must every address this
+machine's own resolver gives for the name, or the probe does not run.
+`localtest.me` and `1.0.0.127.nip.io` resolve to 127.0.0.1 while passing every
+syntactic domain check, and cloud metadata lives at 169.254.169.254. Requiring
+every address, not merely one, means a split-horizon name is refused rather than
+raced. Each redirect hop is resolved and checked the same way before it is
+fetched, so a public site cannot bounce the probe to `instance-data` or a
+router's `.lan` name. The subdomain-takeover check, avatar downloads and the
+username probes use the same guard.
 
 This does not close a DNS-rebinding race. If you expose this tool to untrusted
 users, egress-filter the container as well.
@@ -1052,10 +1058,21 @@ CACHE_TTL_MS=86400000        # phone cache TTL (24 h)
 CACHE_MAX_ENTRIES=1000       # phone cache size
 EMAIL_CACHE_TTL_MS=          # defaults to CACHE_TTL_MS
 EMAIL_CACHE_MAX_ENTRIES=500
+IP_CACHE_TTL_MS=             # defaults to CACHE_TTL_MS
+IP_CACHE_MAX_ENTRIES=500
 
 # Upstream behaviour
 SOURCE_TIMEOUT_MS=8000       # per-source hard timeout
 FANOUT_CONCURRENCY=12
+
+# Reachability
+ALLOWED_HOSTS=               # host names this app may be served under, comma
+                             # separated ("*." matches a subdomain). Only read
+                             # while AUTH_PASSWORD is blank; see Security
+FORCE_HTTPS=                 # 1 only when the app is really served over HTTPS:
+                             # emits HSTS + upgrade-insecure-requests and marks
+                             # cookies Secure. Read at BUILD time, not just at
+                             # start, because Next bakes headers() into the build
 
 # Cases
 CASE_SNAPSHOT_HISTORY=5      # lookup snapshots kept per identifier, per case
@@ -1143,7 +1160,7 @@ POST /api/username-lookup { username } → 23 auto-verified + 15 manual → foun
                                        ‖ Mastodon · Chess.com · Lichess profiles · LeakCheck ·
                                        ‖ Hudson Rock (free) + offline HIBP catalog enrichment
                                        → avatar perceptual hashes + self-link proofs → resolved identity
-POST /api/username-sweep { username, page } → 242 WhatsMyName contracts per page (393 more on request)
+POST /api/username-sweep { username, page } → 242 WhatsMyName contracts, 60 per page (392 more on request)
 POST /api/ip-lookup     { ip }       → ip-api (→ ipwho.is when throttled): geo · ASN · ISP · reverse DNS + risk
 POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT) ‖ RDAP whois
                                        (rdap.org, then the IANA-bootstrapped registry) ‖
@@ -1242,10 +1259,16 @@ Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope
 | **Security headers** | `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy` · `Permissions-Policy` (geo/camera/mic/payment/usb blocked) · `Cross-Origin-Opener-Policy` · `Cross-Origin-Resource-Policy` |
 | **CSP** | `default-src 'self'` · `connect-src 'self'` · `object-src 'none'` · `frame-ancestors 'none'` · `base-uri 'self'` · `upgrade-insecure-requests` · narrowed image allow-list |
 | **API hardening** | Lookup routes: `X-Robots-Tag: noindex` + `Cache-Control: no-store`. No `Access-Control-Allow-Origin` is sent, so browsers enforce same-origin by default. |
-| **Input validation / no SSRF** | Every lookup validates input (libphonenumber · IPv4/IPv6 · domain regex · `[A-Za-z0-9._-]{2,40}` usernames) and only URL-encodes it into **fixed** hosts; callers can't choose the destination. |
+| **Input validation** | Every lookup validates input (libphonenumber · IPv4/IPv6 · domain regex · `[A-Za-z0-9._-]{2,40}` usernames) before any outbound request. On the enrichment routes it is only URL-encoded into **fixed** hosts, so a caller cannot choose the destination. |
+| **SSRF guard on target-touching probes** | The domain HTTP/TLS probe, the takeover check, avatar downloads and the username sweep do connect to a host the target controls. Every one of those hosts, and every redirect hop, must resolve to globally routable addresses or the probe never runs, so `localhost`, `instance-data` and a public name aimed at 127.0.0.1 are all refused. |
+| **CSRF protection** | `src/proxy.ts` blocks state-changing requests (POST/PUT/PATCH/DELETE) that don't come from the app's own origin, `same-site` included, so another page in your browser can't drive `/api/keys` or `/api/cases`. |
+| **DNS-rebinding protection** | Without `AUTH_PASSWORD`, a `Host` that is not an IP, `localhost`, a bare machine name, a `.local`/`.internal`/`.home.arpa` name or a listed `ALLOWED_HOSTS` entry gets **421**. A rebound page is same-origin with itself and passes any CSRF check; the `Host` header is the part it can't forge. |
+| **Body + work admission** | 512 KB request bodies (4 MB on `/api/evidence` and `/api/cases`), counted as the bytes arrive rather than from `Content-Length`. An evidence artifact is capped in nesting depth and value count as well as size, and bulk lookups run at most 4 jobs at once. |
+| **Audit-log rotation** | `.data/audit.log` rolls at 8 MB and keeps one previous generation, both `0600`. Rotation is what bounds it: a 500-row bulk job appends 500 rows, and nothing else caps an append-only file. The wipe removes both generations. |
+| **Rendered-link safety** | Every `href` a *target* could control goes through `safeExternalUrl()`, which admits absolute `http(s)` only and renders anything else inert. HTML/CSV exports are entity-escaped and CSV-formula-guarded. |
 | **Image optimizer disabled** | App uses plain `<img>`; `images.unoptimized` removes the `/_next/image` attack surface. |
 | **No tracking** | Metadata from structure + public databases only. No geolocation, device tracking, analytics, or telemetry. |
-| **Rate limiting** | 60 req/min per client + 600/min server-wide, fixed-window · `Retry-After` on 429 · all values env-tunable |
+| **Rate limiting** | 60 req/min per client + 600/min server-wide, fixed-window · `Retry-After` on 429 · all values env-tunable. With `AUTH_PASSWORD` set, a wrong password is also delayed, doubling to a one-second ceiling. |
 | **Optional case lock** | `CASE_PASSWORD` seals `/api/cases` (GET/POST/DELETE) behind an HMAC-signed, HttpOnly token cookie while leaving lookups open. Constant-time password comparison; rotating the secret invalidates every issued token. |
 | **Panel isolation** | Every results panel wrapped in `PanelErrorBoundary`; a broken upstream response takes down one card, not the page. |
 | **Disclosure policy** | [SECURITY.md](./SECURITY.md): private GitHub Security Advisory flow + documented dependency advisories. |
@@ -1368,7 +1391,7 @@ HEAVEN-GeoIntel/
 │       ├── osint/     accessTier    ├── update/  semver · updateStore
 │       └── types.ts · utils.ts
 │
-├── tests/                            217 Vitest suites   ·   e2e/  Playwright smoke
+├── tests/                            219 Vitest suites   ·   e2e/  Playwright smoke
 ├── .env.example · eslint.config.mjs · .nvmrc (22) · .dockerignore
 ├── CHANGELOG.md · CODE_OF_CONDUCT.md · CONTRIBUTING.md · SECURITY.md · LICENSE
 ├── Dockerfile · docker-compose.yml · next.config.mjs (hardened CSP/headers)
@@ -1538,7 +1561,8 @@ fail over decoration.
 | `npm run breaches:refresh` · `npm run sanctions:refresh` · `npm run sites:refresh` | Re-vendor the offline snapshots: breach catalogs, the OFAC SDN list, and the WhatsMyName site catalog |
 | `npm run screenshots` | Regenerate README screenshots (needs the dev server running) |
 | `npm run brand:poster` | Regenerate the README poster + the terminal banner from the live registries (no browser needed) |
-| `npm run brand` | The above, plus every raster asset (favicon · app icons · OG image · hero); needs Chrome |
+| `npm run brand:release` | Regenerate the GitHub release banner in `docs/assets/`; needs Chrome |
+| `npm run brand` | All three: the poster, every raster asset (favicon · app icons · OG image · hero) and the release banner; needs Chrome |
 | `npm run release:verify` | Release pre-flight: checks the **git tag** itself declares the version being released, which no test can see. Pushing the tag then runs [`release.yml`](.github/workflows/release.yml), which re-checks it in CI and publishes the release ([checklist](.github/RELEASE_CHECKLIST.md)) |
 | `docker compose up -d` · `down` · `logs -f geointel` | Container lifecycle |
 

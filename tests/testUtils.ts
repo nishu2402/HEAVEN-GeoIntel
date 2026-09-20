@@ -19,6 +19,15 @@ export function installResizeObserver(): void {
   }
 }
 
+// ── Where test state is allowed to land ──────────────────────────────────────
+// vitest.config.ts points HV_DATA_DIR at a throwaway directory so no test can
+// write into the developer's real ./.data. Route tests then set their own temp
+// dir and used to `delete` the variable in teardown — which does not restore
+// that default, it removes it, so the next fire-and-forget audit write (they
+// are never awaited) resolved ./.data and appended to the real audit log.
+// Teardown restores this instead of deleting.
+export const SUITE_DATA_DIR = process.env.HV_DATA_DIR as string;
+
 // ── Rate-limit helpers for route tests ───────────────────────────────────────
 // The shipped default is 60 requests/minute per client, which would make an
 // "exhaust the bucket" test do 60 round-trips. These helpers pin a small limit

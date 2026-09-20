@@ -128,7 +128,7 @@ export function detectHash(hash: string): HashInfo {
       bits: null,
       crackable: "infeasible",
       color: "#00ff41",
-      note: "Argon2: winner of PHC, state-of-the-art. GPU cracking not feasible.",
+      note: "Argon2: memory-hard, the Password Hashing Competition winner. GPU cracking not feasible.",
       bestTool: HASHES_COM,
     };
   }

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/lookup/route";
-import { restoreRateLimit } from "./testUtils";
+import { restoreRateLimit, SUITE_DATA_DIR } from "./testUtils";
 
 // Every paid phone provider, exercised on its success path AND on each way it
 // can fail. These fetches are the app's whole outbound surface; before 1.4 they
@@ -25,7 +25,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 afterEach(() => {
   vi.unstubAllGlobals();

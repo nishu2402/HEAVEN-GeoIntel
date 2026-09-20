@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { GET, POST, DELETE } from "@/app/api/keys/route";
 import { clearAllKeys, KEY_NAMES } from "@/lib/server/keyStore";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // The key endpoint manages optional provider secrets. The critical invariant:
 // it NEVER returns a stored value — only a configured/source map. Runs against a
@@ -17,7 +18,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 beforeEach(async () => { await clearAllKeys(); });
 
@@ -57,6 +58,14 @@ describe("POST /api/keys: set", () => {
     const res = await postReq("{ nope");
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Invalid JSON body");
+  });
+
+  it("413 on a body past the ceiling, counted on the bytes", async () => {
+    // The proxy's Content-Length check cannot see a chunked request, so the
+    // count that holds happens here. See bodyLimits.ts.
+    const res = await postReq({ name: "SHODAN_API_KEY", value: "x".repeat(600 * 1024) });
+    expect(res.status).toBe(413);
+    expect((await res.json()).error).toBe("Request body too large");
   });
 
   it("400 when name/value are not both strings", async () => {

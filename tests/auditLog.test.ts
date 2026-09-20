@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, appendFileSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { audit, readAudit, clearAudit } from "@/lib/server/auditLog";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Append-only accountability log. By default it must NOT store the raw target
 // (only a salted hash), must never throw, and now honours HV_DATA_DIR so the
@@ -14,7 +15,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 beforeEach(async () => { await clearAudit(); });
 
@@ -70,12 +71,66 @@ describe("AUDIT_PLAINTEXT override", () => {
 describe("data-dir fallback", () => {
   it("falls back to ./.data when HV_DATA_DIR is unset (read-only, no writes)", async () => {
     const saved = process.env.HV_DATA_DIR;
-    delete process.env.HV_DATA_DIR; // exercise the `|| ./.data` branch
+    process.env.HV_DATA_DIR = SUITE_DATA_DIR; // exercise the `|| ./.data` branch
     try {
       // readAudit never writes; a missing default log just yields [].
       expect(Array.isArray(await readAudit())).toBe(true);
     } finally {
       process.env.HV_DATA_DIR = saved;
     }
+  });
+});
+
+// ── Rotation ────────────────────────────────────────────────────────────────
+// Every guarded route appends a row and a 500-row bulk job appends 500, so an
+// append-only log with no ceiling grows for as long as the server runs.
+describe("audit log rotation", () => {
+  const logPath = () => join(dir, "audit.log");
+
+  it("rolls the log over once it passes the ceiling, keeping one generation", async () => {
+    // One byte past the 8 MB ceiling, made of real rows so the rotated
+    // generation is still readable afterwards.
+    const row = JSON.stringify({ ts: new Date().toISOString(), kind: "domain", target: "sha256:old", ip: "shared", status: 200 }) + "\n";
+    writeFileSync(logPath(), row.repeat(Math.ceil((8 * 1024 * 1024) / row.length)));
+
+    await audit("phone", "+14155552671", "shared", 200);
+
+    expect(existsSync(join(dir, "audit.log.1"))).toBe(true);
+    // The live log is now just the new row, not 8 MB of history.
+    expect(statSync(logPath()).size).toBeLessThan(1024);
+    // The archive holds the same targets as the live log, so it must not be
+    // readable by anyone the live log is not. `rename` carries the OLD file's
+    // bits across, and this one was deliberately seeded world-readable.
+    expect(statSync(join(dir, "audit.log.1")).mode & 0o077).toBe(0);
+    const rows = await readAudit(5);
+    expect(rows.at(-1)?.kind).toBe("phone");
+    // The rollover did not make recent history disappear: the previous
+    // generation is consulted while the live log holds fewer than `limit` rows.
+    expect(rows.length).toBe(5);
+    expect(rows[0].target).toBe("sha256:old");
+  });
+
+  it("does not rotate a log that is still under the ceiling", async () => {
+    await audit("ip", "8.8.8.8", "shared", 200);
+    await audit("ip", "1.1.1.1", "shared", 200);
+    expect(existsSync(join(dir, "audit.log.1"))).toBe(false);
+    expect(await readAudit()).toHaveLength(2);
+  });
+
+  it("skips a corrupt line rather than losing the whole trail", async () => {
+    await audit("ip", "8.8.8.8", "shared", 200);
+    appendFileSync(logPath(), "{ not json\n");
+    await audit("ip", "1.1.1.1", "shared", 200);
+    const rows = await readAudit();
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.kind === "ip")).toBe(true);
+  });
+
+  it("the data wipe takes the rotated generation too", async () => {
+    writeFileSync(join(dir, "audit.log.1"), "{}\n");
+    await audit("ip", "8.8.8.8", "shared", 200);
+    await clearAudit();
+    expect(existsSync(join(dir, "audit.log"))).toBe(false);
+    expect(existsSync(join(dir, "audit.log.1"))).toBe(false);
   });
 });

@@ -42,6 +42,20 @@ export const BULK_MODES = Object.keys(ROUTES) as BulkMode[];
 export const MAX_BULK_ROWS = 500;
 /** Finished jobs are kept this long so a slow poller can still collect them. */
 const JOB_TTL_MS = 30 * 60_000;
+/**
+ * Jobs allowed to be RUNNING at once.
+ *
+ * `MAX_BULK_ROWS` bounds one job and `width` bounds the rows in flight within
+ * it, but nothing bounded the number of jobs — and the rate limiter permits 60
+ * requests a minute, so sixty 500-row jobs could be queued in one. Each row
+ * fans out to a dozen upstreams, so that is ~360,000 outbound calls in flight
+ * from one process: a self-inflicted flood that gets the operator's address
+ * banned by every free source before it exhausts memory.
+ *
+ * Four concurrent jobs is ~16 rows in flight, already ~190 concurrent upstream
+ * calls. An analyst does not run five bulk jobs at once; a script does.
+ */
+export const MAX_ACTIVE_JOBS = 4;
 
 export interface BulkRow {
   mode: BulkMode;
@@ -85,6 +99,17 @@ function sweep(now: number): void {
 export function resetJobs(): void {
   jobs.clear();
   cancelled.clear();
+}
+
+/**
+ * How many jobs are still running, after dropping any that have aged out. The
+ * bulk route admits a new job only while this is below `MAX_ACTIVE_JOBS`.
+ */
+export function activeJobCount(now: number = Date.now()): number {
+  sweep(now);
+  let active = 0;
+  for (const job of jobs.values()) if (job.state === "running") active++;
+  return active;
 }
 
 export function getJob(id: string): BulkJob | null {
@@ -310,8 +335,16 @@ export function jobCsv(job: BulkJob): string {
     if (list.length === 0) byMode.set(row.mode, list);
     list.push(row);
   }
+  // Quote for CSV, and neutralise formula injection the same way the other two
+  // builders do (caseReport.ts's `csvEsc`, BulkLookup.tsx's `toCsv`): a cell
+  // beginning with = + - @ or a tab/CR is EXECUTED as a formula by Excel,
+  // LibreOffice and Sheets. This one was the exception, and it is the copy a
+  // script reaches — `GET /api/bulk-lookup?id=…&format=csv`. Its cells are the
+  // least trustworthy of the three: `summary` carries page titles, WHOIS org
+  // names and ASN descriptions, which the target's own server writes.
   const escape = (v: unknown): string => {
-    const s = v === null || v === undefined ? "" : String(v);
+    let s = v === null || v === undefined ? "" : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 

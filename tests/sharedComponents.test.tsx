@@ -9,6 +9,7 @@ import ShareButton from "@/components/shared/ShareButton";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import SourceStrip, { type SourceStat } from "@/components/shared/SourceStrip";
 import Tilt3D from "@/components/shared/Tilt3D";
+import { MODES, modeName } from "@/lib/client/modes";
 
 // Interaction + branch coverage for the small shared components. jsdom supplies
 // the DOM; clipboard is stubbed so copyText resolves without touching a real one.
@@ -128,6 +129,22 @@ describe("<HelpPopover>", () => {
     const overlay = container.querySelector(".fixed.inset-0") as HTMLElement;
     fireEvent.click(overlay);
     expect(screen.queryByText(/one console, eleven modes/i)).toBeNull();
+  });
+
+  // The popover writes its own row per mode instead of deriving them from
+  // MODES, because each row also carries a summary MODES has no field for.
+  // That let one row rot: the file mode was renamed from "image" a release ago
+  // and this list still offered "📷 Image", describing EXIF only, after the
+  // mode had grown to read any file. Hold every row to the registry.
+  it("names and glyphs every mode exactly as the mode registry does", () => {
+    render(<HelpPopover />);
+    fireEvent.click(screen.getByRole("button", { name: /help: what can i do here/i }));
+    for (const m of MODES) {
+      expect(screen.getByText(`${m.glyph} ${modeName(m)}`)).toBeTruthy();
+    }
+    // The heading counts them, so it drifts the moment a mode is added.
+    expect(screen.getByText(/one console, eleven modes/i)).toBeTruthy();
+    expect(MODES).toHaveLength(11);
   });
 });
 

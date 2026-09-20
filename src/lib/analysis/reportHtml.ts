@@ -17,6 +17,7 @@ import {
   type ReportModel, type ReportRow, type ReportSection,
 } from "./report";
 import { BRAND, logoSvg } from "../brand/logo";
+import { safeExternalUrl } from "../utils";
 
 /** A value cell plus the button that copies it. */
 const valueCell = (v: string) =>
@@ -115,7 +116,13 @@ export function reportToHtml(m: ReportModel): string {
 
   if (m.pivots.length) {
     body.push(card(next(), HEAD.pivots, `<ul class="pivots">${m.pivots
-      .map((p) => `<li><a href="${esc(p.url)}" target="_blank" rel="noreferrer noopener">${esc(p.label)}</a><span class="v">${esc(p.url)}</span></li>`)
+      .map((p) => {
+        // Only an http(s) URL becomes a link; anything else is shown, not followed.
+        const label = safeExternalUrl(p.url)
+          ? `<a href="${esc(p.url)}" target="_blank" rel="noreferrer noopener">${esc(p.label)}</a>`
+          : esc(p.label);
+        return `<li>${label}<span class="v">${esc(p.url)}</span></li>`;
+      })
       .join("")}</ul>`));
   }
 

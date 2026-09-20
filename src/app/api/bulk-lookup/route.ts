@@ -11,6 +11,7 @@ import { detectChain } from "@/lib/analysis/wallet";
 import { detectHashKind } from "@/lib/analysis/hash";
 import {
   startJob, getJob, cancelJob, jobCsv, BULK_MODES, MAX_BULK_ROWS,
+  activeJobCount, MAX_ACTIVE_JOBS,
   type BulkMode,
 } from "@/lib/server/bulkJobs";
 
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const parsed = await parseBody(req, bulkBody);
-  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: parsed.status ?? 400, headers: rlHeaders });
   const body = parsed.data;
 
   // `numbers` is the pre-3.2 phone-only field. Kept so an existing script or a
@@ -109,6 +110,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       { error: "None of the supplied values could be looked up. See `skipped` for why.", skipped },
       { status: 400, headers: rlHeaders },
+    );
+  }
+
+  // Admission control. The rate limiter counts REQUESTS, and starting a job is
+  // one cheap request that commits the process to minutes of fan-out, so the
+  // quota alone never bounded the work in flight. See MAX_ACTIVE_JOBS.
+  if (activeJobCount() >= MAX_ACTIVE_JOBS) {
+    return NextResponse.json(
+      {
+        error: `Too many bulk jobs already running (${MAX_ACTIVE_JOBS}). Wait for one to finish, or cancel it with DELETE ?id=…`,
+        activeJobs: MAX_ACTIVE_JOBS,
+      },
+      { status: 429, headers: { ...rlHeaders, "Retry-After": "30" } },
     );
   }
 

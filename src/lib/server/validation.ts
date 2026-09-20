@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isIP } from "node:net";
+import { DEFAULT_MAX_BODY_BYTES } from "./bodyLimits";
 
 // ── Request-body schemas (defense in depth) ──────────────────────────────────
 // These enforce SHAPE + sane length bounds before any work happens, so a
@@ -87,7 +88,53 @@ export interface BodyProblem {
   field?: string;
 }
 
-export type ParsedBody<T> = { ok: true; data: T } | { ok: false; problem: BodyProblem };
+export type ParsedBody<T> =
+  | { ok: true; data: T }
+  /** `status` is the code the route should answer with; it defaults to 400. */
+  | { ok: false; problem: BodyProblem; status?: 413 };
+
+/** A body that was read within its limit, or the reason it was not. */
+export type CappedBody =
+  | { ok: true; json: unknown }
+  | { ok: false; tooLarge: boolean };
+
+/**
+ * Read and parse a JSON body, refusing at `limit` bytes.
+ *
+ * The bytes are counted as they arrive, which is the only check a client cannot
+ * opt out of — see bodyLimits.ts for what a chunked request does to the
+ * Content-Length check upstream.
+ *
+ * A request with no `body` stream falls back to the runtime's own `json()`:
+ * that is a request that carried no body at all, and it is also the shape the
+ * suites build, where there is no stream to meter and nothing to protect.
+ */
+export async function readJsonCapped(req: Request, limit: number): Promise<CappedBody> {
+  if (!req.body) {
+    try { return { ok: true, json: await req.json() }; }
+    catch { return { ok: false, tooLarge: false }; }
+  }
+  const reader = req.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let bytes = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > limit) return { ok: false, tooLarge: true };
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+  } catch {
+    return { ok: false, tooLarge: false }; // a body that died mid-flight is not a body
+  } finally {
+    void reader.cancel().catch(() => {});
+  }
+  try { return { ok: true, json: JSON.parse(text) }; }
+  catch { return { ok: false, tooLarge: false }; }
+}
 
 /** The value at a zod issue path inside the raw body, or undefined. */
 function valueAt(body: unknown, path: readonly PropertyKey[]): unknown {
@@ -128,17 +175,23 @@ function describeIssue(issue: z.core.$ZodIssue, body: unknown): string {
 }
 
 /**
- * Parse a Request body against a schema. Never throws: malformed JSON and a
- * schema violation both come back as `{ ok: false, problem }`, ready to be the
- * 400 body.
+ * Parse a Request body against a schema. Never throws: an oversized body,
+ * malformed JSON and a schema violation all come back as
+ * `{ ok: false, problem }`, ready to be the response body. `status` says when
+ * that response should be a 413 rather than the usual 400.
  */
-export async function parseBody<T>(req: Request, schema: z.ZodType<T>): Promise<ParsedBody<T>> {
-  let json: unknown;
-  try {
-    json = await req.json();
-  } catch {
-    return { ok: false, problem: { error: "Request body must be valid JSON" } };
+export async function parseBody<T>(
+  req: Request,
+  schema: z.ZodType<T>,
+  limit: number = DEFAULT_MAX_BODY_BYTES,
+): Promise<ParsedBody<T>> {
+  const read = await readJsonCapped(req, limit);
+  if (!read.ok) {
+    return read.tooLarge
+      ? { ok: false, problem: { error: "Request body too large" }, status: 413 }
+      : { ok: false, problem: { error: "Request body must be valid JSON" } };
   }
+  const json = read.json;
   const r = schema.safeParse(json);
   if (r.success) return { ok: true, data: r.data };
 

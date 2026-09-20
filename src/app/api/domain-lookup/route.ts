@@ -5,7 +5,7 @@ import { audit } from "@/lib/server/auditLog";
 import { withUserAgent } from "@/lib/server/fetchSafe";
 import { DOH_URL, dohFailure } from "@/lib/server/doh";
 import { fetchWhois } from "@/lib/server/rdap";
-import { isProbeTarget, probeHttp } from "@/lib/server/httpProbe";
+import { isProbeTarget, probeHttp, followRedirects, readPrefix } from "@/lib/server/httpProbe";
 import { breachesForDomain } from "@/lib/data/breachCatalog";
 import { bodyProvesUnclaimed, classifyTakeover } from "@/lib/analysis/subdomainTakeover";
 import { parseBody, domainBody } from "@/lib/server/validation";
@@ -302,20 +302,16 @@ const TAKEOVER_PROBE_TIMEOUT = 5000;
  */
 async function verifyTakeover(candidate: TakeoverCandidate): Promise<TakeoverCandidate> {
   // The CNAME target is attacker-influenced input, so the probe is held to the
-  // same rule as the main HTTP probe: only globally-routable addresses.
+  // same rules as the main HTTP probe: only globally-routable addresses, and
+  // every redirect hop vetted before it is fetched. This used to follow
+  // redirects blind, so a hostile subdomain could 302 the check straight at
+  // 169.254.169.254. The body is read up to the limit and no further.
   const addresses = (await doh(candidate.name, "A")).map((r) => r.value);
   if (!isProbeTarget(addresses)) return { ...candidate, verification: "unverified" };
-  try {
-    const res = await fetch(`https://${candidate.name}/`, withUserAgent({
-      redirect: "follow",
-      signal: AbortSignal.timeout(TAKEOVER_PROBE_TIMEOUT),
-      next: { revalidate: 0 },
-    }));
-    const body = (await res.text()).slice(0, TAKEOVER_BODY_LIMIT);
-    return { ...candidate, verification: bodyProvesUnclaimed(candidate, body) ? "unclaimed" : "claimed" };
-  } catch {
-    return { ...candidate, verification: "unverified" };
-  }
+  const walked = await followRedirects(`https://${candidate.name}/`, { timeoutMs: TAKEOVER_PROBE_TIMEOUT });
+  if (!walked) return { ...candidate, verification: "unverified" };
+  const body = await readPrefix(walked.res, TAKEOVER_BODY_LIMIT);
+  return { ...candidate, verification: bodyProvesUnclaimed(candidate, body) ? "unclaimed" : "claimed" };
 }
 
 async function findTakeovers(domain: string, apexCname: DnsRecord[], subdomains: string[]): Promise<TakeoverCandidate[]> {
@@ -428,7 +424,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const client = rl.client;
 
   const parsed = await parseBody(req, domainBody);
-  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: 400, headers: rlHeaders });
+  if (!parsed.ok) return NextResponse.json(parsed.problem, { status: parsed.status ?? 400, headers: rlHeaders });
   const body = parsed.data;
 
   // Accept bare domains, full URLs, punycode and Unicode/IDN names alike.

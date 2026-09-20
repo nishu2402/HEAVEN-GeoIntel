@@ -33,7 +33,7 @@ describe("narrate", () => {
   it("leads with the score and lists up to three factors, pluralising the count", () => {
     const one = narrate(analysis({ factors: [factor("a")] }));
     expect(one[0]).toBe("ada@example.com scores 50 out of 100 (elevated risk).");
-    expect(one[1]).toBe("The score rests on 1 risk signal, chief among them:");
+    expect(one[1]).toBe("The score rests on a single risk signal:");
 
     const many = narrate(analysis({ factors: [factor("a"), factor("b"), factor("c"), factor("d")] }));
     expect(many[1]).toContain("rests on 4 risk signals");

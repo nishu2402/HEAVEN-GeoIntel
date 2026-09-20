@@ -7,6 +7,171 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Reserved IPv6 space was reported as Public.** Only nine special-purpose
+  blocks were known, so `::127.0.0.1` (the deprecated IPv4-compatible form),
+  anything else outside `2000::/3`, 6to4, Teredo and the IETF protocol blocks,
+  benchmarking (`2001:2::/48`), the newer documentation prefix (`3fff::/20`) and
+  local-use NAT64 all classified as ordinary public hosts.
+- **HTML report pivots link only `http(s)` URLs.** Anything else is shown as
+  text.
+- **Evidence capture over 512 KB was impossible.** The locker documents a 4 MB
+  artifact, but the proxy applied one flat body cap to every route and answered
+  **413** to anything larger — so a capture of a real lookup response was
+  refused. Body ceilings are now per-route: the evidence locker and case import
+  get the room their own limits promise, everything else keeps the small one.
+- **Pasting a large block into AI Text Intel froze the tab.** Entity extraction
+  runs on every keystroke, and its email and domain patterns are quadratic in
+  the length of a whitespace-free run: 100 KB of one measured 14.6 seconds of
+  blocked main thread, 200 KB measured 58.8 seconds. Runs longer than any
+  address (254 bytes) or hostname (253) can be are no longer scanned by those
+  two patterns, which leaves every realistic input identical — verified across
+  229 samples — and takes the same 100 KB to 2.6 ms.
+- **The bulk CSV served by the API could execute in a spreadsheet.** A cell
+  beginning with `=` `+` `-` `@` is a formula to Excel, LibreOffice and Sheets,
+  and the summary columns carry page titles, WHOIS organisations and ASN
+  descriptions written by the subject of the lookup. The two other CSV builders
+  already prefixed those with a quote; `?format=csv` did not.
+- **A capture the evidence locker refused could still cost 436 MB.** The
+  artifact is serialised with `JSON.stringify(payload, null, 2)` and only then
+  measured, and pretty-printing pays indentation per line — so its output grows
+  with nesting depth, not just with the body. A 4.26 MB request, inside the
+  route's own ceiling, serialised to **436 MB** before reaching the size check
+  meant to refuse it; past roughly 500 levels it exceeded V8's maximum string
+  length and threw, turning the intended **413** into a **500**. The payload's
+  shape is now bounded before anything is serialised — at most 64 levels deep
+  and 500,000 values, against a measured worst-case real response of depth 6
+  with 21,592 — so the refusal happens in 44 ms and allocates nothing.
+- **The audit log grew forever.** Every guarded route appends a row and a
+  500-row bulk job appends 500, with nothing to bound the file: `readAudit`
+  read all of it to return the newest 200 (measured 208 ms and 163 MB of
+  resident memory at 200 MB of log). It now rolls over at 8 MB and keeps one
+  previous generation, which the reader falls back to so a rollover does not
+  make recent history briefly disappear. The "delete all my data" wipe takes
+  the rotated generation too.
+- **The test suite wrote into the real `.data/audit.log`.** `vitest.config.ts`
+  points `HV_DATA_DIR` at a throwaway directory so a run cannot touch your
+  cases, keys or audit log, but 36 route suites set their own temp directory
+  and then `delete`d the variable in teardown, which unsets it rather than
+  restoring the default. Route handlers never await their audit write, so a
+  write landing after teardown resolved `./.data`: a measured seven junk entries
+  per run. Teardown restores the suite directory, and a new test fails the
+  build if any suite deletes the variable again.
+- **An audit-trail test could read another test's row.** The same fire-and-forget
+  write is why: the block above it posts a dozen times and waits for none of
+  them, so one landing after `clearAudit` was read as the next test's own entry,
+  carrying that test's status. It failed roughly one run in four once the
+  rotation check above lengthened every append. Each case now ignores anything
+  stamped before it started, which is exact rather than timing-based, because
+  the timestamp is written when the entry is built and not when it lands.
+- **The README's security table claimed a caller can never choose the host the
+  server connects to.** True of the enrichment routes, but the domain probe, the
+  takeover check, avatar downloads and the username sweep all connect to a host
+  the *target* controls, and what protects those is the resolver guard rather
+  than a fixed URL. The table now says so, and lists the controls it had never
+  mentioned: CSRF, the DNS-rebinding Host check, the body and work-admission
+  caps, audit rotation and `safeExternalUrl`. Contributors adding a source are
+  now told which guard to use when a probe has to reach a target-controlled
+  host.
+- **The deep sweep's second tier was documented one site too high.** Three
+  documents advertised "393 more on request" where the route itself computes
+  392, and the REST summary described the 242 default sites as a per-page figure
+  when a page is 60. That count is a subtraction between two catalog filters, so
+  it moves whenever the catalog is re-vendored and nothing in the build checks
+  it.
+- **Other counts that had drifted:** the project tree said 217 Vitest suites
+  (219), `npm run brand:release` was missing from Available Scripts,
+  CONTRIBUTING said `npm run brand` chains two generators (three),
+  `IP_CACHE_TTL_MS`, `IP_CACHE_MAX_ENTRIES` and `FORCE_HTTPS` were in
+  `.env.example` but in no document, and the release banner still printed 3397
+  tests.
+
+### Security
+
+- **Nothing bounded how many bulk jobs could run at once.** One row of a bulk
+  job fans out to a dozen upstreams, `MAX_BULK_ROWS` caps a job at 500 rows and
+  the runner keeps 4 rows in flight — but the number of *jobs* was unbounded,
+  and starting one is a single cheap request. The rate limiter allows 60 of
+  those a minute, so one minute of scripted POSTs could commit the process to
+  ~360,000 outbound calls: a self-inflicted flood that gets the operator's
+  address banned by every free source it depends on. Four concurrent jobs are
+  admitted (already ~190 upstream calls in flight); a fifth gets **429** and a
+  `Retry-After`, and a slot frees as soon as a job finishes or is cancelled.
+- **The rotated audit log could inherit looser permissions.** `rename` carries
+  the old file's mode across, and the append path only sets `0600` when it
+  *creates* a file — which is precisely why it also chmods, "even if the file
+  pre-existed with looser bits". The archive holds exactly the same targets as
+  the live log, so it now gets the same treatment.
+- **The evidence size cap counted UTF-16 units, not bytes.** The constant is
+  named in bytes and the manifest records `byteLength`, but the check used
+  `String.length`, so an artifact of multi-byte text could be up to three times
+  the cap it was measured against.
+- **The self-call token was compared with `===`.** The token grants the
+  rate-limit bypass, and string equality exits at the first differing byte.
+  Guessing a per-process UUID through a throttled endpoint is not a practical
+  attack, but the codebase already compares its other tokens in constant time
+  and this one now matches.
+- **DNS rebinding could read every case and spend your saved keys.** A web page
+  that re-points its own domain at your machine is same-origin with itself, so
+  it passed the CSRF guard and the browser let it read the answers: `GET
+  /api/cases`, runs of the AI analyst on your provider keys, lookups on your
+  quotas. The one thing it cannot change is the `Host` header. With no
+  `AUTH_PASSWORD` set, the proxy now answers **421** to a Host that is not an IP
+  address, `localhost`, a bare machine name, a `.local`/`.internal`/`.home.arpa`
+  name, or a name listed in the new **`ALLOWED_HOSTS`** setting. Set it when you
+  reach the app through a real domain name.
+- **The CSRF guard refuses `same-site` writes too.** Only `cross-site` was
+  refused, but every other port on localhost and every sibling subdomain of a
+  hosted deployment is the same site. The app only ever calls its own origin.
+- **The subdomain-takeover check followed redirects blind.** It fetched each
+  candidate with `redirect: "follow"`, so a hostile subdomain could bounce it to
+  169.254.169.254 or anywhere else, and it read the whole body before trimming
+  it. It now goes through the same hand-followed, per-hop-checked redirect walk
+  as the HTTP probe, and reads at most 8 KB.
+- **Hostnames that resolve inward are refused, not just inward addresses.** The
+  probe, its redirect hops and avatar downloads checked a host by spelling
+  only, so `instance-data` (the EC2 metadata alias), `metadata.google.internal`
+  or any public name aimed at 127.0.0.1 passed. Every host is now resolved with
+  the system resolver (the one fetch uses) and every address must be globally
+  routable. A redirect to a non-`http(s)` scheme is refused, and an avatar body
+  is capped as it streams rather than after it has all arrived.
+- **The username probes followed any redirect and read whole bodies.** Both the
+  username lookup and the deep sweep probe hundreds of third-party sites with
+  `redirect: "follow"`, so a catalog domain that lapses and is re-registered
+  could point, or redirect, the probe at 127.0.0.1 or the metadata address.
+  They now use the same vetted walk, and read at most the 60,000 characters
+  they classify on.
+- **A Gemini model name could walk the request path.** It was placed in the URL
+  unencoded, so `../../` reached other paths on Google's API with your key
+  attached. It is now one encoded path segment.
+- **Two workflow steps spliced expressions into shell.** The release tag and the
+  cosign digest now reach their scripts through `env:`, and a tag that is not
+  `vMAJOR.MINOR.PATCH` stops the release.
+- **The screenshot script no longer uses `new Function()`.** It rebuilt a match
+  function from its source text inside the page. The label is now read out of
+  the page and matched in Node.
+- **Guessing the password cost nothing.** `AUTH_PASSWORD` is what you set before
+  putting the console on a LAN or a tunnel, and the gate had no throttle at all:
+  300 wrong passwords took 2.2 seconds against the built server, every one
+  answered 401 at full speed. The per-route rate limiter could not help, because
+  the proxy refuses long before any route runs. A wrong password is now held
+  back for a moment, doubling up to a one-second ceiling — the same 300 guesses
+  take 299 seconds. The first few failures are free, so mistyping is not
+  punished, and a correct password is never delayed: it still answered in 16 ms
+  after 300 failed attempts. It is a delay rather than a lockout precisely so
+  that nobody can lock you out of your own tool.
+- **The body-size cap could be skipped entirely.** The proxy could only check
+  `Content-Length`, and a `Transfer-Encoding: chunked` request does not send
+  one: measured against the built server, such a request walked past the 512 KB
+  gate and was buffered whole up to somewhere between 8 and 16 MB. The bytes are
+  now counted as they arrive, which is the one check a client cannot opt out of.
+- **A dataset overlay answered for keys it never defined.** `overlayLookup`
+  indexed a `JSON.parse` object directly, so `constructor` or `toString` came
+  back as an inherited function rather than as "nothing here". No caller can
+  reach it today — all three pass digits or an upper-cased country code — but it
+  is the shared door every future dataset walks through.
+
 ## [3.2.0] — 2026-09-15
 
 Application fixes found by an end-to-end run against live targets (the

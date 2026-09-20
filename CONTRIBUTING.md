@@ -79,7 +79,12 @@ Before opening a PR:
 6. If the source has a free tier, add it to the OSINT Pivot Matrix
    (`src/components/osint/OsintPivots.tsx`) with the correct access badge.
 7. Validate user input **before** any outbound request and only interpolate it
-   into a fixed host (no SSRF); follow the existing routes' pattern.
+   into a fixed host (no SSRF); follow the existing routes' pattern. If the
+   source genuinely has to connect to a host the *target* controls, as the
+   domain probe and the username sweep do, go through
+   `followRedirects()` / `resolvesPublic()` in `src/lib/server/httpProbe.ts`
+   so every hop is checked against private address space first. Never call
+   `fetch` on a target-supplied URL directly.
 
 ## Adding a new OSINT pivot link
 
@@ -125,11 +130,12 @@ After changing the brand module, regenerate the committed assets:
 npm run brand
 ```
 
-That runs two generators: `brand:poster` writes the three README posters
+That runs three generators: `brand:poster` writes the three README posters
 (`public/brand/poster{,-light,-still}.svg`) and `scripts/banner.sh`, then
-`generate-brand-assets.mjs` writes the favicon, app icons, OG image and hero.
-Both are committed, because a fresh clone must not need a build step to print
-its own banner.
+`generate-brand-assets.mjs` writes the favicon, app icons, OG image and hero,
+then `brand:release` writes the GitHub release banner under `docs/assets/`.
+All of them are committed, because a fresh clone must not need a build step to
+print its own banner.
 
 **The poster states facts about the build** (version, source and mode counts,
 how many sources need no key, the coverage floor), and every one of them is

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { POST } from "@/app/api/ip-lookup/route";
-import { useRateLimit, restoreRateLimit, clientCookie, resetServerState } from "./testUtils";
+import { useRateLimit, restoreRateLimit, clientCookie, resetServerState, SUITE_DATA_DIR } from "./testUtils";
 
 // End-to-end handler test: drives the real POST through the shared middleware
 // (rate-limit → parseBody → IP validation → fetchSafe upstreams → threat/merge
@@ -20,7 +20,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   delete process.env.TRUST_PROXY;
 });
 afterEach(() => {
@@ -188,6 +188,20 @@ describe("POST /api/ip-lookup: degraded upstreams", () => {
     ]);
     const json = await (await post({ ip: "2606:4700:4700::1111" })).json();
     expect(json.ip.type).toBe("IPv6");
+  });
+
+  it("does not ask GreyNoise about IPv6, and says it had nothing to answer", async () => {
+    // Its community endpoint is IPv4-only and answers 400 for any IPv6 address,
+    // which every IPv6 lookup used to report as a failed source.
+    stubFetch([
+      ["ip-api.com", resp(200, { status: "success", query: "2606:4700:4700::1111", country: "Canada", countryCode: "CA" })],
+      ["internetdb.shodan.io", resp(200, { ports: [53, 443] })],
+    ]);
+    const json = await (await post({ ip: "2606:4700:4700::1111" })).json();
+    const gn = json.sourceHealth.find((s: { source: string }) => s.source === "GreyNoise Community");
+    expect(gn).toMatchObject({ ok: false, skipped: true, error: "NO_INPUT" });
+    expect(json.sourceHealth.find((s: { source: string }) => s.source === "Shodan InternetDB").ok).toBe(true);
+    expect(vi.mocked(fetch).mock.calls.some(([u]) => String(u).includes("greynoise"))).toBe(false);
   });
 
   it("nulls the country code: and the flag: when the fallback omits it", async () => {

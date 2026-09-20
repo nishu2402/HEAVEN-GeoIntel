@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { clearAllKeys, clearKey, setKey } from "@/lib/server/keyStore";
 import { cacheStats, getCached, setCached, setCachedEmail, setCachedIp } from "@/lib/server/cache";
 import type { EmailLookupResponse, IpLookupResponse, LookupResponse } from "@/lib/types";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // Regression test for the P1 defect: a result fetched with no API keys stayed
 // cached for 24 h, so adding a key in the UI appeared to do nothing and users
@@ -17,7 +18,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 
 function seedCaches(): void {

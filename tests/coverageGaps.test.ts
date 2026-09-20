@@ -13,7 +13,7 @@ import { POST as walletPOST } from "@/app/api/wallet-lookup/route";
 import { GET as evidenceGET } from "@/app/api/evidence/route";
 import { buildWalletReport, buildUsernameReport, buildDomainReport } from "@/lib/analysis/report";
 import type { WalletLookupResponse, HashLookupResponse, UsernameLookupResponse, DomainLookupResponse } from "@/lib/types";
-import { restoreRateLimit, resetServerState } from "./testUtils";
+import { restoreRateLimit, resetServerState, SUITE_DATA_DIR } from "./testUtils";
 
 // The paths the feature tests do not naturally reach: wallet and hash entering
 // a case, the bulk runner's own dispatch, the evidence locker travelling with a
@@ -27,12 +27,12 @@ beforeEach(() => {
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   vi.unstubAllGlobals();
   restoreRateLimit();
   resetServerState();
 });
-afterAll(() => { delete process.env.HV_DATA_DIR; });
+afterAll(() => { process.env.HV_DATA_DIR = SUITE_DATA_DIR; });
 
 const post = (h: (r: NextRequest) => Promise<Response>, url: string, body: unknown) =>
   h(new Request(url, {

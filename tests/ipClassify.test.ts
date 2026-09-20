@@ -52,7 +52,21 @@ describe("classifyIp: IPv6 special-purpose scopes", () => {
     ["fd12:3456::1",        "unique-local",  false],
     ["fe80::1",             "link-local",    false],
     ["ff02::1",             "multicast",     false],
+    ["64:ff9b:1::a",        "translation",   false],
+    ["2001:2::1",           "benchmarking",  false],
+    ["2001::1",             "protocol",      false], // Teredo
+    ["2001:1ff::1",         "protocol",      false], // last /32 of 2001::/23
+    ["2002:7f00:1::",       "translation",   false], // 6to4 wrapping 127.0.0.1
+    ["3fff::1",             "documentation", false],
+    // Outside 2000::/3 there are no public hosts at all. The IPv4-compatible
+    // form used to classify as Public, so ::127.0.0.1 read as a real host.
+    ["::127.0.0.1",         "reserved",      false],
+    ["100::1",              "reserved",      false], // discard-only
+    ["4000::1",             "reserved",      false],
+    ["5f00::1",             "reserved",      false], // SRv6 SIDs
     ["2606:4700:4700::1111", "global",       true],
+    ["2001:200::1",         "global",        true],  // just past 2001::/23: WIDE, Japan
+    ["3ffe::1",             "global",        true],  // inside 2000::/3, outside 3fff::/20
   ];
   it.each(cases)("classifies %s as %s (routable=%s)", (ip, scope, routable) => {
     const c = classifyIp(ip)!;

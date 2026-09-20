@@ -12,7 +12,7 @@ import { POST as domainPOST } from "@/app/api/domain-lookup/route";
 import { SOURCES, SOURCES_BY_ID, sourcesForMode } from "@/lib/sources/manifest";
 import { KEY_NAMES } from "@/lib/server/keyStore";
 import { providerForKey, sourceForKey } from "@/lib/client/keyNames";
-import { restoreRateLimit, resetServerState } from "./testUtils";
+import { restoreRateLimit, resetServerState, SUITE_DATA_DIR } from "./testUtils";
 import type { Mode } from "@/lib/client/modes";
 
 // The manifest is only useful if the ids in it are the SAME ids the routes
@@ -28,7 +28,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
 });
 afterEach(() => {
   vi.unstubAllGlobals();

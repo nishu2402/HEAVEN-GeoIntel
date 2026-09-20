@@ -152,6 +152,19 @@ describe("providerRequest", () => {
     expect(body.contents[0].parts[0].text).toBe("USR");
   });
 
+  it("keeps a Gemini model name inside its own path segment", () => {
+    // The model is caller-chosen text in the URL path, next to the key header.
+    const walk = providerRequest("gemini", "../../../v1/files?pageSize=1#", DEFAULT_ENDPOINT.gemini, prompt, "GKEY").url;
+    const u = new URL(walk);
+    expect(u.origin + u.pathname).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/..%2F..%2F..%2Fv1%2Ffiles%3FpageSize%3D1%23:generateContent",
+    );
+    expect(u.search).toBe("");
+    // A pasted "models/" prefix is the same model, not a second path level.
+    expect(providerRequest("gemini", "models/gemini-2.5-flash", DEFAULT_ENDPOINT.gemini, prompt, "GKEY").url)
+      .toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
+  });
+
   it("shapes every OpenAI-compatible provider as a chat/completions call", () => {
     for (const p of ["groq", "deepseek", "mistral", "openrouter"] as const) {
       const { url, init } = providerRequest(p, "m", DEFAULT_ENDPOINT[p], prompt, "K");

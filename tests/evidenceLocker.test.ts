@@ -9,6 +9,7 @@ import {
 } from "@/lib/server/evidenceStore";
 import { GET, POST } from "@/app/api/evidence/route";
 import { changeWebhookUrl, notifyChange } from "@/lib/server/changeNotify";
+import { SUITE_DATA_DIR } from "./testUtils";
 
 // A finding nobody can re-check is a finding that does not survive being
 // challenged: upstreams change, and a re-run six months later answers a
@@ -22,13 +23,13 @@ beforeEach(() => {
 });
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
-  delete process.env.HV_DATA_DIR;
+  process.env.HV_DATA_DIR = SUITE_DATA_DIR;
   delete process.env.CASE_PASSWORD;
   delete process.env.CHANGE_WEBHOOK_URL;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-afterAll(() => { delete process.env.HV_DATA_DIR; });
+afterAll(() => { process.env.HV_DATA_DIR = SUITE_DATA_DIR; });
 
 const payload = (over: Record<string, unknown> = {}) => ({
   domain: "wordpress.org",
@@ -230,5 +231,61 @@ describe("changeNotify", () => {
     process.env.CHANGE_WEBHOOK_URL = "https://hooks.test/x";
     expect(await notifyChange({ ...change, changes: [] })).toBe(false);   // nothing changed
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ── Payload shape limits ────────────────────────────────────────────────────
+// `JSON.stringify(v, null, 2)` pays indentation per line, so its output grows
+// with nesting depth: a body that fits the route's 4 MB ceiling serialised to
+// 436 MB at depth 100, and past depth ~500 it exceeded V8's maximum string
+// length and threw a RangeError — a 500 where a 413 was intended. The shape is
+// bounded before anything is serialised.
+describe("captureEvidence: payload shape", () => {
+  /** n nested arrays around one value. */
+  const nest = (n: number): unknown => {
+    let v: unknown = 1;
+    for (let i = 0; i < n; i++) v = [v];
+    return v;
+  };
+
+  it("refuses a payload nested past the depth cap, without serialising it", async () => {
+    const res = await captureEvidence({
+      caseId: "deep", mode: "domain", identifier: "x", payload: nest(5000),
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain("nested deeper than");
+  });
+
+  it("refuses a payload with more values than the node cap", async () => {
+    // Flat and shallow: it is the COUNT that has to be refused here, not depth.
+    const res = await captureEvidence({
+      caseId: "wide", mode: "domain", identifier: "x",
+      payload: new Array(600_000).fill(0),
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain("more than");
+  });
+
+  it("still accepts a payload far richer than a real lookup response", async () => {
+    // A measured email lookup is depth 6 with ~21,600 nodes; this is deeper and
+    // denser than that and must not be refused.
+    const rows = Array.from({ length: 2000 }, (_, i) => ({
+      source: `s${i}`, nested: { a: { b: { c: [i, i + 1] } } },
+    }));
+    const res = await captureEvidence({
+      caseId: "rich", mode: "domain", identifier: "x", payload: { rows },
+    });
+    expect(res.ok).toBe(true);
+  });
+
+  it("measures the size cap in bytes, not UTF-16 units", async () => {
+    // Each astral character is 2 UTF-16 units but 4 bytes, so a payload can sit
+    // under a character-counted cap and still be several times the byte cap.
+    const big = "𝄞".repeat(1_100_000); // 2.2M units, 4.4MB
+    const res = await captureEvidence({
+      caseId: "bytes", mode: "domain", identifier: "x", payload: { big },
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toContain("larger than");
   });
 });
