@@ -85,9 +85,9 @@ if (command === "bulk" && target !== "-" && !existsSync(target)) {
 
 // ── server discovery / lifecycle ─────────────────────────────────────────────
 
-async function isUp(base) {
+async function isUp(base, timeoutMs = 1500) {
   try {
-    const res = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(1500) });
+    const res = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(timeoutMs) });
     return res.ok;
   } catch {
     return false;
@@ -96,8 +96,24 @@ async function isUp(base) {
 
 /** An already-running instance, or null. */
 async function findRunning() {
+  // An explicit --server names one instance and only that one. A single fast
+  // probe can miss a server that is merely busy mid-lookup — health answers, but
+  // slower than a discovery probe waits — so it is retried patiently before being
+  // declared down. It is also never quietly replaced by some other instance that
+  // happens to be up on a discovery port, which would send the answer back from
+  // the wrong box.
+  if (flags.server) {
+    const base = flags.server.replace(/\/+$/, "");
+    for (let i = 0; i < 3; i++) {
+      if (await isUp(base, 5000)) return base;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    console.error(`No HEAVEN-GeoIntel is answering at ${flags.server}`);
+    process.exit(1);
+  }
+  // No server named: discover one on the usual ports, cheaply. A dead candidate
+  // should not hold the whole run up, so each gets one short probe.
   const candidates = [
-    flags.server,
     process.env.GEOINTEL_URL,
     process.env.PORT ? `http://127.0.0.1:${process.env.PORT}` : null,
     "http://127.0.0.1:3000",
@@ -105,12 +121,6 @@ async function findRunning() {
   for (const base of candidates) {
     const normalised = base.replace(/\/+$/, "");
     if (await isUp(normalised)) return normalised;
-  }
-  // An explicit --server that is not answering is an error, not a reason to
-  // start a second copy of the app behind the user's back.
-  if (flags.server) {
-    console.error(`No HEAVEN-GeoIntel is answering at ${flags.server}`);
-    process.exit(1);
   }
   return null;
 }
