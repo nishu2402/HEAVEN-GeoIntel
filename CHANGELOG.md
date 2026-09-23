@@ -7,8 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.3.0] — 2026-09-23
+
+A correctness and hardening release. It folds in every issue three consecutive
+security and robustness audits turned up, makes the headless CLI careful about
+which running instance it answers from, corrects the Tailwind dark-mode setting,
+and brings a batch of documentation counts back in step with the code. The minor
+bump reflects the audit work adding the `ALLOWED_HOSTS` host allowlist and
+tightening several request limits; none of it changes how an existing install
+runs.
+
+**Upgrade notes.** No breaking changes, and nothing to migrate. The one new
+setting, `ALLOWED_HOSTS`, only applies when you reach the console through a real
+domain name rather than an IP address, `localhost` or a bare machine name (see
+**Security**); leave it unset otherwise. Every other default is unchanged.
+
+### Changed
+
+- **The headless CLI answers from the instance you named, or from none.** With
+  `--server`, the CLI now probes that one instance patiently before giving up:
+  three attempts, a five-second health timeout, half a second apart. A server
+  that is only busy mid-lookup, so health answers but slower than a discovery
+  probe waits, is no longer declared down on a single fast probe. It also never
+  falls back to a different instance that happens to be up on a discovery port,
+  which would return the answer from the wrong machine. Without `--server`,
+  discovery stays cheap: one short probe per candidate port, so a dead guess
+  does not hold up the run.
+- **Docker multi-arch digests upload under a fixed per-platform name.** The
+  release image is built for `linux/amd64` and `linux/arm64` in parallel, and
+  each build's digest is uploaded as its own artifact for the publish job to
+  merge. That artifact name was computed at runtime from the platform string; it
+  now comes from a static `slug` in the build matrix, so the name is fixed in one
+  place and the shell step no longer rewrites an environment variable to derive
+  it.
+
+### Removed
+
+- **Two obsolete agent-tooling notes.** `AGENTS.md` and the one-line `CLAUDE.md`
+  described an in-repo agent workflow that no longer applies, and are removed so
+  the repository root does not carry stale instructions.
+
 ### Fixed
 
+- **The Tailwind dark-mode setting used the wrong form.** The class strategy is
+  configured as the string `darkMode: "class"`; it had been written as a
+  single-element array (`["class"]`), which is the shape Tailwind reads when a
+  custom selector is supplied alongside it. It is now the plain string form the
+  class strategy expects.
 - **Reserved IPv6 space was reported as Public.** Only nine special-purpose
   blocks were known, so `::127.0.0.1` (the deprecated IPv4-compatible form),
   anything else outside `2000::/3`, 6to4, Teredo and the IETF protocol blocks,

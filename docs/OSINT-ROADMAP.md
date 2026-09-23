@@ -1,6 +1,6 @@
 # OSINT depth: gap analysis and roadmap
 
-Last reviewed 2026-09-14.
+Last reviewed 2026-09-23.
 
 This document answers three questions the project keeps coming back to: what can
 the tool already do, where is it genuinely limited, and what is worth building
