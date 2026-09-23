@@ -57,7 +57,7 @@ const PIPELINE = [
 // `scripts/poster-stats.mjs` (identifiers, sources, modes, apiOperations) and the
 // first two the build gate. Re-check all six when cutting a release.
 const CARDS = [
-  { n: "3488", label: "TESTS", color: GREEN },
+  { n: "3489", label: "TESTS", color: GREEN },
   { n: "100%", label: "COVERAGE", color: CYAN },
   { n: "7", label: "IDENTIFIERS", color: VIOLET },
   { n: "34", label: "SOURCES", color: GREEN },
