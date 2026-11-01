@@ -97,6 +97,18 @@ describe("<IpResultsDashboard> full result", () => {
     expect(screen.getByText(/ip-api · 42ms/)).toBeTruthy();
   });
 
+  it("lists the network attributes that raised the IP risk, scoped to the address", () => {
+    render(<IpResultsDashboard data={resp({
+      threatScore: 55, threatLabel: "MODERATE",
+      threatReasons: ["Open or anonymising proxy", "Datacenter or hosting network, not residential"],
+    })} />);
+    expect(screen.getByText(/Open or anonymising proxy/)).toBeTruthy();
+    expect(screen.getByText(/Datacenter or hosting network, not residential/)).toBeTruthy();
+    // The scope line keeps the network-reputation score from reading as a verdict
+    // on the person, so it never looks to contradict the grounded analysis panel.
+    expect(screen.getByText(/Reputation of the network itself/)).toBeTruthy();
+  });
+
   it("offers the reverse-DNS domain pivot only with a handler and a hostname", () => {
     const onDomainLookup = vi.fn();
     const { unmount } = render(<IpResultsDashboard data={resp()} onDomainLookup={onDomainLookup} />);

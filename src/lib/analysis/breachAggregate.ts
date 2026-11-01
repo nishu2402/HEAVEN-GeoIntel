@@ -139,7 +139,14 @@ export function breachKey(name: string, domain: string | null | undefined): stri
   return stripTld(base.trim().toLowerCase()).replace(/[^a-z0-9]/g, "");
 }
 
-/** Canonical spelling for a data class, so the union does not list two casings. */
+// Canonical spelling for a data class, so the union does not list two casings.
+//
+// The keys cover both the sentence-case names XposedOrNot and HIBP report and
+// the lower-case snake_case column tokens LeakCheck's public API returns. Only
+// tokens whose meaning is unambiguous are mapped; a token that could name more
+// than one kind of data (LeakCheck's "title", which is a job title in some
+// breaches and an honorific in others, or "origin") is deliberately left out so
+// the fallback tidies its label without asserting a data class it may not carry.
 const DATA_CLASS_CANON: Record<string, string> = {
   password: "Passwords", passwords: "Passwords",
   email: "Email addresses", emails: "Email addresses", "email address": "Email addresses",
@@ -148,18 +155,29 @@ const DATA_CLASS_CANON: Record<string, string> = {
   // unambiguous mangling of "Email addresses", so fold it back rather than
   // showing a junk chip next to the correct one.
   "ail addresses": "Email addresses",
+  // LeakCheck names a QQ mail address with its own token; it is an email address.
+  qqmail: "Email addresses",
   username: "Usernames", usernames: "Usernames", profile_name: "Usernames",
   name: "Names", names: "Names", first_name: "Names", last_name: "Names", middle_name: "Names",
+  // LeakCheck's remaining name columns.
+  surnames: "Names", surname: "Names", full_name: "Names", fullname: "Names",
   phone: "Phone numbers", "phone number": "Phone numbers", "phone numbers": "Phone numbers",
   address: "Physical addresses", "physical address": "Physical addresses",
   "physical addresses": "Physical addresses", zip: "Physical addresses",
+  // LeakCheck's street-level address columns.
+  address1: "Physical addresses", address2: "Physical addresses", street: "Physical addresses",
   city: "Geographic locations", state: "Geographic locations", country: "Geographic locations",
   "geographic location": "Geographic locations", "geographic locations": "Geographic locations",
+  // LeakCheck's coarser place columns.
+  region: "Geographic locations", province: "Geographic locations", district: "Geographic locations",
+  area: "Geographic locations", location: "Geographic locations",
   ip: "IP addresses", ip1: "IP addresses", ip2: "IP addresses", "ip address": "IP addresses",
   "ip addresses": "IP addresses",
   dob: "Dates of birth", "date of birth": "Dates of birth", "dates of birth": "Dates of birth",
   ssn: "Social security numbers", "social security number": "Social security numbers",
   gender: "Genders", genders: "Genders",
+  // A company column is HIBP's own "Employers" data class.
+  company_name: "Employers", company: "Employers", employer: "Employers",
 };
 
 // Field tokens that some indexes list among their exposed "fields" but which
@@ -174,7 +192,16 @@ export function canonicalDataClass(raw: string): string {
   if (!k) return "";
   if (NON_DATA_CLASSES.has(k)) return "";
   if (DATA_CLASS_CANON[k]) return DATA_CLASS_CANON[k];
-  return raw.trim().replace(/\s+/g, " ");
+  // Unknown token. A value that already reads as a label — it has a space or a
+  // capital, as XposedOrNot's and HIBP's sentence-case names do ("Spoken
+  // languages") — is kept verbatim. A bare lower-case key, which is how
+  // LeakCheck reports a field we have no mapping for ("title", "origin"), is
+  // turned into a clean sentence-case label instead of a raw database column.
+  // This never invents a data class: the token keeps its own name, just tidied.
+  const trimmed = raw.trim().replace(/\s+/g, " ");
+  if (/\s/.test(trimmed) || /[A-Z]/.test(trimmed)) return trimmed;
+  const spaced = trimmed.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  return spaced ? spaced.charAt(0).toUpperCase() + spaced.slice(1) : "";
 }
 
 function canonList(values: Iterable<string>): string[] {

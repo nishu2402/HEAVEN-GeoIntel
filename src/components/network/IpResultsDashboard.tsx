@@ -22,7 +22,7 @@ interface Props {
   onDomainLookup?: (domain: string) => void;
 }
 
-function ThreatBar({ score, label }: { score: number; label: string }) {
+function ThreatBar({ score, label, reasons = [] }: { score: number; label: string; reasons?: string[] }) {
   const color = score >= 70 ? "#ff4d6d" : score >= 40 ? "#fb923c" : score >= 20 ? "#fbbf24" : "#00ff85";
   return (
     <div className="space-y-2">
@@ -41,6 +41,16 @@ function ThreatBar({ score, label }: { score: number; label: string }) {
         <motion.div initial={{ width: 0 }} animate={{ width: `${score}%` }} transition={{ duration: 0.8 }}
           className="h-full rounded" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}` }} />
       </div>
+      {reasons.length > 0 && (
+        <ul className="space-y-0.5">
+          {reasons.map((r) => (
+            <li key={r} className="text-[11px] font-mono text-[var(--hv-ink-dim)]">· {r}</li>
+          ))}
+        </ul>
+      )}
+      <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+        Reputation of the network itself: whether the address is a proxy, VPN, hosting range, scanner or tagged bad. It rates the address, separate from the grounded analysis lower down.
+      </p>
     </div>
   );
 }
@@ -158,7 +168,7 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
             </div>
             <CopyLinkButton />
           </div>
-          <div className="border-t border-[var(--hv-glass-border)] pt-3"><ThreatBar score={data.threatScore} label={data.threatLabel} /></div>
+          <div className="border-t border-[var(--hv-glass-border)] pt-3"><ThreatBar score={data.threatScore} label={data.threatLabel} reasons={data.threatReasons} /></div>
           <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--hv-glass-border)]">
             <Flag on={ip.isVpn} label="VPN/PROXY" />
             <Flag on={ip.isHosting} label="HOSTING" />
