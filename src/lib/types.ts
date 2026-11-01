@@ -735,6 +735,8 @@ export interface IpLookupResponse {
   pivots: { label: string; url: string; note: string }[];
   threatScore: number;
   threatLabel: string;
+  /** The network attributes that raised the score (proxy, VPN, hosting, CVEs…). */
+  threatReasons?: string[];
   /** Which sources were queried, whether they answered, and how fast. */
   sources?: SourceProvenance[];
   /** Uniform per-source provenance — same shape as every other lookup mode. */

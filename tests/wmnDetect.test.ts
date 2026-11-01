@@ -34,6 +34,14 @@ describe("classifyWmn", () => {
     // Same status for both directions and markers that both appear.
     expect(classifyWmn({ ec: 200, es: "a", mc: 200, ms: "b" }, 200, "a and b")).toBe("unknown");
   });
+
+  it("classifies on the status code alone when the contract omits both markers", () => {
+    // es and ms absent (not ""): the `?? ""` fallbacks make each marker check
+    // vacuous, so the status decides and the body is ignored.
+    expect(classifyWmn({ ec: 200, mc: 404 }, 200, "")).toBe("found");
+    expect(classifyWmn({ ec: 200, mc: 404 }, 404, "")).toBe("notfound");
+    expect(classifyWmn({ ec: 200, mc: 404 }, 500, "")).toBe("unknown");
+  });
 });
 
 describe("hasContract / needsBody", () => {
@@ -41,6 +49,7 @@ describe("hasContract / needsBody", () => {
     expect(hasContract({ ec: 200, es: "x", mc: 404, ms: "" })).toBe(true);
     expect(hasContract({ ec: 200, es: "", mc: 404, ms: "y" })).toBe(true);
     expect(hasContract({ ec: 200, es: "", mc: 404, ms: "" })).toBe(false);
+    expect(hasContract({ ec: 200, mc: 404 })).toBe(false); // both codes, but no marker at all
     expect(hasContract({ es: "x", mc: 404 })).toBe(false);
     expect(hasContract({ ec: 200, es: "x" })).toBe(false);
   });

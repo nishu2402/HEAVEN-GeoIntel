@@ -34,41 +34,42 @@
     "sites:refresh": "node scripts/refresh-username-sites.mjs"
   },
   "dependencies": {
-    "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-tabs": "^1.2.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "country-data-list": "^1.6.2",
-    "framer-motion": "^13.2.0",
-    "libphonenumber-js": "^1.13.0",
-    "lucide-react": "^1.14.0",
-    "next": "^16.3.4",
+    "framer-motion": "^14.9.0",
+    "libphonenumber-js": "^1.13.15",
+    "lucide-react": "^1.66.0",
+    "next": "^16.4.3",
     "qrcode": "^1.5.4",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.6.6",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitest/coverage-v8": "^5.0.0",
-    "eslint": "^9.39.5",
-    "eslint-config-next": "^16.3.4",
-    "jsdom": "^30.0.1",
-    "postcss": "^8.5.28",
-    "puppeteer-core": "^25.3.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^10.14.0",
+    "eslint-config-next": "^16.4.3",
+    "jsdom": "^30.1.3",
+    "postcss": "^8.5.32",
+    "puppeteer-core": "^25.16.0",
     "tailwindcss": "^4.3.2",
     "typescript": "6.0.3",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "postcss": "$postcss",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.5",
+    "source-map-js": "^1.2.2"
   }
 }

@@ -101,11 +101,52 @@ describe("POST /api/ip-lookup: happy path with merged sources", () => {
     // hosting(35) capped under the known-CVE signal (60 + 5) => 65 / MODERATE
     expect(json.threatScore).toBe(65);
     expect(json.threatLabel).toBe("MODERATE");
+    // Every attribute that was present is listed, so the score explains itself;
+    // one CVE reads in the singular.
+    expect(json.threatReasons).toEqual([
+      "Datacenter or hosting network, not residential",
+      "1 exposed service has a known CVE",
+    ]);
 
     // provenance: geo + Shodan + GreyNoise + RIPEstat, all marked ok
     expect(json.sources).toHaveLength(4);
     expect(json.sources.every((s: { ok: boolean }) => s.ok)).toBe(true);
     expect(json.pivots.length).toBeGreaterThan(0);
+  });
+
+  it("lists a proxy plus multiple CVEs and pluralises the CVE reason", async () => {
+    stubFetch([
+      ["ip-api.com", resp(200, {
+        status: "success", country: "United States", countryCode: "US", city: "Ashburn",
+        lat: 39, lon: -77, isp: "Amazon", org: "AWS", as: "AS16509 Amazon",
+        proxy: true, hosting: true, query: "3.3.3.3",
+      })],
+      ["internetdb.shodan.io", resp(200, { ports: [22, 80], vulns: ["CVE-2021-1", "CVE-2021-2"], hostnames: [], tags: [] })],
+      ["api.greynoise.io", resp(404, {})],
+      ["stat.ripe.net", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "3.3.3.3" })).json();
+    // proxy(55) and hosting(35) both present, capped under two-CVE signal (60 + 10 = 70).
+    // ip-api sets isVpn from the same proxy flag, so VPN is not listed twice.
+    expect(json.threatScore).toBe(70);
+    expect(json.threatReasons).toEqual([
+      "Open or anonymising proxy",
+      "Datacenter or hosting network, not residential",
+      "2 exposed services have a known CVE",
+    ]);
+  });
+
+  it("names a VPN on its own when only a scanner tag indicates it, not a proxy flag", async () => {
+    stubFetch([
+      ["ip-api.com", resp(200, { status: "success", country: "United States", countryCode: "US", query: "4.4.4.4", proxy: false, hosting: false })],
+      ["internetdb.shodan.io", resp(200, { ports: [1194], vulns: [], hostnames: [], tags: ["vpn"] })],
+      ["api.greynoise.io", resp(404, {})],
+      ["stat.ripe.net", resp(404, {})],
+    ]);
+    const json = await (await post({ ip: "4.4.4.4" })).json();
+    expect(json.threatScore).toBe(45);
+    expect(json.threatReasons).toContain("VPN endpoint");
+    expect(json.threatReasons).not.toContain("Open or anonymising proxy");
   });
 });
 

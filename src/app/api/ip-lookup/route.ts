@@ -101,25 +101,35 @@ function buildPivots(ip: string): IpLookupResponse["pivots"] {
   ];
 }
 
-function computeThreat(d: IpLookupData): { score: number; label: string } {
+// The score is the highest single attribute (Math.max), never a sum, so a
+// VPN that is also hosting reads 45, not 80. `reasons` lists every attribute
+// that was actually present, so the number explains itself in the UI and reads
+// as a statement about the network rather than a verdict on the person.
+function computeThreat(d: IpLookupData): { score: number; label: string; reasons: string[] } {
   let score = 0;
+  const reasons: string[] = [];
   const tags = (d.tags ?? []).map((t) => t.toLowerCase());
-  if (d.isTor === true || tags.includes("tor"))                                    score = Math.max(score, 80);
-  if (tags.includes("compromised") || tags.includes("malware") || tags.includes("honeypot")) score = Math.max(score, 85);
-  if (d.isProxy === true || tags.includes("proxy"))                                score = Math.max(score, 55);
-  if (d.isVpn === true || tags.includes("vpn"))                                    score = Math.max(score, 45);
-  if (d.isHosting === true)                                                        score = Math.max(score, 35); // datacenter, not residential
-  if (d.greyNoise?.classification === "malicious")                                 score = Math.max(score, 85);
+  const proxy = d.isProxy === true || tags.includes("proxy");
+  const vpn = d.isVpn === true || tags.includes("vpn");
+  if (d.isTor === true || tags.includes("tor"))                                    { score = Math.max(score, 80); reasons.push("Tor exit node"); }
+  if (tags.includes("compromised") || tags.includes("malware") || tags.includes("honeypot")) { score = Math.max(score, 85); reasons.push("Tagged compromised, malware or honeypot by a scanner"); }
+  if (proxy)                                                                       { score = Math.max(score, 55); reasons.push("Open or anonymising proxy"); }
+  // ip-api reports VPN under its single `proxy` flag, so isVpn and isProxy move
+  // together for that source. Only call VPN out on its own when something other
+  // than a bare proxy flag raised it, so one signal is not listed as two.
+  if (vpn)                                                                         { score = Math.max(score, 45); if (!proxy) reasons.push("VPN endpoint"); }
+  if (d.isHosting === true)                                                        { score = Math.max(score, 35); reasons.push("Datacenter or hosting network, not residential"); }
+  if (d.greyNoise?.classification === "malicious")                                 { score = Math.max(score, 85); reasons.push("Classified malicious by GreyNoise"); }
   // Known CVEs on exposed services are a strong, concrete risk signal.
   const vc = d.vulns?.length ?? 0;
-  if (vc > 0) score = Math.max(score, Math.min(60 + vc * 5, 95));
+  if (vc > 0) { score = Math.max(score, Math.min(60 + vc * 5, 95)); reasons.push(`${vc} exposed ${vc === 1 ? "service has" : "services have"} a known CVE`); }
   score = Math.min(score, 100);
   const label =
     score >= 70 ? "HIGH RISK" :
     score >= 40 ? "MODERATE" :
     score >= 20 ? "LOW RISK" :
                   "CLEAN";
-  return { score, label };
+  return { score, label, reasons };
 }
 
 // ── Geo resolution ───────────────────────────────────────────────────────────
@@ -391,7 +401,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return fail(target, geo.error, rlHeaders, sources);
   }
 
-  const { score, label } = computeThreat(data);
+  const { score, label, reasons: threatReasons } = computeThreat(data);
   void audit("ip", target, client, 200);
 
   const response: IpLookupResponse = {
@@ -403,6 +413,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     pivots: buildPivots(target),
     threatScore: score,
     threatLabel: label,
+    threatReasons,
     sources,
     // `sourceHealth` is the canonical field name across every lookup mode;
     // `sources` is kept as an alias so existing IP-dashboard consumers don't break.

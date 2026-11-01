@@ -59,11 +59,33 @@ describe("canonicalDataClass", () => {
     expect(canonicalDataClass("dob")).toBe("Dates of birth");
     expect(canonicalDataClass("ail addresses")).toBe("Email addresses"); // XON truncation
   });
-  it("passes an unknown class through, trimmed", () => {
-    expect(canonicalDataClass("  Titles ")).toBe("Titles");
+  it("folds LeakCheck's snake_case field tokens into the shared vocabulary", () => {
+    expect(canonicalDataClass("qqmail")).toBe("Email addresses");
+    expect(canonicalDataClass("surnames")).toBe("Names");
+    expect(canonicalDataClass("full_name")).toBe("Names");
+    expect(canonicalDataClass("address1")).toBe("Physical addresses");
+    expect(canonicalDataClass("street")).toBe("Physical addresses");
+    expect(canonicalDataClass("region")).toBe("Geographic locations");
+    expect(canonicalDataClass("province")).toBe("Geographic locations");
+    expect(canonicalDataClass("district")).toBe("Geographic locations");
+    expect(canonicalDataClass("area")).toBe("Geographic locations");
+    expect(canonicalDataClass("location")).toBe("Geographic locations");
+    expect(canonicalDataClass("company_name")).toBe("Employers");
   });
-  it("is empty for whitespace", () => {
+  it("tidies an unmapped lower-case token into a label without inventing a class", () => {
+    // Ambiguous LeakCheck tokens the map deliberately leaves unclassified.
+    expect(canonicalDataClass("title")).toBe("Title");
+    expect(canonicalDataClass("origin")).toBe("Origin");
+    // A snake_case token becomes spaced sentence case.
+    expect(canonicalDataClass("loyalty_points")).toBe("Loyalty points");
+  });
+  it("keeps an already-formatted label verbatim, by space or capital", () => {
+    expect(canonicalDataClass("  Titles ")).toBe("Titles");
+    expect(canonicalDataClass("Spoken languages")).toBe("Spoken languages");
+  });
+  it("is empty for whitespace or a separators-only token", () => {
     expect(canonicalDataClass("   ")).toBe("");
+    expect(canonicalDataClass("__")).toBe("");
   });
   it("drops a bare 'id', an internal record id LeakCheck lists but not exposed PII", () => {
     expect(canonicalDataClass("id")).toBe("");
