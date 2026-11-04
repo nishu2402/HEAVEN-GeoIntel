@@ -17,7 +17,7 @@ export interface ModeMeta {
 }
 
 export const MODES: ModeMeta[] = [
-  { id: "phone",    label: "PHONE",    glyph: "📡", lookup: true,  placeholder: "+1 415 555 2671" },
+  { id: "phone",    label: "PHONE",    glyph: "📡", lookup: true,  placeholder: "+1 415 555 0100" },
   { id: "email",    label: "EMAIL",    glyph: "✉",  lookup: true,  placeholder: "target@domain.com" },
   { id: "username", label: "USERNAME", glyph: "@",  lookup: true,  placeholder: "handle (no @)" },
   { id: "ip",       label: "IP",       glyph: "⦿",  lookup: true,  placeholder: "8.8.8.8 or IPv6" },

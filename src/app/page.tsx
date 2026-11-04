@@ -537,7 +537,7 @@ function PageContent() {
               {mode === "phone" && (
                 <>
                   <PhoneInput onLookup={runLookup} activeNumber={currentE164} onClear={phoneStatus !== "idle" || phoneResult ? () => { setPhoneStatus("idle"); setPhoneResult(null); setPhoneErr(""); setCurrentE164(""); router.replace("/", { scroll: false }); } : undefined} loading={phoneStatus === "loading"} />
-                  {phoneStatus === "idle" && !phoneResult && <ExampleChips items={["+1 415 555 2671", "+44 7911 123456", "+91 98765 43210"]} onPick={runLookup} />}
+                  {phoneStatus === "idle" && !phoneResult && <ExampleChips items={["+1 415 555 0100", "+44 20 7946 0958", "+1 416 555 0100"]} onPick={runLookup} />}
                 </>
               )}
               {mode === "email" && (
