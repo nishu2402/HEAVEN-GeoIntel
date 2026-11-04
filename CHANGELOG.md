@@ -1969,7 +1969,7 @@ hash for a v1 file is deliberately re-computed against the v1 payload shape.
   one-click **"Sweep '<handle>' as username →"** button that jumps straight into a
   full username sweep. Derivation is a pure, 100%-covered helper
   (`emailToUsernameCandidate`) that strips `+tag` sub-addresses. Verified live:
-  `jdorfman@gmail.com` → sweeps `jdorfman`.
+  `janedoe@gmail.com` → sweeps `janedoe`.
 - **Rich, API-verified username profiles (GitHub · GitLab · Hacker News · Reddit).**
   The username lookup no longer treats every site as a bare found/notfound probe.
   Four platforms expose a **keyless public JSON API**, so they're now promoted to a
