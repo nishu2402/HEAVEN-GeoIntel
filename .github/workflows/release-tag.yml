@@ -142,6 +142,29 @@ jobs:
               inputs: { tag },
             });
 
+            // docker-image.yml has the same blind spot and needs the same nudge:
+            // it triggers on `push: tags`, which this GITHUB_TOKEN tag does not
+            // raise, so without a dispatch the versioned images (3.4.0, 3.4)
+            // never rebuild and `:3.x` 404s while `:latest` keeps moving. Passing
+            // the tag lets its semver patterns tag the image from the release,
+            // not from whatever main points at. Non-fatal: a failed dispatch here
+            // must not redden a release that is otherwise publishing fine, so it
+            // degrades to a warning that names the manual path.
+            try {
+              await github.rest.actions.createWorkflowDispatch({
+                owner, repo,
+                workflow_id: "docker-image.yml",
+                ref: context.ref.replace(/^refs\/heads\//, ""),
+                inputs: { tag },
+              });
+            } catch (err) {
+              core.warning(
+                `${tag} tagged, but docker-image.yml could not be dispatched: ${err.message}. ` +
+                `Build it by hand at ${context.serverUrl}/${owner}/${repo}/actions/workflows/docker-image.yml ` +
+                `(Run workflow, tag ${tag}).`,
+              );
+            }
+
             // Confirm the run exists rather than trusting the 204. "The API
             // accepted it" is exactly the sort of assumption that left the last
             // release unpublished with nothing to look at.
@@ -157,9 +180,10 @@ jobs:
             const actions = `${context.serverUrl}/${owner}/${repo}/actions`;
             core.summary
               .addHeading(`${tag} tagged`, 2)
-              .addRaw(`Annotated tag <code>${tag}</code> created at <code>${context.sha.slice(0, 7)}</code> and handed to the release workflow.`)
+              .addRaw(`Annotated tag <code>${tag}</code> created at <code>${context.sha.slice(0, 7)}</code> and handed to the release and image workflows.`)
               .addList([
                 `Release run: ${run ? run.html_url : `${actions}/workflows/release.yml`}`,
+                `Image build (semver tags + latest): ${actions}/workflows/docker-image.yml`,
                 "The release publishes only if the full gate passes against the tagged commit.",
               ])
               .write();

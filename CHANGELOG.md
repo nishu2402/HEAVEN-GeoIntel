@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.4.0] — 2026-11-04
+
+A maintenance and security release. It clears the one outstanding dependency
+advisory, brings every dependency up to its latest release, and folds in the IP
+threat-score reasons and the clean example numbers that landed after 3.3.0.
+
+### Added
+
+- IP threat scores now explain themselves. The IP lookup returns the specific
+  reasons behind each score and the dashboard lists them, so a network-risk read
+  is transparent instead of a single opaque number.
+
+### Changed
+
+- Updated every dependency to its latest release, including Next 16.4.5, Tailwind
+  4.3.4, framer-motion 14.9.1, lucide-react 1.68.0, and Vitest 5.1.0. TypeScript
+  stays on 6.0.3 because the ESLint TypeScript stack does not yet support the next
+  major.
+- Broadened the breach data-class classification so more exposed-data types are
+  labelled correctly in the merged breach view.
+- Swapped the phone example chips to regulator-reserved demonstration numbers
+  (the NANP and Ofcom ranges kept for drama and documentation), so the built-in
+  examples never attribute breach or infostealer data to a number a real person
+  could hold.
+
+### Fixed
+
+- Removed the vmst.io Mastodon instance from the username catalog. The instance
+  shut down and its host no longer resolves, so the deep sweep was probing a
+  dead link and the weekly link check kept reporting it. The catalog is now 686
+  sites.
+- Versioned container images publish again. Automated release tagging creates
+  the tag with the Actions token, which does not start the image build, so the
+  semver image tags had stopped at 2.0.1 while latest kept updating. The release
+  now builds the image for the tag, so the 3.4.0 and 3.4 tags publish next to
+  latest on ghcr.io.
+
+### Security
+
+- Resolved the minimatch denial-of-service advisory (globparts amplification,
+  GHSA-g3hv-75wg-m249) by pinning the ESLint toolchain's transitive minimatch to
+  the patched 11.x line. The advisory was development-only and never reached the
+  published artifact, and the dependency audit is now clean.
+
 ## [3.3.0] — 2026-09-23
 
 A correctness and hardening release. It folds in every issue three consecutive

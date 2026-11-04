@@ -21,7 +21,7 @@
 <div align="center">
 
   <p>
-    <img src="https://img.shields.io/badge/Version-3.3.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
+    <img src="https://img.shields.io/badge/Version-3.4.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
     <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
     <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
     <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
@@ -426,12 +426,12 @@ docker compose up -d
 open http://localhost:3000          # macOS (Linux: xdg-open, Windows: start)
 
 # Plain Docker (no compose)
-docker build -t heaven-geointel:3.3.0 .
-docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:3.3.0
+docker build -t heaven-geointel:3.4.0 .
+docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:3.4.0
 
 # …with API keys (omit --env-file entirely if you have no .env.local;
 # docker run fails on a missing env file, it does not skip it)
-docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.3.0
+docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.4.0
 ```
 
 <div align="center">
@@ -591,7 +591,7 @@ The 38-site sweep is the fast answer. Behind a button sits the wide one: the bun
 A contract is four fields the catalog records for each site: the status and body string that mean *account exists*, and the status and body string that mean *account free*. A probe is only classified when the response matches one of those two pairs; anything else is reported `unknown` rather than folded into either answer. The catalog previously contributed nothing but links, because the contract was never read.
 
 - **242 sites** are swept by default: the ones that behaved exactly as their contract documents when the catalog was last validated against a known-real and a known-absent handle.
-- **392 more** are one checkbox away. They are offered rather than dropped, because a marker can rot and a site that failed from this machine may answer from yours.
+- **391 more** are one checkbox away. They are offered rather than dropped, because a marker can rot and a site that failed from this machine may answer from yours.
 - Measured on `bagder`, one 60-site page classified **56 of 60** either way: 7 confirmed accounts, 49 confirmed free, 4 unknown.
 
 It is paged, explicitly started and stoppable, for one reason: hundreds of probes is tens of seconds and hundreds of sockets, so folding it into every username lookup would make the fast answer slow. The fan-out is bounded and requests to one host are serialised, so three WordPress.com rows are three sequential probes rather than three simultaneous ones.
@@ -1160,7 +1160,7 @@ POST /api/username-lookup { username } → 23 auto-verified + 15 manual → foun
                                        ‖ Mastodon · Chess.com · Lichess profiles · LeakCheck ·
                                        ‖ Hudson Rock (free) + offline HIBP catalog enrichment
                                        → avatar perceptual hashes + self-link proofs → resolved identity
-POST /api/username-sweep { username, page } → 242 WhatsMyName contracts, 60 per page (392 more on request)
+POST /api/username-sweep { username, page } → 242 WhatsMyName contracts, 60 per page (391 more on request)
 POST /api/ip-lookup     { ip }       → ip-api (→ ipwho.is when throttled): geo · ASN · ISP · reverse DNS + risk
 POST /api/domain-lookup { domain }   → Cloudflare DoH (A/AAAA/MX/NS/CNAME/TXT) ‖ RDAP whois
                                        (rdap.org, then the IANA-bootstrapped registry) ‖
@@ -1511,7 +1511,7 @@ the same numbers as this page:
 │            Search It.  Enrich It.  Pivot It.  Report It.             │
 │                                                                      │
 │         7 identifiers · 11 modes · 25/34 sources need no key         │
-│            v3.3.0  ·  Lookup -> Enrich -> Pivot -> Report            │
+│            v3.4.0  ·  Lookup -> Enrich -> Pivot -> Report            │
 │                                                                      │
 │           Owned & Developed by  Nisarg Chasmawala (Shroff)           │
 ╰──────────────────────────────────────────────────────────────────────╯

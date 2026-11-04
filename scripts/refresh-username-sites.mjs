@@ -69,6 +69,12 @@ const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 // the generated file where the next run would silently undo it. Each one is a
 // measurement, not an opinion: check it again before trusting it, and delete it
 // once the upstream entry is fixed.
+// An override may also carry `drop: true`, which removes the entry entirely
+// (see the filter below). That is for a host that no longer resolves at all:
+// there is no working link left to offer even for manual verification, so
+// keeping the entry would only spend a sweep probe on nothing and file a
+// link-rot issue every Monday. A plain `skip: true` is for a host that is still
+// alive but cannot be probed (CDN block, POST body); `drop` is for a dead host.
 const OVERRIDES = {
   // 2026-09-14: myspreadshop.de stopped resolving (NXDOMAIN, confirmed by the
   // weekly probe's retry and again by hand). The platform itself is alive at the
@@ -79,6 +85,14 @@ const OVERRIDES = {
   // refused, so the entry keeps its (working) link and is offered for manual
   // verification instead of being auto-classified.
   Myspreadshop: { u: "https://{account}.myspreadshop.com", p: "", ec: null, es: "", mc: null, ms: "", skip: true },
+
+  // 2026-11-04: vmst.io no longer resolves (ENOTFOUND on both the API host and
+  // the profile host, confirmed by the weekly probe's retry and again by hand).
+  // The Mastodon instance was shut down, so unlike Myspreadshop there is no
+  // working link to keep — a dead host is worse than a missing entry, so it is
+  // dropped rather than offered as a link that goes nowhere. Remove this
+  // override once upstream WhatsMyName drops the entry too.
+  "Vmst.io (Mastodon Instance)": { drop: true },
 };
 
 const rows = sites
@@ -100,8 +114,9 @@ const rows = sites
   // Local corrections come before the filter: an override may be what makes an
   // entry usable (or unusable) in the first place.
   .map((r) => ({ ...r, ...(OVERRIDES[r.n] ?? {}) }))
-  // An https check URL carrying {account} is the minimum for a safe probe.
-  .filter((r) => r.n && r.u.startsWith("https://") && r.u.includes("{account}"))
+  // `drop` removes a dead host outright (see OVERRIDES). An https check URL
+  // carrying {account} is the minimum for a safe probe.
+  .filter((r) => !r.drop && r.n && r.u.startsWith("https://") && r.u.includes("{account}"))
   .sort((a, b) => a.c.localeCompare(b.c) || a.n.localeCompare(b.n));
 
 const seen = new Set();

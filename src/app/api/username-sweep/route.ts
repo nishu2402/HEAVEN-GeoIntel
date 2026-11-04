@@ -16,7 +16,7 @@ import type { SweepHit, UsernameSweepResponse } from "@/lib/types";
 //
 // The main lookup auto-checks 23 sites and hands 15 more over as manual links.
 // This checks the WhatsMyName entries that carry a full detection contract (see
-// analysis/wmnDetect.ts) — 242 validated sites by default, 393 more on request —
+// analysis/wmnDetect.ts) — 242 validated sites by default, 391 more on request —
 // which is where the breadth of a real username investigation lives.
 //
 // Measured on `bagder`, one 60-site page classified 56 of 60 either way: 7

@@ -5,7 +5,7 @@
 // Source: WhatsMyName by Micah Hoffman — https://github.com/WebBreacher/WhatsMyName
 // Licensed CC BY-SA 4.0 (http://creativecommons.org/licenses/by-sa/4.0/).
 //
-// 687 sites across 20 categories; 671 carry a complete
+// 686 sites across 20 categories; 670 carry a complete
 // detection contract (e_code + e_string / m_code + m_string) and can therefore be
 // auto-classified by the deep sweep. The rest are offered as manual
 // "open to verify" links, exactly as the whole catalog used to be.
@@ -612,7 +612,6 @@ export const EXTENDED_USERNAME_SITES: ExtendedSite[] = [
   { n: "uwu.ai", c: "social", u: "https://{account}.uwu.ai/", ec: 200, es: "property=\"twitter:card\"", mc: 404, ms: "Sorry, the requested page could not be found.", k: ["elite", "citruciel"], v: true },
   { n: "VK", c: "social", u: "https://vk.com/{account}", ec: 200, es: "content=\"profile\"", mc: 404, ms: "404 Not Found", k: ["ches_ches", "mike.kidlazy"], skip: true },
   { n: "Vkl.world (Mastodon Instance)", c: "social", u: "https://vkl.world/api/v1/accounts/lookup?acct={account}", p: "https://vkl.world/@{account}", ec: 200, es: "display_name", mc: 404, ms: "Record not found", k: ["king", "aniver"], v: true },
-  { n: "Vmst.io (Mastodon Instance)", c: "social", u: "https://vmst.io/api/v1/accounts/lookup?acct={account}", p: "https://vmst.io/@{account}", ec: 200, es: "display_name", mc: 404, ms: "Record not found", k: ["vmstan", "honestdave"], v: false },
   { n: "vsco", c: "social", u: "https://vsco.co/{account}/gallery", ec: 200, es: "permaSubdomain", mc: 404, ms: "\"error\":\"site_not_found\"}", k: ["sam", "becca"], skip: true },
   { n: "Wattpad", c: "social", u: "https://www.wattpad.com/api/v3/users/{account}", p: "https://www.wattpad.com/user/{account}", ec: 200, es: "\"username\":", mc: 400, ms: "\"error_code\":", k: ["newadult", "Test123"], pr: ["other"], v: false },
   { n: "waytohey", c: "social", u: "https://waytohey.com/{account}", ec: 200, es: "Send message</span>", mc: 404, ms: "Unfortunately, this page doesn&#039;t exist.", k: ["igor", "anna"], v: false },

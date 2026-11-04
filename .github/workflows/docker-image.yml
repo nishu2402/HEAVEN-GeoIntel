@@ -4,15 +4,28 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+  # A release tag is now created with GITHUB_TOKEN (see release-tag.yml), and
+  # GitHub raises no `push` event for that, so the `tags: ["v*"]` trigger above
+  # never fires on a release. `latest`, `main` and `sha-…` kept updating because
+  # those come from the branch push, but the versioned tags (3.4.0, 3.4) stopped
+  # the day tagging moved off a hand `git push` — the last semver image was
+  # 2.0.1. release-tag.yml therefore dispatches this workflow with the tag to
+  # build, the same documented way it dispatches release.yml. A tag still pushed
+  # by hand triggers the `tags` path above and leaves `tag` blank.
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and publish semver image tags for, e.g. v3.4.0. Blank builds the current ref."
+        required: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-# Tagging a release pushes `main` and the tag within the same second, so this
-# workflow starts TWICE on the same commit and builds a byte-identical image
-# both times. Unserialised, the two runs fought over one `type=gha` cache scope
+# Releasing fires this workflow TWICE on the same commit: once from the branch
+# push, and again when release-tag.yml dispatches it with the tag (see above).
+# Both build a byte-identical image. Unserialised, the two runs fought over one
+# `type=gha` cache scope
 # and each made the other slower — on v2.1.0 the `main` run crossed the
 # 30-minute timeout mid-build and was killed. Keyed on the SHA, the second run
 # now waits for the first and then finishes off a warm cache.
@@ -78,6 +91,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # On a dispatched release build, `main` may already have moved past
+          # the tagged commit, so build the tag's tree, not the branch tip.
+          # Empty on a push event, where the triggering ref is already correct.
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v4
@@ -171,11 +189,16 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ needs.prepare.outputs.image }}
+          # `value=${{ inputs.tag }}` feeds the dispatched tag to the semver
+          # patterns, because on a workflow_dispatch github.ref is the branch,
+          # not the tag. It is empty on every other trigger, where metadata-action
+          # falls back to the git ref: a hand-pushed `v*` tag still yields 3.4.0
+          # and 3.4, and a branch push still yields no semver tag.
           tags: |
             type=ref,event=branch
             type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ inputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag }}
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
