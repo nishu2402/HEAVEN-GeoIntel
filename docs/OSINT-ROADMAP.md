@@ -118,9 +118,9 @@ none.
   a server-side perceptual avatar match; everything else is labelled a
   candidate and capped. This is the false-positive rule applied to the one place
   in the tool that was still guessing.
-- **The WhatsMyName catalog is read for its detection contract**, not just its
-  URLs: 242 validated sites swept per request, 391 more on request, each
-  classified only when the response matches the contract's found or free pair.
+- **The WhatsMyName catalog is read for its detection contract**: 242
+  validated sites swept per request, 391 more on request, each classified
+  only when the response matches the contract's found or free pair.
 - **Passive DNS and reverse IP are keyless** (see 4.3), and both feed subdomain
   coverage alongside two certificate-transparency sources that now always run.
   `wordpress.org` went from 9 reported subdomains to 494.

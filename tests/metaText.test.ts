@@ -259,7 +259,7 @@ describe("meta/text XML and JSON", () => {
 
 describe("meta/text delimited data", () => {
   it("reads the header row, the column count and the row count", () => {
-    const csv = 'name,email,city\n"Okafor, J.",j@example.com,Lagos\nP. Silva,p@example.com,Porto\n';
+    const csv = 'name,email,city\n"Doe, J.",j@example.com,Lagos\nJ. Doe,p@example.com,Porto\n';
     const r = run("csv", csv);
     expect(val(r, "Delimiter")).toBe("comma");
     expect(val(r, "Columns")).toBe("3"); // from the header row, which names three

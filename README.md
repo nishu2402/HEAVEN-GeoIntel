@@ -586,7 +586,7 @@ How many handles you test a site with changes the answer. Testing one real handl
 
 ### The deep sweep: 242 more sites, on request
 
-The 38-site sweep is the fast answer. Behind a button sits the wide one: the bundled WhatsMyName catalog, read for its **detection contract** rather than its URL list.
+The 38-site sweep is the fast answer. Behind a button sits the wide one: the bundled WhatsMyName catalog, read for its **detection contract**.
 
 A contract is four fields the catalog records for each site: the status and body string that mean *account exists*, and the status and body string that mean *account free*. A probe is only classified when the response matches one of those two pairs; anything else is reported `unknown` rather than folded into either answer. The catalog previously contributed nothing but links, because the contract was never read.
 
@@ -678,7 +678,7 @@ The first 40 are then resolved, so a name from certificate transparency that no 
 
 Live DNS says what a name resolves to now. Passive DNS says what it used to, which is the half an investigation usually turns on: when the mail exchanger changed, which address the phishing host sat on last month.
 
-Mnemonic's anonymous tier sometimes answers with **flattened** rows: every timestamp zeroed and every record type reported as `A`, including rows whose answer is plainly an IPv6 address. Measured on the same domain seconds apart, `limit=50` and `limit=100` returned full rows while `limit=25` and `limit=200` came back flattened, so it is a property of the response rather than of the request. A flattened row is not merely thin, it is wrong: an AAAA observation labelled A is a false statement about the record. The tool detects that shape, retries once, and if it persists keeps a type only where the answer itself proves it, marking the rest `UNKNOWN` and telling the panel the answer was degraded.
+Mnemonic's anonymous tier sometimes answers with **flattened** rows: every timestamp zeroed and every record type reported as `A`, including rows whose answer is plainly an IPv6 address. Measured on the same domain seconds apart, `limit=50` and `limit=100` returned full rows while `limit=25` and `limit=200` came back flattened, so it is a property of the response rather than of the request. A flattened row is worse than thin. It is wrong: an AAAA observation labelled A is a false statement about the record. The tool detects that shape, retries once, and if it persists keeps a type only where the answer itself proves it, marking the rest `UNKNOWN` and telling the panel the answer was degraded.
 
 HackerTarget's failure mode is plain text in the body, so "API count exceeded" would parse as a hostname. Every line has to survive hostname validation, and a quota notice parks the source for an hour instead of being read as data.
 
@@ -725,10 +725,11 @@ typed, so it is gated by an SSRF guard: the addresses already resolved by the DN
 fanout must **all** be globally routable, and so must every address this
 machine's own resolver gives for the name, or the probe does not run.
 `localtest.me` and `1.0.0.127.nip.io` resolve to 127.0.0.1 while passing every
-syntactic domain check, and cloud metadata lives at 169.254.169.254. Requiring
-every address, not merely one, means a split-horizon name is refused rather than
-raced. Each redirect hop is resolved and checked the same way before it is
-fetched, so a public site cannot bounce the probe to `instance-data` or a
+syntactic domain check, and cloud metadata lives at 169.254.169.254. A
+split-horizon name, one that resolves to both a public and a private address,
+is therefore refused instead of raced. Each redirect hop is resolved and
+checked the same way before it is fetched, so a public site cannot bounce the
+probe to `instance-data` or a
 router's `.lan` name. The subdomain-takeover check, avatar downloads and the
 username probes use the same guard.
 
@@ -827,7 +828,7 @@ It is computed from the cases already on disk, so it needs no key, no scheduler 
 
 ### The graph, over any case
 
-The same graph renders a saved case, not only the current session: pick a case and you get its identifiers, its membership spokes and the derived edges that were pinned with them. Both graphs cover all **seven** identifier kinds now, wallets and hashes included, each with its own colour, so a crypto address sits in the picture beside the email that paid it.
+The same graph renders a saved case too: pick a case and you get its identifiers, its membership spokes and the derived edges that were pinned with them. Both graphs cover all **seven** identifier kinds now, wallets and hashes included, each with its own colour, so a crypto address sits in the picture beside the email that paid it.
 
 ### Optional case lock
 

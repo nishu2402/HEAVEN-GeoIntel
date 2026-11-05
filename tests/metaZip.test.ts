@@ -422,12 +422,12 @@ describe("meta/zip deeper document properties", () => {
 
   it("reads OpenDocument's print history and its statistics attributes", async () => {
     const meta = `<office:meta><dc:title>Budget</dc:title><dc:subject>FY25</dc:subject>` +
-      `<meta:printed-by>k.osei</meta:printed-by><meta:print-date>2024-02-11T08:30:00</meta:print-date>` +
+      `<meta:printed-by>j.doe</meta:printed-by><meta:print-date>2024-02-11T08:30:00</meta:print-date>` +
       `<meta:editing-duration>PT1H24M</meta:editing-duration><meta:keyword>internal</meta:keyword>` +
       `<meta:document-statistic meta:page-count="9" meta:word-count="1204" meta:character-count="7010" ` +
       `meta:paragraph-count="63" meta:image-count="4" meta:table-count="2" meta:object-count="1"/></office:meta>`;
     const r = await extractZip("ods", buildZip([{ name: "meta.xml", data: meta }]));
-    expect(at(r, "Last printed by")).toBe("k.osei");
+    expect(at(r, "Last printed by")).toBe("j.doe");
     expect(at(r, "Last printed")).toBe("2024-02-11T08:30:00");
     expect(at(r, "Editing time")).toBe("PT1H24M");
     expect(at(r, "Keywords")).toBe("internal");
