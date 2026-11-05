@@ -13,7 +13,7 @@
 // nothing invented. A field the lookup did not learn is simply omitted, so a
 // report never pads itself with "N/A" walls. The risk block is the same
 // explainable AI assessment shown live in the panel (src/lib/ai), so a handoff
-// carries the reasoning, not just the raw fields.
+// carries the reasoning as well as the raw fields.
 
 import type {
   LookupResponse, EmailLookupResponse, UsernameLookupResponse, IpLookupResponse,

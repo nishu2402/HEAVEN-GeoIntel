@@ -37,7 +37,7 @@ export function hasContract(site: WmnContract): boolean {
   );
 }
 
-/** True when this contract needs the response body, not just the status. */
+/** True when this contract needs the response body as well as the status. */
 export function needsBody(site: WmnContract): boolean {
   return (site.es ?? "") !== "" || (site.ms ?? "") !== "";
 }

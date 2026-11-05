@@ -60,7 +60,7 @@ async function fetchImage(url: string): Promise<Uint8Array | null> {
   if (current.protocol !== "https:") return null;
 
   for (let hop = 0; hop <= MAX_HOPS; hop++) {
-    // Vetted by what the name resolves to, not just how it is spelled: a
+    // Vetted by what the name resolves to, beyond how it is spelled: a
     // profile photo on a host that resolves inward is not fetched.
     if (!(await resolvesPublic(current.hostname))) return null;
     let res: Response;

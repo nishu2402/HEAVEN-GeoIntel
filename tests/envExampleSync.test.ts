@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-// `.env.example` is not just documentation — `scripts/start.sh` copies it to
+// `.env.example` is more than documentation: `scripts/start.sh` copies it to
 // `.env.local` on a first run, so it is the file most users actually edit. It
 // had fallen a whole release behind: every knob added in 2.0 (rate limits,
 // cache sizes, timeouts, the case lock, the data directory) was readable from

@@ -5,7 +5,7 @@ import { Link2, Check } from "lucide-react";
 import { copyText } from "@/lib/utils";
 
 // Copies the current address-bar URL — which every lookup keeps in sync as
-// ?mode=…&q=… — so any result (not just phone) can be shared or bookmarked.
+// ?mode=…&q=… — so any result, phone or otherwise, can be shared or bookmarked.
 export default function CopyLinkButton({ className }: { className?: string }) {
   const [done, setDone] = useState(false);
 

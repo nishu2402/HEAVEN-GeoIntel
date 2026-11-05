@@ -67,7 +67,7 @@ describe("EmailHeaderTracePanel", () => {
     fireEvent.click(screen.getByText("Trace path"));
     expect(screen.getByText("HOP 0")).toBeTruthy();
     expect(screen.getByText("HOP 1")).toBeTruthy();
-    expect(screen.getByText("—")).toBeTruthy(); // hop 1 has no computable delay
+    expect(screen.getByText("-")).toBeTruthy(); // hop 1 has no computable delay
     expect(screen.queryByText(/Origin IP/)).toBeNull();
     expect(screen.queryByText(/SPF:/)).toBeNull();
   });

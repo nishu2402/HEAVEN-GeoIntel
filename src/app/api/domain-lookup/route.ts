@@ -79,7 +79,7 @@ async function dohQuery(name: string, type: string): Promise<DnsRecord[] | null>
     const json = (await res.json()) as { Status?: number; Answer?: { name: string; type: number; TTL: number; data: string }[] };
     if (dohFailure(json.Status)) return null;
     if (!json.Answer) return [];
-    // An answer section carries the whole resolution chain, not just the record
+    // An answer section carries the whole resolution chain, beyond the record
     // type asked for: query A on a CNAME'd host and the CNAME comes back in the
     // same array. Labelling every answer with the REQUESTED type turned those
     // into A records holding a hostname — which is how the takeover verifier

@@ -87,9 +87,9 @@ export default function CaseChanges({ snapshots }: Props) {
                     <div key={`${r.at}-${r.fact}-${i}`} className="flex items-baseline gap-2 text-[11px] font-mono flex-wrap">
                       <span className="text-[var(--hv-ink-dim)] tabular-nums shrink-0">{fmt(r.at)}</span>
                       <span className="text-[var(--hv-ink)]">{r.fact}</span>
-                      <span className="text-[var(--hv-ink-dim)] opacity-70">{String(r.from ?? "—")}</span>
+                      <span className="text-[var(--hv-ink-dim)] opacity-70">{String(r.from ?? "-")}</span>
                       <ArrowRight className="w-3 h-3 shrink-0 text-[var(--hv-ink-dim)]" />
-                      <span className="text-[var(--hv-green)]">{String(r.to ?? "—")}</span>
+                      <span className="text-[var(--hv-green)]">{String(r.to ?? "-")}</span>
                     </div>
                   ))}
                 </div>

@@ -100,7 +100,7 @@ export interface LogoLockupProps {
 export function LogoLockup({ size = 28, tagline, className, animated, compact }: LogoLockupProps) {
   return (
     <span className={["flex items-center gap-2 sm:gap-2.5 min-w-0", className ?? ""].filter(Boolean).join(" ")}>
-      <Logo size={size} animated={animated} title={`${BRAND.name} — ${BRAND.tagline}`} />
+      <Logo size={size} animated={animated} title={`${BRAND.name} · ${BRAND.tagline}`} />
       <span
         className={[
           compact ? "hidden md:inline" : "",

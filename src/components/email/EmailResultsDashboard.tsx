@@ -205,8 +205,8 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
   const glanceTiles = [
     { label: "Provider", value: analysis.providerType.toUpperCase(), accent: provColor },
     { label: "Disposable", value: analysis.isDisposable ? "Yes" : "No", accent: analysis.isDisposable ? "#ff3e3e" : undefined },
-    { label: "Breaches", value: breachCount != null ? (breachCount > 0 ? String(breachCount) : "None") : "—", accent: breachCount && breachCount > 0 ? "#ff3e3e" : undefined },
-    { label: "Reputation", value: repData ? repData.reputation.toUpperCase() : "—" },
+    { label: "Breaches", value: breachCount != null ? (breachCount > 0 ? String(breachCount) : "None") : "-", accent: breachCount && breachCount > 0 ? "#ff3e3e" : undefined },
+    { label: "Reputation", value: repData ? repData.reputation.toUpperCase() : "-" },
     { label: "Abuse", value: `${abuse.score}/100`, accent: threatColor },
     { label: "Exposure", value: `${exposure.score}/100`, accent: exposure.score >= 60 ? "#ff6600" : exposure.score > 0 ? "#ffaa00" : "#00ff41" },
   ];

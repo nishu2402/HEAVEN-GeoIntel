@@ -87,7 +87,7 @@ function isoDay(ms: number | undefined): string | null {
  * same client seconds apart. It is a property of the response, not of the
  * request size.
  *
- * That matters because a flattened row is not merely thin, it is WRONG: an AAAA
+ * That matters because a flattened row is WRONG, worse than thin: an AAAA
  * observation labelled A is a false statement about the record. So a degraded
  * response is detected, retried once, and if it persists the labels are only
  * kept where the answer itself proves them.

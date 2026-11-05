@@ -25,7 +25,7 @@ interface Props {
   entities: ExtractedEntity[];
   /**
    * Auto-pivot links for this result. Pinned alongside the entities so the
-   * case keeps the derivation, not just the identifiers.
+   * case keeps the derivation as well as the identifiers.
    */
   edges?: EdgeInput[];
   /**
@@ -206,9 +206,9 @@ export default function AddToCase({ entities, edges, snapshot, evidence }: Props
               {diff.changes.slice(0, 6).map((c) => (
                 <div key={c.fact} className="flex items-baseline gap-1">
                   <span className="text-[var(--hv-ink-dim)]">{c.fact}</span>
-                  <span className="text-[var(--hv-ink-dim)] opacity-60">{String(c.from ?? "—")}</span>
+                  <span className="text-[var(--hv-ink-dim)] opacity-60">{String(c.from ?? "-")}</span>
                   <span className="text-[var(--hv-ink-dim)]">→</span>
-                  <span className="text-[var(--hv-green)]">{String(c.to ?? "—")}</span>
+                  <span className="text-[var(--hv-green)]">{String(c.to ?? "-")}</span>
                 </div>
               ))}
               {diff.cacheInvolved && (

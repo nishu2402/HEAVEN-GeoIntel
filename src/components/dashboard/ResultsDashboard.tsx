@@ -174,10 +174,10 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
   const npa = data.analysis.npaInfo;
   const glanceTiles = [
     { label: "Line type", value: aggregated.lineType || aggregated.typeDescription || "Unknown" },
-    { label: "Carrier", value: aggregated.carrier ?? "—" },
+    { label: "Carrier", value: aggregated.carrier ?? "-" },
     { label: "Location", value: npa?.region ? `${npa.region}${npa.stateAbbr ? `, ${npa.stateAbbr}` : ""}` : aggregated.countryName },
     { label: "Breach", value: breachTotal != null ? (breachTotal > 0 ? `${breachTotal} found` : "None") : "Needs key", accent: breachTotal && breachTotal > 0 ? "#ff3e3e" : undefined },
-    { label: <Term k="infostealer">Infostealer</Term>, value: hrTotal != null ? (hrTotal > 0 ? `${hrTotal} device${hrTotal > 1 ? "s" : ""}` : "None") : "—", accent: hrTotal && hrTotal > 0 ? "#ff3e3e" : undefined },
+    { label: <Term k="infostealer">Infostealer</Term>, value: hrTotal != null ? (hrTotal > 0 ? `${hrTotal} device${hrTotal > 1 ? "s" : ""}` : "None") : "-", accent: hrTotal && hrTotal > 0 ? "#ff3e3e" : undefined },
   ];
   const JUMP: JumpItem[] = [
     { id: "sec-identity", label: "Identity" },

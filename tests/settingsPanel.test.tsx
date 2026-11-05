@@ -84,7 +84,7 @@ describe("<SettingsPanel>", () => {
     expect(screen.getByText(/0 saved on this machine/i)).toBeTruthy();
   });
 
-  it("points at a signup page for an OSINT key, not just the AI ones", async () => {
+  it("points at a signup page for an OSINT key, as well as the AI ones", async () => {
     // The pane exists to collect keys, so a row that cannot say where its key
     // comes from sends the operator back out to search for it.
     await open();

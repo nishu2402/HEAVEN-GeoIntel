@@ -61,7 +61,7 @@ describe("CHANGELOG sections", () => {
     expect(found.map((s) => s.version)).toContain(APP_VERSION);
   });
 
-  // The recurrence guard. Applied to every section, not just the current one:
+  // The recurrence guard. Applied to every section, the current one included:
   // a duplicate anywhere splits related entries across the document, and the
   // section for the version being released becomes the release body verbatim.
   it("never repeats a `###` heading inside one version", () => {

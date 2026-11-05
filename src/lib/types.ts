@@ -1024,7 +1024,7 @@ export interface TyposquatFinding {
   addresses: string[];
   /** Mail exchangers, so "this look-alike can receive mail" is visible. */
   mx: string[];
-  /** True when the name has A or MX records: it is live, not merely generated. */
+  /** True when the name has A or MX records: the generated candidate is actually live. */
   resolves: boolean;
   /** False when a query got no answer, so `resolves: false` is not an absence. */
   answered: boolean;

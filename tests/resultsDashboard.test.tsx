@@ -151,11 +151,11 @@ describe("<ResultsDashboard>", () => {
     expect(screen.getByText(/SIM & CARRIER INTELLIGENCE/)).toBeTruthy();
     // no country intel → no CountryPanel
     expect(screen.queryByTestId("CountryPanel")).toBeNull();
-    // glance fallbacks: carrier "—", line type "Unknown", location = country name
-    expect(screen.getByText("—")).toBeTruthy();
+    // glance fallbacks: carrier "-", line type "Unknown", location = country name
+    expect(screen.getByText("-")).toBeTruthy();
     expect(screen.getByText("Unknown")).toBeTruthy();
     expect(screen.getByText("United States")).toBeTruthy();
-    // breach/infostealer need keys → "Needs key" / "—"
+    // breach/infostealer need keys → "Needs key" / "-"
     expect(screen.getByText("Needs key")).toBeTruthy();
   });
 
@@ -220,7 +220,7 @@ describe("<ResultsDashboard>", () => {
       sources: { hudsonRock: { ok: false, error: "RATE_LIMITED" } }, // hrTotal → null
       npaInfo: { region: "Bay Area", stateAbbr: null },              // region, no state abbr
     })} />);
-    // infostealer glance tile falls back to "—" when the source errored
+    // infostealer glance tile falls back to "-" when the source errored
     expect(screen.getByText("Bay Area")).toBeTruthy(); // no ", CA" suffix
   });
 

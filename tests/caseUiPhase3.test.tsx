@@ -120,7 +120,7 @@ describe("<AddToCase> with derived edges and a snapshot", () => {
     });
     await openAndPin({ entities: [entities[0]], snapshot: { kind: "ip", value: "8.8.8.8", facts: {} } });
     expect(await screen.findByText(/1 change since/)).toBeTruthy();
-    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getAllByText("-")).toHaveLength(2);
     expect(screen.queryByText(/came from the result cache/)).toBeNull();
   });
 

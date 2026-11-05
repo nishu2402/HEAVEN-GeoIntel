@@ -249,8 +249,8 @@ function PageContent() {
 
   const isBooting = !booted;
 
-  // Reflect the active lookup in the URL (?mode=…&q=…) so EVERY result — not just
-  // phone — is bookmarkable and shareable by copying the address bar.
+  // Reflect the active lookup in the URL (?mode=…&q=…) so EVERY result, phone and
+  // every other mode, is bookmarkable and shareable by copying the address bar.
   const syncUrl = useCallback((m: Mode, value: string) => {
     const p = new URLSearchParams(); p.set("mode", m); p.set("q", value);
     router.replace(`?${p.toString()}`, { scroll: false });

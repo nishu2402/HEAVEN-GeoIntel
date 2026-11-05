@@ -50,7 +50,7 @@ describe("posterSvg", () => {
   });
 
   it("carries an accessible label naming the tool and version", () => {
-    expect(posterSvg(STATS)).toContain(`aria-label="${BRAND.name} — ${BRAND.tagline}, v9.9.9"`);
+    expect(posterSvg(STATS)).toContain(`aria-label="${BRAND.name} · ${BRAND.tagline}, v9.9.9"`);
   });
 
   it("still reads as a finished poster with animation stripped", () => {
@@ -81,7 +81,7 @@ describe("posterSvg", () => {
     expect(posterSvg(STATS)).toContain("@media(prefers-reduced-motion:reduce)");
   });
 
-  it("renders a light theme that is not just an inversion", () => {
+  it("renders a light theme that is more than an inversion", () => {
     const dark = posterSvg(STATS, { theme: "dark" });
     const light = posterSvg(STATS, { theme: "light" });
     // #00ff85 on white is unreadable, so the light palette drops the neons.

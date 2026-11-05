@@ -75,7 +75,7 @@ type Signal = { value: string; source: string };
 /**
  * Comparison key for a claimed value.
  *
- * Punctuation is dropped, not just case and spacing. Measured on `bagder`:
+ * Punctuation is dropped, along with case and spacing. Measured on `bagder`:
  * GitHub says "Daniel Stenberg" and Mastodon says "daniel:// stenberg://" —
  * the same name in the owner's own styling. Treating those as two values made
  * the pair read as a contradiction and cost the identity 15 points of

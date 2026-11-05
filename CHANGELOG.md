@@ -107,7 +107,7 @@ domain name rather than an IP address, `localhost` or a bare machine name (see
   text.
 - **Evidence capture over 512 KB was impossible.** The locker documents a 4 MB
   artifact, but the proxy applied one flat body cap to every route and answered
-  **413** to anything larger — so a capture of a real lookup response was
+  **413** to anything larger, so a capture of a real lookup response was
   refused. Body ceilings are now per-route: the evidence locker and case import
   get the room their own limits promise, everything else keeps the small one.
 - **Pasting a large block into AI Text Intel froze the tab.** Entity extraction
@@ -115,8 +115,8 @@ domain name rather than an IP address, `localhost` or a bare machine name (see
   the length of a whitespace-free run: 100 KB of one measured 14.6 seconds of
   blocked main thread, 200 KB measured 58.8 seconds. Runs longer than any
   address (254 bytes) or hostname (253) can be are no longer scanned by those
-  two patterns, which leaves every realistic input identical — verified across
-  229 samples — and takes the same 100 KB to 2.6 ms.
+  two patterns, which leaves every realistic input identical (verified across
+  229 samples) and takes the same 100 KB to 2.6 ms.
 - **The bulk CSV served by the API could execute in a spreadsheet.** A cell
   beginning with `=` `+` `-` `@` is a formula to Excel, LibreOffice and Sheets,
   and the summary columns carry page titles, WHOIS organisations and ASN
@@ -124,14 +124,14 @@ domain name rather than an IP address, `localhost` or a bare machine name (see
   already prefixed those with a quote; `?format=csv` did not.
 - **A capture the evidence locker refused could still cost 436 MB.** The
   artifact is serialised with `JSON.stringify(payload, null, 2)` and only then
-  measured, and pretty-printing pays indentation per line — so its output grows
-  with nesting depth, not just with the body. A 4.26 MB request, inside the
+  measured, and pretty-printing pays indentation per line, so its output grows
+  with nesting depth as well as with the body. A 4.26 MB request, inside the
   route's own ceiling, serialised to **436 MB** before reaching the size check
   meant to refuse it; past roughly 500 levels it exceeded V8's maximum string
   length and threw, turning the intended **413** into a **500**. The payload's
-  shape is now bounded before anything is serialised — at most 64 levels deep
+  shape is now bounded before anything is serialised (at most 64 levels deep
   and 500,000 values, against a measured worst-case real response of depth 6
-  with 21,592 — so the refusal happens in 44 ms and allocates nothing.
+  with 21,592), so the refusal happens in 44 ms and allocates nothing.
 - **The audit log grew forever.** Every guarded route appends a row and a
   500-row bulk job appends 500, with nothing to bound the file: `readAudit`
   read all of it to return the newest 200 (measured 208 ms and 163 MB of
@@ -180,7 +180,7 @@ domain name rather than an IP address, `localhost` or a bare machine name (see
 
 - **Nothing bounded how many bulk jobs could run at once.** One row of a bulk
   job fans out to a dozen upstreams, `MAX_BULK_ROWS` caps a job at 500 rows and
-  the runner keeps 4 rows in flight — but the number of *jobs* was unbounded,
+  the runner keeps 4 rows in flight, but the number of *jobs* was unbounded,
   and starting one is a single cheap request. The rate limiter allows 60 of
   those a minute, so one minute of scripted POSTs could commit the process to
   ~360,000 outbound calls: a self-inflicted flood that gets the operator's
@@ -189,7 +189,7 @@ domain name rather than an IP address, `localhost` or a bare machine name (see
   `Retry-After`, and a slot frees as soon as a job finishes or is cancelled.
 - **The rotated audit log could inherit looser permissions.** `rename` carries
   the old file's mode across, and the append path only sets `0600` when it
-  *creates* a file — which is precisely why it also chmods, "even if the file
+  *creates* a file, which is precisely why it also chmods, "even if the file
   pre-existed with looser bits". The archive holds exactly the same targets as
   the live log, so it now gets the same treatment.
 - **The evidence size cap counted UTF-16 units, not bytes.** The constant is
@@ -218,7 +218,7 @@ domain name rather than an IP address, `localhost` or a bare machine name (see
   169.254.169.254 or anywhere else, and it read the whole body before trimming
   it. It now goes through the same hand-followed, per-hop-checked redirect walk
   as the HTTP probe, and reads at most 8 KB.
-- **Hostnames that resolve inward are refused, not just inward addresses.** The
+- **Hostnames that resolve inward are refused, as are inward addresses.** The
   probe, its redirect hops and avatar downloads checked a host by spelling
   only, so `instance-data` (the EC2 metadata alias), `metadata.google.internal`
   or any public name aimed at 127.0.0.1 passed. Every host is now resolved with
@@ -245,7 +245,7 @@ domain name rather than an IP address, `localhost` or a bare machine name (see
   300 wrong passwords took 2.2 seconds against the built server, every one
   answered 401 at full speed. The per-route rate limiter could not help, because
   the proxy refuses long before any route runs. A wrong password is now held
-  back for a moment, doubling up to a one-second ceiling — the same 300 guesses
+  back for a moment, doubling up to a one-second ceiling. The same 300 guesses
   take 299 seconds. The first few failures are free, so mistyping is not
   punished, and a correct password is never delayed: it still answered in 16 ms
   after 300 failed attempts. It is a delay rather than a lockout precisely so
@@ -258,7 +258,7 @@ domain name rather than an IP address, `localhost` or a bare machine name (see
 - **A dataset overlay answered for keys it never defined.** `overlayLookup`
   indexed a `JSON.parse` object directly, so `constructor` or `toString` came
   back as an inherited function rather than as "nothing here". No caller can
-  reach it today — all three pass digits or an upper-cased country code — but it
+  reach it today (all three pass digits or an upper-cased country code), but it
   is the shared door every future dataset walks through.
 
 ## [3.2.0] — 2026-09-15
@@ -415,7 +415,7 @@ itself.
   arrived). The look-alike generator gained Cyrillic, Greek and Armenian
   homoglyph variants, each carrying the punycode name to resolve and the Unicode
   name a victim sees.
-- **Look-alike domains are resolved, not just generated.** "Resolve every
+- **Look-alike domains are generated and then resolved.** "Resolve every
   look-alike" runs the candidates through DNS and reports which answer, which
   take mail, and how old the registration is, so a name registered days ago
   reads differently from one a brand has held since 2009. Unanswered queries are
@@ -1178,7 +1178,7 @@ itself.
   as PDF", and a STIX 2.1 bundle): a cover, an executive summary, the grounded AI
   risk assessment, the evidence sections, data-source health, investigative pivots
   and a methodology note. A phone report and a domain report now read identically,
-  so a handoff carries the reasoning and not just the raw fields. The command palette gained an AI entry
+  so a handoff carries the reasoning as well as the raw fields. The command palette gained an AI entry
   that jumps straight to the text-intel tool.
 - **Update checker: "new version available" in the header and a top banner.** A
   refresh button in the header compares the running build against the latest
@@ -1197,8 +1197,8 @@ itself.
   version GitHub actually returned. The last answer is cached in the browser for
   six hours so the badge is present the instant the page loads.
 - **Universal file-metadata mode (formerly Image/EXIF).** The former image mode
-  is now a keyless, in-browser metadata reader for any file, not just JPEG and
-  PNG. It identifies about 70 formats from their actual bytes, so a mislabelled
+  is now a keyless, in-browser metadata reader for any file, where it once read
+  only JPEG and PNG. It identifies about 70 formats from their actual bytes, so a mislabelled
   file is still named correctly, and it flags an extension that disagrees with the
   content (a real tampering signal). For each format it reads the genuine embedded
   metadata: EXIF and GPS from JPEG, PNG, WebP and TIFF; dimensions from GIF and
@@ -1571,7 +1571,7 @@ migrate.**
 - **93 text colours across 24 components were below AA at their chosen opacity.**
   A house style of alpha-modulated accents (`text-[#00ff41]/30`, `/45`, `/55`) put
   descriptions, hints and category headers between 1.8:1 and 4.4:1, in **both**
-  themes, not just light. Each was recomputed against the composited panel and
+  themes, dark as well as light. Each was recomputed against the composited panel and
   raised to the minimum opacity that clears 4.5:1 for its own base colour rather
   than to a blanket value. The OSINT pivot matrix's category headers stacked a 52%
   hex alpha under an `opacity-80` wrapper for an effective 42%; Signal and Viber's
@@ -1748,7 +1748,7 @@ hash for a v1 file is deliberately re-computed against the v1 payload shape.
   not-found message is treated as clean, without that split a malformed query would
   have been shown to the analyst as "this identifier is clean". Measured, keyless:
   `+919876543210` → 78 records across 13 named breaches.
-- **Infostealer exposure for email, not just phone.** The source registry advertised
+- **Infostealer exposure for email, as well as phone.** The source registry advertised
   Hudson Rock for phone **and** email while the email route never called it. Cavalier
   needs a different endpoint per identifier shape (`search-by-email` for an address;
   the `search-by-username` endpoint the phone route uses returns HTTP 400 *"Email is
@@ -1772,7 +1772,7 @@ hash for a v1 file is deliberately re-computed against the v1 payload shape.
   between "nothing moved upstream" and "we compared a cached result with itself".
   Facts a source couldn't answer are dropped, so "we don't know" never diffs as "zero".
   Verified live: a re-run reported `subdomains 1 → 4`, and DNSSEC newly `signed`.
-- **Case export schema v2, the whole case, not just its identifiers.** Exports now
+- **Case export schema v2, the whole case where v1 held only its identifiers.** Exports now
   carry the derived graph and the snapshot history, and the Markdown report gained a
   **Derived links** table and a **Change history** section. v1 exports still verify
   (see the upgrade notes above). One subtlety the tests surfaced: because the hash
@@ -1852,7 +1852,7 @@ hash for a v1 file is deliberately re-computed against the v1 payload shape.
   payloads, replacing three different shapes across three routes. `skipped`
   distinguishes "no API key configured" from "called and failed", colouring an
   unconfigured optional source red made a healthy keyless install look broken.
-  `/api/sources` now reports each source's last observed call, not just whether a key
+  `/api/sources` now reports each source's last observed call, and whether a key
   is present.
 - **One version, one place** (`lib/version.ts`). The version was typed out by hand in
   eight files and had already drifted three ways, `package.json` and `/api/health`
@@ -1861,7 +1861,7 @@ hash for a v1 file is deliberately re-computed against the v1 payload shape.
   the build if `package.json`, `package-lock.json`, `docker-compose.yml`, `SECURITY.md`,
   `scripts/start.sh`, the README's docker commands or this changelog fall out of step
   with it.
-- **`.env.example` documents the whole surface**, not just API keys: the auth gate,
+- **`.env.example` documents the whole surface**, API keys included: the auth gate,
   the case lock, all rate-limit / cache / timeout / concurrency knobs, the data
   directory and the audit-log mode, each with its real default and the range it is
   clamped to.
@@ -2603,7 +2603,7 @@ hash for a v1 file is deliberately re-computed against the v1 payload shape.
   function`). This chain is dev tooling only, never bundled, and reachable only through
   a glob pattern the repo owner writes. It needs an upstream `eslint-config-next`
   release.
-- **Per-client rate limiting is a security fix, not just a UX one.** A single shared
+- **Per-client rate limiting is a security fix as much as a UX one.** A single shared
   bucket meant any one client could deny the tool to every other user of the same
   instance with 10 requests.
 - **`CASE_PASSWORD` seals the case store** without gating lookups, see above.
@@ -2615,7 +2615,7 @@ hash for a v1 file is deliberately re-computed against the v1 payload shape.
   otherwise make the browser refuse the very origin serving it. Verified live: the
   header is present on an `FORCE_HTTPS=1` build and absent on the default build.
   (Note: Next bakes `headers()` into the build, so `FORCE_HTTPS` must be set at
-  **build** time, not just at `next start`.)
+  **build** time, not at `next start`.)
 - **Full security audit + hardening.** From a fresh review of the whole codebase
   (SSRF, injection, XSS, CSRF, path traversal, ReDoS, prototype pollution, secrets,
   headers):

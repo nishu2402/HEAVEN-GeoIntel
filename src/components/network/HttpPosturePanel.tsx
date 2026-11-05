@@ -98,11 +98,11 @@ export default function HttpPosturePanel({ http }: { http: HttpProbe }) {
         <div className="border-t border-[var(--hv-glass-border)] pt-3 space-y-1.5">
           <div className="text-[11px] uppercase tracking-widest text-[var(--hv-ink-dim)]">CERTIFICATE</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
-            <div><div className="text-[var(--hv-ink-dim)] text-[10px]">PROTOCOL</div><div className="text-[var(--hv-ink)]">{tls.protocol ?? "—"}</div></div>
-            <div><div className="text-[var(--hv-ink-dim)] text-[10px]">ISSUER</div><div className="text-[var(--hv-ink)] truncate" title={tls.issuer ?? ""}>{tls.issuer ?? "—"}</div></div>
+            <div><div className="text-[var(--hv-ink-dim)] text-[10px]">PROTOCOL</div><div className="text-[var(--hv-ink)]">{tls.protocol ?? "-"}</div></div>
+            <div><div className="text-[var(--hv-ink-dim)] text-[10px]">ISSUER</div><div className="text-[var(--hv-ink)] truncate" title={tls.issuer ?? ""}>{tls.issuer ?? "-"}</div></div>
             <div><div className="text-[var(--hv-ink-dim)] text-[10px]">EXPIRES</div>
               <div style={{ color: expiryColor(tls.daysRemaining) }}>
-                {tls.validTo ?? "—"}{tls.daysRemaining !== null && ` (${tls.daysRemaining}d)`}
+                {tls.validTo ?? "-"}{tls.daysRemaining !== null && ` (${tls.daysRemaining}d)`}
               </div>
             </div>
             <div><div className="text-[var(--hv-ink-dim)] text-[10px]">CHAIN</div>

@@ -47,7 +47,7 @@ function RecordBlock({ title, records, accent }: { title: string; records: DnsRe
 }
 
 function fmtDate(d: string | null): string {
-  if (!d) return "—";
+  if (!d) return "-";
   try { return new Date(d).toISOString().split("T")[0]; } catch { return d; }
 }
 

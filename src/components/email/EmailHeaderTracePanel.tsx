@@ -78,7 +78,7 @@ export default function EmailHeaderTracePanel({ onIpLookup }: { onIpLookup?: (ip
               <div key={h.index}>
                 {h.index > 0 && (
                   <div className="flex items-center gap-1 text-[10px] font-mono text-[var(--hv-ink-dim)] pl-2">
-                    <ArrowDown className="w-3 h-3" />{h.delaySeconds != null ? `${h.delaySeconds}s` : "—"}
+                    <ArrowDown className="w-3 h-3" />{h.delaySeconds != null ? `${h.delaySeconds}s` : "-"}
                   </div>
                 )}
                 <div className="rounded-md border border-[var(--hv-glass-border)] p-2.5 text-[12px] font-mono">

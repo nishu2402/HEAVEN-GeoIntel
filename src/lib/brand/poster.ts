@@ -230,7 +230,7 @@ export function posterSvg(s: PosterStats, options: PosterOptions = {}): string {
   const { theme = "dark", animated = true, width = W } = options;
   const p = PALETTES[theme];
   const height = Math.round((width * H) / W);
-  const label = `${BRAND.name} — ${BRAND.tagline}, v${s.version}`;
+  const label = `${BRAND.name} · ${BRAND.tagline}, v${s.version}`;
 
   const scan = animated
     ? `<g class="scan"><rect x="0" y="0" width="180" height="${H}" fill="url(#scan)"/></g>`

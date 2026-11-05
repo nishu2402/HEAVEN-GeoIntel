@@ -470,7 +470,7 @@ export function providerRequest(
     // the URL), system prompt in its own field. Response shape differs too — see
     // providerExtractText.
     //
-    // maxOutputTokens has to cover the model's own reasoning, not just the
+    // maxOutputTokens has to cover the model's own reasoning as well as the
     // answer. On Gemini 3.x a six-sentence brief over a real evidence bundle
     // spends around 1,100 tokens thinking before it writes a word, so the 800
     // this used to send came back truncated mid-sentence (finishReason

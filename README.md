@@ -4,7 +4,7 @@
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="public/brand/poster-light.svg"/>
     <source media="(prefers-color-scheme: dark)" srcset="public/brand/poster.svg"/>
-    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel — Unified OSINT Platform: 7 identifier types, 11 workspace modes, 25 of 34 sources need no API key, 23 of 38 username sites auto-verified, 30 API operations, 100% test coverage"/>
+    <img width="100%" src="public/brand/poster.svg" alt="HEAVEN-GeoIntel · Unified OSINT Platform: 7 identifier types, 11 workspace modes, 25 of 34 sources need no API key, 23 of 38 username sites auto-verified, 30 API operations, 100% test coverage"/>
   </picture>
 </p>
 
@@ -793,7 +793,7 @@ Every successful lookup (phone, email, username, IP, domain) adds a colour-coded
 
 ### Derived links: what was inferred from what
 
-Pinning a result to a case also stores the **relationships the auto-pivot engine derived**, each labelled with the source that produced it (`Gravatar: linked github account`, `DNS: MX host`, `Hudson Rock: credential captured on the same machine`). Those are drawn as dashed edges *between* real nodes, on top of the membership spokes, so the graph shows the derivation, not just the roster.
+Pinning a result to a case also stores the **relationships the auto-pivot engine derived**, each labelled with the source that produced it (`Gravatar: linked github account`, `DNS: MX host`, `Hudson Rock: credential captured on the same machine`). Those are drawn as dashed edges *between* real nodes, on top of the membership spokes, so the graph shows the derivation alongside the membership.
 
 Only links whose **both** ends were actually pinned are stored, so the graph can never contain a node the case doesn't.
 
@@ -1072,7 +1072,7 @@ ALLOWED_HOSTS=               # host names this app may be served under, comma
                              # while AUTH_PASSWORD is blank; see Security
 FORCE_HTTPS=                 # 1 only when the app is really served over HTTPS:
                              # emits HSTS + upgrade-insecure-requests and marks
-                             # cookies Secure. Read at BUILD time, not just at
+                             # cookies Secure. Read at BUILD time, not at
                              # start, because Next bakes headers() into the build
 
 # Cases
@@ -1211,7 +1211,7 @@ The twenty-one endpoints: `/api/lookup` · `/api/email-lookup` · `/api/username
 
 The spec is generated at request time from a route registry (`src/lib/api/endpoints.ts`), not hand-written, and a test walks `src/app/api/**/route.ts` and fails the build if the registry and the actual routes disagree. Adding a route without documenting it is a red build, so the "import it into Postman" promise cannot quietly stop being true.
 
-Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope`, which tells you whether your own limit or the server-wide ceiling is binding) on every response, a 400 included, since the request is charged before its body is validated. Each also returns `X-Robots-Tag: noindex`. Each also returns a uniform `sourceHealth` array (`{ source, ok, ms, fetchedAt, error?, skipped? }`) so one consumer can render source health for any mode; `skipped` means the source was never called, with `error` saying which reason applies: `NOT_CONFIGURED` when its API key is unset, `NO_INPUT` when it is keyless but this lookup had nothing to ask it about. Both are deliberately distinct from a source that was called and failed. `/api/sources` reports what each source did on its **last actual call**, not just whether a key is present. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (provenance only; key **values are never returned**).
+Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope`, which tells you whether your own limit or the server-wide ceiling is binding) on every response, a 400 included, since the request is charged before its body is validated. Each also returns `X-Robots-Tag: noindex`. Each also returns a uniform `sourceHealth` array (`{ source, ok, ms, fetchedAt, error?, skipped? }`) so one consumer can render source health for any mode; `skipped` means the source was never called, with `error` saying which reason applies: `NOT_CONFIGURED` when its API key is unset, `NO_INPUT` when it is keyless but this lookup had nothing to ask it about. Both are deliberately distinct from a source that was called and failed. `/api/sources` reports what each source did on its **last actual call**, and whether a key is present. `/api/sources` and `/api/keys` report/manage which optional API keys are configured (provenance only; key **values are never returned**).
 
 ---
 

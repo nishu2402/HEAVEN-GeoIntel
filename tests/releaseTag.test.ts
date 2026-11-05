@@ -44,7 +44,7 @@ const code = (src: string, comment: RegExp) =>
     .join("\n");
 
 describe("a push to main carries the release", () => {
-  it("triggers on every push to main, not just on the commit that edits the version", () => {
+  it("triggers on every push to main, including commits that do not edit the version", () => {
     expect(tagger).toMatch(/^on:$/m);
     expect(tagger).toMatch(/^\s+branches: \[main\]$/m);
     // No `paths:` filter. The bump and the release readiness need not land in

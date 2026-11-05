@@ -119,7 +119,7 @@ describe("<HttpPosturePanel>", () => {
     expect(screen.getByText("UNTRUSTED")).toBeTruthy();
     expect(screen.getByText("self signed certificate")).toBeTruthy();
     // Every unknown field renders an em dash rather than a fabricated value.
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("-").length).toBeGreaterThan(0);
   });
 
   it("omits the trust reason when the chain failed without one", () => {

@@ -175,7 +175,7 @@ function historiesOf(snapshots: CaseSnapshot[]): CaseHistory[] {
       for (const ch of diffFacts(prev.facts, cur.facts)) {
         // A fact that appeared has no "was", and one that vanished has no
         // "now"; the dash is the table's way of saying so.
-        changes.push({ at: cur.takenAt, fact: ch.fact, from: String(ch.from ?? "—"), to: String(ch.to ?? "—") });
+        changes.push({ at: cur.takenAt, fact: ch.fact, from: String(ch.from ?? "-"), to: String(ch.to ?? "-") });
       }
     }
     out.push({
@@ -249,7 +249,7 @@ function changeHistoryMd(histories: CaseHistory[]): string[] {
     for (const ch of h.changes) {
       out.push(`| ${new Date(ch.at).toISOString()} | ${md(ch.fact)} | ${md(ch.from)} | ${md(ch.to)} |`);
     }
-    if (h.changes.length === 0) out.push(`| — | _nothing changed across ${h.snapshots} snapshots_ | — | — |`);
+    if (h.changes.length === 0) out.push(`| - | _nothing changed across ${h.snapshots} snapshots_ | - | - |`);
     out.push("");
   }
   return out;
@@ -260,7 +260,7 @@ export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
   const fmt = (ms: number) => new Date(ms).toISOString();
   const rows = d.entities.length
     ? d.entities.map((e) => `| ${e.kind} | \`${md(e.value)}\` | ${fmt(e.addedAt)} | ${md(e.note ?? "")} |`).join("\n")
-    : "| — | _no identifiers_ | — | — |";
+    : "| - | _no identifiers_ | - | - |";
 
   return [
     `# HEAVEN-GeoIntel: Investigation Report`,
@@ -293,7 +293,7 @@ export async function buildCaseMarkdown(c: InvestigationCase): Promise<string> {
     `|------|-------|`,
     ...(d.kinds.length
       ? d.kinds.map((k) => `| ${k.kind} | ${k.count} |`)
-      : [`| — | _no identifiers_ |`]),
+      : [`| - | _no identifiers_ |`]),
     ``,
     `## Identifiers`,
     ``,

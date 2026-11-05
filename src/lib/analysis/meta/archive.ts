@@ -3,7 +3,7 @@
 // These two formats leak identity directly. A GZIP header stores the ORIGINAL
 // filename (and its modification time and source OS), which routinely reveals a
 // local path or a naming scheme. A TAR header stores each file's owner and group
-// as NAMES, not just numeric ids, so a tarball made on someone's machine carries
+// as NAMES as well as numeric ids, so a tarball made on someone's machine carries
 // their username. Both are read straight from the fixed header layout, bounded
 // against truncation, and every value is a real field, never inferred.
 //
@@ -154,7 +154,7 @@ function extractTar(r: Reader): Extraction {
   const total = entries.reduce((n, e) => n + e.size, 0);
   if (total > 0) fields.push({ label: "Total size", value: humanBytes(total), group: "Archive" });
 
-  // Every distinct account that owns a member, not just the first one: an
+  // Every distinct account that owns a member, all of them: an
   // archive assembled from several machines names each of them.
   const owners = distinct(entries.map((e) => e.owner));
   if (owners.length) fields.push({ label: owners.length > 1 ? "Owners" : "Owner", value: owners.join(", "), group: "Archive", sensitive: true });

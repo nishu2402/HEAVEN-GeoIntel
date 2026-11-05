@@ -175,7 +175,7 @@ describe("<CaseChanges>", () => {
       sn({ takenAt: 1, facts: { gone: "x" } }),
       sn({ takenAt: 2, facts: { added: "y" } }),
     ]} />);
-    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("-").length).toBeGreaterThanOrEqual(2);
   });
 
   it("groups by identifier and colours each kind", () => {

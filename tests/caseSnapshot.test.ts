@@ -125,7 +125,7 @@ describe("fact summarisers keep only what a source actually answered", () => {
       dnsFailed: ["MX", "TXT", "DNSKEY"],
     } as unknown as DomainLookupResponse);
     expect(facts).toEqual({ aRecords: 1, nsRecords: 1, subdomains: 0 });
-    // Against a healthy earlier run the facts stop being reported ("—"); they
+    // Against a healthy earlier run the facts stop being reported ("-"); they
     // are never recorded as dropping to 0 MX or a "missing" SPF.
     expect(diffFacts({ aRecords: 1, nsRecords: 1, subdomains: 0, mxRecords: 2, spf: "present" }, facts)).toEqual([
       { fact: "mxRecords", from: 2, to: null },

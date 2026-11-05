@@ -140,8 +140,8 @@ describe("<IpResultsDashboard> full result", () => {
   it("hides the Tor flag when its state is unknown and shows an unknown-VPN glance dash", () => {
     render(<IpResultsDashboard data={resp({ ip: ipData({ isTor: null, isVpn: null, isHosting: null }) })} />);
     expect(screen.queryByText(/^TOR:/)).toBeNull();
-    // VPN / proxy glance tile shows "—" for unknown
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    // VPN / proxy glance tile shows "-" for unknown
+    expect(screen.getAllByText("-").length).toBeGreaterThan(0);
   });
 
   it("colours a malicious GreyNoise classification and omits the ASN-org fallback label", () => {
@@ -213,7 +213,7 @@ describe("<IpResultsDashboard> full result", () => {
     expect(screen.getByText(/Location unknown/)).toBeTruthy();
     // Country + Timezone rows are omitted entirely when null (Row returns null)
     expect(screen.queryByText("Timezone")).toBeNull();
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0); // glance dashes
+    expect(screen.getAllByText("-").length).toBeGreaterThan(0); // glance dashes
   });
 
   it("renders country without a code and timezone without an offset", () => {

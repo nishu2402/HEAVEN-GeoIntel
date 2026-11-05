@@ -127,11 +127,11 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
   const hasExposure = !!(ip.ports || ip.vulns || ip.hostnames || ip.tags);
   const riskColor = data.threatScore >= 70 ? "#ff4d6d" : data.threatScore >= 40 ? "#fb923c" : data.threatScore >= 20 ? "#fbbf24" : "#00ff85";
   const glanceTiles = [
-    { label: "Country", value: ip.country ?? "—" },
-    { label: <Term k="ASN">ASN</Term>, value: ip.asnOrg ?? (ip.asn ? `AS${ip.asn}` : "—"), accent: "var(--hv-cyan)" },
+    { label: "Country", value: ip.country ?? "-" },
+    { label: <Term k="ASN">ASN</Term>, value: ip.asnOrg ?? (ip.asn ? `AS${ip.asn}` : "-"), accent: "var(--hv-cyan)" },
     { label: "Risk", value: `${data.threatScore} · ${data.threatLabel}`, accent: riskColor },
-    { label: "VPN / proxy", value: ip.isVpn === true ? "Yes" : ip.isVpn === false ? "No" : "—", accent: ip.isVpn ? "#ff4d6d" : undefined },
-    { label: "Hosting", value: ip.isHosting === true ? "Yes" : ip.isHosting === false ? "No" : "—", accent: ip.isHosting ? "#fbbf24" : undefined },
+    { label: "VPN / proxy", value: ip.isVpn === true ? "Yes" : ip.isVpn === false ? "No" : "-", accent: ip.isVpn ? "#ff4d6d" : undefined },
+    { label: "Hosting", value: ip.isHosting === true ? "Yes" : ip.isHosting === false ? "No" : "-", accent: ip.isHosting ? "#fbbf24" : undefined },
   ];
   const jump: JumpItem[] = [
     { id: "sec-geo", label: "Geo" },

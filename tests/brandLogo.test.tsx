@@ -118,7 +118,7 @@ describe("<Logo>", () => {
 describe("<LogoLockup>", () => {
   it("pairs the mark with the wordmark and the tagline when asked", () => {
     const { container } = render(<LogoLockup tagline animated className="text-base" />);
-    expect(screen.getByRole("img", { name: `${BRAND.name} — ${BRAND.tagline}` })).toBeTruthy();
+    expect(screen.getByRole("img", { name: `${BRAND.name} · ${BRAND.tagline}` })).toBeTruthy();
     expect(container.textContent).toContain("HEAVEN");
     expect(container.textContent).toContain("GeoIntel");
     expect(container.textContent).toContain(BRAND.tagline.toLowerCase());

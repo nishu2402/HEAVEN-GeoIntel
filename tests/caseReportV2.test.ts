@@ -100,8 +100,8 @@ describe("Markdown report", () => {
         { kind: "ip", value: "8.8.8.8", takenAt: 2, facts: { added: "y" } },
       ],
     }));
-    expect(md).toContain("| added | — | y |");
-    expect(md).toContain("| gone | x | — |");
+    expect(md).toContain("| added | - | y |");
+    expect(md).toContain("| gone | x | - |");
   });
 
   it("states plainly when a case has no graph or history at all", async () => {

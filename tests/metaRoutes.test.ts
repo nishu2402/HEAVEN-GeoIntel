@@ -38,7 +38,7 @@ describe("GET /api/docs", () => {
     expect(spec.info.title).toBe("HEAVEN-GeoIntel API");
     expect(spec.components.schemas.LookupResponse).toBeTruthy();
 
-    // Every lookup mode, not just phone and email — the spec used to cover 3 of
+    // Every lookup mode, where the spec once covered only phone and email, 3 of
     // 11 routes while the README told people to import it into Postman.
     for (const p of ["/api/lookup", "/api/email-lookup", "/api/username-lookup",
                      "/api/ip-lookup", "/api/domain-lookup", "/api/bulk-lookup"]) {

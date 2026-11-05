@@ -41,7 +41,7 @@ describe("cache get/set", () => {
     now.mockReturnValue(1_000_000 + 24 * 60 * 60 * 1000 + 1); // just past TTL
     expect(getCached(key)).toBeNull();
     now.mockRestore();
-    // re-fetch after restore confirms the expired entry was deleted, not just hidden
+    // re-fetch after restore confirms the expired entry was deleted outright, not left hidden
     expect(getCached(key)).toBeNull();
   });
 });

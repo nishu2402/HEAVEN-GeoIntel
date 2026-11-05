@@ -36,7 +36,7 @@ function sectionBody(s: ReportSection): string {
   return parts.join("\n");
 }
 
-/** A ring gauge: the score as a position on a dial, not just a number. */
+/** A ring gauge: the score as a position on a dial, alongside the number. */
 function gauge(score: number, band: string, accent: string): string {
   const circumference = 2 * Math.PI * 52;
   const filled = (score / 100) * circumference;
