@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
-
 ## [3.4.0] — 2026-11-04
 
 A maintenance and security release. It clears the one outstanding dependency
