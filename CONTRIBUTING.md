@@ -17,7 +17,7 @@ npm install
 npm run dev            # http://localhost:3000
 npm test               # Vitest
 npm run test:coverage  # the gate: 100% on the gated files
-npm run lint           # ESLint 9 (flat config)
+npm run lint           # ESLint 10 (flat config)
 npm run typecheck      # tsc --noEmit
 ```
 

@@ -185,19 +185,22 @@ Four advisories were resolved and are documented here for the record:
   resolved a patched version and `npm audit` reported zero. The exposure was in
   the manifest: the declared range was `^16.2.12`, which admits 16.2.12 through
   16.3.2, so an install that did not use this lockfile could have taken a version
-  with a published exploit. The floor is now `^16.3.4`.
+  with a published exploit. The floor is now `^16.4.5`.
 - **`esbuild` / `vitest` dev-server advisory**: cleared by upgrading the test
   runner to `vitest@4`. Dev-only; never shipped to production.
-- **`brace-expansion` unbounded-expansion DoS** ([GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg)
-  / CVE-2026-14257, high: a crafted brace pattern expands without bound and
-  crashes the process out of memory; affects `<1.1.17`). Reached only through
-  `eslint` → `minimatch@3`, which pins the 1.x line. 2.0.0 disclosed this chain
-  rather than fixing it, because at the time no patched 1.x existed and forcing
-  the patched 5.x breaks `minimatch@3`'s API. Upstream has since backported the
-  fix onto the 1.x maintenance line, so the lockfile now resolves **1.1.18**,
-  inside `minimatch@3`'s own `^1.1.7` range, so no `overrides` entry and no API
-  change. Dev tooling only; never bundled into the app, and reachable only via a
-  glob pattern the repo owner writes.
+- **`minimatch` denial of service** ([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249),
+  the `globparts` amplification: a crafted glob expands without bound; affects
+  `<11.0.1`). Reached only through the ESLint toolchain's transitive `minimatch`.
+  It is pinned forward to the patched 11.x line with an npm `overrides` entry
+  (`"minimatch": "^11.0.4"`), which resolves to `11.0.4`. That same bump also
+  clears an earlier `brace-expansion` advisory
+  ([GHSA-mh99-v99m-4gvg](https://github.com/advisories/GHSA-mh99-v99m-4gvg) /
+  CVE-2026-14257, a crafted brace pattern that expands without bound and crashes
+  the process out of memory; affects `<1.1.17`): forcing `minimatch` to 11.x
+  pulls `brace-expansion` up to its 5.x line (`5.0.12`), well past the vulnerable
+  range, so the old `minimatch@3` → `brace-expansion@1` chain is no longer in the
+  tree at all. Dev tooling only; never bundled into the app, and reachable only
+  via a glob pattern the repo owner writes.
 
 Run `npm audit` (or `npm audit --omit=dev` for the production-only picture) to
 confirm what is installed, and `npm run audit:floors` to confirm what the

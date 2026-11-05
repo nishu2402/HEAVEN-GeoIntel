@@ -471,7 +471,7 @@ Every phone lookup returns real data derived from the number structure and bundl
 | **Country Intelligence** | Capital · continent · region · population · currency · languages · driving side · emergency number · GDP per capita |
 | **Number Anatomy** | One consolidated panel: visual digit breakdown · line type + description · libphonenumber validity checks · all four formats (E.164 / International / National / RFC 3966) |
 | **SIM & Carrier Intel** | Owner/CNAM · carrier (incl. offline MCC/MNC → operator) · prepaid · active status · MCC/MNC/PLMN · associated emails |
-| **Number Permutations** | 12 format variants for OSINT/database searching |
+| **Number Permutations** | 11 format variants for OSINT/database searching |
 | **OSINT Pivots** | 37 links across 5 categories, each tagged **FREE / CAPTCHA / APP / LOGIN / PAID / BLOCKED**; filter chips default to FREE + CAPTCHA + APP. Every link takes the number directly, with no dead "did not match any documents" results |
 | **QR Code** | Canvas-rendered QR for the `tel:` URI · downloadable as PNG |
 | **Report Export** | One report model, five formats, and **two different documents** for PDF and HTML: the PDF is a paged A4 file (cover sheet, document-control block, numbered sections, ruled tables, print-legible ink) and the HTML is an interactive dossier in the app's own palette (sticky contents rail, live filtering, per-value copy). Plus `.txt`, Markdown and a STIX 2.1 bundle. Every format carries the same executive summary, grounded AI risk assessment, evidence sections, per-source outcome, methodology, legend and collection statistics. See [Reports](#reports-two-documents-not-one-file-offered-twice) |
@@ -542,7 +542,7 @@ Every email lookup runs offline analysis instantly, then fans out to free data s
 | **Mail Exchange (keyless)** | Cloudflare DoH MX lookup: names where the domain's mail lands (Google Workspace · Microsoft 365 · Proofpoint · Mimecast · Zoho · Proton · self-managed …) · corroborates the domain, never claims the address is valid · no key |
 | **Reputation** | EmailRep.io: suspicious · blacklisted · malicious · credentials leaked · spam · first/last seen · registered platforms |
 | **Validation / Deliverability** | AbstractAPI (SMTP/MX, quality, catch-all) · Hunter.io (deliverable/risky/undeliverable + confidence) |
-| **OSINT Matrix** | 26 investigation links across 4 categories |
+| **OSINT Matrix** | 22 investigation links across 4 categories |
 | **Report Export** | The same unified report as every other mode (paged PDF · interactive `.html` · `.txt` · Markdown · STIX 2.1), including the mail-exchange fingerprint, the breach list by name and the credential-exposure block |
 
 </div>
@@ -1234,7 +1234,7 @@ Every lookup route returns `X-RateLimit-*` headers (including `X-RateLimit-Scope
 ### Email: offline analysis (zero APIs)
 
 - Disposable (1,200+ domains) · privacy (70+) · free-webmail (370+) · role-address (160+ prefixes) · government/military · educational detection
-- Provider name resolution (50+) · name inference from username patterns
+- Provider name resolution (40+) · name inference from username patterns
 
 ### Username · IP · Domain (free live sources)
 
