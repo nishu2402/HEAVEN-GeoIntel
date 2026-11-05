@@ -402,7 +402,7 @@ describe("meta/zip deeper document properties", () => {
 
   it("reads the Office extended properties, statistics included", async () => {
     const app = `<Properties><Application>Microsoft Office Word</Application><AppVersion>16.0000</AppVersion>` +
-      `<Company>Northgate</Company><Manager>R. Alvarez</Manager><Template>Normal.dotm</Template>` +
+      `<Company>Northgate</Company><Manager>J. Doe</Manager><Template>Normal.dotm</Template>` +
       `<HyperlinkBase>\\\\fileserver\\shared</HyperlinkBase><TotalTime>184</TotalTime><DocSecurity>0</DocSecurity>` +
       `<Pages>12</Pages><Slides>0</Slides><Notes>0</Notes><HiddenSlides>0</HiddenSlides><Words>3120</Words>` +
       `<Characters>17800</Characters><CharactersWithSpaces>20900</CharactersWithSpaces>` +
@@ -448,15 +448,15 @@ describe("meta/zip deeper document properties", () => {
   });
 
   it("reads the fuller e-book record", async () => {
-    const opf = `<package><metadata><dc:title>The Coast Road</dc:title><dc:creator>H. Nakamura</dc:creator>` +
-      `<dc:contributor>Trans. by L. Park</dc:contributor><dc:publisher>Sable Press</dc:publisher>` +
+    const opf = `<package><metadata><dc:title>The Coast Road</dc:title><dc:creator>J. Doe</dc:creator>` +
+      `<dc:contributor>Trans. by J. Doe</dc:contributor><dc:publisher>Sable Press</dc:publisher>` +
       `<dc:identifier>urn:isbn:9781234567897</dc:identifier><dc:language>en</dc:language>` +
       `<dc:rights>All rights reserved</dc:rights><dc:description>A novel.</dc:description></metadata></package>`;
     const r = await extractZip("epub", buildZip([
       { name: "META-INF/container.xml", data: `<rootfile full-path="OEBPS/content.opf"/>` },
       { name: "OEBPS/content.opf", data: opf, method: 8 },
     ]));
-    expect(at(r, "Contributor")).toBe("Trans. by L. Park");
+    expect(at(r, "Contributor")).toBe("Trans. by J. Doe");
     expect(at(r, "Identifier")).toBe("urn:isbn:9781234567897");
     expect(at(r, "Rights")).toBe("All rights reserved");
     expect(at(r, "Description")).toBe("A novel.");

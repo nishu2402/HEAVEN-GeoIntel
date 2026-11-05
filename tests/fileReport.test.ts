@@ -16,7 +16,7 @@ const photo: UniversalMeta = {
   size: 3_145_728,
   extMismatch: null,
   fields: [
-    { label: "Photographer", value: "Lucia Ferrara", group: "IPTC", sensitive: true },
+    { label: "Photographer", value: "John Doe", group: "IPTC", sensitive: true },
     { label: "City", value: "Trieste", group: "IPTC", sensitive: true },
     { label: "Encoding", value: "progressive", group: "Image" },
     { label: "Authoring tool", value: "Adobe Lightroom 13.2", group: "XMP", sensitive: true },
@@ -218,12 +218,12 @@ describe("the file report renders in every format", () => {
     const markdown = reportToMarkdown(m);
 
     for (const doc of [print, screen]) {
-      expect(doc).toContain("Lucia Ferrara");
+      expect(doc).toContain("John Doe");
       expect(doc).toContain("Adobe Lightroom 13.2");
       expect(doc).toContain("iPhone 15 Pro");
     }
-    expect(text).toContain("LUCIA FERRARA".length > 0 ? "Lucia Ferrara" : "");
-    expect(markdown).toContain("| Photographer | Lucia Ferrara |");
+    expect(text).toContain("JOHN DOE".length > 0 ? "John Doe" : "");
+    expect(markdown).toContain("| Photographer | John Doe |");
 
     // The paged document follows the same outline as every other mode's.
     for (const heading of outline) expect(print).toContain(`id="${slug(heading)}"`);

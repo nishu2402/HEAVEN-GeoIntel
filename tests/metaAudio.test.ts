@@ -281,11 +281,11 @@ describe("meta/audio structured ID3 frames", () => {
   it("splits a comment, a custom text frame and a custom URL into label and value", () => {
     const r = extractAudio("mp3", tagged([
       ...frame24("COMM", [0, ...A("eng"), ...A("ripper note"), 0, ...A("ripped from CD")]),
-      ...frame24("TXXX", [0, ...A("Purchase account"), 0, ...A("j.okafor@example.com")]),
+      ...frame24("TXXX", [0, ...A("Purchase account"), 0, ...A("j.doe@example.com")]),
       ...frame24("WXXX", [0, ...A("Store"), 0, ...A("https://example.com/album")]),
     ]));
     expect(val(r, "Comment: ripper note")).toBe("ripped from CD");
-    expect(val(r, "Custom: Purchase account")).toBe("j.okafor@example.com");
+    expect(val(r, "Custom: Purchase account")).toBe("j.doe@example.com");
     expect(val(r, "URL: Store")).toBe("https://example.com/album");
     expect(r.fields.find((f) => f.label.startsWith("Custom"))?.sensitive).toBe(true);
   });
@@ -407,12 +407,12 @@ describe("meta/audio WAV beyond the INFO list", () => {
 
   it("reads the rest of the registered INFO tags", () => {
     const info = chunk("LIST", [...A("INFO"),
-      ...chunk("IENG", A("K. Osei")), ...chunk("ITCH", A("studio-b")),
+      ...chunk("IENG", A("J. Doe")), ...chunk("ITCH", A("studio-b")),
       ...chunk("ICMS", A("Northgate")), ...chunk("IARL", A("shelf 4")),
       ...chunk("ISBJ", A("harbour")), ...chunk("IKEY", A("field, ambient")), ...chunk("IMED", A("SD card")),
     ]);
     const r = extractAudio("wav", wav(info));
-    expect(val(r, "Engineer")).toBe("K. Osei");
+    expect(val(r, "Engineer")).toBe("J. Doe");
     expect(val(r, "Technician")).toBe("studio-b");
     expect(val(r, "Commissioned by")).toBe("Northgate");
     expect(val(r, "Archival location")).toBe("shelf 4");
@@ -445,13 +445,13 @@ describe("meta/audio FLAC beyond the basics", () => {
 
   it("keeps an unregistered Vorbis key and drops the replay-gain noise", () => {
     const r = extractAudio("flac", cat(A("fLaC"), block(4, comments("libFLAC 1.4", [
-      "ARTIST=M. Okonkwo",
+      "ARTIST=J. Doe",
       "ORGANIZATION=Harbour Recordings",
       "LOCATION=Trieste",
       "RECORDING_DEVICE=Zoom H6",
       "REPLAYGAIN_TRACK_GAIN=-6.5 dB",
     ]), true)));
-    expect(val(r, "Artist")).toBe("M. Okonkwo");
+    expect(val(r, "Artist")).toBe("J. Doe");
     expect(val(r, "Organisation")).toBe("Harbour Recordings");
     expect(val(r, "Location")).toBe("Trieste");
     expect(val(r, "RECORDING_DEVICE")).toBe("Zoom H6");

@@ -48,13 +48,13 @@ describe("meta/raster PNG", () => {
     const zip = (s: string) => [...deflateSync(Buffer.from(s))];
     const file = png(
       ihdr(),
-      chunk("tEXt", [...A("Author"), 0, ...A("R. Mehta")]),
+      chunk("tEXt", [...A("Author"), 0, ...A("J. Doe")]),
       chunk("zTXt", [...A("Comment"), 0, 0, ...zip("shot on the roof")]),
       chunk("iTXt", [...A("Description"), 0, 0, 0, ...A("en"), 0, ...A("Beskrivning"), 0, ...U("café façade")]),
       chunk("iTXt", [...A("Title"), 0, 1, 0, 0, 0, ...zip("Compressed title")]),
     );
     const f = map(await extractPng(file));
-    expect(f["Author"]).toBe("R. Mehta");
+    expect(f["Author"]).toBe("J. Doe");
     expect(f["Comment"]).toBe("shot on the roof");
     expect(f["Description"]).toBe("café façade"); // iTXt is UTF-8, not Latin-1
     expect(f["Title"]).toBe("Compressed title");
@@ -83,10 +83,10 @@ describe("meta/raster PNG", () => {
   });
 
   it("reads an XMP packet embedded in a PNG", async () => {
-    const packet = '<x:xmpmeta><rdf:Description photoshop:City="Lisbon" dc:creator="A. Sousa"/></x:xmpmeta>';
+    const packet = '<x:xmpmeta><rdf:Description photoshop:City="Lisbon" dc:creator="J. Doe"/></x:xmpmeta>';
     const f = map(await extractPng(png(ihdr(), chunk("iTXt", [...A("XML:com.adobe.xmp"), 0, 0, 0, 0, 0, ...A(packet)]))));
     expect(f["City"]).toBe("Lisbon");
-    expect(f["Creator"]).toBe("A. Sousa");
+    expect(f["Creator"]).toBe("J. Doe");
   });
 
   it("says plainly when a PNG carries no text at all", async () => {
@@ -193,7 +193,7 @@ describe("meta/raster JPEG", () => {
     const iim = (dataset: number, value: string) => [0x1c, 2, dataset, ...u16be(value.length), ...A(value)];
     const file = jpeg(seg(0xed, [
       ...A("Photoshop 3.0"), 0, ...A("8BIM"), 0x04, 0x04, 0, 0, ...u32be(0),
-      ...iim(80, "Lucia Ferrara"),
+      ...iim(80, "John Doe"),
       ...iim(110, "Reuters"),
       ...iim(90, "Trieste"),
       ...iim(101, "Italy"),
@@ -204,7 +204,7 @@ describe("meta/raster JPEG", () => {
     ]));
     const r = extractJpeg(file);
     const f = map(r);
-    expect(f["Photographer"]).toBe("Lucia Ferrara");
+    expect(f["Photographer"]).toBe("John Doe");
     expect(f["Credit"]).toBe("Reuters");
     expect(f["City"]).toBe("Trieste");
     expect(f["Country"]).toBe("Italy");

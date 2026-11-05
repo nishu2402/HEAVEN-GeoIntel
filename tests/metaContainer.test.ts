@@ -67,7 +67,7 @@ describe("meta/container fonts", () => {
         { id: 2, text: "Bold Italic" },
         { id: 3, text: "1.002;SABL;SableGrotesk-BoldItalic" },
         { id: 8, text: "Sable Type Foundry" },
-        { id: 9, text: "M. Okonkwo" },
+        { id: 9, text: "J. Doe" },
         { id: 11, text: "https://sabletype.example" },
         { id: 13, text: "SIL Open Font Licence 1.1" },
       ]) },
@@ -80,7 +80,7 @@ describe("meta/container fonts", () => {
     expect(val(r, "Family")).toBe("Sable Grotesk");
     expect(val(r, "Style")).toBe("Bold Italic");
     expect(val(r, "Foundry")).toBe("Sable Type Foundry");
-    expect(val(r, "Designer")).toBe("M. Okonkwo");
+    expect(val(r, "Designer")).toBe("J. Doe");
     expect(val(r, "Vendor URL")).toBe("https://sabletype.example");
     expect(val(r, "Licence")).toBe("SIL Open Font Licence 1.1");
     expect(val(r, "Units per em")).toBe("1000");

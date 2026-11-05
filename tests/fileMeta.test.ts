@@ -67,9 +67,9 @@ describe("meta/fileMeta dispatch", () => {
   });
 
   it("routes PDF, ZIP, audio and archive kinds", async () => {
-    const pdf = await extractFileMeta(new TextEncoder().encode("%PDF-1.7 /Author (Nadia)"));
+    const pdf = await extractFileMeta(new TextEncoder().encode("%PDF-1.7 /Author (John)"));
     expect(pdf.identity.kind).toBe("pdf");
-    expect(field(pdf, "Author")).toBe("Nadia");
+    expect(field(pdf, "Author")).toBe("John");
 
     // A minimal empty ZIP (EOCD only, zero entries).
     const zip = await extractFileMeta(cat([0x50, 0x4b, 0x05, 0x06], new Uint8Array(18)));

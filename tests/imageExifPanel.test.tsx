@@ -22,7 +22,7 @@ const box = (type: string, payload: number[]) => [...u32be(8 + payload.length), 
 const ftyp = (b: string) => box("ftyp", [...fourcc(b.padEnd(4).slice(0, 4)), ...u32be(0)]);
 
 const PDF = new TextEncoder().encode(
-  "%PDF-1.7\n1 0 obj<< /Author (Nadia Rao) /Producer (LibreOffice) /CreationDate (D:20230101093000Z) >>endobj\n" +
+  "%PDF-1.7\n1 0 obj<< /Author (John Doe) /Producer (LibreOffice) /CreationDate (D:20230101093000Z) >>endobj\n" +
   "trailer<< /Info 1 0 R >>\n<?xpacket begin?>%%EOF");
 
 const MP4 = cat(ftyp("isom"), box("moov", [
@@ -141,7 +141,7 @@ describe("File metadata panel — documents, media and other files", () => {
   it("extracts grouped, sensitive fields from a PDF (no image sections)", async () => {
     render(<ImageExifPanel />);
     drop(fakeFile(PDF, "leak.pdf", "application/pdf"));
-    await screen.findByText("Nadia Rao");
+    await screen.findByText("John Doe");
     expect(screen.getByText("Document")).toBeTruthy();       // group header
     expect(screen.getByText("LibreOffice")).toBeTruthy();
     expect(screen.queryByText(/REVERSE-IMAGE/)).toBeNull();  // not an image

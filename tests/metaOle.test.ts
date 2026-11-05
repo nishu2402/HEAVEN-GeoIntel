@@ -197,8 +197,8 @@ describe("meta/ole legacy Office documents", () => {
         data: propertySet([
           { id: 1, type: "i2", value: 1252 },
           { id: 2, type: "str", value: "Quarterly report" },
-          { id: 4, type: "str", value: "Dana Whitfield" },
-          { id: 8, type: "str", value: "m.okafor" },
+          { id: 4, type: "str", value: "John Doe" },
+          { id: 8, type: "str", value: "j.doe" },
           { id: 9, type: "str", value: "7" },
           { id: 10, type: "time", value: BigInt(90 * 60) * BigInt(10000000) },
           { id: 12, type: "time", value: FT_2024 },
@@ -210,8 +210,8 @@ describe("meta/ole legacy Office documents", () => {
     const f = fieldMap(file);
     expect(f["Contents"]).toBe("Word document");
     expect(f["Title"]).toBe("Quarterly report");
-    expect(f["Author"]).toBe("Dana Whitfield");
-    expect(f["Last saved by"]).toBe("m.okafor");
+    expect(f["Author"]).toBe("John Doe");
+    expect(f["Last saved by"]).toBe("j.doe");
     expect(f["Revision"]).toBe("7");
     expect(f["Total editing time"]).toBe("1h 30m");
     expect(f["Created"]).toBe("2024-03-02 10:15:00");
@@ -225,7 +225,7 @@ describe("meta/ole legacy Office documents", () => {
       name: SUMMARY,
       data: propertySet([
         { id: 2, type: "str", value: "Plain title" },
-        { id: 4, type: "str", value: "Dana Whitfield" },
+        { id: 4, type: "str", value: "John Doe" },
       ]),
     }]);
     const fields = extractOle(file).fields;
@@ -245,7 +245,7 @@ describe("meta/ole legacy Office documents", () => {
           { id: 7, type: "i4", value: 18 },
           { id: 8, type: "i4", value: 3 },
           { id: 9, type: "i4", value: 1 },
-          { id: 14, type: "str", value: "R. Alvarez" },
+          { id: 14, type: "str", value: "J. Doe" },
           { id: 15, type: "str", value: "Northgate Logistics" },
           { id: 17, type: "i4", value: 9100 },
         ]),
@@ -259,7 +259,7 @@ describe("meta/ole legacy Office documents", () => {
     expect(f["Slides"]).toBe("18");
     expect(f["Notes"]).toBe("3");
     expect(f["Hidden slides"]).toBe("1");
-    expect(f["Manager"]).toBe("R. Alvarez");
+    expect(f["Manager"]).toBe("J. Doe");
     expect(f["Company"]).toBe("Northgate Logistics");
     expect(f["Characters with spaces"]).toBe("9100");
   });
@@ -269,12 +269,12 @@ describe("meta/ole legacy Office documents", () => {
       name: SUMMARY,
       data: propertySet([
         { id: 1, type: "i2", value: 0xfde9 }, // 65001 as a signed 16-bit value
-        { id: 4, type: "str", value: "Zoë Ó Súilleabháin" },
+        { id: 4, type: "str", value: "Zoë Döe" },
         { id: 3, type: "wstr", value: "Отчёт" },
       ]),
     }]);
     const f = fieldMap(utf8);
-    expect(f["Author"]).toBe("Zoë Ó Súilleabháin");
+    expect(f["Author"]).toBe("Zoë Döe");
     expect(f["Subject"]).toBe("Отчёт");
   });
 
@@ -408,12 +408,12 @@ describe("meta/fileMeta routes a compound file to the OLE reader", () => {
   it("identifies the document and carries its properties through", async () => {
     const file = buildOle([
       { name: "WordDocument", data: [1] },
-      { name: SUMMARY, data: propertySet([{ id: 4, type: "str", value: "Dana Whitfield" }]) },
+      { name: SUMMARY, data: propertySet([{ id: 4, type: "str", value: "John Doe" }]) },
     ]);
     const m = await extractFileMeta(file, "memo.doc");
     expect(m.identity.kind).toBe("doc");
     expect(m.hasDeepMeta).toBe(true);
-    expect(m.fields.find((f) => f.label === "Author")?.value).toBe("Dana Whitfield");
+    expect(m.fields.find((f) => f.label === "Author")?.value).toBe("John Doe");
     expect(m.extMismatch).toBeNull();
   });
 });

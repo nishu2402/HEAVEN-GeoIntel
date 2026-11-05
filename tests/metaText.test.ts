@@ -47,7 +47,7 @@ describe("meta/text HTML", () => {
   const page = `<!DOCTYPE html><html lang="en-GB"><head>
     <title>Quarterly &amp; annual results</title>
     <meta name="generator" content="WordPress 6.4.2">
-    <meta content="Dana Whitfield" name="author">
+    <meta content="John Doe" name="author">
     <meta name="description" content="Results for the year">
     <meta name="keywords" content="finance, results">
     <meta name="copyright" content="Northgate Ltd">
@@ -67,7 +67,7 @@ describe("meta/text HTML", () => {
     const r = run("html", page);
     expect(val(r, "Title")).toBe("Quarterly & annual results");
     expect(val(r, "Generator")).toBe("WordPress 6.4.2");
-    expect(val(r, "Author")).toBe("Dana Whitfield"); // attributes in either order
+    expect(val(r, "Author")).toBe("John Doe"); // attributes in either order
     expect(val(r, "Description")).toBe("Results for the year");
     expect(val(r, "Keywords")).toBe("finance, results");
     expect(val(r, "Copyright")).toBe("Northgate Ltd");
@@ -112,10 +112,10 @@ describe("meta/text SVG", () => {
   const drawing = `<!-- Generator: Adobe Illustrator 28.0.0, SVG Export Plug-In -->
     <svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 744 1052"
       sodipodi:docname="floorplan-final-v3.svg" inkscape:version="1.3 (0e150ed)"
-      inkscape:export-filename="/home/kosei/plans/out.png">
+      inkscape:export-filename="/home/jdoe/plans/out.png">
       <title>Second floor</title><desc>Survey drawing</desc>
       <metadata><rdf:RDF><cc:Work>
-        <dc:creator>K. Osei</dc:creator><dc:title>Floor plan</dc:title>
+        <dc:creator>J. Doe</dc:creator><dc:title>Floor plan</dc:title>
         <dc:rights>CC BY 4.0</dc:rights><dc:date>2024-03-02</dc:date>
       </cc:Work></rdf:RDF></metadata>
       <image href="data:image/png;base64,AAAA"/>
@@ -127,7 +127,7 @@ describe("meta/text SVG", () => {
     const r = run("svg", drawing);
     expect(val(r, "Original filename")).toBe("floorplan-final-v3.svg");
     expect(val(r, "Inkscape version")).toBe("1.3 (0e150ed)");
-    expect(val(r, "Export path")).toBe("/home/kosei/plans/out.png");
+    expect(val(r, "Export path")).toBe("/home/jdoe/plans/out.png");
     expect(val(r, "Generator")).toMatch(/^Generator: Adobe Illustrator 28/);
     expect(r.fields.find((f) => f.label === "Original filename")?.sensitive).toBe(true);
   });
@@ -139,7 +139,7 @@ describe("meta/text SVG", () => {
     expect(val(r, "Width")).toBe("210mm");
     expect(val(r, "Height")).toBe("297mm");
     expect(val(r, "View box")).toBe("0 0 744 1052");
-    expect(val(r, "Creator")).toBe("K. Osei");
+    expect(val(r, "Creator")).toBe("J. Doe");
     expect(val(r, "RDF title")).toBe("Floor plan");
     expect(val(r, "Rights")).toBe("CC BY 4.0");
     expect(val(r, "Date")).toBe("2024-03-02");
@@ -282,8 +282,8 @@ describe("meta/text delimited data", () => {
 
 describe("meta/text RTF", () => {
   it("reads the author block, the timestamps and the counts", () => {
-    const rtf = String.raw`{\rtf1\ansi{\info{\title Budget}{\subject FY25}{\author Dana Whitfield}` +
-      String.raw`{\manager R. Alvarez}{\company Northgate Ltd}{\operator m.okafor}{\category Internal}` +
+    const rtf = String.raw`{\rtf1\ansi{\info{\title Budget}{\subject FY25}{\author John Doe}` +
+      String.raw`{\manager J. Doe}{\company Northgate Ltd}{\operator j.doe}{\category Internal}` +
       String.raw`{\keywords budget, draft}{\comment none}{\doccomm reviewed}` +
       String.raw`{\creatim\yr2024\mo3\dy2\hr10\min15}{\revtim\yr2024\mo3\dy9\hr8\min5}` +
       String.raw`{\printim\yr2024\mo3\dy4\hr12\min0}{\*\generator Riched20 10.0.19041}` +
@@ -291,10 +291,10 @@ describe("meta/text RTF", () => {
     const r = run("rtf", rtf);
     expect(val(r, "Title")).toBe("Budget");
     expect(val(r, "Subject")).toBe("FY25");
-    expect(val(r, "Author")).toBe("Dana Whitfield");
-    expect(val(r, "Manager")).toBe("R. Alvarez");
+    expect(val(r, "Author")).toBe("John Doe");
+    expect(val(r, "Manager")).toBe("J. Doe");
     expect(val(r, "Company")).toBe("Northgate Ltd");
-    expect(val(r, "Last saved by")).toBe("m.okafor");
+    expect(val(r, "Last saved by")).toBe("j.doe");
     expect(val(r, "Category")).toBe("Internal");
     expect(val(r, "Keywords")).toBe("budget, draft");
     expect(val(r, "Document comment")).toBe("reviewed");
@@ -333,10 +333,10 @@ describe("meta/text email messages", () => {
     "Received: from workstation.corp.example.net by relay2.example.net; Sat, 2 Mar 2024 10:14:58 +0000",
     "Received-SPF: pass (example.net: domain permits)",
     "DKIM-Signature: v=1; a=rsa-sha256; d=example.net; s=sel1; h=from:to",
-    "From: Dana Whitfield <dana@example.net>",
+    "From: John Doe <john.doe@example.net>",
     "To: ops@example.org, security@example.org",
     "Cc: audit@example.org",
-    "Reply-To: dana.w@example.net",
+    "Reply-To: jdoe@example.net",
     "Subject: Quarterly results,",
     " continued",
     "Date: Sat, 2 Mar 2024 10:14:55 +0000",
@@ -354,10 +354,10 @@ describe("meta/text email messages", () => {
 
   it("reads the sender, recipients, client and delivery path", () => {
     const r = run("eml", message);
-    expect(val(r, "From")).toBe("Dana Whitfield <dana@example.net>");
+    expect(val(r, "From")).toBe("John Doe <john.doe@example.net>");
     expect(val(r, "To")).toBe("ops@example.org, security@example.org");
     expect(val(r, "Cc")).toBe("audit@example.org");
-    expect(val(r, "Reply to")).toBe("dana.w@example.net");
+    expect(val(r, "Reply to")).toBe("jdoe@example.net");
     expect(val(r, "Return path")).toBe("<bounce@mail.example.net>");
     expect(val(r, "Subject")).toBe("Quarterly results, continued"); // the folded line is joined
     expect(val(r, "Message id")).toBe("<a1b2@workstation.corp.example.net>");
