@@ -9,17 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- Documentation brought back in step with the code and the dependency tree.
-  `SECURITY.md` still described the retired `minimatch@3` and `brace-expansion@1`
-  chain as the live resolution; the 3.4.0 `minimatch` pin (`"minimatch":
-  "^11.0.4"`, GHSA-g3hv-75wg-m249) replaced it, so the tree now carries
-  `minimatch@11.0.4` and `brace-expansion@5.0.12`, and the advisory note and the
-  Next.js floor (`^16.4.5`) now read as the current state. `CONTRIBUTING.md`
-  named ESLint 9 where the toolchain is on 10. The README's three untested prose
-  counts were corrected to their source arrays: 22 email OSINT pivots (not 26), a
-  40+ provider-name map (not 50+), and 11 phone number-permutation formats (not
-  12).
-
 ## [3.4.0] — 2026-11-04
 
 A maintenance and security release. It clears the one outstanding dependency
@@ -56,6 +45,16 @@ threat-score reasons and the clean example numbers that landed after 3.3.0.
   semver image tags had stopped at 2.0.1 while latest kept updating. The release
   now builds the image for the tag, so the 3.4.0 and 3.4 tags publish next to
   latest on ghcr.io.
+- Documentation brought back in step with the code and the dependency tree.
+  `SECURITY.md` still described the retired `minimatch@3` and `brace-expansion@1`
+  chain as the live resolution; the 3.4.0 `minimatch` pin (`"minimatch":
+  "^11.0.4"`, GHSA-g3hv-75wg-m249) replaced it, so the tree now carries
+  `minimatch@11.0.4` and `brace-expansion@5.0.12`, and the advisory note and the
+  Next.js floor (`^16.4.5`) now read as the current state. `CONTRIBUTING.md`
+  named ESLint 9 where the toolchain is on 10. The README's three untested prose
+  counts were corrected to their source arrays: 22 email OSINT pivots (not 26), a
+  40+ provider-name map (not 50+), and 11 phone number-permutation formats (not
+  12).
 
 ### Security
 
