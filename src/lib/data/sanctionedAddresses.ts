@@ -1,6 +1,6 @@
 // ── OFAC sanctioned digital-currency addresses (vendored snapshot) ───────────
 //
-// 1,056 addresses across 20 chains, from the US Treasury's SDN list. Offline by
+// 1,077 addresses across 20 chains, from the US Treasury's SDN list. Offline by
 // design, like the breach catalogs: no key, no network call at lookup time, and
 // no rate limit standing between an analyst and a sanctions answer.
 //

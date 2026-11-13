@@ -129,7 +129,7 @@ none.
 - **GLEIF legal-entity lookup**, keyless, driven by the WHOIS registrant or, for
   the GDPR-redacted majority, by the organisation a CA verified on an OV or EV
   certificate.
-- **OFAC SDN screening is vendored offline**, 1,056 addresses across 20 chains,
+- **OFAC SDN screening is vendored offline**, 1,077 addresses across 20 chains,
   in the same pattern as the breach catalogs.
 - **Internationalised names are first-class** in every domain and email input.
 - **An evidence locker** completes the chain a report starts: response bytes,

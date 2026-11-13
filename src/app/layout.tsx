@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import "./fonts.css"; // self-hosted JetBrains Mono (@font-face) — replaces next/font/google so builds need no network
 import "./globals.css"; // side-effect import: DO NOT remove (loads the global stylesheet)
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 
@@ -9,12 +9,6 @@ import { ThemeProvider } from "@/components/shared/ThemeProvider";
 // verbatim as a plain inline <script> child (no dangerouslySetInnerHTML needed).
 const THEME_INIT =
   "try{var t=localStorage.getItem('heaven-geointel-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}";
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://heaven-geointel.example"),
@@ -79,8 +73,18 @@ export default function RootLayout({
     // script only *overrides* it to "light" when localStorage says so.
     // suppressHydrationWarning covers that single attribute diff (expected,
     // per Next.js theming guidance) so it never logs a hydration error.
-    <html lang="en" data-theme="dark" suppressHydrationWarning className={jetbrainsMono.variable}>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
+        {/* Preload the always-used Latin subset so first paint is already in
+            JetBrains Mono, not the fallback. The other subsets (latin-ext,
+            Cyrillic, Greek, Vietnamese) load on demand when a glyph needs them. */}
+        <link
+          rel="preload"
+          href="/fonts/jetbrains-mono/jetbrains-mono-latin.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         {/* Apply persisted theme before paint to avoid a flash of the wrong theme.
             A plain inline <script> child runs synchronously during head parse. */}
         <script id="theme-init">{THEME_INIT}</script>

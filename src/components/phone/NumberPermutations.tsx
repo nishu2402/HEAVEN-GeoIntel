@@ -9,9 +9,20 @@ interface Props {
   data: LookupResponse;
 }
 
-export default function NumberPermutations({ data }: Props) {
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+export interface NumberFormat {
+  label: string;
+  value: string;
+  note?: string;
+}
 
+/**
+ * Every format a number may appear as in leaks, forms and databases. Pure and
+ * exported so a doc-coupling test can count the formats this panel offers (the
+ * README's "11 format variants") without rendering (tests/docCountCoupling.test.ts).
+ * The panel de-duplicates identical values at render time; this returns the full
+ * defined set.
+ */
+export function buildNumberFormats(data: LookupResponse): NumberFormat[] {
   const { input } = data;
   const e164 = input.e164;                             // +14155551234
   const intl = data.aggregated.formatInternational;    // +1 415 555 1234
@@ -19,14 +30,7 @@ export default function NumberPermutations({ data }: Props) {
   const allDigits = e164.replace(/\D/g, "");           // 14155551234
   const noCC = allDigits.slice(input.countryCallingCode.replace("+","").length); // 4155551234
 
-  const copy = (text: string, key: string) => {
-    void copyText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 1500);
-  };
-
-  // Build every plausible format the number might appear as in databases/forms
-  const formats: { label: string; value: string; note?: string }[] = [
+  return [
     { label: "E.164 (canonical)", value: e164, note: "ITU standard: use in APIs" },
     { label: "International spaced", value: intl },
     { label: "National format", value: national },
@@ -37,12 +41,26 @@ export default function NumberPermutations({ data }: Props) {
     { label: "RFC 3966 (tel: URI)", value: data.aggregated.formatRfc3966, note: "Click-to-call URLs" },
     { label: "URL-encoded E.164", value: encodeURIComponent(e164), note: "For URL parameters" },
     { label: "WhatsApp link", value: `https://wa.me/${allDigits}`, note: "Direct chat link" },
-    { label: "Stripped spaces", value: e164.replace(/\s/g, ""), note: "Some forms strip spaces" },
+    // Sourced from the NATIONAL format, not e164: e164 is already spaceless, so
+    // stripping its spaces reproduces the canonical row verbatim (dead duplicate).
+    // The national form is where a space-stripping web form actually changes the
+    // string, e.g. "(415) 555-1234" -> "(415)555-1234" (a real database variant).
+    { label: "Stripped spaces", value: national.replace(/\s/g, ""), note: "Some forms strip spaces" },
   ];
+}
+
+export default function NumberPermutations({ data }: Props) {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copy = (text: string, key: string) => {
+    void copyText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1500);
+  };
 
   // Deduplicate identical values
   const seen = new Set<string>();
-  const deduped = formats.filter((f) => {
+  const deduped = buildNumberFormats(data).filter((f) => {
     if (seen.has(f.value)) return false;
     seen.add(f.value);
     return true;

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Download } from "lucide-react";
-import QRCode from "qrcode";
 
 interface Props {
   e164: string;
@@ -25,12 +24,19 @@ export default function QrCodePanel({ e164 }: Props) {
     /* v8 ignore next -- unreachable: the ref is always attached to the <canvas> rendered below */
     if (!canvas) return;
     let cancelled = false;
-    QRCode.toCanvas(canvas, `tel:${e164}`, {
-      width: 180,
-      margin: 2,
-      color: { dark: "#00ff41", light: "#0a0a0a" },
-      errorCorrectionLevel: "M",
-    })
+    // `qrcode` is the heaviest dependency the phone dashboard would otherwise
+    // pin into the initial bundle, and it is only ever needed to draw this one
+    // canvas. Load it on demand so its chunk arrives the first time a result
+    // actually shows a QR, not on first paint.
+    import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toCanvas(canvas, `tel:${e164}`, {
+          width: 180,
+          margin: 2,
+          color: { dark: "#00ff41", light: "#0a0a0a" },
+          errorCorrectionLevel: "M",
+        }),
+      )
       .then(() => { if (!cancelled) setStatus("ready"); })
       .catch(() => { if (!cancelled) setStatus("error"); });
     return () => { cancelled = true; };

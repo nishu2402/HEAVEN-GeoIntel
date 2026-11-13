@@ -188,7 +188,7 @@
 | 🗂️ **Persistent Cases** | File-backed cases: identifiers, notes, derived graph, **snapshot history**; survive restarts · optional `CASE_PASSWORD` lock |
 | 📈 **Change Tracking** | Re-run a pinned lookup and the tool reports exactly which facts moved: breach counts, open ports, subdomains. A **change inbox** collects every movement across every case, newest first, with an optional webhook |
 | 📦 **Evidence Locker** | Preserve the response as the API returned it, SHA-256 it into a per-case manifest, and verify every artifact later |
-| 🪙 **Wallet OSINT** | OFAC SDN screening against a bundled 1,056-address snapshot · BTC activity and counterparties · ERC-20 holdings · forward-verified ENS |
+| 🪙 **Wallet OSINT** | OFAC SDN screening against a bundled 1,077-address snapshot · BTC activity and counterparties · ERC-20 holdings · forward-verified ENS |
 | ≡ **Bulk** | Up to 500 mixed identifiers, run as a real cancellable job with per-row provenance and CSV out |
 | 🖥️ **Headless CLI** | `geointel domain example.com --json`, against the same API the console uses |
 | 🗺️ **NPA Database** | 397 US/CA area codes → state · metro · timezone (offline) |
@@ -758,7 +758,7 @@ one being picked.
 
 The first question anyone asks about a crypto address is whether it is sanctioned, and the tool could not answer it.
 
-A snapshot of the **US Treasury's SDN list** now ships with the app: **1,056 addresses across 20 chains** (532 Bitcoin, 254 Tron, 120 Ethereum, 94 USDT and the rest), read from the XML export rather than the CSV, whose remarks column is truncated and loses half the addresses. Like the breach catalogs it is offline by design: no key, no network call at lookup time, and no rate limit between an analyst and a sanctions answer.
+A snapshot of the **US Treasury's SDN list** now ships with the app: **1,077 addresses across 20 chains** (532 Bitcoin, 272 Tron, 123 Ethereum, 94 USDT and the rest), read from the XML export rather than the CSV, whose remarks column is truncated and loses half the addresses. Like the breach catalogs it is offline by design: no key, no network call at lookup time, and no rate limit between an analyst and a sanctions answer.
 
 The screen runs **before** the balance lookup and reports the designated entity, OFAC's own entry id and the programs it is listed under, so a hit can be traced back to the list. It answers even for chains whose balance this tool cannot read: a listed Tron address returns the sanctions match plus a plain statement that the balance is not something it can fetch, rather than a generic failure.
 

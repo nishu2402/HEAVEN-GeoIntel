@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
 import CountryPanel from "@/components/osint/CountryPanel";
 import LocationPanel from "@/components/osint/LocationPanel";
 import QrCodePanel from "@/components/osint/QrCodePanel";
@@ -148,7 +148,9 @@ describe("<QrCodePanel>", () => {
     expect(screen.getByText(/generating\.\.\./i)).toBeTruthy();
     expect(screen.getByText("tel:+14155552671")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /save png/i })).toBeNull();
-    expect(toCanvas).toHaveBeenCalledWith(expect.anything(), "tel:+14155552671", expect.objectContaining({ width: 180 }));
+    // `qrcode` now loads on demand, so toCanvas fires a microtask after mount
+    // (once the import resolves) rather than synchronously inside the effect.
+    await waitFor(() => expect(toCanvas).toHaveBeenCalledWith(expect.anything(), "tel:+14155552671", expect.objectContaining({ width: 180 })));
 
     await act(async () => { d.resolve(); await d.promise; });
     expect(screen.queryByText(/generating\.\.\./i)).toBeNull();

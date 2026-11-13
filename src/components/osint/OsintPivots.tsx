@@ -35,7 +35,6 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
   const enc      = encodeURIComponent(e164);
   const digits   = e164.replace(/\D/g, "");
   const ccLc     = (country || "us").toLowerCase();
-  const noPlus   = e164.replace(/^\+/, "");
   const C = { id: "#00d9ff", msg: "#25D366", intel: "#ff3e3e", spam: "#ff8800", carrier: "#a8b6c8", search: "#00ff41" };
 
   return [
@@ -74,7 +73,7 @@ function buildLinks(e164: string, national: string, country: string): PivotLink[
     { label: "800notes",          description: "Community spam-call reports",                          url: `https://800notes.com/Phone.aspx/${digits}`,                    category: "spam", color: C.spam, access: "free" },
     { label: "Should I Answer",   description: "Global spam/scam ratings + comments",                  url: `https://www.shouldianswer.com/phone-number/${digits}`,         category: "spam", color: C.spam, access: "free" },
     { label: "tellows",     description: "International spam/scam ratings; replaces the retired who-called.co.uk",                      url: `https://www.tellows.com/num/${digits}`,                    category: "spam", color: C.spam, access: "captcha" },
-    { label: "SpamCalls.net",     description: "European-focused spam directory",                      url: `https://www.spamcalls.net/en/number/${noPlus}`,                category: "spam", color: C.spam, access: "free" },
+    { label: "SpamCalls.net",     description: "European-focused spam directory",                      url: `https://www.spamcalls.net/en/number/${digits}`,                category: "spam", color: C.spam, access: "free" },
     { label: "Nomorobo",          description: "Robocall / telemarketer database",                     url: `https://www.nomorobo.com/lookup/${digits}`,                    category: "spam", color: C.spam, access: "free" },
     { label: "IPQS Phone",        description: "Free fraud-score preview; paste the number",                 url: `https://www.ipqualityscore.com/free-phone-number-lookup`,category: "spam", color: C.spam, access: "free" },
 

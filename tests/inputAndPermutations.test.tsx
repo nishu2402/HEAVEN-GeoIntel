@@ -82,4 +82,21 @@ describe("<NumberPermutations>", () => {
     expect(screen.getByText("555.1234")).toBeTruthy();       // 7-digit dot branch
     expect(screen.getByText("555-1234")).toBeTruthy();       // 7-digit dash branch
   });
+
+  it("the Stripped-spaces row is a distinct value, not a copy of canonical E.164", () => {
+    // With a real libphonenumber national format (spaces present), stripping its
+    // spaces yields "(415)555-1234", which is NOT the spaceless canonical E.164.
+    // getByText also asserts uniqueness, so both the spaced national row and the
+    // stripped row are present and separate. A revert to `e164.replace(/\s/g,"")`
+    // would make the stripped value equal canonical E.164, so "(415)555-1234"
+    // would vanish and this test would fail: the dead-duplicate guard.
+    render(<NumberPermutations data={mk("+14155551234", "+1", {
+      formatInternational: "+1 415 555 1234",
+      formatNational: "(415) 555-1234",
+      formatRfc3966: "tel:+1-415-555-1234",
+    })} />);
+    expect(screen.getByText("(415) 555-1234")).toBeTruthy(); // national, spaces kept
+    expect(screen.getByText("(415)555-1234")).toBeTruthy();  // stripped, distinct
+    expect(screen.getByText("+14155551234")).toBeTruthy();   // canonical, separate
+  });
 });

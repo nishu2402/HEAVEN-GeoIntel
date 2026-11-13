@@ -14,6 +14,7 @@ const NPA_DATABASE: Record<string, NpaInfo> = {
   "251": { country:"US", state:"Alabama", stateAbbr:"AL", region:"Mobile / SW Alabama", timezone:"America/Chicago" },
   "256": { country:"US", state:"Alabama", stateAbbr:"AL", region:"Huntsville / N Alabama", timezone:"America/Chicago" },
   "334": { country:"US", state:"Alabama", stateAbbr:"AL", region:"Montgomery / Central-South Alabama", timezone:"America/Chicago" },
+  "483": { country:"US", state:"Alabama", stateAbbr:"AL", region:"Montgomery / SE Alabama (overlay)", timezone:"America/Chicago" },
   "938": { country:"US", state:"Alabama", stateAbbr:"AL", region:"N Alabama (overlay)", timezone:"America/Chicago" },
   // ── Alaska ───────────────────────────────────────────────────────────────────
   "907": { country:"US", state:"Alaska", stateAbbr:"AK", region:"Statewide", timezone:"America/Anchorage" },
@@ -201,6 +202,7 @@ const NPA_DATABASE: Record<string, NpaInfo> = {
   "952": { country:"US", state:"Minnesota", stateAbbr:"MN", region:"SW Twin Cities suburbs", timezone:"America/Chicago" },
   // ── Mississippi ──────────────────────────────────────────────────────────────
   "228": { country:"US", state:"Mississippi", stateAbbr:"MS", region:"S Mississippi (Gulfport, Biloxi)", timezone:"America/Chicago" },
+  "471": { country:"US", state:"Mississippi", stateAbbr:"MS", region:"N Mississippi (overlay)", timezone:"America/Chicago" },
   "601": { country:"US", state:"Mississippi", stateAbbr:"MS", region:"Central/S Mississippi (Jackson)", timezone:"America/Chicago" },
   "662": { country:"US", state:"Mississippi", stateAbbr:"MS", region:"N Mississippi (Tupelo, Oxford, Greenville)", timezone:"America/Chicago" },
   "769": { country:"US", state:"Mississippi", stateAbbr:"MS", region:"Mississippi (overlay)", timezone:"America/Chicago" },
@@ -243,6 +245,7 @@ const NPA_DATABASE: Record<string, NpaInfo> = {
   "315": { country:"US", state:"New York", stateAbbr:"NY", region:"Central/N NY (Syracuse, Utica, Watertown)", timezone:"America/New_York" },
   "332": { country:"US", state:"New York", stateAbbr:"NY", region:"Manhattan (overlay)", timezone:"America/New_York" },
   "347": { country:"US", state:"New York", stateAbbr:"NY", region:"NYC outer boroughs (overlay)", timezone:"America/New_York" },
+  "465": { country:"US", state:"New York", stateAbbr:"NY", region:"NYC outer boroughs (overlay)", timezone:"America/New_York" },
   "516": { country:"US", state:"New York", stateAbbr:"NY", region:"Nassau County (Long Island)", timezone:"America/New_York" },
   "518": { country:"US", state:"New York", stateAbbr:"NY", region:"Capital District (Albany, Schenectady, Saratoga)", timezone:"America/New_York" },
   "585": { country:"US", state:"New York", stateAbbr:"NY", region:"W NY (Rochester)", timezone:"America/New_York" },

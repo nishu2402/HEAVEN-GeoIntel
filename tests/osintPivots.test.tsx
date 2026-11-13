@@ -268,3 +268,20 @@ describe("everything that states the pivot matrix's size agrees with the matrix"
     expect(summed).toBe(Number(/\/\s*(\d+)\s*shown/i.exec(header)?.[1]));
   });
 });
+
+describe("the email pivot matrix's size agrees with the README", () => {
+  // The phone matrix above is guarded; the email one was not, and had already
+  // drifted once (the README said 26 links while buildLinks held 22). The header
+  // reads "{shown} / {total} shown", and the denominator is the full catalog
+  // whatever the active tier filters are, so it is the number to pin.
+  const readme = readFileSync(join(process.cwd(), "README.md"), "utf8");
+
+  it("the README feature table and architecture diagram name the real total", () => {
+    render(<EmailOsintPivots email="person@example.com" domain="example.com" />);
+    const header = screen.getByText(/EMAIL OSINT MATRIX/).textContent ?? "";
+    const total = Number(/\/\s*(\d+)\s*shown/.exec(header)?.[1]);
+    expect(total).toBeGreaterThan(0);
+    expect(readme, "feature table must state the email-link total").toContain(`${total} investigation links`);
+    expect(readme, "architecture diagram must state the email-link total").toContain(`${total} email links`);
+  });
+});

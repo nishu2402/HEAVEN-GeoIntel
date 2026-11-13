@@ -35,52 +35,58 @@ function guessNameFromUsername(username: string): string | null {
   return null;
 }
 
+/**
+ * Domains this tool resolves to a named mail provider. Module-level and exported
+ * so a doc-coupling test can pin the README's "(40+)" claim to the real size
+ * (tests/docCountCoupling.test.ts): the map and the prose cannot drift apart.
+ */
+export const PROVIDER_NAMES: Record<string, string> = {
+  "gmail.com": "Gmail",
+  "googlemail.com": "Gmail",
+  "outlook.com": "Outlook",
+  "hotmail.com": "Hotmail",
+  "live.com": "Live",
+  "msn.com": "MSN",
+  "yahoo.com": "Yahoo Mail",
+  "ymail.com": "Yahoo Mail",
+  "icloud.com": "iCloud Mail",
+  "me.com": "iCloud Mail",
+  "mac.com": "iCloud Mail",
+  "protonmail.com": "ProtonMail",
+  "protonmail.ch": "ProtonMail",
+  "proton.me": "ProtonMail",
+  "pm.me": "ProtonMail",
+  "tutanota.com": "Tutanota",
+  "tuta.io": "Tutanota",
+  "aol.com": "AOL Mail",
+  "mail.com": "Mail.com",
+  "gmx.com": "GMX Mail",
+  "gmx.de": "GMX Mail",
+  "web.de": "Web.de",
+  "yandex.com": "Yandex Mail",
+  "yandex.ru": "Yandex Mail",
+  "mail.ru": "Mail.ru",
+  "qq.com": "QQ Mail",
+  "163.com": "NetEase 163",
+  "126.com": "NetEase 126",
+  "zoho.com": "Zoho Mail",
+  "fastmail.com": "Fastmail",
+  "mailfence.com": "Mailfence",
+  "startmail.com": "StartMail",
+  "runbox.com": "Runbox",
+  "posteo.de": "Posteo",
+  "disroot.org": "Disroot",
+  "riseup.net": "Riseup",
+  "mailinator.com": "Mailinator",
+  "guerrillamail.com": "Guerrilla Mail",
+  "yopmail.com": "YOPmail",
+  "tempmail.com": "TempMail",
+  "10minutemail.com": "10 Minute Mail",
+  "maildrop.cc": "Maildrop",
+};
+
 function getProviderName(domain: string): string | null {
-  const known: Record<string, string> = {
-    "gmail.com": "Gmail",
-    "googlemail.com": "Gmail",
-    "outlook.com": "Outlook",
-    "hotmail.com": "Hotmail",
-    "live.com": "Live",
-    "msn.com": "MSN",
-    "yahoo.com": "Yahoo Mail",
-    "ymail.com": "Yahoo Mail",
-    "icloud.com": "iCloud Mail",
-    "me.com": "iCloud Mail",
-    "mac.com": "iCloud Mail",
-    "protonmail.com": "ProtonMail",
-    "protonmail.ch": "ProtonMail",
-    "proton.me": "ProtonMail",
-    "pm.me": "ProtonMail",
-    "tutanota.com": "Tutanota",
-    "tuta.io": "Tutanota",
-    "aol.com": "AOL Mail",
-    "mail.com": "Mail.com",
-    "gmx.com": "GMX Mail",
-    "gmx.de": "GMX Mail",
-    "web.de": "Web.de",
-    "yandex.com": "Yandex Mail",
-    "yandex.ru": "Yandex Mail",
-    "mail.ru": "Mail.ru",
-    "qq.com": "QQ Mail",
-    "163.com": "NetEase 163",
-    "126.com": "NetEase 126",
-    "zoho.com": "Zoho Mail",
-    "fastmail.com": "Fastmail",
-    "mailfence.com": "Mailfence",
-    "startmail.com": "StartMail",
-    "runbox.com": "Runbox",
-    "posteo.de": "Posteo",
-    "disroot.org": "Disroot",
-    "riseup.net": "Riseup",
-    "mailinator.com": "Mailinator",
-    "guerrillamail.com": "Guerrilla Mail",
-    "yopmail.com": "YOPmail",
-    "tempmail.com": "TempMail",
-    "10minutemail.com": "10 Minute Mail",
-    "maildrop.cc": "Maildrop",
-  };
-  return known[domain] ?? null;
+  return PROVIDER_NAMES[domain] ?? null;
 }
 
 export function analyzeEmail(raw: string): EmailAnalysis {

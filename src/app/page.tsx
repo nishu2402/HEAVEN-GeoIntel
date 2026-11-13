@@ -14,19 +14,7 @@ import type { GraphEntity } from "@/components/graph/LinkGraph";
 
 import PhoneInput from "@/components/phone/PhoneInput";
 import EmailInput from "@/components/email/EmailInput";
-import BulkLookup from "@/components/dashboard/BulkLookup";
 import ResultsDashboard from "@/components/dashboard/ResultsDashboard";
-import EmailResultsDashboard from "@/components/email/EmailResultsDashboard";
-import UsernameResultsDashboard from "@/components/username/UsernameResultsDashboard";
-import IpResultsDashboard from "@/components/network/IpResultsDashboard";
-import DomainResultsDashboard from "@/components/network/DomainResultsDashboard";
-import WalletResultsDashboard from "@/components/wallet/WalletResultsDashboard";
-import HashResultsDashboard from "@/components/hash/HashResultsDashboard";
-import CryptoWorkbench from "@/components/hash/CryptoWorkbench";
-import PwnedPasswordCheck from "@/components/hash/PwnedPasswordCheck";
-import CasesPanel from "@/components/cases/CasesPanel";
-import ImageExifPanel from "@/components/image/ImageExifPanel";
-import EmailHeaderTracePanel from "@/components/email/EmailHeaderTracePanel";
 import AddToCase from "@/components/shared/AddToCase";
 import {
   entitiesFromPhone, entitiesFromEmail, entitiesFromUsername, entitiesFromIp, entitiesFromDomain,  entitiesFromWallet, entitiesFromHash,
@@ -41,8 +29,6 @@ import {
 } from "@/lib/analysis/caseSnapshot";
 import AutoPivots from "@/components/shared/AutoPivots";
 import AiAnalysisPanel from "@/components/shared/AiAnalysisPanel";
-import AiTextIntel from "@/components/shared/AiTextIntel";
-import InvestigationGraph from "@/components/graph/InvestigationGraph";
 import LoadingSkeletons from "@/components/dashboard/LoadingSkeletons";
 import ScanProgress from "@/components/dashboard/ScanProgress";
 import BootSequence from "@/components/shared/BootSequence";
@@ -68,6 +54,45 @@ import { saveToHistory } from "@/components/dashboard/HistorySidebar";
 
 const MatrixRain = dynamic(() => import("@/components/shared/MatrixRain"), { ssr: false });
 const HistorySidebar = dynamic(() => import("@/components/dashboard/HistorySidebar"), { ssr: false });
+
+// Mode-specific panels are code-split out of the initial client bundle. A first-
+// run visitor lands on phone mode, but statically importing every mode's panel
+// pulls each one — and its heavy, mode-only dependencies — into the first payload
+// the browser must download, parse and hydrate before the page is interactive:
+// the whole file-metadata engine (imageGray + exif + meta/*), the on-device ML
+// text weights (AiTextIntel), the crypto lab, the case report/doc system, and the
+// force-directed graph. None of it is reachable until you switch to that mode, so
+// each loads on demand instead. ssr:false because every one sits behind a post-
+// boot, client-only mode gate and never renders during SSR. The phone
+// ResultsDashboard stays a static import (above) so the default path has no module
+// fetch between a finished lookup and its result; the other dashboards split too,
+// loading their chunk while the just-returned response is still painting.
+function PanelLoading({ label }: { label: string }) {
+  return (
+    <div className="terminal-card p-6 flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)]">
+      <span className="inline-block w-2 h-2 rounded-full bg-[var(--hv-cyan)] animate-pulse" aria-hidden="true" />
+      [ Loading {label} module... ]
+    </div>
+  );
+}
+
+// Mode inputs / standalone panels (shown on mode entry, no lookup required)
+const BulkLookup = dynamic(() => import("@/components/dashboard/BulkLookup"), { ssr: false, loading: () => <PanelLoading label="bulk lookup" /> });
+const ImageExifPanel = dynamic(() => import("@/components/image/ImageExifPanel"), { ssr: false, loading: () => <PanelLoading label="file metadata" /> });
+const EmailHeaderTracePanel = dynamic(() => import("@/components/email/EmailHeaderTracePanel"), { ssr: false, loading: () => <PanelLoading label="header trace" /> });
+const CryptoWorkbench = dynamic(() => import("@/components/hash/CryptoWorkbench"), { ssr: false, loading: () => <PanelLoading label="crypto workbench" /> });
+const PwnedPasswordCheck = dynamic(() => import("@/components/hash/PwnedPasswordCheck"), { ssr: false, loading: () => <PanelLoading label="password exposure" /> });
+const CasesPanel = dynamic(() => import("@/components/cases/CasesPanel"), { ssr: false, loading: () => <PanelLoading label="cases" /> });
+const AiTextIntel = dynamic(() => import("@/components/shared/AiTextIntel"), { ssr: false, loading: () => <PanelLoading label="text intel" /> });
+const InvestigationGraph = dynamic(() => import("@/components/graph/InvestigationGraph"), { ssr: false, loading: () => <PanelLoading label="graph" /> });
+
+// Per-mode result dashboards (mounted after a lookup completes). Phone stays static.
+const EmailResultsDashboard = dynamic(() => import("@/components/email/EmailResultsDashboard"), { ssr: false, loading: () => <PanelLoading label="results" /> });
+const UsernameResultsDashboard = dynamic(() => import("@/components/username/UsernameResultsDashboard"), { ssr: false, loading: () => <PanelLoading label="results" /> });
+const IpResultsDashboard = dynamic(() => import("@/components/network/IpResultsDashboard"), { ssr: false, loading: () => <PanelLoading label="results" /> });
+const DomainResultsDashboard = dynamic(() => import("@/components/network/DomainResultsDashboard"), { ssr: false, loading: () => <PanelLoading label="results" /> });
+const WalletResultsDashboard = dynamic(() => import("@/components/wallet/WalletResultsDashboard"), { ssr: false, loading: () => <PanelLoading label="results" /> });
+const HashResultsDashboard = dynamic(() => import("@/components/hash/HashResultsDashboard"), { ssr: false, loading: () => <PanelLoading label="results" /> });
 
 type Status = "idle" | "loading" | "done" | "error";
 
