@@ -21,7 +21,8 @@ Then, in order:
 2. Move the CHANGELOG's `[Unreleased]` body under `## [x.y.z] — YYYY-MM-DD`, and
    leave a fresh empty `[Unreleased]` above it. A major or minor release gets an
    explicit **Breaking / upgrade notes** section; a patch release states plainly
-   whether anything needs migrating.
+   whether anything needs migrating. Set the same version and date in
+   `CITATION.cff` (`version` and `date-released`); `versionSync` checks both.
 3. If the `major.minor` changed, add it to the supported table in
    [`SECURITY.md`](../SECURITY.md). A table that omits the release you just
    shipped tells a reporter their finding is out of scope.

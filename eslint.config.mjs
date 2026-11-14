@@ -1,4 +1,4 @@
-// ── ESLint 9 flat config (required by eslint-config-next 16) ─────────────────
+// ── ESLint 10 flat config (required by eslint-config-next 16) ───────────────
 // eslint-config-next 16 ships native flat configs, so we import + spread them
 // directly (no FlatCompat shim). Same rule set as the old .eslintrc.json
 // ("next/core-web-vitals" + "next/typescript").

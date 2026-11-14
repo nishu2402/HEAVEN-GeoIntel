@@ -167,9 +167,9 @@ chore(deps): bump next to the latest patch release
 The version is declared once, in `src/lib/version.ts`, and
 `tests/versionSync.test.ts` holds every file outside the module graph to it:
 `package.json`, the lockfile, `docker-compose.yml`, `SECURITY.md`, the
-launcher banner, the README's badge and docker tags, and the CHANGELOG
-heading. So a release is: change the number, then run the gate and fix what it
-tells you.
+launcher banner, the README's badge and docker tags, the CHANGELOG heading,
+and `CITATION.cff` (its `version` and `date-released`). So a release is: change
+the number, then run the gate and fix what it tells you.
 
 ```bash
 npm version <major|minor|patch> --no-git-tag-version
@@ -181,6 +181,8 @@ Then, in order:
 2. Move the CHANGELOG's `[Unreleased]` body under `## [x.y.z] — YYYY-MM-DD`.
    Breaking changes get an explicit **Breaking / upgrade notes** section. The
    whole point of the major number is that someone reads it before upgrading.
+   Set the same `x.y.z` and date in `CITATION.cff` (`version` and
+   `date-released`); the gate checks both against this heading.
 3. Add the new `x.y` to the supported table in `SECURITY.md`.
 4. `npm run brand`; the posters print the version.
 5. `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.

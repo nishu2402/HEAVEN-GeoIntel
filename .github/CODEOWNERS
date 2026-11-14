@@ -1,0 +1,7 @@
+# Code owners for HEAVEN-GeoIntel.
+#
+# GitHub requests a review from the owner listed here whenever a pull request
+# touches a matching path. The last matching pattern wins.
+
+# Default owner for everything in the repository.
+*       @nishu2402

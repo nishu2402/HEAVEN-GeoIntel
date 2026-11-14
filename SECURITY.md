@@ -185,7 +185,7 @@ Four advisories were resolved and are documented here for the record:
   resolved a patched version and `npm audit` reported zero. The exposure was in
   the manifest: the declared range was `^16.2.12`, which admits 16.2.12 through
   16.3.2, so an install that did not use this lockfile could have taken a version
-  with a published exploit. The floor is now `^16.4.5`.
+  with a published exploit. The floor is now `^16.4.6`.
 - **`esbuild` / `vitest` dev-server advisory**: cleared by upgrading the test
   runner to `vitest@4`. Dev-only; never shipped to production.
 - **`minimatch` denial of service** ([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249),

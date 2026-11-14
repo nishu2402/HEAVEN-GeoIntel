@@ -21,27 +21,27 @@
 <div align="center">
 
   <p>
-    <img src="https://img.shields.io/badge/Version-3.4.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/>
-    <img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/>
-    <img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
-    <img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/>
-    <img src="https://img.shields.io/badge/API_Keys-Zero_Required-44FF88?style=for-the-badge&logo=checkmarx&logoColor=black" alt="Zero API Keys"/>
-    <img src="https://img.shields.io/badge/License-MIT-FF3333?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License"/>
+    <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/Version-3.4.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/></a>
+    <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/></a>
+    <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/></a>
+    <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/></a>
+    <a href="#api-enrichment"><img src="https://img.shields.io/badge/API_Keys-Zero_Required-44FF88?style=for-the-badge&logo=checkmarx&logoColor=black" alt="Zero API Keys"/></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-FF3333?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License"/></a>
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Identifiers-Phone_·_Email_·_Username_·_IP_·_Domain_·_Wallet_·_Hash-BF5FFF?style=flat-square&logo=target&logoColor=white" alt="Identifier types"/>
-    <img src="https://img.shields.io/badge/Modes-11_(incl._Graph_+_Cases)-00D9D9?style=flat-square&logo=hexo&logoColor=black" alt="Modes"/>
-    <img src="https://img.shields.io/badge/Command_Palette-%E2%8C%98K-44FF88?style=flat-square&logo=raycast&logoColor=black" alt="Command palette"/>
-    <img src="https://img.shields.io/badge/Themes-Light_+_Dark-FFAA00?style=flat-square&logo=tailwindcss&logoColor=black" alt="Themes"/>
+    <a href="#project-summary"><img src="https://img.shields.io/badge/Identifiers-Phone_·_Email_·_Username_·_IP_·_Domain_·_Wallet_·_Hash-BF5FFF?style=flat-square&logo=target&logoColor=white" alt="Identifier types"/></a>
+    <a href="#workspace"><img src="https://img.shields.io/badge/Modes-11_(incl._Graph_+_Cases)-00D9D9?style=flat-square&logo=hexo&logoColor=black" alt="Modes"/></a>
+    <a href="#workspace"><img src="https://img.shields.io/badge/Command_Palette-%E2%8C%98K-44FF88?style=flat-square&logo=raycast&logoColor=black" alt="Command palette"/></a>
+    <a href="#workspace"><img src="https://img.shields.io/badge/Themes-Light_+_Dark-FFAA00?style=flat-square&logo=tailwindcss&logoColor=black" alt="Themes"/></a>
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Phone_Pivots-37_across_6_access_tiers-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/>
-    <img src="https://img.shields.io/badge/Username-38_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/>
-    <img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/>
-    <img src="https://img.shields.io/badge/NPA_Database-397_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/>
-    <img src="https://img.shields.io/badge/Rate_Limit-60_req%2Fmin%2Fclient_(tunable)-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/>
+    <a href="#phone-intelligence"><img src="https://img.shields.io/badge/Phone_Pivots-37_across_6_access_tiers-FFAA00?style=flat-square&logo=phone&logoColor=black" alt="Phone Pivots"/></a>
+    <a href="#username-intelligence"><img src="https://img.shields.io/badge/Username-38_Sites-BF5FFF?style=flat-square&logo=github&logoColor=white" alt="Username sites"/></a>
+    <a href="#email-intelligence"><img src="https://img.shields.io/badge/Infostealer-Hudson_Rock_(free)-FF3333?style=flat-square&logo=virustotal&logoColor=white" alt="Hudson Rock"/></a>
+    <a href="#phone-intelligence"><img src="https://img.shields.io/badge/NPA_Database-400_Area_Codes-44FF88?style=flat-square&logo=database&logoColor=black" alt="NPA"/></a>
+    <a href="#runtime-configuration"><img src="https://img.shields.io/badge/Rate_Limit-60_req%2Fmin%2Fclient_(tunable)-FF3333?style=flat-square&logo=speedtest&logoColor=white" alt="Rate Limit"/></a>
   </p>
 
   <p>
@@ -191,13 +191,13 @@
 | 🪙 **Wallet OSINT** | OFAC SDN screening against a bundled 1,077-address snapshot · BTC activity and counterparties · ERC-20 holdings · forward-verified ENS |
 | ≡ **Bulk** | Up to 500 mixed identifiers, run as a real cancellable job with per-row provenance and CSV out |
 | 🖥️ **Headless CLI** | `geointel domain example.com --json`, against the same API the console uses |
-| 🗺️ **NPA Database** | 397 US/CA area codes → state · metro · timezone (offline) |
+| 🗺️ **NPA Database** | 400 US/CA area codes → state · metro · timezone (offline) |
 | 🌍 **Country Dataset** | 99 countries: capital · currency · languages · GDP · emergency numbers |
 | ⚡ **Cache / Persistence** | 24 h in-memory cache (phone/email, FIFO evict, auto-invalidated when an API key changes) · file-backed cases |
 | 🚦 **Rate Limiting** | 60 requests/minute **per client** + a server-wide ceiling; fixed-window, all limits env-tunable |
 | 🔌 **REST API** | OpenAPI 3.1 spec at `/api/docs`, **generated from the route registry**, 30 operations across 21 endpoints |
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
-| 🧪 **CI / Tests** | Vitest with a 100% coverage gate on everything that ships · Playwright smoke suite · ESLint 9 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
+| 🧪 **CI / Tests** | Vitest with a 100% coverage gate on everything that ships · Playwright smoke suite · ESLint 10 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
 | 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
 | 🎨 **UI Theme** | Hybrid cyberpunk glass: 3D tilt cards · neon glow · holographic borders · animated grid · Canvas katakana rain · **light + dark** · fully responsive |
 
@@ -1290,7 +1290,7 @@ npm test              # Vitest, run once
 npm run test:watch    # watch mode
 npm run test:coverage # text + html report under coverage/
 npm run typecheck     # tsc --noEmit
-npm run lint          # ESLint 9 (flat config)
+npm run lint          # ESLint 10 (flat config)
 ```
 
 The gated files are held at **100%** (statements, branches, functions, and lines) enforced by `vitest.config.ts` thresholds. The gate covers all of `src/lib`, the covered components, **every API route (`src/app/api/**/route.ts`) and `src/proxy.ts`**, that is, every outbound fetch in the application plus the CSRF and auth gate. New gated code must ship with tests or an explicit `/* v8 ignore */` naming why the branch is unreachable, or the build fails.
@@ -1392,9 +1392,9 @@ HEAVEN-GeoIntel/
 │       ├── osint/     accessTier    ├── update/  semver · updateStore
 │       └── types.ts · utils.ts
 │
-├── tests/                            219 Vitest suites   ·   e2e/  Playwright smoke
+├── tests/                            220 Vitest suites   ·   e2e/  Playwright smoke
 ├── .env.example · eslint.config.mjs · .nvmrc (22) · .dockerignore
-├── CHANGELOG.md · CODE_OF_CONDUCT.md · CONTRIBUTING.md · SECURITY.md · LICENSE
+├── CHANGELOG.md · CODE_OF_CONDUCT.md · CONTRIBUTING.md · SECURITY.md · SUPPORT.md · CITATION.cff · LICENSE
 ├── Dockerfile · docker-compose.yml · next.config.mjs (hardened CSP/headers)
 ├── package.json · tsconfig.json (@/* → ./src/*) · tailwind.config.ts · vitest.config.ts
 ```
@@ -1426,7 +1426,7 @@ HEAVEN-GeoIntel/
 | **Phone Enrichment** | IPQualityScore · NumVerify · AbstractAPI · Twilio (all optional) |
 | **Persistence** | In-memory cache (24 h · 1000 phone / 500 email entries, FIFO) · file-backed cases and hashed evidence locker (`.data/`) |
 | **Rate Limiting** | Fixed-window counter per client · 60 req/min + 600/min ceiling |
-| **Quality** | ESLint 9 (flat config) · Vitest with a 100% coverage gate on everything that ships · Playwright smoke suite · GitHub Actions CI |
+| **Quality** | ESLint 10 (flat config) · Vitest with a 100% coverage gate on everything that ships · Playwright smoke suite · GitHub Actions CI |
 | **Font** | JetBrains Mono · 15 px base |
 
 </div>
@@ -1553,7 +1553,7 @@ fail over decoration.
 | `npm run dev` | Start dev server (opens your browser automatically) |
 | `npm run build` | Production build |
 | `npm run start` | Start production server (after `npm run build`) |
-| `npm run lint` | ESLint 9 (flat config) |
+| `npm run lint` | ESLint 10 (flat config) |
 | `npm run typecheck` | `tsc --noEmit` type-check |
 | `npm test` · `npm run test:watch` · `npm run test:coverage` | Vitest, with the 100% coverage gate on `test:coverage` |
 | `npm run test:e2e` | Playwright smoke suite against a built app |
@@ -1617,7 +1617,9 @@ Adding a new **OSINT source** or **pivot link**? The guide has a dedicated check
 | [`LICENSE`](./LICENSE) | MIT + OSINT acceptable-use policy |
 | [`SECURITY.md`](./SECURITY.md) | Vulnerability disclosure + dependency advisories |
 | [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Contributor Covenant v2.1 |
+| [`SUPPORT.md`](./SUPPORT.md) | Where to get help: discussions, issues, security |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Release notes (Keep-a-Changelog) |
+| [`CITATION.cff`](./CITATION.cff) | Cite this project (GitHub "Cite this repository") |
 | [`docs/OSINT-ROADMAP.md`](./docs/OSINT-ROADMAP.md) | Where the keyless approach reaches its ceiling, measured, and what is worth building next |
 
 </div>

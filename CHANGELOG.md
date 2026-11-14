@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Self-hosted the JetBrains Mono interface font. The woff2 subsets (latin,
+  latin-ext, cyrillic, greek and vietnamese) and their `@font-face` rules now
+  ship in the repository, so a production build no longer fetches anything from
+  Google Fonts and the app renders in its own typeface fully offline.
+
+### Changed
+
+- Updated every dependency to its latest release: Next 16.4.6, Tailwind 4.3.5,
+  framer-motion 14.13.0, lucide-react 1.72.0, jsdom 31, @playwright/test 1.65.0,
+  puppeteer-core 25.17.0 and libphonenumber-js 1.13.16. TypeScript stays on
+  6.0.3 because the ESLint TypeScript stack does not yet support the next major.
+- Refreshed the bundled, keyless intelligence snapshots to current data: the
+  OFAC SDN crypto list (now 1,077 addresses across 20 chains), the Have I Been
+  Pwned and XposedOrNot breach catalogs, and the Wikipedia notable-breaches tier.
+- Added the three North American area codes that entered service in 2026 (465,
+  471 and 483), so the offline NPA database now covers 400 area codes.
+
+### Fixed
+
+- Brought the README back in step with the code. The NPA database badge and the
+  capability table now read 400 area codes (they still said 397), and the four
+  "ESLint 9" references now read ESLint 10, which is the version the toolchain
+  has been running. The `SECURITY.md` dependency note gives the Next.js floor as
+  `^16.4.6`, matching the manifest.
+
 ## [3.4.0] — 2026-11-04
 
 A maintenance and security release. It clears the one outstanding dependency

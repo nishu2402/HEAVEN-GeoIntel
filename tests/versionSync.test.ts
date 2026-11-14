@@ -82,6 +82,20 @@ describe("every file outside the module graph agrees", () => {
       new RegExp(`^## \\[${escapeRegExp(APP_VERSION)}\\] — \\d{4}-\\d{2}-\\d{2}$`, "m"),
     );
   });
+
+  it("CITATION.cff cites the current released version and its date", () => {
+    // The "Cite this repository" metadata is a version string outside the module
+    // graph like any other, so it drifts on a release unless it is held here.
+    // The release date is tied to the CHANGELOG's dated heading for this version,
+    // which is the one place that date is already written down.
+    const cff = read("CITATION.cff");
+    expect(cff).toMatch(new RegExp(`^version:\\s*${escapeRegExp(APP_VERSION)}$`, "m"));
+    const dated = read("CHANGELOG.md").match(
+      new RegExp(`^## \\[${escapeRegExp(APP_VERSION)}\\] — (\\d{4}-\\d{2}-\\d{2})$`, "m"),
+    );
+    expect(dated).not.toBeNull();
+    expect(cff).toMatch(new RegExp(`^date-released:\\s*['"]?${dated![1]}['"]?$`, "m"));
+  });
 });
 
 describe("nothing under src/ labels a build with the branch", () => {
