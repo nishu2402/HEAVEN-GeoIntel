@@ -21,7 +21,7 @@
 <div align="center">
 
   <p>
-    <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/Version-3.4.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/></a>
+    <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/Version-3.5.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/></a>
     <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/></a>
     <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/></a>
     <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/Language-TypeScript-00D9D9?style=for-the-badge&logo=typescript&logoColor=black" alt="TypeScript"/></a>
@@ -426,12 +426,12 @@ docker compose up -d
 open http://localhost:3000          # macOS (Linux: xdg-open, Windows: start)
 
 # Plain Docker (no compose)
-docker build -t heaven-geointel:3.4.0 .
-docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:3.4.0
+docker build -t heaven-geointel:3.5.0 .
+docker run --rm -p 127.0.0.1:3000:3000 heaven-geointel:3.5.0
 
 # …with API keys (omit --env-file entirely if you have no .env.local;
 # docker run fails on a missing env file, it does not skip it)
-docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.4.0
+docker run --rm -p 127.0.0.1:3000:3000 --env-file .env.local heaven-geointel:3.5.0
 ```
 
 <div align="center">
@@ -1512,7 +1512,7 @@ the same numbers as this page:
 │            Search It.  Enrich It.  Pivot It.  Report It.             │
 │                                                                      │
 │         7 identifiers · 11 modes · 25/34 sources need no key         │
-│            v3.4.0  ·  Lookup -> Enrich -> Pivot -> Report            │
+│            v3.5.0  ·  Lookup -> Enrich -> Pivot -> Report            │
 │                                                                      │
 │           Owned & Developed by  Nisarg Chasmawala (Shroff)           │
 ╰──────────────────────────────────────────────────────────────────────╯

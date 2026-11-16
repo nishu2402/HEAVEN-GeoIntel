@@ -19,8 +19,8 @@ authors:
 repository-code: "https://github.com/nishu2402/HEAVEN-GeoIntel"
 url: "https://github.com/nishu2402/HEAVEN-GeoIntel"
 license: MIT
-version: 3.4.0
-date-released: 2026-11-04
+version: 3.5.0
+date-released: 2026-11-16
 keywords:
   - osint
   - threat-intelligence

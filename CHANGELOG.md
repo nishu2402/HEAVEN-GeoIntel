@@ -7,12 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.5.0] — 2026-11-16
+
+A feature and maintenance release. It self-hosts the interface font so a
+production build fetches nothing from Google Fonts, updates every dependency to
+its current release, and refreshes the bundled intelligence snapshots. It also
+adds the citation, support and ownership files that prepare the repository for
+publication. The self-hosted font is the new capability behind the minor bump.
+
+**Upgrade notes.** No breaking changes, and nothing to migrate. Every default is
+unchanged; the interface font now loads from the app's own files instead of
+Google Fonts, with no configuration.
+
 ### Added
 
 - Self-hosted the JetBrains Mono interface font. The woff2 subsets (latin,
   latin-ext, cyrillic, greek and vietnamese) and their `@font-face` rules now
   ship in the repository, so a production build no longer fetches anything from
   Google Fonts and the app renders in its own typeface fully offline.
+- Repository publication files. A `CITATION.cff` gives GitHub a Cite this
+  repository button and lets tools export APA and BibTeX; a `SUPPORT.md` points
+  to where questions, bug reports and private security advisories each go; and a
+  `CODEOWNERS` file requests the maintainer's review on every pull request. The
+  README status badges are now links to what they describe.
 
 ### Changed
 

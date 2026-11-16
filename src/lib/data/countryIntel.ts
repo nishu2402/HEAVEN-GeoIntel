@@ -23,7 +23,7 @@ export interface CountryIntel {
   gdpPerCapita: string;
 }
 
-// Comprehensive dataset for 100 countries across all regions
+// Comprehensive dataset for 99 countries across all regions
 const COUNTRY_DATA: Record<string, CountryIntel> = {
   US: {
     code: "US", name: "United States", officialName: "United States of America",
