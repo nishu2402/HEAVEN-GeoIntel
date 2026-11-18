@@ -21,6 +21,10 @@
 <div align="center">
 
   <p>
+    <a href="#see-it-in-action"><img src="https://img.shields.io/badge/%E2%96%B6%20See%20it%20in%20action-guided%20walkthrough-00FF85?style=for-the-badge&labelColor=0A101C" alt="See it in action: a guided screenshot walkthrough"/></a>
+  </p>
+
+  <p>
     <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/Version-3.5.0-00FF85?style=for-the-badge&logo=semanticrelease&logoColor=black" alt="Version"/></a>
     <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-20.9+-FFAA00?style=for-the-badge&logo=nodedotjs&logoColor=black" alt="Node.js"/></a>
     <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Framework-Next.js_16-BF5FFF?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/></a>
@@ -84,45 +88,52 @@
 
 ---
 
-## 🖼️ Screenshots
+<a id="see-it-in-action"></a>
+## 🎬 See It In Action
+
+<p align="center">
+  <a href="./docs/assets/demo.gif"><img src="./docs/assets/demo.gif" width="90%" alt="HEAVEN-GeoIntel running a full phone lookup: one number in, then number anatomy, OSINT pivots, breach exposure and an explainable AI risk read-out"/></a>
+  <br/><sub><b>One number in, the whole lookup out.</b> Click to open full size.</sub>
+</p>
+
+A full phone lookup, start to finish, on the fictional test number `+1 415 555 2671`. Every frame is a real capture from the app at v3.5.0. **Click any frame to open it full size.**
 
 <table>
-  <tr>
-    <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/phone-results.png" alt="Phone result card showing the number, its validity, abuse and exposure scores, the export row and the data sources that answered" width="100%"/>
-      <br/><sub><b>Phone result.</b> Abuse and exposure scored the moment a number lands, each export format one click away, and every source that answered named underneath.</sub>
-    </td>
-    <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/osint-pivots.png" alt="OSINT pivot matrix of reverse-lookup, messaging and search links with access-tier filters" width="100%"/>
-      <br/><sub><b>OSINT pivots.</b> Thirty-seven reverse-lookup, messaging and spam links, filtered by access tier.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/breach-intel.png" alt="Unified breach view merging results across sources above the free credential lookups" width="100%"/>
-      <br/><sub><b>Unified breach view.</b> One row per breach, merged across every source that answered, over the free no-key lookups.</sub>
-    </td>
-    <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/number-intel.png" alt="Number anatomy panel showing country code, area code, subscriber digits and standard formats" width="100%"/>
-      <br/><sub><b>Number anatomy.</b> Country code, area code and subscriber digits broken out, with libphonenumber checks and standard formats.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/command-palette.png" alt="Command palette listing all eleven lookup modes" width="100%"/>
-      <br/><sub><b>Command palette.</b> Press ⌘K to reach any of the eleven modes, from phone and email to wallet, hash and file metadata.</sub>
-    </td>
-    <td width="50%" align="center" valign="top">
-      <img src="./docs/screenshots/bulk-mode.png" alt="Bulk mode: five phone numbers triaged in one pass with the result table below" width="100%"/>
-      <br/><sub><b>Bulk mode.</b> Paste up to five hundred rows of any identifier, let <code>auto</code> classify each one, then export the table as CSV.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center" valign="top">
-      <img src="./docs/screenshots/ai-analysis.png" alt="AI Analysis panel: an explainable risk score broken into contributing factors and a narrative, with the optional AI Analyst and its in-panel setup below it" width="72%"/>
-      <br/><sub><b>AI Analysis.</b> An explainable, grounded risk read-out for every finished lookup, with the score broken into the factors that produced it. Below it sits an optional, opt-in AI Analyst that turns the same evidence into a short brief and flags anything the model writes that the evidence did not support. It sets itself up in the panel: it detects a local Ollama server or a saved cloud key, selects one that works, and links straight to the provider's key console when neither is there.</sub>
-    </td>
-  </tr>
+  <tr><td align="center" valign="top">
+    <b>1 &middot; Start anywhere with &#8984;K</b><br/>
+    <a href="./docs/screenshots/command-palette.png"><img src="./docs/screenshots/command-palette.png" width="86%" alt="Command palette listing all eleven lookup modes"/></a>
+    <br/><sub>One keystroke opens the command palette. Reach any of the eleven modes, from phone and email to wallet, hash and file metadata, without leaving the keyboard.</sub>
+  </td></tr>
+  <tr><td align="center" valign="top">
+    <b>2 &middot; One identifier in, a full read-out</b><br/>
+    <a href="./docs/screenshots/phone-results.png"><img src="./docs/screenshots/phone-results.png" width="86%" alt="Phone result card showing the number, its validity, abuse and exposure scores, the export row and the data sources that answered"/></a>
+    <br/><sub>Type the number and the result card lands with it: validity, abuse and exposure scores, every export format one click away, and each source that answered named underneath.</sub>
+  </td></tr>
+  <tr><td align="center" valign="top">
+    <b>3 &middot; See exactly how it is parsed</b><br/>
+    <a href="./docs/screenshots/number-intel.png"><img src="./docs/screenshots/number-intel.png" width="86%" alt="Number anatomy panel showing country code, area code, subscriber digits and standard formats"/></a>
+    <br/><sub>Number anatomy splits the digits into country code, area code and subscriber, checks them with libphonenumber, and lists the standard formats. It is all computed locally, so nothing on this panel is guessed.</sub>
+  </td></tr>
+  <tr><td align="center" valign="top">
+    <b>4 &middot; Pivot out to the next 37 leads</b><br/>
+    <a href="./docs/screenshots/osint-pivots.png"><img src="./docs/screenshots/osint-pivots.png" width="86%" alt="OSINT pivot matrix of reverse-lookup, messaging and search links with access-tier filters"/></a>
+    <br/><sub>The OSINT Pivot Matrix lays out 37 reverse-lookup, messaging and spam links across five categories, each tagged by access tier so you can filter to the ones you can open from where you are.</sub>
+  </td></tr>
+  <tr><td align="center" valign="top">
+    <b>5 &middot; Check exposure with no keys</b><br/>
+    <a href="./docs/screenshots/breach-intel.png"><img src="./docs/screenshots/breach-intel.png" width="86%" alt="Unified breach view merging results across sources above the free credential lookups"/></a>
+    <br/><sub>The unified breach view folds every source that answered into one row per breach, sitting over the free credential and infostealer lookups that need no API key.</sub>
+  </td></tr>
+  <tr><td align="center" valign="top">
+    <b>6 &middot; Read an explainable risk score</b><br/>
+    <a href="./docs/screenshots/ai-analysis.png"><img src="./docs/screenshots/ai-analysis.png" width="86%" alt="AI Analysis panel: an explainable risk score broken into contributing factors and a narrative, with the optional AI Analyst and its in-panel setup below it"/></a>
+    <br/><sub>AI Analysis scores the finished lookup and shows the factors behind the number. An optional, opt-in AI Analyst turns the same evidence into a short brief and flags anything it writes that the evidence did not support. It sets itself up in the panel, finding a local Ollama server or a saved cloud key and linking to the provider's console when neither is there.</sub>
+  </td></tr>
+  <tr><td align="center" valign="top">
+    <b>7 &middot; Scale the same lookup to 500 rows</b><br/>
+    <a href="./docs/screenshots/bulk-mode.png"><img src="./docs/screenshots/bulk-mode.png" width="86%" alt="Bulk mode: five phone numbers triaged in one pass with the result table below"/></a>
+    <br/><sub>Bulk mode takes up to five hundred rows of any identifier, lets <code>auto</code> classify each one, runs them in a single pass, and exports the finished table as CSV.</sub>
+  </td></tr>
 </table>
 
 ---
@@ -130,6 +141,7 @@
 ## 📋 Table of Contents
 
 - [👾 Authors](#authors)
+- [🎬 See It In Action](#see-it-in-action)
 - [🧠 Project Summary](#project-summary)
 - [💡 Core Idea](#core-idea)
 - [🧭 The Workspace](#workspace)
@@ -199,7 +211,7 @@
 | 🐳 **Container** | Multi-stage Dockerfile · `docker compose up -d` |
 | 🧪 **CI / Tests** | Vitest with a 100% coverage gate on everything that ships · Playwright smoke suite · ESLint 10 · GitHub Actions on every PR · multi-arch ghcr image on push to `main` |
 | 🏗️ **Stack** | Next.js 16 · TypeScript strict · Tailwind · Framer Motion · libphonenumber-js |
-| 🎨 **UI Theme** | Hybrid cyberpunk glass: 3D tilt cards · neon glow · holographic borders · animated grid · Canvas katakana rain · **light + dark** · fully responsive |
+| 🎨 **UI Theme** | Hybrid cyberpunk glass: 3D tilt cards · neon glow · holographic borders · per-mode accent colours · animated grid · Canvas katakana rain · **light + dark** · fully responsive |
 
 </div>
 
@@ -265,7 +277,7 @@ One unified console with an **11-mode switcher**. Seven are live lookups (phone,
 - **Example chips** under each empty input ("Try `+1 415 555 2671`…") so you're never staring at a blank box, and every lookup gets a shareable URL (`?mode=…&q=…`); bookmark or hand off any result, in any mode.
 - **At-a-glance summary** at the top of a phone result (line type · carrier · location · breach · infostealer) plus a "jump to" nav, so you find the answer without scrolling 12 panels. Hover any acronym (E.164, NPA, CNAM…) for a plain-language tooltip.
 - **Sources & keys panel**: one click shows which data sources are live, and lets you **add your optional API keys right in the app** (no editing `.env.local`). Keys are stored server-side (`.data/keys.json`, owner-only, git-ignored) and **never sent back to the browser**; the UI only ever sees a configured/not flag, so an empty field is self-explanatory.
-- **Light + dark themes** + a **visual-effects toggle** that honours `prefers-reduced-motion`, a persisted toggle with an anti-flash boot script. The UI is a hybrid "cyberpunk glass" design: 3D parallax-tilt cards, neon glow, holographic borders, an animated grid backdrop, and the signature Canvas katakana rain (which respects reduced-motion and the toggle).
+- **Light + dark themes**, a **per-mode accent** that recolours the active tab, input focus and section rail as you switch modes, and a **visual-effects toggle** (persisted, with an anti-flash boot script) that governs all the decorative motion: the drifting scanlines, the holographic input border, the wordmark colour sweep, the card-hover glow and the signature Canvas katakana rain. With effects off, or under `prefers-reduced-motion`, the UI drops to a calm, still state. The look is a hybrid "cyberpunk glass" design: 3D parallax-tilt cards, neon glow, holographic borders and an animated grid backdrop.
 - **Session graph**: every successful lookup adds a node, so by the end of an investigation you have a visual map of how the identifiers connect (exportable as PNG).
 
 ---
@@ -1561,6 +1573,7 @@ fail over decoration.
 | `npm run links:check` | Probe every outbound link in the pivot matrices and the docs, and report what did not answer |
 | `npm run breaches:refresh` · `npm run sanctions:refresh` · `npm run sites:refresh` | Re-vendor the offline snapshots: breach catalogs, the OFAC SDN list, and the WhatsMyName site catalog |
 | `npm run screenshots` | Regenerate README screenshots (needs the dev server running) |
+| `npm run demo` | Record the animated **See It In Action** demo (`docs/assets/demo.gif`); needs the dev server running · needs `ffmpeg` |
 | `npm run brand:poster` | Regenerate the README poster + the terminal banner from the live registries (no browser needed) |
 | `npm run brand:release` | Regenerate the GitHub release banner in `docs/assets/`; needs Chrome |
 | `npm run brand` | All three: the poster, every raster asset (favicon · app icons · OG image · hero) and the release banner; needs Chrome |

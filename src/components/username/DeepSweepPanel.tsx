@@ -130,7 +130,7 @@ export default function DeepSweepPanel({ username, fetchPage = defaultFetchPage 
         </p>
       )}
 
-      <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug flex items-start gap-1.5">
+      <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug flex items-start gap-1.5">
         <ShieldAlert className="w-3 h-3 mt-0.5 shrink-0" />
         <span>
           Only accounts confirmed by the site&apos;s own presence marker are listed. Sites behind a bot wall answer

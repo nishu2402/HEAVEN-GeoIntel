@@ -14,22 +14,30 @@ export interface ModeMeta {
   /** lookup modes that take a single input + hit an API */
   lookup: boolean;
   placeholder?: string;
+  /**
+   * Active-state accent for this mode: the colour the active tab, the input
+   * focus ring and the section rail adopt when the mode is selected, carried as
+   * the --hv-accent custom property. One of the contrast-verified neon tokens
+   * (green, cyan, magenta, amber); red is reserved for errors, so no mode uses
+   * it. Adjacent tabs carry different accents so the row reads as distinct modes.
+   */
+  accent: string;
 }
 
 export const MODES: ModeMeta[] = [
-  { id: "phone",    label: "PHONE",    glyph: "📡", lookup: true,  placeholder: "+1 415 555 0100" },
-  { id: "email",    label: "EMAIL",    glyph: "✉",  lookup: true,  placeholder: "target@domain.com" },
-  { id: "username", label: "USERNAME", glyph: "@",  lookup: true,  placeholder: "handle (no @)" },
-  { id: "ip",       label: "IP",       glyph: "⦿",  lookup: true,  placeholder: "8.8.8.8 or IPv6" },
-  { id: "domain",   label: "DOMAIN",   glyph: "🌐", lookup: true,  placeholder: "example.com" },
-  { id: "wallet",   label: "WALLET",   glyph: "🪙", lookup: true,  placeholder: "0x… or bc1… / 1…" },
-  { id: "hash",     label: "HASH",     glyph: "#",  lookup: true,  placeholder: "MD5 / SHA-1 / SHA-256 digest" },
+  { id: "phone",    label: "PHONE",    glyph: "📡", lookup: true,  placeholder: "+1 415 555 0100", accent: "var(--hv-green)" },
+  { id: "email",    label: "EMAIL",    glyph: "✉",  lookup: true,  placeholder: "target@domain.com", accent: "var(--hv-cyan)" },
+  { id: "username", label: "USERNAME", glyph: "@",  lookup: true,  placeholder: "handle (no @)", accent: "var(--hv-magenta)" },
+  { id: "ip",       label: "IP",       glyph: "⦿",  lookup: true,  placeholder: "8.8.8.8 or IPv6", accent: "var(--hv-amber)" },
+  { id: "domain",   label: "DOMAIN",   glyph: "🌐", lookup: true,  placeholder: "example.com", accent: "var(--hv-cyan)" },
+  { id: "wallet",   label: "WALLET",   glyph: "🪙", lookup: true,  placeholder: "0x… or bc1… / 1…", accent: "var(--hv-amber)" },
+  { id: "hash",     label: "HASH",     glyph: "#",  lookup: true,  placeholder: "MD5 / SHA-1 / SHA-256 digest", accent: "var(--hv-magenta)" },
   // Client-only: metadata for any file is parsed in the browser and the file is
   // never uploaded, so this takes no single string input and hits no API.
-  { id: "file",     label: "FILE",     glyph: "📄", lookup: false },
-  { id: "bulk",     label: "BULK",     glyph: "≡",  lookup: false },
-  { id: "graph",    label: "GRAPH",    glyph: "🕸", lookup: false },
-  { id: "cases",    label: "CASES",    glyph: "🗂", lookup: false },
+  { id: "file",     label: "FILE",     glyph: "📄", lookup: false, accent: "var(--hv-cyan)" },
+  { id: "bulk",     label: "BULK",     glyph: "≡",  lookup: false, accent: "var(--hv-green)" },
+  { id: "graph",    label: "GRAPH",    glyph: "🕸", lookup: false, accent: "var(--hv-magenta)" },
+  { id: "cases",    label: "CASES",    glyph: "🗂", lookup: false, accent: "var(--hv-amber)" },
 ];
 
 export const LOOKUP_MODES = MODES.filter((m) => m.lookup);

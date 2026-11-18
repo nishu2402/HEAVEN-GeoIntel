@@ -37,7 +37,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
         <div className="text-[12px] uppercase tracking-widest text-[#888] flex items-center gap-1.5">
           <Bug className="w-3 h-3" /> INFOSTEALER MALWARE EXPOSURE: Hudson Rock · free · no key
         </div>
-        <div className="text-[13px] font-mono text-[#aaa]">
+        <div className="text-[13px] prose-ui text-[#aaa]">
           {hr.error === "RATE_LIMITED"
             ? "Hudson Rock rate-limited: try again in a few seconds."
             : `Hudson Rock check failed: ${hr.error ?? "unknown"}`}
@@ -73,14 +73,14 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
               <span className="text-2xl font-bold font-mono" style={{ color: borderColor }}>
                 {d.total} INFECTION{d.total === 1 ? "" : "S"}
               </span>
-              <span className="text-[12px] font-mono text-[#ff3e3e]/92">
+              <span className="text-[12px] prose-ui text-[#ff3e3e]/92">
                 this {subject} was captured by an info-stealer running on a victim&apos;s device
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold font-mono text-[#00ff41]">CLEAN</span>
-              <span className="text-[12px] font-mono text-[#00ff41]/60">
+              <span className="text-[12px] prose-ui text-[#00ff41]/60">
                : no infostealer infections recorded by Hudson Rock for this {subject}
               </span>
             </div>
@@ -91,7 +91,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
       {/* Stealer list */}
       {found && d.stealers.length > 0 && (
         <div className="space-y-3">
-          <p className="text-[13px] font-mono text-[#00ff41]/65 leading-snug">
+          <p className="text-[13px] prose-ui text-[#00ff41]/65 leading-snug">
             Each row below is a compromised device that captured this {subject} while it
             was being typed into a website. The stolen credential dump usually includes
             paired passwords and the sites it was used on.
@@ -165,7 +165,7 @@ export default function InfostealerPanel({ source: hr, subject }: Props) {
       )}
 
       {!found && (
-        <div className="text-[12px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-3">
+        <div className="text-[12px] prose-ui text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-3">
           Hudson Rock indexes ~26M infected devices. A clean result here is genuinely a
           good sign: but does not rule out other types of breaches. Check the breach
           panel above for credential leaks.

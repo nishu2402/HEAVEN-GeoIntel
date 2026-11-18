@@ -23,6 +23,26 @@ describe("MODES registry invariants", () => {
       expect(m.glyph, m.id).toBeTruthy();
     }
   });
+
+  it("gives every mode an accent from the contrast-verified neon set (never red)", () => {
+    // Active-state chrome (tab, input focus, section rail) adopts this via
+    // --hv-accent. Red is the error colour, so no mode may claim it.
+    const allowed = new Set([
+      "var(--hv-green)",
+      "var(--hv-cyan)",
+      "var(--hv-magenta)",
+      "var(--hv-amber)",
+    ]);
+    for (const m of MODES) expect(allowed.has(m.accent), m.id).toBe(true);
+  });
+
+  it("never repeats an accent on two adjacent tabs", () => {
+    // The point of per-mode accents is that the switcher row reads as distinct
+    // modes; neighbours sharing a hue would defeat that.
+    for (let i = 1; i < MODES.length; i++) {
+      expect(MODES[i]!.accent === MODES[i - 1]!.accent, MODES[i]!.id).toBe(false);
+    }
+  });
 });
 
 describe("modeName: proper-case menu label", () => {

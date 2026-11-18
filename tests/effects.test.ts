@@ -69,4 +69,22 @@ describe("effects setting", () => {
     };
     expect(prefersReducedMotion()).toBe(false);
   });
+
+  it("reflects the effects state onto the <html data-fx> attribute", () => {
+    // The CSS ambiance reads <html data-fx>; toggling must update it so the
+    // scanline drift, holo border and glow switch with the matrix rain.
+    const calls: Array<[string, string]> = [];
+    const g = globalThis as unknown as Record<string, unknown>;
+    g.document = {
+      documentElement: { setAttribute: (k: string, v: string) => void calls.push([k, v]) },
+    };
+    try {
+      setEffects(true);
+      expect(calls).toContainEqual(["data-fx", "on"]);
+      setEffects(false);
+      expect(calls).toContainEqual(["data-fx", "off"]);
+    } finally {
+      delete g.document;
+    }
+  });
 });

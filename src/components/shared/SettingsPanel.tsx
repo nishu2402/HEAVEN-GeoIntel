@@ -147,7 +147,7 @@ export default function SettingsPanel() {
   const section = (title: string, blurb: string, list: Row[]) => (
     <div>
       <div className="text-[11px] font-mono uppercase tracking-widest text-[var(--hv-amber)]/70 mb-1">{title}</div>
-      <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] leading-snug mb-2">{blurb}</p>
+      <p className="text-[11px] prose-ui text-[var(--hv-ink-dim)] leading-snug mb-2">{blurb}</p>
       <div className="space-y-2">
         {list.map((row) => {
           const via = sourceOf(row.name);

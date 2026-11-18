@@ -7,7 +7,8 @@ import {
 import type { DomainLookupResponse, DnsRecord, DnsQueryKind } from "@/lib/types";
 import { domainToIpPivot } from "@/lib/analysis/crossPivots";
 import Tilt3D from "@/components/shared/Tilt3D";
-import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
+import GlanceCard from "@/components/shared/GlanceCard";
+import SectionRail, { type JumpItem } from "@/components/shared/SectionRail";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import CopyButton from "@/components/shared/CopyButton";
 import Term from "@/components/shared/Term";
@@ -81,14 +82,14 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
       : []),
   ];
   const jump: JumpItem[] = [
-    ...(data.http ? [{ id: "sec-http", label: "HTTP/TLS" }] : []),
-    ...((data.knownBreaches?.length ?? 0) > 0 ? [{ id: "sec-domain-breaches", label: "Breaches" }] : []),
-    { id: "sec-email", label: "Email sec" },
-    { id: "sec-emails", label: "Permutations" },
-    { id: "sec-dns", label: "DNS" },
-    { id: "sec-whois", label: "WHOIS" },
-    ...(subdomains.length > 0 ? [{ id: "sec-subs", label: "Subdomains" }] : []),
-    { id: "sec-pivots", label: "Pivots" },
+    ...(data.http ? [{ id: "sec-http", label: "HTTP/TLS", group: "posture" }] : []),
+    ...((data.knownBreaches?.length ?? 0) > 0 ? [{ id: "sec-domain-breaches", label: "Breaches", group: "posture" }] : []),
+    { id: "sec-email", label: "Email sec", group: "mail" },
+    { id: "sec-emails", label: "Permutations", group: "mail" },
+    { id: "sec-dns", label: "DNS", group: "infra" },
+    { id: "sec-whois", label: "WHOIS", group: "infra" },
+    ...(subdomains.length > 0 ? [{ id: "sec-subs", label: "Subdomains", group: "infra" }] : []),
+    { id: "sec-pivots", label: "Pivots", group: "more" },
   ];
 
   return (
@@ -122,7 +123,8 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
         </div>
       </Tilt3D>
 
-      <GlanceCard tiles={glanceTiles} jump={jump} />
+      <GlanceCard tiles={glanceTiles} />
+      <SectionRail items={jump} />
 
       <div className="flex justify-end"><UniversalReportExport model={buildDomainReport(data)} /></div>
 
@@ -132,12 +134,12 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
       <SubdomainTakeoverPanel candidates={data.takeoverCandidates} />
 
       {/* Breaches the offline HIBP catalog records for this domain (self-hides when none). */}
-      <section id="sec-domain-breaches" className="scroll-mt-24">
+      <section id="sec-domain-breaches" className="hv-anchor">
         <DomainKnownBreachesPanel breaches={data.knownBreaches ?? []} domain={data.domain} />
       </section>
 
       {/* Email security posture */}
-      <div id="sec-email" className="terminal-card p-4 space-y-3 scroll-mt-24">
+      <div id="sec-email" className="terminal-card p-4 space-y-3 hv-anchor">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Mail className="w-3 h-3" /> EMAIL SECURITY POSTURE</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {[
@@ -170,7 +172,7 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* DNS records */}
-        <div id="sec-dns" className="terminal-card p-4 space-y-3 scroll-mt-24">
+        <div id="sec-dns" className="terminal-card p-4 space-y-3 hv-anchor">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Server className="w-3 h-3" /> DNS RECORDS</div>
           <RecordBlock title="A" records={dns.a} accent="var(--hv-green)" />
           <RecordBlock title="AAAA" records={dns.aaaa} accent="var(--hv-green)" />
@@ -188,7 +190,7 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
         </div>
 
         {/* WHOIS */}
-        <div id="sec-whois" className="terminal-card p-4 space-y-1 scroll-mt-24">
+        <div id="sec-whois" className="terminal-card p-4 space-y-1 hv-anchor">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-2 flex items-center gap-1.5"><FileText className="w-3 h-3" /> WHOIS / <Term k="RDAP">RDAP</Term></div>
           {whois ? (
             <>
@@ -244,7 +246,7 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
 
       {/* Subdomains */}
       {subdomains.length > 0 && (
-        <div id="sec-subs" className="terminal-card p-4 space-y-2 scroll-mt-24">
+        <div id="sec-subs" className="terminal-card p-4 space-y-2 hv-anchor">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
             <Layers className="w-3 h-3" /> SUBDOMAINS: {subdomains.length} discovered
           </div>
@@ -271,7 +273,7 @@ export default function DomainResultsDashboard({ data, onIpLookup }: Props) {
       <SubdomainCoveragePanel data={data} />
 
       {/* Pivots */}
-      <div id="sec-pivots" className="terminal-card p-4 space-y-2 scroll-mt-24">
+      <div id="sec-pivots" className="terminal-card p-4 space-y-2 hv-anchor">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Network className="w-3 h-3" /> DEEPEN: free pivots (no key)</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {data.pivots.map((p) => (

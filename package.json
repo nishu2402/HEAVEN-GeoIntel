@@ -25,6 +25,7 @@
     "audit:floors": "node scripts/floor-audit.mjs",
     "release:verify": "node scripts/release-verify.mjs",
     "screenshots": "node scripts/capture-screenshots.mjs",
+    "demo": "node scripts/capture-demo.mjs",
     "brand": "npm run brand:poster && node scripts/generate-brand-assets.mjs && npm run brand:release",
     "brand:poster": "node --import ./scripts/ts-resolve.mjs scripts/generate-poster.mjs",
     "brand:release": "node scripts/generate-release-banner.mjs",

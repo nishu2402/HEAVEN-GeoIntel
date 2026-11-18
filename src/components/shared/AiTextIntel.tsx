@@ -88,7 +88,7 @@ export default function AiTextIntel({
           {/* Grounded summary */}
           <div className="space-y-0.5">
             {summarizeInsights(insights).map((line, i) => (
-              <p key={i} className="text-[11px] font-mono text-[var(--hv-ink-dim)] leading-snug">{line}</p>
+              <p key={i} className="text-[11px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{line}</p>
             ))}
           </div>
 

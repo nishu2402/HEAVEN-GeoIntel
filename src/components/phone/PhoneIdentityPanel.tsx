@@ -71,7 +71,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
           <span className="text-[11px] font-mono text-[#00ff41]/54">No automatic enrichment: try free lookups below</span>
         </div>
 
-        <p className="text-[13px] font-mono text-[#00ff41]/60 leading-snug">
+        <p className="text-[13px] prose-ui text-[#00ff41]/60 leading-snug">
           No identity resolved through configured APIs. Scroll down to the{" "}
           <span className="text-[#00d9ff]/85 font-bold">OSINT PIVOT MATRIX</span>: a
           single, deduplicated set of reverse-lookup, breach, spam and search links
@@ -79,7 +79,7 @@ export default function PhoneIdentityPanel({ data, onUsernameSweep, onEmailLooku
         </p>
 
         {!fcConfigured && (
-          <p className="text-[11px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-2">
+          <p className="text-[11px] prose-ui text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-2">
             Want in-app enrichment? Add <code className="text-[#00ff41]/65">FULLCONTACT_API_KEY</code>{" "}
             to <code className="text-[#00ff41]/65">.env.local</code> for inline name/employer/social-profile data.
           </p>

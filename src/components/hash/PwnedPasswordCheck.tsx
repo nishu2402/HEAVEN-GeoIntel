@@ -36,7 +36,7 @@ export default function PwnedPasswordCheck() {
         <KeyRound className="w-3.5 h-3.5" /> PASSWORD EXPOSURE: has this password ever leaked? Keyless, k-anonymity
       </div>
 
-      <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+      <p className="text-[11px] prose-ui text-[var(--hv-ink-dim)] leading-snug">
         Checks a password against Have I Been Pwned&rsquo;s breach corpus without revealing it.
         The password is hashed here; only the first five characters of that hash are sent.
       </p>
@@ -101,7 +101,7 @@ export default function PwnedPasswordCheck() {
         </div>
       )}
 
-      <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug pt-1 border-t border-[var(--hv-glass-border)]">
+      <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug pt-1 border-t border-[var(--hv-glass-border)]">
         k-anonymity: the SHA-1 prefix returns hundreds of candidate hashes and the match is done
         in your browser. The full password never leaves this tab.
       </p>

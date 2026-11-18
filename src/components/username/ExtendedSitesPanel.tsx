@@ -71,7 +71,7 @@ export default function ExtendedSitesPanel({ username }: Props) {
               );
             })}
           </div>
-          <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] pt-1 leading-snug">
+          <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] pt-1 leading-snug">
             Sites from <a href="https://github.com/WebBreacher/WhatsMyName" target="_blank" rel="noopener noreferrer" className="text-[var(--hv-cyan)] hover:underline">WhatsMyName</a> (CC BY-SA 4.0). These are manual launch links: presence is never auto-claimed, so open one to confirm.
           </p>
         </>

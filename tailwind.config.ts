@@ -49,10 +49,13 @@ const config: Config = {
         "matrix-cyan": "#00d9ff",
         "matrix-red": "#ff3e3e",
       },
+      // One consistent radius scale. Was all 0 (so `rounded-md` rendered sharp
+      // while cards/inputs were 8-10px via direct CSS, a visible mismatch). These
+      // line up with the panel (10px) and input (8px) surfaces: lg=10, md=8, sm=6.
       borderRadius: {
-        lg: "0",
-        md: "0",
-        sm: "0",
+        lg: "0.625rem",
+        md: "0.5rem",
+        sm: "0.375rem",
       },
     },
   },

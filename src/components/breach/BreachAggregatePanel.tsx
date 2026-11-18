@@ -104,13 +104,13 @@ export default function BreachAggregatePanel({ aggregate: a, subject }: Props) {
           UNIFIED BREACH VIEW: merged across sources
         </div>
         {answered ? (
-          <div className="text-[13px] font-mono text-[#00ff41]/70">
+          <div className="text-[13px] prose-ui text-[#00ff41]/70">
             No breach records matched this {subject} across{" "}
             {a.sourcesAnswered.join(", ")}. That is {a.sourcesAnswered.length} index
             {a.sourcesAnswered.length === 1 ? "" : "es"} answering clean, not a source that failed.
           </div>
         ) : (
-          <div className="text-[13px] font-mono text-[#aaa]">
+          <div className="text-[13px] prose-ui text-[#aaa]">
             No breach source answered for this {subject}. See the per-source panels below for why.
           </div>
         )}
@@ -137,7 +137,7 @@ export default function BreachAggregatePanel({ aggregate: a, subject }: Props) {
           <span className="text-2xl font-bold font-mono text-[#ff3e3e] flex items-center gap-1.5">
             <ShieldAlert className="w-5 h-5" /> {a.total.toLocaleString()} BREACH{a.total === 1 ? "" : "ES"}
           </span>
-          <span className="text-[12px] font-mono text-[#ff3e3e]/85">
+          <span className="text-[12px] prose-ui text-[#ff3e3e]/85">
             this {subject} appears in {a.total.toLocaleString()} distinct breach
             {a.total === 1 ? "" : "es"} across {a.sourcesReporting.length} source
             {a.sourcesReporting.length === 1 ? "" : "s"}: {a.sourcesReporting.join(", ")}
@@ -228,7 +228,7 @@ export default function BreachAggregatePanel({ aggregate: a, subject }: Props) {
         </button>
       )}
 
-      <div className="text-[12px] font-mono text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-3">
+      <div className="text-[12px] prose-ui text-[#00ff41]/54 border-t border-[#00ff41]/10 pt-3">
         One row per breach, deduplicated across every source that answered. A row is
         here because a source named it; the chips show which. Sources disagree on
         coverage, so this union is larger than any single panel below.
@@ -237,7 +237,7 @@ export default function BreachAggregatePanel({ aggregate: a, subject }: Props) {
         )}
       </div>
 
-      <div className="text-[12px] font-mono text-[#ffaa00]/70 border border-[#ffaa00]/20 bg-[#ffaa00]/[0.04] p-2.5">
+      <div className="text-[12px] prose-ui text-[#ffaa00]/70 border border-[#ffaa00]/20 bg-[#ffaa00]/[0.04] p-2.5">
         This is the union of the free, keyless indexes, so it is a floor, not a
         ceiling. Paid indexes (HaveIBeenPwned with an API key, Dehashed,
         IntelligenceX) can list more breaches for the same {subject}; the tool

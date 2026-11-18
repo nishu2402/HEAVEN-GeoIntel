@@ -117,7 +117,7 @@ export default function CryptoWorkbench() {
         ))}
       </div>
 
-      <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] leading-snug">{algo.blurb}</p>
+      <p className="text-[11px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{algo.blurb}</p>
 
       {/* Direction — only for reversible algorithms */}
       {algo.reversible && (
@@ -227,12 +227,12 @@ export default function CryptoWorkbench() {
             className="w-full text-[12px] font-mono bg-[var(--hv-glass)] border border-[var(--hv-green)]/30 rounded p-2 text-[var(--hv-green)] break-all focus:outline-none"
           />
           {note && (
-            <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] leading-snug">{note}</p>
+            <p className="text-[11px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{note}</p>
           )}
         </div>
       )}
 
-      <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug flex items-start gap-1.5 pt-1 border-t border-[var(--hv-glass-border)]">
+      <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug flex items-start gap-1.5 pt-1 border-t border-[var(--hv-glass-border)]">
         <X className="w-3 h-3 mt-0.5 shrink-0" />
         Encoding (Base64, hex, ROT13, …) hides nothing. For real secrecy use AES-256-GCM with a strong passphrase. Nothing here is sent anywhere.
       </p>

@@ -47,7 +47,7 @@ export default function ConsentGate() {
           <ShieldAlert className="w-5 h-5" />
           <span className="font-mono uppercase tracking-widest text-sm font-bold">Authorized use only</span>
         </div>
-        <div className="text-sm font-mono text-[var(--hv-ink-dim)] space-y-2 leading-relaxed">
+        <div className="text-sm prose-ui text-[var(--hv-ink-dim)] space-y-2 leading-relaxed">
           <p>HEAVEN-GeoIntel aggregates <span className="text-[var(--hv-ink)]">publicly available metadata</span> for lawful OSINT: security research, fraud investigation, and authorized assessments.</p>
           <p>By continuing you confirm you will use it <span className="text-[var(--hv-ink)]">only where you have a lawful basis</span>, and never for stalking, harassment, doxxing, or any unlawful purpose. It provides <span className="text-[var(--hv-ink)]">no real-time location or device tracking</span>.</p>
         </div>

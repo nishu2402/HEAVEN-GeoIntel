@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense, type CSSProperties } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Shield, AtSign, Network, Globe, RefreshCw, X, Sparkles } from "lucide-react";
@@ -145,14 +145,14 @@ function WelcomeTour({ onDismiss }: { onDismiss: () => void }) {
         <Sparkles className="w-4 h-4 text-[var(--hv-cyan)]" />
         <span className="font-mono font-bold tracking-widest uppercase text-sm">New here? 30-second orientation</span>
       </div>
-      <p className="text-[13px] text-[var(--hv-ink-dim)] leading-relaxed mb-3">
+      <p className="text-[13px] prose-ui text-[var(--hv-ink-dim)] leading-relaxed mb-3">
         Pick what you are investigating, drop in one identifier, and get a keyless OSINT read. No account, no API key.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
         {steps.map((s) => (
           <div key={s.n} className="rounded-md border border-[var(--hv-glass-border)] p-2.5">
             <div className="text-[11px] font-mono font-bold uppercase tracking-widest mb-1" style={{ color: s.accent }}>{s.n} · {s.title}</div>
-            <div className="text-[12px] text-[var(--hv-ink-dim)] leading-snug">{s.body}</div>
+            <div className="text-[12px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{s.body}</div>
           </div>
         ))}
       </div>
@@ -482,17 +482,23 @@ function PageContent() {
           {/* flex-wrap + min-w-0 (not shrink-0): on a phone the control cluster
               wraps to a second row instead of forcing the whole page into a
               horizontal scroll. */}
-          <div className="flex items-center flex-wrap justify-end gap-1.5 sm:gap-3 min-w-0">
+          {/* Grouped so ten icons read as three intents, not one undifferentiated
+              row: [find] · [intel panels] · [app + display]. Dividers collapse on
+              mobile (hidden until sm), where the cluster wraps instead. */}
+          <div className="flex items-center flex-wrap justify-end gap-1.5 sm:gap-2 min-w-0">
             <CommandPalette onMode={setMode} onQuickLookup={onQuickLookup} />
             <RecentLookups onRun={onQuickLookup} />
+            <span className="hidden sm:block w-px h-5 bg-[var(--hv-glass-border)] mx-0.5" aria-hidden="true" />
             <SourcesPanel />
             <NotableBreachesPanel />
             <OpsecPanel />
             <HelpPopover />
+            <span className="hidden sm:block w-px h-5 bg-[var(--hv-glass-border)] mx-0.5" aria-hidden="true" />
             <SettingsPanel />
             <UpdateChecker />
             <EffectsToggle />
             <ThemeToggle />
+            <span className="hidden lg:block w-px h-5 bg-[var(--hv-glass-border)] mx-0.5" aria-hidden="true" />
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-[var(--hv-ink-dim)] font-mono">
               <Shield className="w-3 h-3" /> DEFENSIVE OSINT
             </div>
@@ -500,7 +506,14 @@ function PageContent() {
           </div>
         </header>
 
-        <main id="main" className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-5xl">
+        {/* The active mode's accent flows to every surface below the header via
+            --hv-accent: the active tab, the input focus ring, the section rail
+            and the fx-on card-hover glow. The header keeps the brand palette. */}
+        <main
+          id="main"
+          className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-5xl"
+          style={{ "--hv-accent": MODES.find((m) => m.id === mode)?.accent ?? "var(--hv-green)" } as CSSProperties}
+        >
           {isBooting && (
             <div className="mb-6 terminal-card p-4 sm:p-6">
               {/* Cold-start splash: the mark at display size, since this panel is
@@ -546,11 +559,7 @@ function PageContent() {
                     // tooltip so the shortcut is discoverable without opening Help.
                     <button key={m.id} onClick={() => selectMode(m.id)} role="tab" aria-selected={mode === m.id}
                       title={i < 9 ? `${modeName(m)} · press ${i + 1}` : modeName(m)}
-                      className={`px-3 py-2 rounded-md border tracking-widest uppercase transition-all text-xs sm:text-sm focus:outline-none ${
-                        mode === m.id
-                          ? "border-[var(--hv-green)] text-[var(--hv-green)] bg-[var(--hv-green)]/10 shadow-[0_0_14px_-2px_var(--hv-green)]"
-                          : "border-[var(--hv-glass-border)] text-[var(--hv-ink-dim)] hover:border-[var(--hv-glass-hi)] hover:text-[var(--hv-ink)]"
-                      }`}>
+                      className="mode-tab px-3 py-2 rounded-md tracking-widest uppercase text-xs sm:text-sm focus:outline-none">
                       {/* Decorative: the label already names the mode, so a reader
                           should not announce "satellite antenna PHONE". */}
                       <span className="mr-1" aria-hidden="true">{m.glyph}</span>{m.label}
@@ -681,7 +690,7 @@ function PageContent() {
                 >
                   <X className="w-3.5 h-3.5" /> Dismiss
                 </button>
-                <span className="text-[11px] font-mono text-[var(--hv-ink-dim)]">
+                <span className="text-[11px] prose-ui text-[var(--hv-ink-dim)]">
                   Free sources rate-limit by IP: waiting a moment and retrying usually clears it.
                 </span>
               </div>

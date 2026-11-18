@@ -6,7 +6,24 @@
 
 // cmdk (and other UI libs) call browser APIs jsdom doesn't implement:
 // ResizeObserver and Element.scrollIntoView. No-op stubs are enough for
-// interaction tests.
+// interaction tests. SectionRail's scroll-spy also constructs an
+// IntersectionObserver, which jsdom lacks, so every dashboard render needs one
+// present; this helper installs a controllable mock and fireIntersection drives
+// it.
+type MockIOEntry = { target: { id: string }; isIntersecting: boolean };
+
+class MockIntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+  readonly cb: (entries: MockIOEntry[]) => void;
+  readonly observed = new Set<Element>();
+  constructor(cb: (entries: MockIOEntry[]) => void) {
+    this.cb = cb;
+    MockIntersectionObserver.instances.push(this);
+  }
+  observe(el: Element): void { this.observed.add(el); }
+  disconnect(): void { this.observed.clear(); }
+}
+
 export function installResizeObserver(): void {
   class RO {
     observe() {}
@@ -17,6 +34,21 @@ export function installResizeObserver(): void {
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = () => {};
   }
+  MockIntersectionObserver.instances = [];
+  (globalThis as unknown as { IntersectionObserver: typeof MockIntersectionObserver }).IntersectionObserver =
+    MockIntersectionObserver;
+}
+
+/**
+ * Fire the most recently constructed SectionRail observer with explicit
+ * intersection states, e.g. fireIntersection({ "sec-b": true }). Wrap the call
+ * in act() because it flushes a React state update. Dashboards construct
+ * observers they never fire, so only the scroll-spy tests reach for this.
+ */
+export function fireIntersection(states: Record<string, boolean>): void {
+  const io = MockIntersectionObserver.instances.at(-1);
+  if (!io) throw new Error("fireIntersection: no IntersectionObserver was constructed");
+  io.cb(Object.entries(states).map(([id, isIntersecting]) => ({ target: { id }, isIntersecting })));
 }
 
 // ── Where test state is allowed to land ──────────────────────────────────────

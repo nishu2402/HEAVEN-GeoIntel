@@ -66,7 +66,7 @@ export default function AiAnalysisPanel({ input }: { input: AnalyzeInput }) {
         <div className="h-1.5 w-full rounded-full bg-[var(--hv-glass-border)] overflow-hidden">
           <div className="h-full rounded-full" style={{ width: `${risk.score}%`, background: color }} />
         </div>
-        <p className="text-[12px] font-mono text-[var(--hv-ink-dim)] leading-snug">{risk.rationale}</p>
+        <p className="text-[12px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{risk.rationale}</p>
       </div>
 
       {/* Contributing factors */}
@@ -90,7 +90,7 @@ export default function AiAnalysisPanel({ input }: { input: AnalyzeInput }) {
                 <div className="h-1 w-full rounded-full bg-[var(--hv-glass-border)] overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${Math.round(f.share * 100)}%`, background: color }} />
                 </div>
-                <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">{f.evidence}</p>
+                <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{f.evidence}</p>
               </div>
             ))}
           </div>
@@ -108,7 +108,7 @@ export default function AiAnalysisPanel({ input }: { input: AnalyzeInput }) {
               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: SEVERITY_COLOR[an.severity] }} />
               <div className="min-w-0">
                 <span className="block text-[12px] font-mono text-[var(--hv-ink)]">{an.title}</span>
-                <span className="block text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">{an.detail}</span>
+                <span className="block text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{an.detail}</span>
               </div>
             </div>
           ))}
@@ -119,13 +119,13 @@ export default function AiAnalysisPanel({ input }: { input: AnalyzeInput }) {
       <div className="space-y-1 border-t border-[var(--hv-glass-border)] pt-3">
         <div className="text-[11px] uppercase tracking-widest text-[var(--hv-ink-dim)]">Narrative</div>
         {a.summary.map((line, i) => (
-          <p key={i} className="text-[11px] font-mono text-[var(--hv-ink-dim)] leading-snug">{line}</p>
+          <p key={i} className="text-[11px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{line}</p>
         ))}
         {/* Optional model narration, grounded on this same bundle (Phase 3). */}
         <AiAnalystButton analysis={a} />
       </div>
 
-      <div className="text-[10px] font-mono text-[var(--hv-ink-dim)]">
+      <div className="text-[10px] prose-ui text-[var(--hv-ink-dim)]">
         Computed in your browser from this result only. The score decomposes into the factors
         shown, and the engine asserts no fact a source did not report.
       </div>

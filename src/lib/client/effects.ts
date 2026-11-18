@@ -27,12 +27,27 @@ export function effectsEnabled(): boolean {
   }
 }
 
-/** Persist the user's choice and notify any listeners (e.g. MatrixRain). */
+/**
+ * Reflect the effects state onto <html data-fx="on|off"> so the CSS ambiance
+ * (scanline drift, holo border, wordmark sweep, card-hover glow) switches with
+ * the same setting that gates the Canvas matrix rain. The inline boot script in
+ * layout.tsx sets this before first paint; this keeps it in step on every toggle.
+ */
+function applyFxAttribute(on: boolean): void {
+  try {
+    document.documentElement.setAttribute("data-fx", on ? "on" : "off");
+  } catch {
+    /* no document (SSR or unit test): the inline boot script owns first paint */
+  }
+}
+
+/** Persist the user's choice, sync the data-fx attribute, and notify listeners. */
 export function setEffects(on: boolean): void {
   try {
     localStorage.setItem(FX_KEY, on ? "1" : "0");
     window.dispatchEvent(new CustomEvent(FX_EVENT));
   } catch {
-    /* private mode / quota — best effort */
+    /* private mode or quota: best effort */
   }
+  applyFxAttribute(on);
 }

@@ -317,7 +317,7 @@ export default function CasesPanel() {
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
             <ShieldAlert className="w-3.5 h-3.5" /> CASE STORE LOCKED
           </div>
-          <p className="text-[12px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+          <p className="text-[12px] prose-ui text-[var(--hv-ink-dim)] leading-snug">
             This instance sets <code className="text-[var(--hv-cyan)]">CASE_PASSWORD</code>, so saved
             investigations are sealed even though lookups are open. Unlock to continue.
           </p>

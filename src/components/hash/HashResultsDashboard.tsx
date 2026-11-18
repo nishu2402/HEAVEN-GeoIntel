@@ -54,7 +54,7 @@ export default function HashResultsDashboard({ data }: Props) {
                 <span className="text-lg font-mono font-bold" style={{ color: repColor }}>{rep.label}</span>
                 {f.trust != null && <span className="text-[11px] font-mono text-[var(--hv-ink-dim)]">trust {f.trust}/100</span>}
               </div>
-              <p className="text-[12px] font-mono text-[var(--hv-ink-dim)] leading-snug mt-1.5">{rep.detail}</p>
+              <p className="text-[12px] prose-ui text-[var(--hv-ink-dim)] leading-snug mt-1.5">{rep.detail}</p>
             </div>
             {f.known && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">

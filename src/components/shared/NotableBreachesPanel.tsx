@@ -72,7 +72,7 @@ export default function NotableBreachesPanel() {
             </div>
 
             <div className="px-4 py-2.5 border-b border-[var(--hv-glass-border)]">
-              <p className="text-[11px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+              <p className="text-[11px] prose-ui text-[var(--hv-ink-dim)] leading-snug">
                 The largest documented government and institutional breaches, from Wikipedia&rsquo;s public
                 list. These never entered a credential corpus, so a per-account or domain lookup never returns
                 them. This is a reference of known breaches by size, not a check that any identifier appears in

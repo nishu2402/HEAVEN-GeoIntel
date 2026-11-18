@@ -55,7 +55,7 @@ export default function AutoPivots({ pivots, onRun }: Props) {
         <div className="text-[11px] uppercase tracking-widest" style={{ color: accent }}>
           {heading} ({list.length})
         </div>
-        <p className="text-[12px] font-mono text-[var(--hv-ink-dim)] leading-snug">{blurb}</p>
+        <p className="text-[12px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{blurb}</p>
         <div className="flex flex-wrap gap-1.5">
           {list.map((p) => (
             <button
@@ -102,7 +102,7 @@ export default function AutoPivots({ pivots, onRun }: Props) {
         "var(--hv-ink-dim)",
       )}
 
-      <div className="text-[11px] font-mono text-[var(--hv-ink-dim)] border-t border-[var(--hv-glass-border)] pt-3">
+      <div className="text-[11px] prose-ui text-[var(--hv-ink-dim)] border-t border-[var(--hv-glass-border)] pt-3">
         Every value above appeared verbatim in this result. Nothing here is guessed or
         pattern-generated, and masked values (Hudson Rock&apos;s free tier obfuscates IPs and
         logins) are excluded because they are evidence, not identifiers.

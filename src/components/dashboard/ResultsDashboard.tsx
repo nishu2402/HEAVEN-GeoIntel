@@ -29,7 +29,8 @@ import UniversalReportExport from "@/components/shared/UniversalReportExport";
 import { buildPhoneReport }  from "@/lib/analysis/report";
 import PanelErrorBoundary    from "@/components/shared/PanelErrorBoundary";
 import Term                  from "@/components/shared/Term";
-import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
+import GlanceCard from "@/components/shared/GlanceCard";
+import SectionRail, { type JumpItem } from "@/components/shared/SectionRail";
 import CopyButton            from "@/components/shared/CopyButton";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +68,7 @@ function AssignabilityNotice({ assignability }: { assignability: Assignability }
         <div className="flex items-center gap-2 text-[12px] uppercase tracking-widest" style={{ color: "#ffaa00" }}>
           <ShieldQuestion className="w-3.5 h-3.5" /> {heading}
         </div>
-        <p className="text-[12px] font-mono text-[#00ff41]/70 leading-snug">{assignability.detail}</p>
+        <p className="text-[12px] prose-ui text-[#00ff41]/70 leading-snug">{assignability.detail}</p>
       </div>
     </div>
   );
@@ -180,17 +181,17 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
     { label: <Term k="infostealer">Infostealer</Term>, value: hrTotal != null ? (hrTotal > 0 ? `${hrTotal} device${hrTotal > 1 ? "s" : ""}` : "None") : "-", accent: hrTotal && hrTotal > 0 ? "#ff3e3e" : undefined },
   ];
   const JUMP: JumpItem[] = [
-    { id: "sec-identity", label: "Identity" },
-    { id: "sec-breach-all", label: "All breaches" },
-    { id: "sec-breach", label: "Breach detail" },
-    { id: "sec-infostealer", label: "Infostealer" },
-    { id: "sec-leakcheck", label: "Breach index" },
-    { id: "sec-pentest", label: "Pentest" },
-    { id: "sec-location", label: "Location" },
-    { id: "sec-anatomy", label: "Anatomy" },
-    { id: "sec-sim", label: "SIM" },
-    { id: "sec-pivots", label: "Pivots" },
-    { id: "sec-raw", label: "Raw" },
+    { id: "sec-identity", label: "Identity", group: "who" },
+    { id: "sec-breach-all", label: "All breaches", group: "exposure" },
+    { id: "sec-breach", label: "Breach detail", group: "exposure" },
+    { id: "sec-infostealer", label: "Infostealer", group: "exposure" },
+    { id: "sec-leakcheck", label: "Breach index", group: "exposure" },
+    { id: "sec-pentest", label: "Pentest", group: "intel" },
+    { id: "sec-location", label: "Location", group: "intel" },
+    { id: "sec-anatomy", label: "Anatomy", group: "intel" },
+    { id: "sec-sim", label: "SIM", group: "intel" },
+    { id: "sec-pivots", label: "Pivots", group: "more" },
+    { id: "sec-raw", label: "Raw", group: "more" },
   ];
 
   return (
@@ -302,20 +303,23 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
         </div>
       </div>
 
-      {/* ── AT A GLANCE — quick answers + jump nav ──────────────────────────── */}
-      <GlanceCard tiles={glanceTiles} jump={JUMP} />
+      {/* ── AT A GLANCE — quick answers ─────────────────────────────────────── */}
+      <GlanceCard tiles={glanceTiles} />
+
+      {/* ── Section rail — docks to the top of the viewport for the whole scroll ── */}
+      <SectionRail items={JUMP} />
 
       {/* ── IDENTITY (FullContact + CNAM + free-lookup action center) ───────── */}
-      <section id="sec-identity" className="scroll-mt-24"><PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} onUsernameSweep={onUsernameSweep} onEmailLookup={onEmailLookup} /></PanelErrorBoundary></section>
+      <section id="sec-identity" className="hv-anchor"><PanelErrorBoundary label="Identity"><PhoneIdentityPanel data={data} onUsernameSweep={onUsernameSweep} onEmailLookup={onEmailLookup} /></PanelErrorBoundary></section>
 
       {/* ── UNIFIED BREACH VIEW — every breach source merged, deduplicated ── */}
-      <section id="sec-breach-all" className="scroll-mt-24 space-y-4"><PanelErrorBoundary label="Unified breach view">
+      <section id="sec-breach-all" className="hv-anchor space-y-4"><PanelErrorBoundary label="Unified breach view">
         <BreachAggregatePanel aggregate={breachAgg} subject="phone number" />
         <CredentialExposurePanel exposure={credExposure} subject="phone number" />
       </PanelErrorBoundary></section>
 
       {/* ── BREACH DATA (BreachDirectory + free-lookup action center) ──────── */}
-      <section id="sec-breach" className="scroll-mt-24"><PanelErrorBoundary label="Breach search">
+      <section id="sec-breach" className="hv-anchor"><PanelErrorBoundary label="Breach search">
         <BreachPanel
           breachDirectory={sources.breachDirectory}
           subjectLabel="this phone number"
@@ -324,16 +328,16 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
       </PanelErrorBoundary></section>
 
       {/* ── INFOSTEALER MALWARE (Hudson Rock — free, always-on) ─────────────── */}
-      <section id="sec-infostealer" className="scroll-mt-24"><PanelErrorBoundary label="Hudson Rock infostealer"><InfostealerPanel source={data.sources.hudsonRock} subject="phone number" /></PanelErrorBoundary></section>
+      <section id="sec-infostealer" className="hv-anchor"><PanelErrorBoundary label="Hudson Rock infostealer"><InfostealerPanel source={data.sources.hudsonRock} subject="phone number" /></PanelErrorBoundary></section>
 
       {/* ── PUBLIC BREACH INDEX (LeakCheck — free, always-on) ───────────────── */}
-      <section id="sec-leakcheck" className="scroll-mt-24"><PanelErrorBoundary label="LeakCheck breach index"><LeakCheckPanel source={data.sources.leakCheck} subject="phone number" /></PanelErrorBoundary></section>
+      <section id="sec-leakcheck" className="hv-anchor"><PanelErrorBoundary label="LeakCheck breach index"><LeakCheckPanel source={data.sources.leakCheck} subject="phone number" /></PanelErrorBoundary></section>
 
       {/* ── Pentester intelligence — core value of the tool ─────────────────── */}
-      <section id="sec-pentest" className="scroll-mt-24"><PanelErrorBoundary label="Pentester intelligence"><PentesterPanel data={data} /></PanelErrorBoundary></section>
+      <section id="sec-pentest" className="hv-anchor"><PanelErrorBoundary label="Pentester intelligence"><PentesterPanel data={data} /></PanelErrorBoundary></section>
 
       {/* ── Consolidated metadata: location + anatomy ───────────────────────── */}
-      <section id="sec-location" className="grid grid-cols-1 lg:grid-cols-2 gap-4 scroll-mt-24">
+      <section id="sec-location" className="grid grid-cols-1 lg:grid-cols-2 gap-4 hv-anchor">
         <PanelErrorBoundary label="Location"><LocationPanel data={data} /></PanelErrorBoundary>
         {countryIntel
           ? <PanelErrorBoundary label="Country intel"><CountryPanel intel={countryIntel} /></PanelErrorBoundary>
@@ -341,10 +345,10 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
       </section>
 
       {/* ── Number anatomy (replaces 3 old duplicate panels) ────────────────── */}
-      <section id="sec-anatomy" className="scroll-mt-24"><PanelErrorBoundary label="Number anatomy"><NumberAnatomyPanel data={data} /></PanelErrorBoundary></section>
+      <section id="sec-anatomy" className="hv-anchor"><PanelErrorBoundary label="Number anatomy"><NumberAnatomyPanel data={data} /></PanelErrorBoundary></section>
 
       {/* ── SIM intelligence + QR code ──────────────────────────────────────── */}
-      <section id="sec-sim" className="grid grid-cols-1 lg:grid-cols-2 gap-4 scroll-mt-24">
+      <section id="sec-sim" className="grid grid-cols-1 lg:grid-cols-2 gap-4 hv-anchor">
         {hasSimData
           ? <PanelErrorBoundary label="SIM & carrier"><SimIntelPanel aggregated={aggregated} /></PanelErrorBoundary>
           : <PlaceholderCard
@@ -358,10 +362,10 @@ export default function ResultsDashboard({ data, onUsernameSweep, onEmailLookup 
       <PanelErrorBoundary label="Number permutations"><NumberPermutations data={data} /></PanelErrorBoundary>
 
       {/* ── OSINT pivots — the single, deduplicated set of external links ─────── */}
-      <section id="sec-pivots" className="scroll-mt-24"><PanelErrorBoundary label="OSINT pivots"><OsintPivots e164={input.e164} national={input.national} country={input.country} /></PanelErrorBoundary></section>
+      <section id="sec-pivots" className="hv-anchor"><PanelErrorBoundary label="OSINT pivots"><OsintPivots e164={input.e164} national={input.national} country={input.country} /></PanelErrorBoundary></section>
 
       {/* ── Raw source data ─────────────────────────────────────────────────── */}
-      <section id="sec-raw" className="space-y-2 scroll-mt-24">
+      <section id="sec-raw" className="space-y-2 hv-anchor">
         <div className="text-[13px] uppercase tracking-widest text-[#00ff41]/60">
           [ RAW SOURCE DATA ]: API responses
         </div>
@@ -379,7 +383,7 @@ function PlaceholderCard({ icon, title, note }: { icon: React.ReactNode; title: 
       <div className="text-[12px] uppercase tracking-widest text-[#00ff41]/70 flex items-center gap-1.5">
         {icon} {title}
       </div>
-      <div className="text-[12px] font-mono text-[#00ff41]/55 italic">{note}</div>
+      <div className="text-[12px] prose-ui text-[#00ff41]/55 italic">{note}</div>
     </div>
   );
 }

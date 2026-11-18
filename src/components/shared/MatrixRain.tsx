@@ -88,7 +88,7 @@ export default function MatrixRain() {
       // horizontal scroll (and fed back into an ever-wider buffer). The buffer
       // stays full-resolution; only the on-screen box is clamped.
       className="fixed inset-0 w-full h-full pointer-events-none z-0"
-      style={{ opacity: 0.07 }}
+      style={{ opacity: 0.05 }}
       aria-hidden="true"
     />
   );

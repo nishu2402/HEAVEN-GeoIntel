@@ -10,6 +10,14 @@ import { ThemeProvider } from "@/components/shared/ThemeProvider";
 const THEME_INIT =
   "try{var t=localStorage.getItem('heaven-geointel-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}";
 
+// Same pre-paint pattern for the visual-effects setting. The server renders
+// data-fx="on" (the default); this only overrides it to "off" when the user has
+// turned effects off, or has no explicit choice and the OS prefers reduced
+// motion. Mirrors effectsEnabled() in src/lib/client/effects.ts. Avoids &&, <, >
+// and & (nested ternary instead) so React serialises it verbatim as plain text.
+const FX_INIT =
+  "try{var f=localStorage.getItem('hv-fx');var rm=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)').matches:false;if(f==='0'||(f===null?rm:false))document.documentElement.setAttribute('data-fx','off');}catch(e){}";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://heaven-geointel.example"),
   title: "HEAVEN-GeoIntel: Unified OSINT Platform",
@@ -73,7 +81,7 @@ export default function RootLayout({
     // script only *overrides* it to "light" when localStorage says so.
     // suppressHydrationWarning covers that single attribute diff (expected,
     // per Next.js theming guidance) so it never logs a hydration error.
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="dark" data-fx="on" suppressHydrationWarning>
       <head>
         {/* Preload the always-used Latin subset so first paint is already in
             JetBrains Mono, not the fallback. The other subsets (latin-ext,
@@ -88,6 +96,7 @@ export default function RootLayout({
         {/* Apply persisted theme before paint to avoid a flash of the wrong theme.
             A plain inline <script> child runs synchronously during head parse. */}
         <script id="theme-init">{THEME_INIT}</script>
+        <script id="fx-init">{FX_INIT}</script>
       </head>
       <body className="min-h-screen antialiased font-mono">
         {/* Skip link — invisible until keyboard-focused, jumps past header straight

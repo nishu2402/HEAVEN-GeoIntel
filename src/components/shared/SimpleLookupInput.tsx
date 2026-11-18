@@ -75,7 +75,7 @@ export default function SimpleLookupInput({
       </div>
       {error
         ? <div className="text-[12px] font-mono text-[var(--hv-red)]">{error}</div>
-        : hint && <div className="text-[12px] font-mono text-[var(--hv-ink-dim)]">{hint}</div>}
+        : hint && <div className="text-[12px] prose-ui text-[var(--hv-ink-dim)]">{hint}</div>}
     </div>
   );
 }

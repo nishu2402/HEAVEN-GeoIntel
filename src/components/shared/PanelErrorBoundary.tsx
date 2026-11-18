@@ -48,7 +48,7 @@ export default class PanelErrorBoundary extends Component<Props, State> {
             <AlertTriangle className="w-3.5 h-3.5" />
             PANEL ERROR: {this.props.label}
           </div>
-          <p className="text-[13px] font-mono text-[#ff3e3e]/92 leading-snug">
+          <p className="text-[13px] prose-ui text-[#ff3e3e]/92 leading-snug">
             This panel failed to render. The rest of the dashboard is fine. The
             full error has been logged to the browser console.
           </p>

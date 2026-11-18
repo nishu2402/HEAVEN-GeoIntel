@@ -9,7 +9,8 @@ import type { IpLookupResponse } from "@/lib/types";
 import { ipToDomainPivot } from "@/lib/analysis/crossPivots";
 import { sourceState } from "@/lib/analysis/report";
 import Tilt3D from "@/components/shared/Tilt3D";
-import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
+import GlanceCard from "@/components/shared/GlanceCard";
+import SectionRail, { type JumpItem } from "@/components/shared/SectionRail";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import CopyButton from "@/components/shared/CopyButton";
 import Term from "@/components/shared/Term";
@@ -48,7 +49,7 @@ function ThreatBar({ score, label, reasons = [] }: { score: number; label: strin
           ))}
         </ul>
       )}
-      <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+      <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug">
         Reputation of the network itself: whether the address is a proxy, VPN, hosting range, scanner or tagged bad. It rates the address, separate from the grounded analysis lower down.
       </p>
     </div>
@@ -134,10 +135,10 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
     { label: "Hosting", value: ip.isHosting === true ? "Yes" : ip.isHosting === false ? "No" : "-", accent: ip.isHosting ? "#fbbf24" : undefined },
   ];
   const jump: JumpItem[] = [
-    { id: "sec-geo", label: "Geo" },
-    { id: "sec-net", label: "Network" },
-    ...(hasExposure ? [{ id: "sec-exposure", label: "Exposure" }] : []),
-    { id: "sec-pivots", label: "Pivots" },
+    { id: "sec-geo", label: "Geo", group: "where" },
+    { id: "sec-net", label: "Network", group: "where" },
+    ...(hasExposure ? [{ id: "sec-exposure", label: "Exposure", group: "risk" }] : []),
+    { id: "sec-pivots", label: "Pivots", group: "more" },
   ];
 
   return (
@@ -189,12 +190,13 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
         </div>
       </Tilt3D>
 
-      <GlanceCard tiles={glanceTiles} jump={jump} />
+      <GlanceCard tiles={glanceTiles} />
+      <SectionRail items={jump} />
 
       <div className="flex justify-end"><UniversalReportExport model={buildIpReport(data)} /></div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div id="sec-geo" className="terminal-card p-4 space-y-1 scroll-mt-24">
+        <div id="sec-geo" className="terminal-card p-4 space-y-1 hv-anchor">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-3 flex items-center gap-1.5"><MapPin className="w-3 h-3" /> GEOLOCATION</div>
           <Row label="City" value={ip.city} accent="var(--hv-cyan)" />
           <Row label="Region" value={ip.region} accent="var(--hv-cyan)" />
@@ -211,7 +213,7 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
           )}
         </div>
 
-        <div id="sec-net" className="terminal-card p-4 space-y-1 scroll-mt-24">
+        <div id="sec-net" className="terminal-card p-4 space-y-1 hv-anchor">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] mb-3 flex items-center gap-1.5"><Network className="w-3 h-3" /> NETWORK / <Term k="ASN">ASN</Term></div>
           <Row label={<Term k="ASN">ASN</Term>} value={ip.asn ? `AS${ip.asn}` : null} accent="var(--hv-green)" />
           <Row label="AS Org" value={ip.asnOrg} accent="var(--hv-green)" />
@@ -226,7 +228,7 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
       </div>
 
       {hasExposure && (
-        <div id="sec-exposure" className="terminal-card p-4 space-y-3 scroll-mt-24">
+        <div id="sec-exposure" className="terminal-card p-4 space-y-3 hv-anchor">
           <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
             <Server className="w-3 h-3" /> INTERNET EXPOSURE: Shodan InternetDB
           </div>
@@ -271,7 +273,7 @@ export default function IpResultsDashboard({ data, onDomainLookup }: Props) {
         </div>
       )}
 
-      <div id="sec-pivots" className="terminal-card p-4 space-y-2 scroll-mt-24">
+      <div id="sec-pivots" className="terminal-card p-4 space-y-2 hv-anchor">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5"><Shield className="w-3 h-3" /> DEEPEN: free pivots (no key)</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {data.pivots.map((p) => (

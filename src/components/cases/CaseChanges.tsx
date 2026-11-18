@@ -51,7 +51,7 @@ export default function CaseChanges({ snapshots }: Props) {
       </div>
 
       {groups.length === 0 ? (
-        <p className="text-[12px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+        <p className="text-[12px] prose-ui text-[var(--hv-ink-dim)] leading-snug">
           No snapshots yet. Pin a lookup to this case and the tool records a fingerprint of it;
           pin the same identifier again later and this panel reports exactly what moved.
         </p>

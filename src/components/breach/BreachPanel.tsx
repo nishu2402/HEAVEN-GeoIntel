@@ -267,7 +267,7 @@ function HashField({
         <CopyHashBtn hash={value} />
       </div>
 
-      <p className="text-[12px] font-mono text-[#00ff41]/55 leading-snug">{info.note}</p>
+      <p className="text-[12px] prose-ui text-[#00ff41]/55 leading-snug">{info.note}</p>
 
       {!isPartial && info.crackable !== "infeasible" && (
         <div className="flex gap-2 flex-wrap pt-0.5">
@@ -348,7 +348,7 @@ function BdOnlyPanel({
             </div>
           )}
           {!configured && (
-            <div className="text-[13px] font-mono text-[#00d9ff]/75">
+            <div className="text-[13px] prose-ui text-[#00d9ff]/75">
               No BreachDirectory key configured. Use the free lookups below: they need no API key.
             </div>
           )}
@@ -357,7 +357,7 @@ function BdOnlyPanel({
 
       {hasHits && (
         <div className="space-y-3">
-          <p className="text-[13px] font-mono text-[#00ff41]/60 leading-relaxed">
+          <p className="text-[13px] prose-ui text-[#00ff41]/60 leading-relaxed">
             Real password hashes from breach datasets tied to {subjectLabel}. Click
             &ldquo;CRACK&rdquo; to copy a hash and open a cracking tool in one action.
           </p>
@@ -405,7 +405,7 @@ function BdOnlyPanel({
           <div className="text-[12px] uppercase tracking-widest text-[#ffaa00] font-semibold flex items-center gap-1.5">
             <Lock className="w-3 h-3" /> Want in-app credential hashes?
           </div>
-          <p className="text-[12px] font-mono text-[#ffaa00]/75 leading-snug">
+          <p className="text-[12px] prose-ui text-[#ffaa00]/75 leading-snug">
             Add a free RapidAPI key for BreachDirectory to surface real SHA-1/MD5 hashes
             inline.{" "}
             <a href="https://rapidapi.com/rohan-patra/api/breachdirectory" target="_blank" rel="noopener noreferrer"
@@ -523,7 +523,7 @@ export default function BreachPanel({
       {xonData.breachCount > 0 && (
         <div className="flex items-start gap-2 p-3 border border-[#00d9ff]/20 bg-[#00d9ff]/[0.04]">
           <Info className="w-3.5 h-3.5 text-[#00d9ff]/70 shrink-0 mt-0.5" />
-          <div className="text-[13px] font-mono text-[#00d9ff]/80 leading-relaxed">
+          <div className="text-[13px] prose-ui text-[#00d9ff]/80 leading-relaxed">
             <span className="font-bold text-[#00d9ff]">What this means:</span> The badges below show
             WHICH types of data were stolen in each breach (e.g. &ldquo;Passwords&rdquo;, &ldquo;Phone Numbers&rdquo;).
             To see the <span className="text-[#00d9ff] font-bold">actual leaked credential hashes</span> for
@@ -570,7 +570,7 @@ export default function BreachPanel({
               ACTUAL CREDENTIAL HASHES: BreachDirectory · {bdData.found} record{bdData.found !== 1 ? "s" : ""} found
             </span>
           </div>
-          <p className="text-[13px] font-mono text-[#00ff41]/60 leading-relaxed">
+          <p className="text-[13px] prose-ui text-[#00ff41]/60 leading-relaxed">
             These are the real password hashes from breach databases for this email. Click
             &ldquo;CRACK&rdquo; to copy the hash and open a cracking tool in one action.
           </p>
@@ -604,7 +604,7 @@ export default function BreachPanel({
             </span>
           </div>
 
-          <p className="text-[13px] font-mono text-[#ffaa00]/80 leading-relaxed">
+          <p className="text-[13px] prose-ui text-[#ffaa00]/80 leading-relaxed">
             BreachDirectory holds <span className="text-[#ffaa00] font-bold">real password hashes</span> from
             3.5 billion+ leaked credentials. Add a free API key to see the actual SHA-1 / MD5 hashes
             for this email with one-click crack buttons.

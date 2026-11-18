@@ -91,7 +91,7 @@ export default function RecentLookups({ onRun }: { onRun: (kind: LookupKind, val
                 <History className="w-4 h-4 text-[var(--hv-ink-dim)]" />
               </div>
               <div className="text-xs font-mono text-[var(--hv-ink)]">No lookups yet</div>
-              <div className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-relaxed">
+              <div className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-relaxed">
                 Run a phone, email, username,<br />IP or domain search: it lands here.
               </div>
             </div>

@@ -20,7 +20,7 @@ export default function SubdomainTakeoverPanel({ candidates }: { candidates?: Ta
     : `DANGLING CNAMES TO REVIEW: ${candidates.length}`;
   const headColor = confirmed > 0 ? "#ff4d6d" : "#fb923c";
   return (
-    <div id="sec-takeover" className="terminal-card p-4 space-y-3 scroll-mt-24 border" style={{ borderColor: headColor + "50" }}>
+    <div id="sec-takeover" className="terminal-card p-4 space-y-3 hv-anchor border" style={{ borderColor: headColor + "50" }}>
       <div className="text-[12px] uppercase tracking-widest flex items-center gap-1.5" style={{ color: headColor }}>
         <ShieldAlert className="w-3.5 h-3.5" /> {headline}
       </div>

@@ -17,7 +17,8 @@ import InfostealerPanel from "@/components/breach/InfostealerPanel";
 import LeakCheckPanel   from "@/components/breach/LeakCheckPanel";
 import BreachAggregatePanel from "@/components/breach/BreachAggregatePanel";
 import CredentialExposurePanel from "@/components/breach/CredentialExposurePanel";
-import GlanceCard, { type JumpItem } from "@/components/shared/GlanceCard";
+import GlanceCard from "@/components/shared/GlanceCard";
+import SectionRail, { type JumpItem } from "@/components/shared/SectionRail";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import CopyButton from "@/components/shared/CopyButton";
 import { cn, safeExternalUrl } from "@/lib/utils";
@@ -211,14 +212,14 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
     { label: "Exposure", value: `${exposure.score}/100`, accent: exposure.score >= 60 ? "#ff6600" : exposure.score > 0 ? "#ffaa00" : "#00ff41" },
   ];
   const jump: JumpItem[] = [
-    ...(fcData ? [{ id: "sec-identity", label: "Identity" }] : []),
-    { id: "sec-breach-all", label: "All breaches" },
-    { id: "sec-breach", label: "Breach detail" },
-    { id: "sec-infostealer", label: "Infostealer" },
-    { id: "sec-leakcheck", label: "Breach index" },
-    { id: "sec-class", label: "Classification" },
-    { id: "sec-rep", label: "Reputation" },
-    { id: "sec-pivots", label: "Pivots" },
+    ...(fcData ? [{ id: "sec-identity", label: "Identity", group: "who" }] : []),
+    { id: "sec-breach-all", label: "All breaches", group: "exposure" },
+    { id: "sec-breach", label: "Breach detail", group: "exposure" },
+    { id: "sec-infostealer", label: "Infostealer", group: "exposure" },
+    { id: "sec-leakcheck", label: "Breach index", group: "exposure" },
+    { id: "sec-class", label: "Classification", group: "intel" },
+    { id: "sec-rep", label: "Reputation", group: "intel" },
+    { id: "sec-pivots", label: "Pivots", group: "more" },
   ];
 
   return (
@@ -341,7 +342,8 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
         </div>
       </div>
 
-      <GlanceCard tiles={glanceTiles} jump={jump} />
+      <GlanceCard tiles={glanceTiles} />
+      <SectionRail items={jump} />
 
       {/* ── FullContact Enrichment Panel — unique data only (name/location/bio already in header) ── */}
       {fcData && (
@@ -357,7 +359,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           id="sec-identity"
-          className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40 scroll-mt-24"
+          className="terminal-card p-5 space-y-4 border-l-2 border-[#00d9ff]/40 hv-anchor"
         >
           <div className="flex items-center justify-between">
             <div className="text-[12px] uppercase tracking-widest text-[#00d9ff]/60 flex items-center gap-1.5">
@@ -453,19 +455,19 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
       )}
 
       {/* ── UNIFIED BREACH VIEW — every source merged, deduplicated ── */}
-      <section id="sec-breach-all" className="scroll-mt-24 space-y-4">
+      <section id="sec-breach-all" className="hv-anchor space-y-4">
         <BreachAggregatePanel aggregate={breachAgg} subject="email address" />
         <CredentialExposurePanel exposure={credExposure} subject="email address" />
       </section>
 
       {/* ── BREACH DATABASE — per-source detail, kept for provenance ── */}
-      <section id="sec-breach" className="scroll-mt-24"><BreachPanel xon={xon} breachDirectory={breachDirectory} /></section>
+      <section id="sec-breach" className="hv-anchor"><BreachPanel xon={xon} breachDirectory={breachDirectory} /></section>
 
       {/* Hudson Rock and LeakCheck are keyless, so both render on every email
           lookup — including the out-of-the-box, no-API-key configuration. */}
-      <section id="sec-infostealer" className="scroll-mt-24"><InfostealerPanel source={hudsonRock} subject="email address" /></section>
+      <section id="sec-infostealer" className="hv-anchor"><InfostealerPanel source={hudsonRock} subject="email address" /></section>
 
-      <section id="sec-leakcheck" className="scroll-mt-24"><LeakCheckPanel source={leakCheck} subject="email address" /></section>
+      <section id="sec-leakcheck" className="hv-anchor"><LeakCheckPanel source={leakCheck} subject="email address" /></section>
 
       {/* ── Risk indicators (EmailRep critical flags) ── */}
       {repData && (repData.credentialsLeaked || repData.dataBreach || repData.suspicious || repData.maliciousActivity) && (
@@ -508,7 +510,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
       )}
 
       {/* ── Two-column: Classification + Gravatar ── */}
-      <div id="sec-class" className="grid grid-cols-1 lg:grid-cols-2 gap-4 scroll-mt-24">
+      <div id="sec-class" className="grid grid-cols-1 lg:grid-cols-2 gap-4 hv-anchor">
 
         {/* Offline classification */}
         <div className="terminal-card p-4 space-y-1">
@@ -601,7 +603,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
       </div>
 
       {/* ── Reputation + Validation ── */}
-      <div id="sec-rep" className="grid grid-cols-1 lg:grid-cols-2 gap-4 scroll-mt-24">
+      <div id="sec-rep" className="grid grid-cols-1 lg:grid-cols-2 gap-4 hv-anchor">
 
         {/* EmailRep.io */}
         <div className="terminal-card p-4 space-y-1">
@@ -704,7 +706,7 @@ export default function EmailResultsDashboard({ data, onUsernameSweep }: Props) 
       </div>
 
       {/* ── OSINT pivots ── */}
-      <section id="sec-pivots" className="scroll-mt-24"><EmailOsintPivots email={email} domain={analysis.domain} /></section>
+      <section id="sec-pivots" className="hv-anchor"><EmailOsintPivots email={email} domain={analysis.domain} /></section>
       <SourceStrip sources={emailSources} />
     </motion.div>
   );

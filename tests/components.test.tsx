@@ -23,22 +23,16 @@ describe("<Term> jargon tooltip", () => {
 });
 
 describe("<GlanceCard>", () => {
-  it("renders the heading, every tile, and the jump buttons", () => {
+  it("renders the heading and every tile", () => {
     render(
       <GlanceCard
         tiles={[{ label: "Country", value: "US" }, { label: "Risk", value: "35" }]}
-        jump={[{ id: "sec-x", label: "Section X" }]}
       />,
     );
     expect(screen.getByText("[ AT A GLANCE ]")).toBeTruthy();
     expect(screen.getByText("Country")).toBeTruthy();
     expect(screen.getByText("US")).toBeTruthy();
-    expect(screen.getByText("Section X")).toBeTruthy();
-  });
-
-  it("a jump click is a no-op (doesn't throw) when the target id is absent", () => {
-    render(<GlanceCard tiles={[{ label: "A", value: "1" }]} jump={[{ id: "missing", label: "Go" }]} />);
-    expect(() => fireEvent.click(screen.getByText("Go"))).not.toThrow();
+    expect(screen.getByText("35")).toBeTruthy();
   });
 });
 

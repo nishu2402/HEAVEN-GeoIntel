@@ -47,7 +47,7 @@ export default function PivotRow({ link }: { link: PivotRowLink }) {
         </span>
         {link.usOnly && <span className="text-[10px] text-[#00ff41]/75 font-normal">[US]</span>}
       </div>
-      <div className="text-[12px] text-[#00ff41]/85 mt-0.5 leading-tight line-clamp-2">
+      <div className="text-[12px] prose-ui text-[#00ff41]/85 mt-0.5 leading-tight line-clamp-2">
         {copied ? "Copied: paste it on a device with the app" : link.description}
       </div>
       {/*

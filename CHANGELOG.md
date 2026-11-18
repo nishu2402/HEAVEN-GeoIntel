@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+A readability and visual pass across the app: clearer dashboards, the decorative
+motion gathered under the effects toggle, and an accent colour for each lookup mode.
+
+### Added
+
+- A docked section rail on the result dashboards. The jump navigation used to
+  sit inside the "at a glance" card and scrolled away as soon as you entered the
+  panel stack. It now stays below the header for the whole scroll, marks the
+  section you are reading, and groups the panels so a long result reads as a few
+  clusters. The phone, email, domain and IP dashboards share one rail.
+- An animated demo at the top of the README's "See It In Action" section
+  (`docs/assets/demo.gif`), recorded from one real offline lookup. Run
+  `npm run demo` to regenerate it.
+- An accent colour for each lookup mode. Every mode (phone, email, username, IP,
+  domain, wallet, hash and the rest) now carries one of the neon accents, and the
+  active tab, the input focus ring and the section rail take that colour, so the
+  console recolours as you move between modes and each reads as its own. Data,
+  labels and headings keep their palette; only the active chrome changes.
+
+### Changed
+
+- Set multi-sentence copy across the dashboards in a sans-serif face so
+  paragraphs read like text, while data, labels, headings and badges keep
+  JetBrains Mono. The face is a system stack, so the app stays fully offline.
+- Gathered the decorative motion under the header effects toggle. It now governs
+  the whole ambiance, not just the Canvas "matrix rain": the drifting scanlines,
+  the holographic border on the input card, the wordmark colour sweep and the
+  card-hover glow. With effects on (the default) the console feels alive; turning
+  them off leaves a calm, still version with a lighter grid and no motion, which
+  is also what the operating system's reduced-motion setting selects.
+- Unified the corner radius. `rounded-lg`, `rounded-md` and `rounded-sm` were 0
+  while panels and inputs were already rounded in CSS; the scale now matches the
+  surfaces at 10, 8 and 6 pixels.
+- Grouped the header controls into three clusters, divided by thin rules that
+  collapse on a phone, so the icons read by purpose.
+
 ## [3.5.0] — 2026-11-16
 
 A feature and maintenance release. It self-hosts the interface font so a

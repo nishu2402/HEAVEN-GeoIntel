@@ -59,6 +59,10 @@
     --hv-magenta:#e879f9;          /* tertiary neon */
     --hv-amber:  #fbbf24;
     --hv-red:    #ff4d6d;
+    /* Active-mode accent: page.tsx overrides this on <main> per selected mode
+       (ModeMeta.accent). The active tab, input focus, section rail and the fx-on
+       card-hover glow read it; it defaults to the primary neon. */
+    --hv-accent: var(--hv-green);
 
     --hv-glass-bg:     rgba(10, 16, 28, 0.55);
     --hv-glass-bg-2:   rgba(14, 20, 36, 0.72);
@@ -91,9 +95,9 @@
     --hv-muted-ink:     #a8b6c8;
     --hv-muted-border:  #5b6675;
     --hv-card-shadow:  0 10px 40px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(120,255,190,0.04);
-    --hv-grid:         rgba(0, 255, 133, 0.05);
-    --hv-scan:         rgba(0, 0, 0, 0.10);
-    --hv-glow-strength: 1;
+    --hv-grid:         rgba(0, 255, 133, 0.028);
+    --hv-scan:         rgba(0, 0, 0, 0.04);
+    --hv-glow-strength: 0.55;
   }
 
   /* ── Light theme = bright ambient backdrop + dark "glass" panels ──
@@ -173,7 +177,7 @@
     --hv-card-shadow:  0 18px 48px -16px rgba(15, 23, 42, 0.45), 0 2px 8px -2px rgba(15,23,42,0.25);
     --hv-grid:         rgba(40, 60, 100, 0.08);
     --hv-scan:         rgba(0, 0, 0, 0.015);
-    --hv-glow-strength: 0.8;
+    --hv-glow-strength: 0.5;
   }
 }
 
@@ -190,9 +194,9 @@ body {
   overflow-x: hidden;
   /* layered radial neon glows + animated grid */
   background-image:
-    radial-gradient(60rem 60rem at 12% -10%, color-mix(in srgb, var(--hv-green) 10%, transparent), transparent 60%),
-    radial-gradient(50rem 50rem at 110% 10%, color-mix(in srgb, var(--hv-cyan) 10%, transparent), transparent 55%),
-    radial-gradient(70rem 50rem at 50% 120%, color-mix(in srgb, var(--hv-magenta) 8%, transparent), transparent 60%),
+    radial-gradient(60rem 60rem at 12% -10%, color-mix(in srgb, var(--hv-green) 6%, transparent), transparent 60%),
+    radial-gradient(50rem 50rem at 110% 10%, color-mix(in srgb, var(--hv-cyan) 6%, transparent), transparent 55%),
+    radial-gradient(70rem 50rem at 50% 120%, color-mix(in srgb, var(--hv-magenta) 5%, transparent), transparent 60%),
     linear-gradient(var(--hv-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--hv-grid) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 100% 100%, 44px 44px, 44px 44px;
@@ -211,7 +215,6 @@ body::after {
   pointer-events: none;
   z-index: 9999;
   background: repeating-linear-gradient(0deg, transparent, transparent 2px, var(--hv-scan) 2px, var(--hv-scan) 4px);
-  animation: scanlines 12s linear infinite;
 }
 
 @keyframes scanlines { 0% { background-position: 0 0; } 100% { background-position: 0 100px; } }
@@ -219,7 +222,7 @@ body::after {
 ::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(var(--hv-green), var(--hv-cyan));
+  background: linear-gradient(var(--hv-accent, var(--hv-green)), var(--hv-cyan));
   border-radius: 6px;
 }
 
@@ -261,7 +264,8 @@ body::after {
   background-size: 300% 100%;
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: hv-sheen 8s linear infinite;
+  /* The colour sweep runs only with effects ON (html[data-fx="on"], below). With
+     effects OFF the wordmark is a still gradient, which is the calm state. */
 }
 
 /* ── Status badges (kept; now theme-aware via accents) ── */
@@ -313,7 +317,7 @@ body::after {
 }
 .terminal-card:hover {
   border-color: var(--hv-glass-hi);
-  box-shadow: var(--hv-card-shadow), 0 0 26px -6px color-mix(in srgb, var(--hv-cyan) 30%, transparent);
+  box-shadow: var(--hv-card-shadow), 0 0 16px -10px color-mix(in srgb, var(--hv-cyan) 22%, transparent);
 }
 
 /* ── Holographic animated border (opt-in via .holo) ── */
@@ -329,14 +333,40 @@ body::after {
   inset: 0;
   padding: 1px;
   border-radius: inherit;
-  background: linear-gradient(115deg, var(--hv-green), var(--hv-cyan), var(--hv-magenta), var(--hv-cyan), var(--hv-green));
-  background-size: 300% 100%;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--hv-green) 65%, transparent), color-mix(in srgb, var(--hv-cyan) 55%, transparent), color-mix(in srgb, var(--hv-green) 65%, transparent));
+  background-size: 100% 100%;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  animation: hv-holo 7s linear infinite;
   pointer-events: none;
-  opacity: .8;
+  opacity: .4;
+}
+
+/* ── Living ambiance (effects ON) ────────────────────────────────────────────
+   The header sparkle toggle (hv-fx) is reflected onto <html data-fx> by the boot
+   script in layout.tsx and by setEffects(). With effects ON (the default) the
+   decorative motion below runs; with effects OFF the same surfaces stay in their
+   calm, still state (the rules above). Liveliness here is motion, not glare: the
+   static glow and ambient grid are left at their calm values so copy stays crisp.
+   prefers-reduced-motion neutralises every animation regardless (see the bottom
+   of this file), and the boot script already renders data-fx="off" for those
+   users, so this is motion for people who have asked for none of it to be cut. */
+html[data-fx="on"] body::after { animation: scanlines 12s linear infinite; }
+
+html[data-fx="on"] .gradient-text { animation: hv-sheen 8s linear infinite; }
+
+/* The input card's holo border comes alive: the three-neon gradient slides and
+   brightens (opacity .62, the middle of the old .8 and the calm .4). */
+html[data-fx="on"] .holo::before {
+  background: linear-gradient(115deg, var(--hv-green), var(--hv-cyan), var(--hv-magenta), var(--hv-cyan), var(--hv-green));
+  background-size: 300% 100%;
+  animation: hv-holo 7s linear infinite;
+  opacity: .62;
+}
+
+/* A warmer card-hover glow, tinted by the active mode's accent. */
+html[data-fx="on"] .terminal-card:hover {
+  box-shadow: var(--hv-card-shadow), 0 0 22px -8px color-mix(in srgb, var(--hv-accent, var(--hv-cyan)) 30%, transparent);
 }
 
 /* ── 3D tilt card (JS sets --rx/--ry/--mx/--my) ── */
@@ -363,8 +393,8 @@ body::after {
 }
 .terminal-input:focus {
   outline: none;
-  border-color: var(--hv-green);
-  box-shadow: 0 0 0 1px var(--hv-green), 0 0 16px color-mix(in srgb, var(--hv-green) 25%, transparent);
+  border-color: var(--hv-accent, var(--hv-green));
+  box-shadow: 0 0 0 1px var(--hv-accent, var(--hv-green)), 0 0 16px color-mix(in srgb, var(--hv-accent, var(--hv-green)) 25%, transparent);
 }
 .terminal-input::placeholder { color: var(--hv-ink-dim); opacity: .7; }
 
@@ -380,6 +410,51 @@ body::after {
   background: color-mix(in srgb, var(--hv-green) 16%, transparent);
   box-shadow: 0 0 18px -4px color-mix(in srgb, var(--hv-green) 60%, transparent);
 }
+
+/* ── Mode switcher tabs ──
+   The active tab adopts the selected mode's accent (--hv-accent, set on <main>
+   by page.tsx from ModeMeta.accent) so the whole active surface (tab, input
+   focus, section rail) shares one colour and each mode reads as its own. The
+   aria-selected attribute is the single source of the active state. */
+.mode-tab {
+  border: 1px solid var(--hv-glass-border);
+  color: var(--hv-ink-dim);
+  transition: color .2s, border-color .2s, background-color .2s, box-shadow .2s;
+}
+.mode-tab:hover {
+  border-color: var(--hv-glass-hi);
+  color: var(--hv-ink);
+}
+.mode-tab[aria-selected="true"] {
+  border-color: var(--hv-accent, var(--hv-green));
+  color: var(--hv-accent, var(--hv-green));
+  background: color-mix(in srgb, var(--hv-accent, var(--hv-green)) 10%, transparent);
+  box-shadow: 0 0 14px -2px var(--hv-accent, var(--hv-green));
+}
+
+/* ── Readable prose ── sans-serif for multi-sentence copy, so paragraphs read
+   like text instead of a data dump. Data, labels, headings and badges keep
+   JetBrains Mono (the body default). System stack = zero network, fully offline. */
+.prose-ui {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+  letter-spacing: 0.005em;
+}
+.prose-ui strong, .prose-ui b { font-weight: 600; }
+/* Inline code stays monospace even inside sans prose (identifiers, env vars, paths). */
+.prose-ui code, .prose-ui kbd, .prose-ui pre {
+  font-family: var(--font-jetbrains-mono), "Fira Code", "Courier New", monospace;
+}
+
+/* ── Sticky-offset contract ──────────────────────────────────────────────────
+   The result SectionRail docks just below the app header, and a jumped section
+   must clear both bars. The header is one row (~60px) at sm and up, but its
+   control cluster wraps to a second row on a phone (~92px), so both offsets
+   step at the sm (640px) breakpoint. Tune here if the header height changes;
+   the rail reads --hv-rail-top, every section anchor reads --hv-anchor-top. */
+:root { --hv-rail-top: 96px; --hv-anchor-top: 140px; }
+@media (min-width: 640px) { :root { --hv-rail-top: 64px; --hv-anchor-top: 112px; } }
+.hv-anchor { scroll-margin-top: var(--hv-anchor-top); }
 
 @layer utilities {
   .text-balance { text-wrap: balance; }

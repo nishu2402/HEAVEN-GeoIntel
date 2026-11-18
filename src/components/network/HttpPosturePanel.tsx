@@ -39,7 +39,7 @@ export default function HttpPosturePanel({ http }: { http: HttpProbe }) {
   const weakCookies = http.cookies.filter((c) => !c.secure || !c.httpOnly || !c.sameSite);
 
   return (
-    <div id="sec-http" className="terminal-card p-4 space-y-4 scroll-mt-24">
+    <div id="sec-http" className="terminal-card p-4 space-y-4 hv-anchor">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
           <Lock className="w-3 h-3" /> LIVE HTTP &amp; TLS POSTURE

@@ -38,7 +38,7 @@ export default function EmailPermutations({ domain }: { domain: string }) {
     "w-full bg-transparent border border-[var(--hv-glass-border)] rounded px-2.5 py-1.5 font-mono text-xs text-[var(--hv-ink)] placeholder:text-[var(--hv-ink-dim)] focus:outline-none focus:border-[var(--hv-cyan)]";
 
   return (
-    <div id="sec-emails" className="terminal-card p-4 space-y-3 scroll-mt-24">
+    <div id="sec-emails" className="terminal-card p-4 space-y-3 hv-anchor">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
           <AtSign className="w-3 h-3" /> EMAIL PERMUTATIONS

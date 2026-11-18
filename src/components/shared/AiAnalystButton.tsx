@@ -289,7 +289,7 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
         </select>
       </div>
 
-      <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+      <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug">
         Turn the assessment above into a short written brief. Grounded on the same evidence; the model adds no new facts.
       </p>
 
@@ -312,7 +312,7 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
       {showSetup && (
         <div className="space-y-2 rounded border border-[var(--hv-glass-border)] p-2">
           {hint !== "" && (
-            <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">{hint}</p>
+            <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{hint}</p>
           )}
 
           {/* Cloud provider: create a key, paste it, and optionally keep it. */}
@@ -357,7 +357,7 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
                   {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
                 </button>
               </div>
-              <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">
+              <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug">
                 Run it as typed to use it once and forget it, or press Save to keep it on this machine so you never paste it again. It is never written to browser storage, and the relay never logs or returns it.
               </p>
               {info?.keySource === "ui" && (
@@ -377,7 +377,7 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
           {cloud === null && (
             <div className="flex items-start gap-2">
               <Terminal className="w-3.5 h-3.5 mt-0.5 shrink-0 text-[var(--hv-cyan)]" />
-              <div className="min-w-0 text-[10px] font-mono text-[var(--hv-ink-dim)] leading-relaxed">
+              <div className="min-w-0 text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-relaxed">
                 <span className="block text-[var(--hv-ink)]">Run these in a terminal, then press Check again:</span>
                 <code className="block">ollama serve</code>
                 <code className="block">ollama pull {model.trim() || DEFAULT_MODEL.ollama}</code>
@@ -444,14 +444,14 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
         />
       )}
 
-      <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">{analystDisclosure(provider)}</p>
+      <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{analystDisclosure(provider)}</p>
 
       {status === "error" && <p className="text-[11px] font-mono text-[#ff6b6b]">{error}</p>}
 
       {status === "done" && result && (
         <div className="space-y-2">
           {result.narrative.map((line, i) => (
-            <p key={i} className="text-[12px] font-mono text-[var(--hv-ink)] leading-snug">{line}</p>
+            <p key={i} className="text-[12px] prose-ui text-[var(--hv-ink)] leading-snug">{line}</p>
           ))}
           {result.unverifiedClaims.length > 0 && (
             <div className="flex items-start gap-2 rounded border border-[#ffaa00]/40 bg-[#ffaa00]/10 p-2">
@@ -460,7 +460,7 @@ export default function AiAnalystButton({ analysis }: { analysis: AiAnalysis }) 
                 <span className="block text-[11px] font-mono text-[#ffaa00]">
                   Unverified: not in the evidence, verify before trusting
                 </span>
-                <span className="block text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug break-words">
+                <span className="block text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug break-words">
                   {result.unverifiedClaims.join(", ")}
                 </span>
               </div>

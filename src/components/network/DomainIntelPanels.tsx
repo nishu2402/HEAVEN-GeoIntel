@@ -15,7 +15,7 @@ import type { DomainLookupResponse } from "@/lib/types";
  */
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] font-mono text-[var(--hv-ink-dim)] leading-snug">{children}</p>;
+  return <p className="text-[10px] prose-ui text-[var(--hv-ink-dim)] leading-snug">{children}</p>;
 }
 
 /** Per-source subdomain counts: 9 from a recent-issuance feed is not 9 subdomains. */
@@ -52,7 +52,7 @@ export function PassiveDnsPanel({ data }: { data: DomainLookupResponse }) {
   if (!p || p.records.length === 0) return null;
   const shown = p.records.slice(0, 40);
   return (
-    <div id="sec-pdns" className="terminal-card p-4 space-y-2 scroll-mt-24">
+    <div id="sec-pdns" className="terminal-card p-4 space-y-2 hv-anchor">
       <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
         <History className="w-3.5 h-3.5" /> PASSIVE DNS: {p.total.toLocaleString()} historical records
       </div>
@@ -85,7 +85,7 @@ export function HostExposurePanel({ data }: { data: DomainLookupResponse }) {
   );
   if (hosts.length === 0) return null;
   return (
-    <div id="sec-exposure" className="terminal-card p-4 space-y-2 scroll-mt-24">
+    <div id="sec-exposure" className="terminal-card p-4 space-y-2 hv-anchor">
       <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
         <Server className="w-3.5 h-3.5" /> HOST EXPOSURE: this domain&apos;s own addresses
       </div>
@@ -119,7 +119,7 @@ export function ReverseIpPanel({ data }: { data: DomainLookupResponse }) {
   const r = data.reverseIp;
   if (!r || r.hosts.length === 0) return null;
   return (
-    <div id="sec-cohosted" className="terminal-card p-4 space-y-2 scroll-mt-24">
+    <div id="sec-cohosted" className="terminal-card p-4 space-y-2 hv-anchor">
       <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
         <Share2 className="w-3.5 h-3.5" /> CO-HOSTED: {r.total.toLocaleString()} names on {r.ip}
       </div>
@@ -146,7 +146,7 @@ export function LeiPanel({ data }: { data: DomainLookupResponse }) {
   const exact = lei.records.filter((r) => r.exact);
   const others = lei.records.filter((r) => !r.exact);
   return (
-    <div id="sec-lei" className="terminal-card p-4 space-y-2 scroll-mt-24">
+    <div id="sec-lei" className="terminal-card p-4 space-y-2 hv-anchor">
       <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
         <Building2 className="w-3.5 h-3.5" /> LEGAL ENTITY: {lei.query}
       </div>

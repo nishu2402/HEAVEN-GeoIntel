@@ -131,7 +131,7 @@ export default function NumberAnatomyPanel({ data }: Props) {
               : <><AlertTriangle className="w-3 h-3" /> INVALID</>}
           </span>
         </div>
-        <p className="text-[13px] font-mono leading-snug" style={{ color: type.color + "cc" }}>
+        <p className="text-[13px] prose-ui leading-snug" style={{ color: type.color + "cc" }}>
           {type.description}
         </p>
       </div>

@@ -44,6 +44,41 @@ was on screen: if a run stops with "no terminal-card matched …" or "could not
 find …", fix the needle in the script instead of committing the shot it would
 have taken.
 
+## Record the motion demo
+
+The README's **See It In Action** section leads with an animated GIF
+(`docs/assets/demo.gif`) that records one real lookup in motion. The guided
+screenshot walkthrough below it reads fine on its own, so the GIF is a bonus, not
+a dependency. This is how to record it the first time or refresh it later.
+
+Record it the same way as the screenshots, against a dev server pointed at an
+empty state directory:
+
+```bash
+HV_DATA_DIR=/tmp/shot-state node node_modules/next/dist/bin/next dev -p 3987
+SCREENSHOT_BASE=http://localhost:3987 npm run demo
+```
+
+`npm run demo` runs [`scripts/capture-demo.mjs`](../../scripts/capture-demo.mjs).
+It drives the same offline test number, opens the command palette, then stops on
+each panel of the result in turn, and assembles the frames into
+`docs/assets/demo.gif` with **ffmpeg** (`brew install ffmpeg` if you do not have
+it). If ffmpeg is missing, the frames are kept and the exact assemble command is
+printed, so you can run it by hand.
+
+The script then shrinks the GIF with **gifsicle** (`brew install gifsicle`). The
+app animates faintly even at rest, so its frames are never identical, and the
+lossy pass is what makes the file several times smaller. gifsicle is optional but
+recommended: without it the ffmpeg GIF is left in place, just much larger.
+
+The README already points its See It In Action `<img>` at
+`docs/assets/demo.gif`, so a re-recording just overwrites that file and shows up
+on the next page load. No README edit is needed.
+
+Prefer to record by hand? Start the same empty-state dev server, screen-record
+the browser (on macOS, Shift-Command-5), then convert the clip to a GIF with
+ffmpeg or gifski and save it to `docs/assets/demo.gif`.
+
 ## Not screenshots: the brand assets
 
 The logo files (favicon, app icons, OG image, README hero, `public/brand/*`) are

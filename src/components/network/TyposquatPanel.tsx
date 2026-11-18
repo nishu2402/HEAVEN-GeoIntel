@@ -53,7 +53,7 @@ export default function TyposquatPanel({ domain }: { domain: string }) {
   };
 
   return (
-    <div id="sec-typosquat" className="terminal-card p-4 space-y-3 scroll-mt-24">
+    <div id="sec-typosquat" className="terminal-card p-4 space-y-3 hv-anchor">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="text-[12px] uppercase tracking-widest text-[var(--hv-ink-dim)] flex items-center gap-1.5">
           <Radar className="w-3.5 h-3.5" /> LOOK-ALIKE DOMAINS: {variants.length} generated
